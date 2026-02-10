@@ -168,6 +168,29 @@ fun SettingsScreen(backdrop: LayerBackdrop) {
             )
         }
 
+        // ── Open Source Licenses ──
+        Column(
+            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            BasicText("Open Source Licenses", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+            
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                BasicText("Backdrop (Liquid Glass UI)", style = TextStyle(label, 14.sp, fontWeight = FontWeight.Medium))
+                BasicText("by Kyant", style = TextStyle(sub, 12.sp))
+                BasicText("Licensed under Apache License 2.0", style = TextStyle(sub, 12.sp))
+                BasicText("https://github.com/Kyant0/AndroidLiquidGlass", style = TextStyle(Color(0xFF0088FF), 12.sp))
+            }
+            
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                BasicText("Apache License 2.0", style = TextStyle(label, 13.sp, fontWeight = FontWeight.Medium))
+                BasicText(
+                    "Licensed under the Apache License, Version 2.0. You may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0",
+                    style = TextStyle(sub, 11.sp, lineHeight = 16.sp)
+                )
+            }
+        }
+
         Spacer(Modifier.height(80.dp))
     }
 }

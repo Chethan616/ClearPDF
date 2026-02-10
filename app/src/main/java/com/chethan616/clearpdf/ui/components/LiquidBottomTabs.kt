@@ -107,7 +107,10 @@ fun LiquidBottomTabs(
                     currentIndex = targetIndex
                     animateToValue(targetIndex.toFloat())
                     animationScope.launch {
-                        offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
+                        offsetAnimation.animateTo(
+                            0f,
+                            spring(1f, 300f, 0.5f)
+                        )
                     }
                 },
                 onDrag = { _, dragAmount ->
@@ -194,7 +197,10 @@ fun LiquidBottomTabs(
                             val progress = dampedDragAnimation.pressProgress
                             vibrancy()
                             blur(8f.dp.toPx())
-                            lens(24f.dp.toPx() * progress, 24f.dp.toPx() * progress)
+                            lens(
+                                24f.dp.toPx() * progress,
+                                24f.dp.toPx() * progress
+                            )
                         },
                         highlight = {
                             val progress = dampedDragAnimation.pressProgress
@@ -244,7 +250,10 @@ fun LiquidBottomTabs(
                     },
                     innerShadow = {
                         val progress = dampedDragAnimation.pressProgress
-                        InnerShadow(radius = 8f.dp * progress, alpha = progress)
+                        InnerShadow(
+                            radius = 8f.dp * progress,
+                            alpha = progress
+                        )
                     },
                     layerBlock = {
                         scaleX = dampedDragAnimation.scaleX
