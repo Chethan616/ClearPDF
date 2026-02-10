@@ -12,11 +12,12 @@
 -optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
 -optimizationpasses 5
 -allowaccessmodification
--dontpreverify
 
-# Keep Compose runtime optimized
--keep class androidx.compose.runtime.** { *; }
--keep class androidx.compose.ui.** { *; }
+# Compose already ships its own ProGuard rules via consumer-rules.
+# Only keep what R8 can't infer automatically.
+-keepclassmembers class * {
+    @androidx.compose.runtime.Composable <methods>;
+}
 
 # Remove logging in release
 -assumenosideeffects class android.util.Log {

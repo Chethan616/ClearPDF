@@ -1,5 +1,7 @@
 package com.chethan616.clearpdf.ui.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -35,7 +37,17 @@ fun DocsNavGraph(
     onTabChanged: (Int) -> Unit,
     onPickWallpaper: () -> Unit
 ) {
-    NavHost(navController = navController, startDestination = "home") {
+    // Disable NavHost transition animations - the LiquidBottomTabs already
+    // handles its own spring-based animation. Removing crossfade transitions
+    // eliminates GPU work that competes with the backdrop rendering pipeline.
+    NavHost(
+        navController = navController,
+        startDestination = "home",
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None }
+    ) {
 
         // ── Main tabs ──
 
