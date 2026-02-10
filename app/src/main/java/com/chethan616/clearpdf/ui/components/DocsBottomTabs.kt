@@ -4,8 +4,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Build
-import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -36,12 +36,12 @@ fun DocsBottomTabs(
         }
 
         LiquidBottomTab(onClick = { onTabSelected(1) }) {
-            Icon(Icons.Rounded.Build, contentDescription = "Tools", tint = tint,
+            Icon(Icons.Rounded.GridView, contentDescription = "Tools", tint = tint,
                 modifier = Modifier.size(22.dp))
         }
 
         LiquidBottomTab(onClick = { onTabSelected(2) }) {
-            Icon(Icons.Rounded.Settings, contentDescription = "Settings", tint = tint,
+            Icon(Icons.Rounded.Tune, contentDescription = "Settings", tint = tint,
                 modifier = Modifier.size(22.dp))
         }
     }

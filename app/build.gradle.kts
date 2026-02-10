@@ -20,8 +20,16 @@ android {
         androidResources.localeFilters += arrayOf("en")
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // Default debug keystore
+        }
+    }
+
     buildTypes {
         release {
+            // Use debug signing for testing (replace with proper keystore for production)
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
