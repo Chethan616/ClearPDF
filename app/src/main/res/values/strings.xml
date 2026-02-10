@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ClearPDF</string>
+
+    <!-- App Shortcuts -->
+    <string name="shortcut_open_short">Open PDF</string>
+    <string name="shortcut_open_long">Open a PDF file</string>
+    <string name="shortcut_merge_short">Merge PDFs</string>
+    <string name="shortcut_merge_long">Merge multiple PDFs</string>
+    <string name="shortcut_compress_short">Compress</string>
+    <string name="shortcut_compress_long">Compress a PDF file</string>
+    <string name="shortcut_create_short">Create PDF</string>
+    <string name="shortcut_create_long">Create a new PDF</string>
+</resources>
