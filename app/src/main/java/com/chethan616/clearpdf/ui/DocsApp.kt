@@ -42,7 +42,7 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
  * Provides the wallpaper backdrop, bottom tabs, and navigation host.
  */
 @Composable
-fun DocsApp(shortcutRoute: String? = null) {
+fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = null) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE) }
     var isDarkMode by rememberSaveable { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
@@ -85,7 +85,8 @@ fun DocsApp(shortcutRoute: String? = null) {
                     onDarkModeChanged = { 
                         isDarkMode = it
                         prefs.edit().putBoolean("dark_mode", it).apply()
-                    }
+                    },
+                    incomingPdfUri = incomingPdfUri
                 )
             }
 

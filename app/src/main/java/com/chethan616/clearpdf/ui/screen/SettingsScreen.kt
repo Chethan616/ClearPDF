@@ -3,8 +3,10 @@ package com.chethan616.clearpdf.ui.screen
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -35,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -223,10 +227,50 @@ fun SettingsScreen(
                 Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), Color(0xFF1976D2))
                 BasicText("Default Quality", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
+
+            // Quality presets
+            val qualities = listOf(
+                Triple(0.15f, "Low", "Smallest file size"),
+                Triple(0.5f, "Medium", "Balanced quality & size"),
+                Triple(0.85f, "High", "Best quality")
+            )
+            qualities.forEach { (target, title, desc) ->
+                val isSelected = when {
+                    target < 0.33f -> defaultQuality < 0.33f
+                    target < 0.66f -> defaultQuality in 0.33f..0.66f
+                    else -> defaultQuality > 0.66f
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSelected) Color(0xFF1976D2).copy(0.15f) else Color.Transparent)
+                        .clickable { defaultQuality = target }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        Modifier.size(20.dp).clip(RoundedCornerShape(10.dp))
+                            .background(if (isSelected) Color(0xFF1976D2) else sub.copy(0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isSelected) {
+                            Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(Color.White))
+                        }
+                    }
+                    Column {
+                        BasicText(title, style = TextStyle(label, 14.sp, fontWeight = FontWeight.Medium))
+                        BasicText(desc, style = TextStyle(sub, 12.sp))
+                    }
+                }
+            }
+
+            // Fine-tune slider
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                BasicText("Low", style = TextStyle(sub, 13.sp))
+                BasicText("Smaller file", style = TextStyle(sub, 13.sp))
                 BasicText("${(defaultQuality * 100).toInt()}%", style = TextStyle(text, 13.sp, fontWeight = FontWeight.SemiBold))
-                BasicText("High", style = TextStyle(sub, 13.sp))
+                BasicText("Better quality", style = TextStyle(sub, 13.sp))
             }
             LiquidSlider(
                 value = { defaultQuality },
@@ -248,7 +292,7 @@ fun SettingsScreen(
             BasicText("ClearPDF", style = TextStyle(text, 18.sp, fontWeight = FontWeight.Bold))
             BasicText("Version 1.0.0", style = TextStyle(sub, 13.sp))
             BasicText(
-                "A beautiful liquid glass PDF editor",
+                "Made by Chethan with ❤",
                 style = TextStyle(sub, 13.sp, textAlign = TextAlign.Center)
             )
         }
@@ -261,7 +305,7 @@ fun SettingsScreen(
             BasicText("Open Source Licenses", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                BasicText("Backdrop (Liquid Glass UI)", style = TextStyle(label, 14.sp, fontWeight = FontWeight.Medium))
+                BasicText("AndroidLiquidGlass (Backdrop)", style = TextStyle(label, 14.sp, fontWeight = FontWeight.Medium))
                 BasicText("by Kyant", style = TextStyle(sub, 12.sp))
                 BasicText("Licensed under Apache License 2.0", style = TextStyle(sub, 12.sp))
                 BasicText("https://github.com/Kyant0/AndroidLiquidGlass", style = TextStyle(Color(0xFF0088FF), 12.sp))

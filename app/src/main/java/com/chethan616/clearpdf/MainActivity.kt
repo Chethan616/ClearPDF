@@ -1,5 +1,7 @@
 package com.chethan616.clearpdf
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -34,8 +36,25 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Handle PDF file opened from other apps (VIEW/SEND)
+        val incomingPdfUri: Uri? = when (intent?.action) {
+            Intent.ACTION_VIEW -> intent.data
+            Intent.ACTION_SEND -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                }
+            }
+            else -> null
+        }?.takeIf { intent?.type == "application/pdf" || intent?.data?.toString()?.endsWith(".pdf") == true }
+
+        // If a PDF was shared/opened, navigate to viewer with that URI
+        val effectiveRoute = if (incomingPdfUri != null) "pdf_viewer" else shortcutRoute
+
         setContent {
-            DocsApp(shortcutRoute = shortcutRoute)
+            DocsApp(shortcutRoute = effectiveRoute, incomingPdfUri = incomingPdfUri)
         }
     }
 

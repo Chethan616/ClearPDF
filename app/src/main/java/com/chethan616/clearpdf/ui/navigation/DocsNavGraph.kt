@@ -13,6 +13,9 @@ import com.chethan616.clearpdf.domain.usecase.CompressPdfUseCase
 import com.chethan616.clearpdf.domain.usecase.CreatePdfUseCase
 import com.chethan616.clearpdf.domain.usecase.MergePdfUseCase
 import com.chethan616.clearpdf.domain.usecase.OpenPdfUseCase
+import android.net.Uri
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import com.chethan616.clearpdf.ui.screen.CompressPdfScreen
 import com.chethan616.clearpdf.ui.screen.CreatePdfScreen
 import com.chethan616.clearpdf.ui.screen.HomeScreen
@@ -37,7 +40,8 @@ fun DocsNavGraph(
     selectedTab: Int,
     onTabChanged: (Int) -> Unit,
     isDarkMode: Boolean,
-    onDarkModeChanged: (Boolean) -> Unit
+    onDarkModeChanged: (Boolean) -> Unit,
+    incomingPdfUri: Uri? = null
 ) {
     // Disable NavHost transition animations - the LiquidBottomTabs already
     // handles its own spring-based animation. Removing crossfade transitions
@@ -96,6 +100,7 @@ fun DocsNavGraph(
         }
 
         composable("pdf_viewer") {
+            val context = LocalContext.current
             val vm: PdfViewerViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
@@ -103,6 +108,12 @@ fun DocsNavGraph(
                         PdfViewerViewModel(OpenPdfUseCase(PdfServiceLocator.pdfViewer)) as T
                 }
             )
+            // Auto-load PDF if opened from external app
+            LaunchedEffect(incomingPdfUri) {
+                if (incomingPdfUri != null) {
+                    vm.openPdf(context, incomingPdfUri)
+                }
+            }
             PdfViewerScreen(backdrop = backdrop, viewModel = vm, onBack = { navController.popBackStack() })
         }
 
