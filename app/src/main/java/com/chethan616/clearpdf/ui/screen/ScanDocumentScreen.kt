@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.screen
 
+import android.app.Activity
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -15,6 +16,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -37,7 +39,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -47,23 +48,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CropFree
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DocumentScanner
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.PictureAsPdf
-import androidx.compose.material.icons.rounded.Scanner
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -76,7 +74,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
 import coil3.compose.rememberAsyncImagePainter
 import com.chethan616.clearpdf.data.model.ScanFilter
 import com.chethan616.clearpdf.ui.components.LiquidButton
@@ -85,6 +82,11 @@ import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.ScanViewModel
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_JPEG
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_FULL
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -108,17 +110,21 @@ fun ScanDocumentScreen(
     val accent = Color(0xFF4CAF50)
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
+    val activity = context as Activity
     val scope = rememberCoroutineScope()
 
-    // Camera capture URI
-    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
-
-    // Camera launcher
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        if (success && pendingCameraUri != null) {
-            viewModel.onScanComplete(listOf(pendingCameraUri!!))
+    // ── ML Kit Document Scanner (created lazily to avoid composition crash) ──
+    val scannerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val scanResult = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
+            scanResult?.pages?.let { pages ->
+                val uris = pages.mapNotNull { it.imageUri }
+                if (uris.isNotEmpty()) {
+                    viewModel.onScanComplete(uris, ScanFilter.ORIGINAL)
+                }
+            }
         }
         viewModel.cancelScanning()
     }
@@ -128,23 +134,30 @@ fun ScanDocumentScreen(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
         if (uris.isNotEmpty()) {
-            viewModel.onScanComplete(uris)
+            viewModel.onScanComplete(uris, ScanFilter.AUTO)
         }
         viewModel.cancelScanning()
     }
 
-    // Camera permission
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            val uri = createImageUri(context)
-            pendingCameraUri = uri
-            cameraLauncher.launch(uri)
-        } else {
-            viewModel.setError("Camera permission is required to scan documents")
-            viewModel.cancelScanning()
-        }
+    fun launchDocumentScanner() {
+        viewModel.startScanning()
+        val options = GmsDocumentScannerOptions.Builder()
+            .setGalleryImportAllowed(true)
+            .setPageLimit(100)
+            .setResultFormats(RESULT_FORMAT_JPEG)
+            .setScannerMode(SCANNER_MODE_FULL)
+            .build()
+        val scanner = GmsDocumentScanning.getClient(options)
+        scanner.getStartScanIntent(activity)
+            .addOnSuccessListener { intentSender ->
+                scannerLauncher.launch(
+                    IntentSenderRequest.Builder(intentSender).build()
+                )
+            }
+            .addOnFailureListener { e ->
+                viewModel.setError("Scanner not available: ${e.message}")
+                viewModel.cancelScanning()
+            }
     }
 
     Column(
@@ -211,7 +224,7 @@ fun ScanDocumentScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Icon(
-                        Icons.Rounded.Scanner,
+                        Icons.Rounded.DocumentScanner,
                         contentDescription = null,
                         tint = accent,
                         modifier = Modifier.size(72.dp)
@@ -222,17 +235,14 @@ fun ScanDocumentScreen(
                         style = TextStyle(text, 20.sp, FontWeight.Bold, textAlign = TextAlign.Center)
                     )
                     BasicText(
-                        "Take photos of documents or pick from gallery\nto create a PDF",
+                        "Auto-detect edges, crop & enhance\nyour documents like a pro scanner",
                         style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center)
                     )
                     Spacer(Modifier.height(8.dp))
 
-                    // Camera button
+                    // Scan button (ML Kit Document Scanner)
                     LiquidButton(
-                        onClick = {
-                            viewModel.startScanning()
-                            cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
-                        },
+                        onClick = { launchDocumentScanner() },
                         backdrop = backdrop,
                         tint = accent,
                         modifier = Modifier.fillMaxWidth(0.8f)
@@ -243,7 +253,7 @@ fun ScanDocumentScreen(
                             modifier = Modifier.padding(vertical = 12.dp)
                         ) {
                             Icon(Icons.Rounded.CameraAlt, null, Modifier.size(20.dp), Color.White)
-                            BasicText("Scan with Camera", style = TextStyle(Color.White, 16.sp, FontWeight.SemiBold))
+                            BasicText("Scan Document", style = TextStyle(Color.White, 16.sp, FontWeight.SemiBold))
                         }
                     }
 
@@ -280,18 +290,20 @@ fun ScanDocumentScreen(
                     BasicText("Features", style = TextStyle(text, 16.sp, FontWeight.Bold))
 
                     val features = listOf(
-                        "Multi-page document scanning",
-                        "Import from gallery",
-                        "Export as PDF",
-                        "Automatic page ordering"
+                        Icons.Rounded.CropFree to "Auto edge detection & cropping",
+                        Icons.Rounded.CameraAlt to "Perspective correction",
+                        Icons.Rounded.DocumentScanner to "Multi-page document scanning",
+                        Icons.Rounded.PhotoLibrary to "Import from gallery",
+                        Icons.Rounded.PictureAsPdf to "Export as PDF"
                     )
 
-                    features.forEach { feature ->
+                    features.forEach { (icon, feature) ->
                         Row(
                             Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Rounded.Check, null, Modifier.size(20.dp), accent)
+                            Icon(icon, null, Modifier.size(20.dp), accent)
                             BasicText(feature, style = TextStyle(text, 14.sp))
                         }
                     }
@@ -319,18 +331,15 @@ fun ScanDocumentScreen(
                         style = TextStyle(text, 16.sp, FontWeight.SemiBold)
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // Add more pages
+                        // Scan more pages
                         Icon(
-                            Icons.Rounded.CameraAlt, "Add from camera",
+                            Icons.Rounded.DocumentScanner, "Scan more",
                             Modifier
                                 .size(28.dp)
                                 .clip(CircleShape)
                                 .background(accent.copy(alpha = 0.15f))
                                 .padding(4.dp)
-                                .clickable {
-                                    viewModel.startScanning()
-                                    cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
-                                },
+                                .clickable { launchDocumentScanner() },
                             accent
                         )
                         Icon(
@@ -442,7 +451,7 @@ fun ScanDocumentScreen(
                             ScanFilter.COLOR to "Vivid"
                         )
                         filters.forEach { (filter, label) ->
-                            val currentFilter = state.scannedPages.firstOrNull()?.filter ?: ScanFilter.AUTO
+                            val currentFilter = state.scannedPages.firstOrNull()?.filter ?: ScanFilter.ORIGINAL
                             val isSelected = currentFilter == filter
                             Box(
                                 Modifier
@@ -504,22 +513,6 @@ fun ScanDocumentScreen(
             }
         }
     }
-}
-
-/**
- * Create a temporary image URI for camera capture
- */
-private fun createImageUri(context: Context): Uri {
-    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    val imageFile = File(
-        context.cacheDir,
-        "scan_${timeStamp}.jpg"
-    )
-    return FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.provider",
-        imageFile
-    )
 }
 
 /**

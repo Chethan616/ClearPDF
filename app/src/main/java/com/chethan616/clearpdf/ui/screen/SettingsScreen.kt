@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
@@ -51,6 +53,7 @@ import com.chethan616.clearpdf.ui.components.LiquidToggle
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
+import kotlinx.coroutines.delay
 
 @Composable
 fun SettingsScreen(
@@ -65,10 +68,17 @@ fun SettingsScreen(
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
 
-    var autoCompress by remember { mutableStateOf(true) }
-    var keepOriginal by remember { mutableStateOf(true) }
-    var notifications by remember { mutableStateOf(false) }
-    var defaultQuality by remember { mutableFloatStateOf(0.7f) }
+    var autoCompress by remember { mutableStateOf(AppSettingsManager.getAutoCompress(context)) }
+    var keepOriginal by remember { mutableStateOf(AppSettingsManager.getKeepOriginal(context)) }
+    var notifications by remember { mutableStateOf(AppSettingsManager.getNotifications(context)) }
+    var defaultQuality by remember { mutableFloatStateOf(AppSettingsManager.getDefaultQuality(context)) }
+
+    // Debounce quality slider persistence to prevent lag
+    LaunchedEffect(defaultQuality) {
+        delay(300L)
+        AppSettingsManager.setDefaultQuality(context, defaultQuality)
+    }
+
     var saveUri by remember { mutableStateOf(SaveLocationManager.getSaveUri(context)) }
 
     val folderPicker = rememberLauncherForActivityResult(
@@ -175,7 +185,7 @@ fun SettingsScreen(
                 title = "Auto-Compress",
                 desc = "Compress PDFs automatically on import",
                 checked = autoCompress,
-                onCheckedChange = { autoCompress = it },
+                onCheckedChange = { autoCompress = it; AppSettingsManager.setAutoCompress(context, it) },
                 backdrop = backdrop,
                 labelColor = label,
                 subColor = sub
@@ -186,7 +196,7 @@ fun SettingsScreen(
                 title = "Keep Original",
                 desc = "Preserve original file after editing",
                 checked = keepOriginal,
-                onCheckedChange = { keepOriginal = it },
+                onCheckedChange = { keepOriginal = it; AppSettingsManager.setKeepOriginal(context, it) },
                 backdrop = backdrop,
                 labelColor = label,
                 subColor = sub
@@ -197,7 +207,7 @@ fun SettingsScreen(
                 title = "Notifications",
                 desc = "Show notification when tasks complete",
                 checked = notifications,
-                onCheckedChange = { notifications = it },
+                onCheckedChange = { notifications = it; AppSettingsManager.setNotifications(context, it) },
                 backdrop = backdrop,
                 labelColor = label,
                 subColor = sub

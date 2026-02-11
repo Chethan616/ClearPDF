@@ -21,15 +21,15 @@ class ScanViewModel : ViewModel() {
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
 
     /**
-     * Handle scan completion from ML Kit
+     * Handle scan completion from ML Kit or gallery
      */
-    fun onScanComplete(uris: List<Uri>) {
+    fun onScanComplete(uris: List<Uri>, defaultFilter: ScanFilter = ScanFilter.AUTO) {
         viewModelScope.launch {
             val newPages = uris.map { uri ->
                 ScanPage(
                     id = UUID.randomUUID().toString(),
                     uri = uri,
-                    filter = ScanFilter.AUTO
+                    filter = defaultFilter
                 )
             }
             

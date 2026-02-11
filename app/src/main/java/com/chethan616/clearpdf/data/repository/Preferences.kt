@@ -91,3 +91,41 @@ object SaveLocationManager {
             .apply()
     }
 }
+
+/**
+ * Manages app-wide settings (auto-compress, keep original, notifications, default quality).
+ */
+object AppSettingsManager {
+    private const val PREFS_NAME = "clearpdf_settings"
+    private const val KEY_AUTO_COMPRESS = "auto_compress"
+    private const val KEY_KEEP_ORIGINAL = "keep_original"
+    private const val KEY_NOTIFICATIONS = "notifications"
+    private const val KEY_DEFAULT_QUALITY = "default_quality"
+
+    private fun prefs(context: Context): SharedPreferences =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    fun getAutoCompress(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_AUTO_COMPRESS, true)
+
+    fun setAutoCompress(context: Context, value: Boolean) =
+        prefs(context).edit().putBoolean(KEY_AUTO_COMPRESS, value).apply()
+
+    fun getKeepOriginal(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_KEEP_ORIGINAL, true)
+
+    fun setKeepOriginal(context: Context, value: Boolean) =
+        prefs(context).edit().putBoolean(KEY_KEEP_ORIGINAL, value).apply()
+
+    fun getNotifications(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_NOTIFICATIONS, false)
+
+    fun setNotifications(context: Context, value: Boolean) =
+        prefs(context).edit().putBoolean(KEY_NOTIFICATIONS, value).apply()
+
+    fun getDefaultQuality(context: Context): Float =
+        prefs(context).getFloat(KEY_DEFAULT_QUALITY, 0.7f)
+
+    fun setDefaultQuality(context: Context, value: Float) =
+        prefs(context).edit().putFloat(KEY_DEFAULT_QUALITY, value).apply()
+}

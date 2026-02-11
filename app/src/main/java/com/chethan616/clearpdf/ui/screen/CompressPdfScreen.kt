@@ -22,12 +22,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.Compress
+import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -61,6 +66,17 @@ fun CompressPdfScreen(
     val accent = Color(0xFF388E3C)
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
+
+    // Slider maps: LOW=0..0.33, MEDIUM=0.33..0.66, HIGH=0.66..1.0
+    var sliderValue by remember {
+        mutableFloatStateOf(
+            when (state.selectedQuality) {
+                CompressionQuality.LOW -> 0.15f
+                CompressionQuality.MEDIUM -> 0.5f
+                CompressionQuality.HIGH -> 0.85f
+            }
+        )
+    }
 
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -119,7 +135,7 @@ fun CompressPdfScreen(
                 BasicText("Size: ${state.originalSizeBytes / 1024} KB", style = TextStyle(sub, 13.sp))
             }
 
-            // Quality selection
+            // Quality presets
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -130,9 +146,9 @@ fun CompressPdfScreen(
                 BasicText("Compression Level", style = TextStyle(text, 15.sp, fontWeight = FontWeight.Medium))
 
                 val qualities = listOf(
-                    Triple(CompressionQuality.LOW, "Maximum", "Smallest file, lower quality"),
+                    Triple(CompressionQuality.LOW, "Maximum Compression", "Smallest file, lower quality"),
                     Triple(CompressionQuality.MEDIUM, "Balanced", "Good balance of size and quality"),
-                    Triple(CompressionQuality.HIGH, "Minimum", "Best quality, larger file")
+                    Triple(CompressionQuality.HIGH, "Minimum Compression", "Best quality, larger file")
                 )
 
                 qualities.forEach { (quality, title, desc) ->
@@ -142,7 +158,14 @@ fun CompressPdfScreen(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(if (isSelected) accent.copy(0.15f) else Color.Transparent)
-                            .clickable { viewModel.onQualityChanged(quality) }
+                            .clickable {
+                                viewModel.onQualityChanged(quality)
+                                sliderValue = when (quality) {
+                                    CompressionQuality.LOW -> 0.15f
+                                    CompressionQuality.MEDIUM -> 0.5f
+                                    CompressionQuality.HIGH -> 0.85f
+                                }
+                            }
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -169,6 +192,48 @@ fun CompressPdfScreen(
                         }
                     }
                 }
+            }
+
+            // Quality slider for fine-tuning
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .liquidGlassPanel(backdrop, uiSensor)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), accent)
+                    BasicText("Fine-tune Quality", style = TextStyle(text, 15.sp, fontWeight = FontWeight.Medium))
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    BasicText("Smaller file", style = TextStyle(sub, 13.sp))
+                    val qualityLabel = when (state.selectedQuality) {
+                        CompressionQuality.LOW -> "Low"
+                        CompressionQuality.MEDIUM -> "Medium"
+                        CompressionQuality.HIGH -> "High"
+                    }
+                    BasicText(qualityLabel, style = TextStyle(text, 13.sp, fontWeight = FontWeight.SemiBold))
+                    BasicText("Better quality", style = TextStyle(sub, 13.sp))
+                }
+                LiquidSlider(
+                    value = { sliderValue },
+                    onValueChange = { v ->
+                        sliderValue = v
+                        val newQuality = when {
+                            v < 0.33f -> CompressionQuality.LOW
+                            v < 0.66f -> CompressionQuality.MEDIUM
+                            else -> CompressionQuality.HIGH
+                        }
+                        if (newQuality != state.selectedQuality) {
+                            viewModel.onQualityChanged(newQuality)
+                        }
+                    },
+                    valueRange = 0f..1f,
+                    visibilityThreshold = 0.005f,
+                    backdrop = backdrop,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             // Compress button

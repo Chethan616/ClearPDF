@@ -2,6 +2,7 @@ package com.chethan616.clearpdf.ui.viewmodel
 
 import android.content.ContentValues
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -29,7 +30,8 @@ data class SplitPdfUiState(
     val splitAfterPages: List<Int> = emptyList(),
     val isSplitting: Boolean = false,
     val resultMessage: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val pageThumbnails: List<Bitmap?> = emptyList()
 )
 
 class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
@@ -43,12 +45,31 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                 val renderer = withContext(Dispatchers.IO) { android.graphics.pdf.PdfRenderer(fd) }
                 val name = queryFileName(context, uri) ?: "Unknown.pdf"
                 val count = renderer.pageCount
+
+                // Render small thumbnails for all pages
+                val thumbnails = withContext(Dispatchers.IO) {
+                    (0 until count).map { i ->
+                        try {
+                            val page = renderer.openPage(i)
+                            val thumbWidth = 300
+                            val scale = thumbWidth.toFloat() / page.width
+                            val thumbHeight = (page.height * scale).toInt()
+                            val bmp = Bitmap.createBitmap(thumbWidth, thumbHeight, Bitmap.Config.ARGB_8888)
+                            bmp.eraseColor(android.graphics.Color.WHITE)
+                            page.render(bmp, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                            page.close()
+                            bmp
+                        } catch (_: Exception) { null }
+                    }
+                }
+
                 renderer.close()
                 fd.close()
                 _uiState.value = SplitPdfUiState(
                     sourceFileName = name,
                     sourceUri = uri,
-                    pageCount = count
+                    pageCount = count,
+                    pageThumbnails = thumbnails
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(errorMessage = e.message)
