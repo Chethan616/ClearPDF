@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
@@ -22,7 +23,8 @@ fun Modifier.liquidGlassPanel(
     backdrop: Backdrop,
     uiSensor: UISensor
 ): Modifier {
-    val isLightTheme = !isSystemInDarkTheme()
+    val isDarkMode = LocalIsDarkMode.current
+    val isLightTheme = !isDarkMode
     val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f) else Color(0xFF1E1E1E).copy(0.4f)
     return this.drawBackdrop(
         backdrop = backdrop,

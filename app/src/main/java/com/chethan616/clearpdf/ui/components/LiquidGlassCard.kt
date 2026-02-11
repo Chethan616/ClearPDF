@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.InteractiveHighlight
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.kyant.backdrop.Backdrop
@@ -53,7 +54,8 @@ fun LiquidGlassCard(
     modifier: Modifier = Modifier,
     icon: @Composable () -> Unit
 ) {
-    val isLight = !isSystemInDarkTheme()
+    val isDarkMode = LocalIsDarkMode.current
+    val isLight = !isDarkMode
     val container = if (isLight) Color(0xFFFAFAFA).copy(0.4f) else Color(0xFF1E1E1E).copy(0.4f)
     val titleColor = if (isLight) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
     val subtitleColor = if (isLight) Color(0xFF777777) else Color(0xFFAAAAAA)

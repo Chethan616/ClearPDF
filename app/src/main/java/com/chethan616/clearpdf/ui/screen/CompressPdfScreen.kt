@@ -38,6 +38,7 @@ import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.CompressPdfViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
@@ -49,7 +50,8 @@ fun CompressPdfScreen(
     onBack: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
-    val isLight = !isSystemInDarkTheme()
+    val isDarkMode = LocalIsDarkMode.current
+    val isLight = !isDarkMode
     val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
     val sub = if (isLight) Color(0xFF888888) else Color(0xFFAAAAAA)
     val accent = Color(0xFF388E3C)

@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -46,14 +47,17 @@ import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 
 @Composable
-fun SettingsScreen(backdrop: LayerBackdrop) {
-    val isLight = !isSystemInDarkTheme()
+fun SettingsScreen(
+    backdrop: LayerBackdrop,
+    isDarkMode: Boolean = false,
+    onDarkModeChanged: (Boolean) -> Unit = {}
+) {
+    val isLight = !isDarkMode
     val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
     val sub = if (isLight) Color(0xFF888888) else Color(0xFFAAAAAA)
     val label = if (isLight) Color(0xFF444444) else Color(0xFFCCCCCC)
     val uiSensor = rememberUISensor()
 
-    var darkMode by remember { mutableStateOf(false) }
     var autoCompress by remember { mutableStateOf(true) }
     var keepOriginal by remember { mutableStateOf(true) }
     var notifications by remember { mutableStateOf(false) }
@@ -64,6 +68,7 @@ fun SettingsScreen(backdrop: LayerBackdrop) {
             .fillMaxSize()
             .statusBarsPadding()
             .padding(16.dp)
+            .graphicsLayer { }
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -80,8 +85,8 @@ fun SettingsScreen(backdrop: LayerBackdrop) {
                 icon = Icons.Rounded.DarkMode,
                 title = "Dark Mode",
                 desc = "Use dark colour scheme",
-                checked = darkMode,
-                onCheckedChange = { darkMode = it },
+                checked = isDarkMode,
+                onCheckedChange = onDarkModeChanged,
                 backdrop = backdrop,
                 labelColor = label,
                 subColor = sub

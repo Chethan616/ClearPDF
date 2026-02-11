@@ -37,6 +37,7 @@ import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassCard
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.CreateMode
 import com.chethan616.clearpdf.ui.viewmodel.CreatePdfViewModel
@@ -49,7 +50,8 @@ fun CreatePdfScreen(
     onBack: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
-    val isLight = !isSystemInDarkTheme()
+    val isDarkMode = LocalIsDarkMode.current
+    val isLight = !isDarkMode
     val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
     val sub = if (isLight) Color(0xFF888888) else Color(0xFFAAAAAA)
     val accent = Color(0xFFE65100)

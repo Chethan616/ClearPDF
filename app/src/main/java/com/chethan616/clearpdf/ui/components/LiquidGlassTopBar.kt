@@ -15,6 +15,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
@@ -35,7 +36,8 @@ fun LiquidGlassTopBar(
     modifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {}
 ) {
-    val isLightTheme = !isSystemInDarkTheme()
+    val isDarkMode = LocalIsDarkMode.current
+    val isLightTheme = !isDarkMode
     val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.35f) else Color(0xFF1E1E1E).copy(0.35f)
     val titleColor = if (isLightTheme) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
 

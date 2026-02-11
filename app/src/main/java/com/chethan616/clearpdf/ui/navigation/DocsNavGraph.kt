@@ -35,6 +35,8 @@ fun DocsNavGraph(
     backdrop: LayerBackdrop,
     selectedTab: Int,
     onTabChanged: (Int) -> Unit,
+    isDarkMode: Boolean,
+    onDarkModeChanged: (Boolean) -> Unit,
     onPickWallpaper: () -> Unit
 ) {
     // Disable NavHost transition animations - the LiquidBottomTabs already
@@ -73,7 +75,11 @@ fun DocsNavGraph(
         }
 
         composable("settings") {
-            SettingsScreen(backdrop = backdrop)
+            SettingsScreen(
+                backdrop = backdrop,
+                isDarkMode = isDarkMode,
+                onDarkModeChanged = onDarkModeChanged
+            )
         }
 
         // ── Tool detail screens ──

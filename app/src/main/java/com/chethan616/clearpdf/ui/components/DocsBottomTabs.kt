@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.kyant.backdrop.Backdrop
 
 @Composable
@@ -20,7 +21,8 @@ fun DocsBottomTabs(
     backdrop: Backdrop,
     modifier: Modifier = Modifier
 ) {
-    val isLight = !isSystemInDarkTheme()
+    val isDarkMode = LocalIsDarkMode.current
+    val isLight = !isDarkMode
     val tint = if (isLight) Color(0xFF444444) else Color(0xFFCCCCCC)
 
     LiquidBottomTabs(

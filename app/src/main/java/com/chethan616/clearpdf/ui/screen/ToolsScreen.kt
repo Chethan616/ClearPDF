@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.ui.components.LiquidGlassCard
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 
@@ -42,7 +43,8 @@ fun ToolsScreen(
     onNavigateToCompressPdf: () -> Unit,
     onNavigateToCreatePdf: () -> Unit
 ) {
-    val isLight = !isSystemInDarkTheme()
+    val isDarkMode = LocalIsDarkMode.current
+    val isLight = !isDarkMode
     val sub = if (isLight) Color(0xFF666666) else Color(0xFFAAAAAA)
     val uiSensor = rememberUISensor()
 

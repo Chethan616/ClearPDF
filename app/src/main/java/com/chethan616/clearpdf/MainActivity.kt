@@ -35,13 +35,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val isLightTheme = !isSystemInDarkTheme()
-
-            CompositionLocalProvider(
-                LocalIndication provides ripple(color = if (isLightTheme) Color.Black else Color.White)
-            ) {
-                DocsApp(shortcutRoute = shortcutRoute)
-            }
+            DocsApp(shortcutRoute = shortcutRoute)
         }
     }
 
