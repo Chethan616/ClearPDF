@@ -18,7 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.PictureAsPdf
-import androidx.compose.material.icons.rounded.Wallpaper
+import androidx.compose.material.icons.rounded.Scanner
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -41,7 +41,7 @@ import com.kyant.backdrop.backdrops.LayerBackdrop
 fun HomeScreen(
     backdrop: LayerBackdrop,
     onNavigateToOpenPdf: () -> Unit,
-    onPickWallpaper: () -> Unit
+    onNavigateToScan: () -> Unit
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val isLight = !isDarkMode
@@ -79,7 +79,7 @@ fun HomeScreen(
             )
             Spacer(Modifier.height(8.dp))
             BasicText(
-                "Your all-in-one PDF toolkit.\nOpen, merge, split, compress, and create PDFs.",
+                "Your all-in-one PDF toolkit.\nScan, open, merge, split, compress, and create PDFs.",
                 style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center)
             )
             Spacer(Modifier.height(20.dp))
@@ -95,15 +95,15 @@ fun HomeScreen(
                     }
                 }
                 LiquidButton(
-                    onClick = onPickWallpaper, backdrop = backdrop,
-                    surfaceColor = if (isLight) Color.White.copy(0.3f) else Color.White.copy(0.1f)
+                    onClick = onNavigateToScan, backdrop = backdrop,
+                    tint = Color(0xFF4CAF50)
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Rounded.Wallpaper, null, Modifier.size(18.dp), text)
-                        BasicText("Wallpaper", style = TextStyle(text, 14.sp, FontWeight.Medium))
+                        Icon(Icons.Rounded.Scanner, null, Modifier.size(18.dp), Color.White)
+                        BasicText("Scan", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
                     }
                 }
             }

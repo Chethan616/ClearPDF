@@ -90,4 +90,13 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(project(":backdrop"))
     implementation(project(":pdf-core"))
+    
+    // ML Kit Document Scanner & Camera
+    implementation(libs.play.services.mlkit.scanner)
+    implementation(libs.camerax.core)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
+    implementation(libs.coil.compose)
+    implementation(libs.acccompanist.permissions)
 }

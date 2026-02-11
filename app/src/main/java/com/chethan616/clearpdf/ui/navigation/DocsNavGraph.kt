@@ -21,12 +21,14 @@ import com.chethan616.clearpdf.ui.screen.MergePdfScreen
 import com.chethan616.clearpdf.ui.screen.PdfViewerScreen
 import com.chethan616.clearpdf.ui.screen.SettingsScreen
 import com.chethan616.clearpdf.ui.screen.SplitPdfScreen
+import com.chethan616.clearpdf.ui.screen.ScanDocumentScreen
 import com.chethan616.clearpdf.ui.screen.ToolsScreen
 import com.chethan616.clearpdf.ui.viewmodel.CompressPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.CreatePdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.MergePdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.PdfViewerViewModel
 import com.chethan616.clearpdf.ui.viewmodel.SplitPdfViewModel
+import com.chethan616.clearpdf.ui.viewmodel.ScanViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
 
 @Composable
@@ -36,8 +38,7 @@ fun DocsNavGraph(
     selectedTab: Int,
     onTabChanged: (Int) -> Unit,
     isDarkMode: Boolean,
-    onDarkModeChanged: (Boolean) -> Unit,
-    onPickWallpaper: () -> Unit
+    onDarkModeChanged: (Boolean) -> Unit
 ) {
     // Disable NavHost transition animations - the LiquidBottomTabs already
     // handles its own spring-based animation. Removing crossfade transitions
@@ -59,7 +60,9 @@ fun DocsNavGraph(
                 onNavigateToOpenPdf = {
                     navController.navigate("pdf_viewer") { launchSingleTop = true }
                 },
-                onPickWallpaper = onPickWallpaper
+                onNavigateToScan = {
+                    navController.navigate("scan_document") { launchSingleTop = true }
+                }
             )
         }
 
@@ -83,6 +86,15 @@ fun DocsNavGraph(
         }
 
         // ── Tool detail screens ──
+
+        composable("scan_document") {
+            val vm: ScanViewModel = viewModel()
+            ScanDocumentScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() }
+            )
+        }
 
         composable("pdf_viewer") {
             val vm: PdfViewerViewModel = viewModel(

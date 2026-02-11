@@ -52,21 +52,6 @@ fun DocsApp(shortcutRoute: String? = null) {
         contentAlignment = Alignment.TopCenter
     ) {
         var painter: Painter? by remember { mutableStateOf(null) }
-        val pickMedia = rememberLauncherForActivityResult(
-            ActivityResultContracts.PickVisualMedia()
-        ) { uri ->
-            if (uri != null) {
-                try {
-                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        val imageBitmap = BitmapFactory.decodeStream(inputStream)?.asImageBitmap()
-                        if (imageBitmap != null) {
-                            painter = BitmapPainter(imageBitmap)
-                        }
-                    }
-                } catch (_: Exception) {
-                }
-            }
-        }
 
         val backdrop = rememberLayerBackdrop()
         val navController = rememberNavController()
@@ -100,11 +85,6 @@ fun DocsApp(shortcutRoute: String? = null) {
                     onDarkModeChanged = { 
                         isDarkMode = it
                         prefs.edit().putBoolean("dark_mode", it).apply()
-                    },
-                    onPickWallpaper = {
-                        pickMedia.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
                     }
                 )
             }
