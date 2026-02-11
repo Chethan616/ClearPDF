@@ -1,6 +1,6 @@
 package com.chethan616.clearpdf.ui.screen
 
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,27 +15,34 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.Scanner
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.ui.components.LiquidButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassCard
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -49,6 +56,9 @@ fun HomeScreen(
     val sub = if (isLight) Color(0xFF666666) else Color(0xFFAAAAAA)
     val accent = Color(0xFF0088FF)
     val uiSensor = rememberUISensor()
+    val context = LocalContext.current
+
+    val recentsState = remember { mutableStateOf(RecentFilesManager.getRecents(context)) }
 
     Column(
         Modifier
@@ -116,26 +126,67 @@ fun HomeScreen(
                 .liquidGlassPanel(backdrop, uiSensor)
                 .padding(20.dp)
         ) {
-            BasicText("Recent Files", style = TextStyle(text, 16.sp, FontWeight.Bold))
-            Spacer(Modifier.height(12.dp))
-            listOf("Annual Report 2025.pdf", "Contract Draft.pdf", "Invoice_0042.pdf").forEach { file ->
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                BasicText("Recent Files", style = TextStyle(text, 16.sp, FontWeight.Bold))
+                if (recentsState.value.isNotEmpty()) {
                     Icon(
-                        Icons.Rounded.PictureAsPdf, null,
-                        Modifier.size(28.dp), Color(0xFFE53935)
+                        Icons.Rounded.DeleteOutline, "Clear recents",
+                        Modifier
+                            .size(20.dp)
+                            .clickable {
+                                RecentFilesManager.clearRecents(context)
+                                recentsState.value = emptyList()
+                            },
+                        sub
                     )
-                    Column {
-                        BasicText(file, style = TextStyle(text, 14.sp, FontWeight.Medium))
-                        BasicText("Opened yesterday", style = TextStyle(sub, 11.sp))
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            if (recentsState.value.isEmpty()) {
+                BasicText("No recent files", style = TextStyle(sub, 14.sp))
+            } else {
+                recentsState.value.forEach { recent ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onNavigateToOpenPdf() }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.PictureAsPdf, null,
+                            Modifier.size(28.dp), Color(0xFFE53935)
+                        )
+                        Column(Modifier.weight(1f)) {
+                            BasicText(recent.name, style = TextStyle(text, 14.sp, FontWeight.Medium))
+                            val timeStr = formatTimestamp(recent.timestamp)
+                            val sizeStr = if (recent.sizeBytes > 0) " · ${recent.sizeBytes / 1024} KB" else ""
+                            val pageStr = if (recent.pageCount > 0) " · ${recent.pageCount} pages" else ""
+                            BasicText("$timeStr$sizeStr$pageStr", style = TextStyle(sub, 11.sp))
+                        }
                     }
                 }
             }
         }
 
         Spacer(Modifier.height(80.dp))
+    }
+}
+
+private fun formatTimestamp(ts: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - ts
+    return when {
+        diff < 60_000 -> "Just now"
+        diff < 3_600_000 -> "${diff / 60_000} min ago"
+        diff < 86_400_000 -> "${diff / 3_600_000}h ago"
+        diff < 172_800_000 -> "Yesterday"
+        else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(ts))
     }
 }

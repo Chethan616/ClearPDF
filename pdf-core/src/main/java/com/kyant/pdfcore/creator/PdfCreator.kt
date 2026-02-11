@@ -65,7 +65,16 @@ class PdfCreatorImpl : PdfCreator {
         pageCount: Int,
         outputUri: Uri
     ): PdfDocument {
-        TODO("Create blank PDF using android.graphics.pdf.PdfDocument")
+        val doc = android.graphics.pdf.PdfDocument()
+        for (i in 0 until pageCount) {
+            val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, i).create()
+            val page = doc.startPage(pageInfo)
+            page.canvas.drawColor(android.graphics.Color.WHITE)
+            doc.finishPage(page)
+        }
+        context.contentResolver.openOutputStream(outputUri)?.use { doc.writeTo(it) }
+        doc.close()
+        return PdfDocument(uri = outputUri, name = "Blank.pdf", pageCount = pageCount)
     }
 
     override fun createFromImages(
@@ -73,7 +82,16 @@ class PdfCreatorImpl : PdfCreator {
         images: List<Bitmap>,
         outputUri: Uri
     ): PdfDocument {
-        TODO("Draw each Bitmap onto a PdfDocument.Page canvas and save")
+        val doc = android.graphics.pdf.PdfDocument()
+        images.forEachIndexed { index, bitmap ->
+            val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height, index).create()
+            val page = doc.startPage(pageInfo)
+            page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+            doc.finishPage(page)
+        }
+        context.contentResolver.openOutputStream(outputUri)?.use { doc.writeTo(it) }
+        doc.close()
+        return PdfDocument(uri = outputUri, name = "Created.pdf", pageCount = images.size)
     }
 
     override fun createFromText(
@@ -81,6 +99,46 @@ class PdfCreatorImpl : PdfCreator {
         text: String,
         outputUri: Uri
     ): PdfDocument {
-        TODO("Layout text with StaticLayout, draw onto PdfDocument.Page canvas")
+        val doc = android.graphics.pdf.PdfDocument()
+        val pageWidth = 595
+        val pageHeight = 842
+        val margin = 72f
+        val textPaint = android.text.TextPaint().apply {
+            textSize = 14f
+            color = android.graphics.Color.BLACK
+            isAntiAlias = true
+        }
+        val usableWidth = (pageWidth - margin * 2).toInt()
+
+        val lines = text.split("\n")
+        var yPos = margin
+        var pageIndex = 0
+        var currentPage: android.graphics.pdf.PdfDocument.Page? = null
+        var canvas: android.graphics.Canvas? = null
+
+        fun startNewPage() {
+            currentPage?.let { doc.finishPage(it) }
+            val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageIndex++).create()
+            currentPage = doc.startPage(pageInfo)
+            canvas = currentPage!!.canvas
+            canvas!!.drawColor(android.graphics.Color.WHITE)
+            yPos = margin
+        }
+        startNewPage()
+
+        for (line in lines) {
+            val sl = android.text.StaticLayout.Builder.obtain(line, 0, line.length, textPaint, usableWidth).build()
+            if (yPos + sl.height > pageHeight - margin) startNewPage()
+            canvas!!.save()
+            canvas!!.translate(margin, yPos)
+            sl.draw(canvas!!)
+            canvas!!.restore()
+            yPos += sl.height + 4f
+        }
+        currentPage?.let { doc.finishPage(it) }
+
+        context.contentResolver.openOutputStream(outputUri)?.use { doc.writeTo(it) }
+        doc.close()
+        return PdfDocument(uri = outputUri, name = "Created.pdf", pageCount = pageIndex)
     }
 }

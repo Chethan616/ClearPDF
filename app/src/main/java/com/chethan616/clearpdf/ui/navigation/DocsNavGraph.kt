@@ -13,7 +13,6 @@ import com.chethan616.clearpdf.domain.usecase.CompressPdfUseCase
 import com.chethan616.clearpdf.domain.usecase.CreatePdfUseCase
 import com.chethan616.clearpdf.domain.usecase.MergePdfUseCase
 import com.chethan616.clearpdf.domain.usecase.OpenPdfUseCase
-import com.chethan616.clearpdf.domain.usecase.SplitPdfUseCase
 import com.chethan616.clearpdf.ui.screen.CompressPdfScreen
 import com.chethan616.clearpdf.ui.screen.CreatePdfScreen
 import com.chethan616.clearpdf.ui.screen.HomeScreen
@@ -123,7 +122,7 @@ fun DocsNavGraph(
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
                     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-                        SplitPdfViewModel(SplitPdfUseCase()) as T
+                        SplitPdfViewModel(PdfServiceLocator.pdfSplitter) as T
                 }
             )
             SplitPdfScreen(backdrop = backdrop, viewModel = vm, onBack = { navController.popBackStack() })

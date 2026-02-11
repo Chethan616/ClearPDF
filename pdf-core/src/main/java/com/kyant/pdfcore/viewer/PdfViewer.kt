@@ -42,15 +42,54 @@ interface PdfViewer {
  */
 class PdfViewerImpl : PdfViewer {
 
+    private val renderers = mutableMapOf<Uri, android.graphics.pdf.PdfRenderer>()
+    private val fds = mutableMapOf<Uri, android.os.ParcelFileDescriptor>()
+
     override fun open(context: Context, uri: Uri): PdfDocument {
-        TODO("Open PDF using PdfRenderer or third-party library")
+        val fd = context.contentResolver.openFileDescriptor(uri, "r")
+            ?: throw IllegalArgumentException("Cannot open file: $uri")
+        val renderer = android.graphics.pdf.PdfRenderer(fd)
+        fds[uri] = fd
+        renderers[uri] = renderer
+
+        val name = queryFileName(context, uri) ?: "Unknown.pdf"
+        val size = fd.statSize
+
+        return PdfDocument(
+            uri = uri,
+            name = name,
+            pageCount = renderer.pageCount,
+            sizeBytes = size
+        )
     }
 
     override fun renderPage(document: PdfDocument, pageIndex: Int, width: Int): Bitmap? {
-        TODO("Render page bitmap — PdfRenderer.Page.render()")
+        val renderer = renderers[document.uri] ?: return null
+        if (pageIndex < 0 || pageIndex >= renderer.pageCount) return null
+
+        val page = renderer.openPage(pageIndex)
+        val ratio = page.height.toFloat() / page.width.toFloat()
+        val height = (width * ratio).toInt()
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(android.graphics.Color.WHITE)
+        page.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+        page.close()
+        return bitmap
     }
 
     override fun close(document: PdfDocument) {
-        TODO("Close PdfRenderer and release file descriptor")
+        renderers.remove(document.uri)?.close()
+        fds.remove(document.uri)?.close()
+    }
+
+    private fun queryFileName(context: Context, uri: Uri): String? {
+        return try {
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (idx >= 0) cursor.getString(idx) else null
+                } else null
+            }
+        } catch (_: Exception) { null }
     }
 }

@@ -6,6 +6,8 @@ import com.kyant.pdfcore.creator.PdfCreator
 import com.kyant.pdfcore.creator.PdfCreatorImpl
 import com.kyant.pdfcore.merger.PdfMerger
 import com.kyant.pdfcore.merger.PdfMergerImpl
+import com.kyant.pdfcore.splitter.PdfSplitter
+import com.kyant.pdfcore.splitter.PdfSplitterImpl
 import com.kyant.pdfcore.viewer.PdfViewer
 import com.kyant.pdfcore.viewer.PdfViewerImpl
 
@@ -14,4 +16,5 @@ object PdfServiceLocator {
     val pdfMerger: PdfMerger by lazy { PdfMergerImpl() }
     val pdfCreator: PdfCreator by lazy { PdfCreatorImpl() }
     val pdfCompressor: PdfCompressor by lazy { PdfCompressorImpl() }
+    val pdfSplitter: PdfSplitter by lazy { PdfSplitterImpl() }
 }

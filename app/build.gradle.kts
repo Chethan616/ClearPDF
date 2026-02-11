@@ -99,4 +99,5 @@ dependencies {
     implementation(libs.camerax.view)
     implementation(libs.coil.compose)
     implementation(libs.acccompanist.permissions)
+    implementation("androidx.documentfile:documentfile:1.0.1")
 }

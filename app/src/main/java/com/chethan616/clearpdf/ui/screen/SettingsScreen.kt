@@ -1,6 +1,9 @@
 package com.chethan616.clearpdf.ui.screen
 
-import androidx.compose.foundation.isSystemInDarkTheme
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,10 +21,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.FileCopy
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,11 +37,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.LiquidToggle
@@ -57,11 +63,27 @@ fun SettingsScreen(
     val sub = if (isLight) Color(0xFF888888) else Color(0xFFAAAAAA)
     val label = if (isLight) Color(0xFF444444) else Color(0xFFCCCCCC)
     val uiSensor = rememberUISensor()
+    val context = LocalContext.current
 
     var autoCompress by remember { mutableStateOf(true) }
     var keepOriginal by remember { mutableStateOf(true) }
     var notifications by remember { mutableStateOf(false) }
     var defaultQuality by remember { mutableFloatStateOf(0.7f) }
+    var saveUri by remember { mutableStateOf(SaveLocationManager.getSaveUri(context)) }
+
+    val folderPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            // Take persistable permission so we can write there later
+            val flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(uri, flags)
+            val displayPath = uri.lastPathSegment?.replace("primary:", "") ?: uri.toString()
+            SaveLocationManager.setSaveLocation(context, uri, displayPath)
+            saveUri = uri
+        }
+    }
 
     Column(
         Modifier
@@ -91,6 +113,54 @@ fun SettingsScreen(
                 labelColor = label,
                 subColor = sub
             )
+        }
+
+        // ── Save Location ──
+        Column(
+            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            BasicText("Save Location", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), label)
+                Column(Modifier.weight(1f)) {
+                    BasicText(
+                        if (saveUri != null) "Custom Location" else "Default (Downloads)",
+                        style = TextStyle(label, 15.sp, fontWeight = FontWeight.Medium)
+                    )
+                    if (saveUri != null) {
+                        val path = saveUri!!.lastPathSegment?.replace("primary:", "") ?: saveUri.toString()
+                        BasicText(path, style = TextStyle(sub, 12.sp))
+                    } else {
+                        BasicText("PDFs saved to Downloads folder", style = TextStyle(sub, 12.sp))
+                    }
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LiquidButton(
+                    onClick = { folderPicker.launch(null) },
+                    backdrop = backdrop, tint = Color(0xFF1976D2)
+                ) {
+                    BasicText("Choose Folder", style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.Medium))
+                }
+                if (saveUri != null) {
+                    LiquidButton(
+                        onClick = {
+                            SaveLocationManager.clearSaveLocation(context)
+                            saveUri = null
+                        },
+                        backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)
+                    ) {
+                        BasicText("Reset", style = TextStyle(text, 13.sp, fontWeight = FontWeight.Medium))
+                    }
+                }
+            }
         }
 
         // ── File Handling ──
