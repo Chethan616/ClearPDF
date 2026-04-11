@@ -1,11 +1,13 @@
 package com.chethan616.clearpdf.ui.viewmodel
 
+import android.content.Intent
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chethan616.clearpdf.data.repository.RecentFile
@@ -40,6 +42,16 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
 
     fun addFiles(context: Context, uris: List<Uri>) {
         viewModelScope.launch {
+            uris.forEach { uri ->
+                try {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (_: Exception) {
+                    // Some providers do not support persistable grants.
+                }
+            }
             val newNames = uris.map { uri -> queryFileName(context, uri) ?: "Unknown.pdf" }
             _uiState.value = _uiState.value.copy(
                 selectedFiles = _uiState.value.selectedFiles + newNames,
@@ -135,7 +147,12 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
         if (customUri != null) {
             return try {
                 val docUri = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, customUri)
-                docUri?.createFile("application/pdf", fileName)?.uri ?: createDownloadUri(context, fileName)
+                val created = docUri?.createFile("application/pdf", fileName)?.uri
+                if (created != null) {
+                    created
+                } else {
+                    createDownloadUri(context, fileName)
+                }
             } catch (_: Exception) { createDownloadUri(context, fileName) }
         }
         return createDownloadUri(context, fileName)
@@ -148,10 +165,14 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
                 put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
                 put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             }
-            context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv)!!
+            context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv)
+                ?: throw IllegalStateException("Unable to create output in Downloads")
         } else {
-            val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            Uri.fromFile(java.io.File(dir, fileName))
+            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
+            if (!dir.exists()) dir.mkdirs()
+            val file = java.io.File(dir, fileName)
+            if (!file.exists()) file.createNewFile()
+            FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
         }
     }
 }

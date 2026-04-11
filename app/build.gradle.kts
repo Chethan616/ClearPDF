@@ -93,6 +93,7 @@ dependencies {
     
     // ML Kit Document Scanner & Camera
     implementation(libs.play.services.mlkit.scanner)
+    implementation(libs.mlkit.text.recognition)
     implementation(libs.camerax.core)
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)

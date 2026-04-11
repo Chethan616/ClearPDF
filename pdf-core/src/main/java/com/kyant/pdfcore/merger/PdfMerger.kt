@@ -76,7 +76,12 @@ class PdfMergerImpl : PdfMerger {
             fd.close()
         }
 
-        context.contentResolver.openOutputStream(outputUri)?.use { outDoc.writeTo(it) }
+        val mergeOutput = context.contentResolver.openOutputStream(outputUri)
+            ?: throw IllegalStateException("Cannot write merged PDF output")
+        mergeOutput.use {
+            outDoc.writeTo(it)
+            it.flush()
+        }
         outDoc.close()
 
         return PdfDocument(uri = outputUri, name = "Merged.pdf", pageCount = globalPage)
@@ -114,7 +119,12 @@ class PdfMergerImpl : PdfMerger {
             fd.close()
         }
 
-        context.contentResolver.openOutputStream(outputUri)?.use { outDoc.writeTo(it) }
+        val mergePagesOutput = context.contentResolver.openOutputStream(outputUri)
+            ?: throw IllegalStateException("Cannot write merged PDF output")
+        mergePagesOutput.use {
+            outDoc.writeTo(it)
+            it.flush()
+        }
         outDoc.close()
 
         return PdfDocument(uri = outputUri, name = "Merged.pdf", pageCount = globalPage)

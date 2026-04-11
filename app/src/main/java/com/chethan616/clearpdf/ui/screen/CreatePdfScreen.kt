@@ -60,7 +60,11 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.LiquidSaveDialog
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.CreateMode
@@ -81,6 +85,7 @@ fun CreatePdfScreen(
     onViewOutput: (Uri) -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+    var showSaveDialog by remember { mutableStateOf(false) }
     val isDarkMode = LocalIsDarkMode.current
     val isLight = !isDarkMode
     val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
@@ -207,32 +212,7 @@ fun CreatePdfScreen(
             }
         }
 
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .liquidGlassPanel(backdrop, uiSensor)
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            BasicText("File Name (optional)", style = TextStyle(sub, 12.sp))
-            BasicTextField(
-                value = state.pdfFileName,
-                onValueChange = { viewModel.onFileNameChanged(it) },
-                textStyle = TextStyle(text, 15.sp),
-                cursorBrush = SolidColor(accent),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (isLight) Color(0x0A000000) else Color(0x1AFFFFFF))
-                    .padding(12.dp),
-                decorationBox = { inner ->
-                    if (state.pdfFileName.isEmpty()) {
-                        BasicText("my_document.pdf", style = TextStyle(sub.copy(0.55f), 15.sp))
-                    }
-                    inner()
-                }
-            )
-        }
+
 
         when (state.selectedMode) {
             CreateMode.FROM_IMAGES -> {
@@ -434,7 +414,7 @@ fun CreatePdfScreen(
         }
 
         LiquidButton(
-            onClick = { viewModel.onCreate(context) },
+            onClick = { showSaveDialog = true },
             backdrop = backdrop,
             tint = accent,
             isInteractive = !state.isCreating,
@@ -480,5 +460,18 @@ fun CreatePdfScreen(
         }
 
         Spacer(Modifier.height(4.dp))
+    }
+
+    if (showSaveDialog) {
+        LiquidSaveDialog(
+            initialFileName = "ClearPDF_Document.pdf",
+            backdrop = backdrop,
+            uiSensor = uiSensor,
+            onDismiss = { showSaveDialog = false },
+            onSave = { fileName, locationUri ->
+                showSaveDialog = false
+                viewModel.onCreate(context, fileName, locationUri)
+            }
+        )
     }
 }

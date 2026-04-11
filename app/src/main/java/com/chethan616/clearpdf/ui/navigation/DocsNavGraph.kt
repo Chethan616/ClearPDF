@@ -47,6 +47,17 @@ private const val ROUTE_CREATE = "create_pdf"
 private const val ARG_PDF_URI = "uri"
 private const val ROUTE_VIEWER = "$ROUTE_VIEWER_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
 
+private fun parseViewerUriArg(rawArg: String?): Uri? {
+    if (rawArg.isNullOrBlank()) return null
+    val parsed = Uri.parse(rawArg)
+    // Navigation arguments are typically decoded already, but tolerate encoded leftovers.
+    return if (parsed.scheme.isNullOrEmpty() && rawArg.contains('%')) {
+        Uri.parse(Uri.decode(rawArg))
+    } else {
+        parsed
+    }
+}
+
 private fun NavHostController.navigateToPdfViewer(uri: Uri? = null) {
     val route = if (uri == null) {
         ROUTE_VIEWER_BASE
@@ -64,6 +75,8 @@ fun DocsNavGraph(
     onTabChanged: (Int) -> Unit,
     isDarkMode: Boolean,
     onDarkModeChanged: (Boolean) -> Unit,
+    themeMode: Int,
+    onThemeModeChanged: (Int) -> Unit,
     incomingPdfUri: Uri? = null
 ) {
     // Disable NavHost transition animations - the LiquidBottomTabs already
@@ -110,7 +123,9 @@ fun DocsNavGraph(
             SettingsScreen(
                 backdrop = backdrop,
                 isDarkMode = isDarkMode,
-                onDarkModeChanged = onDarkModeChanged
+                onDarkModeChanged = onDarkModeChanged,
+                themeMode = themeMode,
+                onThemeModeChanged = onThemeModeChanged
             )
         }
 
@@ -145,7 +160,7 @@ fun DocsNavGraph(
             )
             val routeUri = backStackEntry.arguments
                 ?.getString(ARG_PDF_URI)
-                ?.let { Uri.parse(Uri.decode(it)) }
+                ?.let { parseViewerUriArg(it) }
             // Auto-load PDF if opened from external app
             LaunchedEffect(routeUri, incomingPdfUri) {
                 val targetUri = routeUri ?: incomingPdfUri

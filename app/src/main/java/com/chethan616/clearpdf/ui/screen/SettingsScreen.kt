@@ -22,6 +22,9 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.FileCopy
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -63,7 +66,9 @@ import kotlinx.coroutines.delay
 fun SettingsScreen(
     backdrop: LayerBackdrop,
     isDarkMode: Boolean = false,
-    onDarkModeChanged: (Boolean) -> Unit = {}
+    onDarkModeChanged: (Boolean) -> Unit = {},
+    themeMode: Int = 0,
+    onThemeModeChanged: (Int) -> Unit = {}
 ) {
     val isLight = !isDarkMode
     val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
@@ -92,7 +97,11 @@ fun SettingsScreen(
             // Take persistable permission so we can write there later
             val flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
                     android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            context.contentResolver.takePersistableUriPermission(uri, flags)
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, flags)
+            } catch (_: Exception) {
+                // Some providers may reject persistable flags; fallback still stores chosen URI.
+            }
             val displayPath = uri.lastPathSegment?.replace("primary:", "") ?: uri.toString()
             SaveLocationManager.setSaveLocation(context, uri, displayPath)
             saveUri = uri
@@ -117,12 +126,17 @@ fun SettingsScreen(
         ) {
             BasicText("Appearance", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
 
-            SettingsToggleRow(
-                icon = Icons.Rounded.DarkMode,
-                title = "Dark Mode",
-                desc = "Use dark colour scheme",
-                checked = isDarkMode,
-                onCheckedChange = onDarkModeChanged,
+            SettingsChoiceRow(
+                icon = Icons.Rounded.Contrast,
+                title = "Appearance",
+                desc = when(themeMode) {
+                    1 -> "Light Mode"
+                    2 -> "Dark Mode"
+                    else -> "System (Automatic)"
+                },
+                choices = listOf("System", "Light", "Dark"),
+                selectedIdx = themeMode,
+                onChoiceSelected = onThemeModeChanged,
                 backdrop = backdrop,
                 labelColor = label,
                 subColor = sub
@@ -292,7 +306,7 @@ fun SettingsScreen(
             BasicText("ClearPDF", style = TextStyle(text, 18.sp, fontWeight = FontWeight.Bold))
             BasicText("Version 1.0.0", style = TextStyle(sub, 13.sp))
             BasicText(
-                "Made by Chethan with ❤",
+                "Made by Chethan616 with ❤",
                 style = TextStyle(sub, 13.sp, textAlign = TextAlign.Center)
             )
         }
@@ -306,7 +320,8 @@ fun SettingsScreen(
             
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 BasicText("AndroidLiquidGlass (Backdrop)", style = TextStyle(label, 14.sp, fontWeight = FontWeight.Medium))
-                BasicText("by Kyant", style = TextStyle(sub, 12.sp))
+                BasicText("This product includes software developed by Kyant.", style = TextStyle(sub, 12.sp))
+                BasicText("AndroidLiquidGlass by Kyant", style = TextStyle(sub, 12.sp))
                 BasicText("Licensed under Apache License 2.0", style = TextStyle(sub, 12.sp))
                 BasicText("https://github.com/Kyant0/AndroidLiquidGlass", style = TextStyle(Color(0xFF0088FF), 12.sp))
             }
@@ -350,5 +365,75 @@ private fun SettingsToggleRow(
             onSelect = onCheckedChange,
             backdrop = backdrop
         )
+    }
+}
+@Composable
+private fun SettingsChoiceRow(
+    icon: ImageVector,
+    title: String,
+    desc: String,
+    choices: List<String>,
+    selectedIdx: Int,
+    onChoiceSelected: (Int) -> Unit,
+    backdrop: LayerBackdrop,
+    labelColor: Color,
+    subColor: Color
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { expanded = !expanded }
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(icon, null, Modifier.size(22.dp), labelColor)
+            Column(Modifier.weight(1f)) {
+                BasicText(title, style = TextStyle(labelColor, 15.sp, fontWeight = FontWeight.Medium))
+                BasicText(desc, style = TextStyle(subColor, 12.sp))
+            }
+            Icon(
+                if (expanded) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
+                null,
+                Modifier.size(18.dp),
+                subColor
+            )
+        }
+
+        if (expanded) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = 34.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                choices.forEachIndexed { index, label ->
+                    val isSelected = index == selectedIdx
+                    LiquidButton(
+                        onClick = { 
+                            onChoiceSelected(index)
+                            expanded = false
+                        },
+                        backdrop = backdrop,
+                        surfaceColor = if (isSelected) Color(0xFF1976D2).copy(0.15f) else Color.White.copy(0.08f),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        BasicText(
+                            label,
+                            style = TextStyle(
+                                if (isSelected) Color(0xFF1976D2) else labelColor,
+                                13.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            ),
+                            modifier = Modifier.padding(vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+        }
     }
 }

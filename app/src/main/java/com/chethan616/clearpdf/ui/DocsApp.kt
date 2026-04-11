@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.chethan616.clearpdf.R
+import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.ui.components.DocsBottomTabs
 import com.chethan616.clearpdf.ui.navigation.DocsNavGraph
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
@@ -45,8 +46,13 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 @Composable
 fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = null) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE) }
-    var isDarkMode by rememberSaveable { mutableStateOf(prefs.getBoolean("dark_mode", false)) }
+    var themeMode by rememberSaveable { mutableIntStateOf(AppSettingsManager.getThemeMode(context)) }
+    val systemDark = isSystemInDarkTheme()
+    val isDarkMode = when (themeMode) {
+        1 -> false
+        2 -> true
+        else -> systemDark
+    }
     
     Box(
         Modifier.fillMaxSize(),
@@ -95,9 +101,11 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     selectedTab = selectedTab,
                     onTabChanged = { selectedTab = it },
                     isDarkMode = isDarkMode,
-                    onDarkModeChanged = { 
-                        isDarkMode = it
-                        prefs.edit().putBoolean("dark_mode", it).apply()
+                    onDarkModeChanged = { /* unused */ },
+                    themeMode = themeMode,
+                    onThemeModeChanged = { 
+                        themeMode = it
+                        AppSettingsManager.setThemeMode(context, it)
                     },
                     incomingPdfUri = incomingPdfUri
                 )

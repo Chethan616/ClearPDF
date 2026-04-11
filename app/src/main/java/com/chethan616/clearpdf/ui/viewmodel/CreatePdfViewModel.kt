@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
@@ -90,7 +91,7 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
         _uiState.update { it.copy(errorMessage = message) }
     }
 
-    fun onCreate(context: Context) {
+    fun onCreate(context: Context, targetFileName: String, overrideUri: Uri?) {
         val state = _uiState.value
         if (state.isCreating) return
 
@@ -120,19 +121,12 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
 
         viewModelScope.launch {
             try {
-                val saveLabel = SaveLocationManager.getSavePathDisplay(context)
-                val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                val fileName = state.pdfFileName.ifBlank {
-                    when (state.selectedMode) {
-                        CreateMode.FROM_IMAGES -> "ClearPDF_Images_$timeStamp"
-                        CreateMode.BLANK -> "ClearPDF_Blank_$timeStamp"
-                        CreateMode.ADVANCED_TEXT -> "ClearPDF_Text_$timeStamp"
-                    }
-                }.let { if (!it.endsWith(".pdf", true)) "$it.pdf" else it }
-
+                val fileName = targetFileName.ifBlank { "ClearPDF_Document.pdf" }
                 val outputUri = withContext(Dispatchers.IO) {
-                    createOutputUri(context, fileName)
+                    createOutputUri(context, fileName, overrideUri)
                 } ?: throw Exception("Failed to create output file")
+                val finalPathUri = overrideUri ?: SaveLocationManager.getSaveUri(context)
+                val saveLabel = finalPathUri?.lastPathSegment?.replace("primary:", "") ?: "Downloads"
 
                 val doc = withContext(Dispatchers.IO) {
                     when (state.selectedMode) {
@@ -182,12 +176,17 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
         }
     }
 
-    private fun createOutputUri(context: Context, fileName: String): Uri? {
-        val customUri = SaveLocationManager.getSaveUri(context)
-        if (customUri != null) {
+    private fun createOutputUri(context: Context, fileName: String, overrideUri: Uri?): Uri? {
+        val targetPath = overrideUri ?: SaveLocationManager.getSaveUri(context)
+        if (targetPath != null) {
             return try {
-                val docUri = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, customUri)
-                docUri?.createFile("application/pdf", fileName)?.uri ?: createDownloadUri(context, fileName)
+                val docUri = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, targetPath)
+                val created = docUri?.createFile("application/pdf", fileName)?.uri
+                if (created != null) {
+                    created
+                } else {
+                    createDownloadUri(context, fileName)
+                }
             } catch (_: Exception) {
                 createDownloadUri(context, fileName)
             }
@@ -203,10 +202,13 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
                 put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             }
             context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: throw IllegalStateException("Unable to create output in Downloads")
         } else {
-            val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
+            if (!dir.exists()) dir.mkdirs()
             val file = File(dir, fileName)
-            Uri.fromFile(file)
+            if (!file.exists()) file.createNewFile()
+            FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
         }
     }
 

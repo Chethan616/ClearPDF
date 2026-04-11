@@ -34,6 +34,8 @@ fun LiquidGlassTopBar(
     backdrop: Backdrop,
     uiSensor: UISensor,
     modifier: Modifier = Modifier,
+    titleFontSize: androidx.compose.ui.unit.TextUnit = 22.sp,
+    fontWeight: FontWeight = FontWeight.Bold,
     actions: @Composable RowScope.() -> Unit = {}
 ) {
     val isDarkMode = LocalIsDarkMode.current
@@ -65,7 +67,7 @@ fun LiquidGlassTopBar(
     ) {
         BasicText(
             text = title,
-            style = TextStyle(color = titleColor, fontSize = 22.sp, fontWeight = FontWeight.Bold),
+            style = TextStyle(color = titleColor, fontSize = titleFontSize, fontWeight = fontWeight),
             modifier = Modifier.weight(1f)
         )
         actions()

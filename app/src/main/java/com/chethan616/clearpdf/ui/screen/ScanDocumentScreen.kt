@@ -18,6 +18,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -75,6 +76,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
+import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.data.model.ScanFilter
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
@@ -545,26 +547,12 @@ private suspend fun savePagesAsPdf(context: Context, uris: List<Uri>, filter: Sc
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val fileName = "ClearPDF_Scan_$timeStamp.pdf"
 
-            val pdfUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                }
-                val uri = context.contentResolver.insert(
-                    MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues
-                )
-                uri?.let {
-                    context.contentResolver.openOutputStream(it)?.use { outputStream ->
-                        pdfDocument.writeTo(outputStream)
-                    }
-                }
-                uri
-            } else {
-                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                val file = File(downloadsDir, fileName)
-                file.outputStream().use { pdfDocument.writeTo(it) }
-                Uri.fromFile(file)
+            val pdfUri = createScanOutputUri(context, fileName)
+            val outputStream = context.contentResolver.openOutputStream(pdfUri)
+                ?: throw IllegalStateException("Unable to open scan output stream")
+            outputStream.use {
+                pdfDocument.writeTo(it)
+                it.flush()
             }
 
             pdfDocument.close()
@@ -574,6 +562,37 @@ private suspend fun savePagesAsPdf(context: Context, uris: List<Uri>, filter: Sc
             null
         }
     }
+}
+
+private fun createScanOutputUri(context: Context, fileName: String): Uri {
+    val customUri = SaveLocationManager.getSaveUri(context)
+    if (customUri != null) {
+        try {
+            val tree = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, customUri)
+            val created = tree?.createFile("application/pdf", fileName)?.uri
+            if (created != null) {
+                return created
+            }
+        } catch (_: Exception) {
+            // Fall back to default Downloads location.
+        }
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+        }
+        return context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            ?: throw IllegalStateException("Unable to create scan output in Downloads")
+    }
+
+    val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
+    if (!dir.exists()) dir.mkdirs()
+    val file = File(dir, fileName)
+    if (!file.exists()) file.createNewFile()
+    return FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
 }
 
 /**

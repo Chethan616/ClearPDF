@@ -4,6 +4,10 @@
 
     <!-- Camera permission for document scanning -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Legacy read access for older providers on Android 12L and below. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- Legacy write access for pre-scoped-storage devices only. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application

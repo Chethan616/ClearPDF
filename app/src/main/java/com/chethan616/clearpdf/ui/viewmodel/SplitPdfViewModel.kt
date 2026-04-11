@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.viewmodel
 
+import android.content.Intent
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -7,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chethan616.clearpdf.data.repository.RecentFile
@@ -51,6 +53,15 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
     fun onSelectFile(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
+                try {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (_: Exception) {
+                    // Some providers do not support persistable grants.
+                }
+
                 val fd = context.contentResolver.openFileDescriptor(uri, "r") ?: return@launch
                 val renderer = withContext(Dispatchers.IO) { android.graphics.pdf.PdfRenderer(fd) }
                 val name = queryFileName(context, uri) ?: "Unknown.pdf"
@@ -138,8 +149,11 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                         val outUri = createOutputUri(context, doc.name)
                         if (firstOutputUri == null) firstOutputUri = outUri
                         val inFile = java.io.File(doc.uri.path!!)
-                        context.contentResolver.openOutputStream(outUri)?.use { out ->
+                        val out = context.contentResolver.openOutputStream(outUri)
+                            ?: throw IllegalStateException("Cannot open split output stream")
+                        out.use {
                             inFile.inputStream().use { it.copyTo(out) }
+                            out.flush()
                         }
                         RecentFilesManager.addRecent(context, RecentFile(
                             name = doc.name, uriString = outUri.toString(),
@@ -226,7 +240,12 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
         if (customUri != null) {
             return try {
                 val docUri = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, customUri)
-                docUri?.createFile("application/pdf", fileName)?.uri ?: createDownloadUri(context, fileName)
+                val created = docUri?.createFile("application/pdf", fileName)?.uri
+                if (created != null) {
+                    created
+                } else {
+                    createDownloadUri(context, fileName)
+                }
             } catch (_: Exception) {
                 createDownloadUri(context, fileName)
             }
@@ -241,10 +260,14 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                 put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
                 put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             }
-            context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv)!!
+            context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv)
+                ?: throw IllegalStateException("Unable to create output in Downloads")
         } else {
-            val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            Uri.fromFile(java.io.File(dir, fileName))
+            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir
+            if (!dir.exists()) dir.mkdirs()
+            val file = java.io.File(dir, fileName)
+            if (!file.exists()) file.createNewFile()
+            FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
         }
     }
 }

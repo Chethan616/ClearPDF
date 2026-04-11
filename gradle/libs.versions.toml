@@ -12,6 +12,7 @@ navigation = "2.9.0"
 lifecycle = "2.9.0"
 serialization = "1.8.1"
 mlkit = "16.0.0"
+mlkitTextRecognition = "16.0.1"
 camerax = "1.4.1"
 coil = "3.0.4"
 accompanist = "0.36.0"
@@ -33,6 +34,7 @@ androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lif
 
 # ML Kit & Scanning
 play-services-mlkit-scanner = { group = "com.google.android.gms", name = "play-services-mlkit-document-scanner", version.ref = "mlkit" }
+mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
 camerax-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
 camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
 camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }

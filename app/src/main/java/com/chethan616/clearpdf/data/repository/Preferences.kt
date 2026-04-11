@@ -101,6 +101,7 @@ object AppSettingsManager {
     private const val KEY_KEEP_ORIGINAL = "keep_original"
     private const val KEY_NOTIFICATIONS = "notifications"
     private const val KEY_DEFAULT_QUALITY = "default_quality"
+    private const val KEY_THEME_MODE = "theme_mode" // 0: System, 1: Light, 2: Dark
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -128,4 +129,10 @@ object AppSettingsManager {
 
     fun setDefaultQuality(context: Context, value: Float) =
         prefs(context).edit().putFloat(KEY_DEFAULT_QUALITY, value).apply()
+
+    fun getThemeMode(context: Context): Int =
+        prefs(context).getInt(KEY_THEME_MODE, 0)
+
+    fun setThemeMode(context: Context, value: Int) =
+        prefs(context).edit().putInt(KEY_THEME_MODE, value).apply()
 }

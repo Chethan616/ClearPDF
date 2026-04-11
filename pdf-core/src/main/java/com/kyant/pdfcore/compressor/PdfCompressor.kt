@@ -100,7 +100,12 @@ class PdfCompressorImpl : PdfCompressor {
         renderer.close()
         fd.close()
 
-        context.contentResolver.openOutputStream(outputUri)?.use { outDoc.writeTo(it) }
+        val compressOutput = context.contentResolver.openOutputStream(outputUri)
+            ?: throw IllegalStateException("Cannot write compressed PDF output")
+        compressOutput.use {
+            outDoc.writeTo(it)
+            it.flush()
+        }
         outDoc.close()
 
         val outSize = try {

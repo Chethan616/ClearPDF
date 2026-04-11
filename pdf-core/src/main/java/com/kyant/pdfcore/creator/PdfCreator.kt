@@ -72,7 +72,12 @@ class PdfCreatorImpl : PdfCreator {
             page.canvas.drawColor(android.graphics.Color.WHITE)
             doc.finishPage(page)
         }
-        context.contentResolver.openOutputStream(outputUri)?.use { doc.writeTo(it) }
+        val blankOutput = context.contentResolver.openOutputStream(outputUri)
+            ?: throw IllegalStateException("Cannot write blank PDF output")
+        blankOutput.use {
+            doc.writeTo(it)
+            it.flush()
+        }
         doc.close()
         return PdfDocument(uri = outputUri, name = "Blank.pdf", pageCount = pageCount)
     }
@@ -89,7 +94,12 @@ class PdfCreatorImpl : PdfCreator {
             page.canvas.drawBitmap(bitmap, 0f, 0f, null)
             doc.finishPage(page)
         }
-        context.contentResolver.openOutputStream(outputUri)?.use { doc.writeTo(it) }
+        val imagesOutput = context.contentResolver.openOutputStream(outputUri)
+            ?: throw IllegalStateException("Cannot write image PDF output")
+        imagesOutput.use {
+            doc.writeTo(it)
+            it.flush()
+        }
         doc.close()
         return PdfDocument(uri = outputUri, name = "Created.pdf", pageCount = images.size)
     }
@@ -137,7 +147,12 @@ class PdfCreatorImpl : PdfCreator {
         }
         currentPage?.let { doc.finishPage(it) }
 
-        context.contentResolver.openOutputStream(outputUri)?.use { doc.writeTo(it) }
+        val textOutput = context.contentResolver.openOutputStream(outputUri)
+            ?: throw IllegalStateException("Cannot write text PDF output")
+        textOutput.use {
+            doc.writeTo(it)
+            it.flush()
+        }
         doc.close()
         return PdfDocument(uri = outputUri, name = "Created.pdf", pageCount = pageIndex)
     }

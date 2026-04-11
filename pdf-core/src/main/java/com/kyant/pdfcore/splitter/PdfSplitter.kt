@@ -47,7 +47,10 @@ class PdfSplitterImpl : PdfSplitter {
             val baseName = source.name.removeSuffix(".pdf")
             val fileName = "${baseName}_page${i + 1}.pdf"
             val outFile = java.io.File(context.cacheDir, fileName)
-            outFile.outputStream().use { outDoc.writeTo(it) }
+            outFile.outputStream().use {
+                outDoc.writeTo(it)
+                it.flush()
+            }
             outDoc.close()
 
             results.add(PdfDocument(uri = Uri.fromFile(outFile), name = fileName, pageCount = 1))
@@ -82,7 +85,12 @@ class PdfSplitterImpl : PdfSplitter {
         renderer.close()
         fd.close()
 
-        context.contentResolver.openOutputStream(outputUri)?.use { outDoc.writeTo(it) }
+        val splitOutput = context.contentResolver.openOutputStream(outputUri)
+            ?: throw IllegalStateException("Cannot write split PDF output")
+        splitOutput.use {
+            outDoc.writeTo(it)
+            it.flush()
+        }
         outDoc.close()
 
         return PdfDocument(uri = outputUri, name = "Split.pdf", pageCount = pages.size)
