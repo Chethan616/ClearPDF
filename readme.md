@@ -18,11 +18,10 @@ ClearPDF is an open-source PDF reader for Android with a modern liquid glass sty
 
 <!-- #sym:## Screenshots -->
 
-Add screenshots in `docs/screenshots/` and update the links below:
-
-| Home | Tools | Viewer |
-| --- | --- | --- |
-| ![Home](docs/screenshots/home.png) | ![Tools](docs/screenshots/tools.png) | ![Viewer](docs/screenshots/viewer.png) |
+| Theme | Home | Tools | Settings |
+| --- | --- | --- | --- |
+| Light | ![Light Home](screenshots/light%20home%20screen.jpg) | ![Light Tools](screenshots/light%20pdf%20tools.jpg) | ![Light Settings](screenshots/light%20settings%20screen.jpg) |
+| Dark | ![Dark Home](screenshots/dark%20home%20screen.jpg) | ![Dark Tools](screenshots/dark%20pdf%20tools.jpg) | ![Dark Settings](screenshots/dark%20settings%20screen.jpg) |
 
 ---
 
