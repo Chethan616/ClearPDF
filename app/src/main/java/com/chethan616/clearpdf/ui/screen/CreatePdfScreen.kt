@@ -1,6 +1,7 @@
 package com.chethan616.clearpdf.ui.screen
 
 import android.app.Activity
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -9,20 +10,24 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.NoteAdd
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
@@ -72,7 +77,8 @@ import kotlinx.coroutines.delay
 fun CreatePdfScreen(
     backdrop: LayerBackdrop,
     viewModel: CreatePdfViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onViewOutput: (Uri) -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     val isDarkMode = LocalIsDarkMode.current
@@ -138,8 +144,10 @@ fun CreatePdfScreen(
     Column(
         Modifier
             .fillMaxSize()
+            .imePadding()
             .statusBarsPadding()
-            .padding(16.dp),
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -230,7 +238,6 @@ fun CreatePdfScreen(
             CreateMode.FROM_IMAGES -> {
                 Column(
                     modifier = Modifier
-                        .weight(1f)
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -289,7 +296,9 @@ fun CreatePdfScreen(
                         }
                     } else {
                         LazyColumn(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 340.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             itemsIndexed(state.selectedImageUris) { index, uri ->
@@ -360,8 +369,8 @@ fun CreatePdfScreen(
             CreateMode.BLANK -> {
                 Column(
                     modifier = Modifier
-                        .weight(1f)
                         .fillMaxWidth()
+                        .heightIn(min = 130.dp, max = 220.dp)
                         .liquidGlassPanel(backdrop, uiSensor)
                         .padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -387,8 +396,8 @@ fun CreatePdfScreen(
             CreateMode.ADVANCED_TEXT -> {
                 Column(
                     modifier = Modifier
-                        .weight(1f)
                         .fillMaxWidth()
+                        .heightIn(min = 220.dp, max = 360.dp)
                         .liquidGlassPanel(backdrop, uiSensor)
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -402,7 +411,7 @@ fun CreatePdfScreen(
                         cursorBrush = SolidColor(accent),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f)
+                            .height(220.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(if (isLight) Color(0x0A000000) else Color(0x1AFFFFFF))
                             .padding(12.dp),
@@ -456,6 +465,17 @@ fun CreatePdfScreen(
         if (!state.resultMessage.isNullOrEmpty()) {
             Column(Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(14.dp)) {
                 BasicText(state.resultMessage!!, style = TextStyle(Color(0xFF388E3C), 14.sp))
+            }
+        }
+
+        state.lastOutputUri?.let { outputUri ->
+            LiquidButton(
+                onClick = { onViewOutput(outputUri) },
+                backdrop = backdrop,
+                tint = Color(0xFF1976D2),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                BasicText("View PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.SemiBold))
             }
         }
 

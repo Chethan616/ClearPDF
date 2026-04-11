@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.screen
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -53,7 +54,8 @@ import kotlinx.coroutines.delay
 fun MergePdfScreen(
     backdrop: LayerBackdrop,
     viewModel: MergePdfViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onViewOutput: (Uri) -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     val isDarkMode = LocalIsDarkMode.current
@@ -193,6 +195,17 @@ fun MergePdfScreen(
         if (!state.resultMessage.isNullOrEmpty()) {
             Column(Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(16.dp)) {
                 BasicText(state.resultMessage!!, style = TextStyle(Color(0xFF388E3C), 14.sp))
+            }
+        }
+
+        state.lastOutputUri?.let { outputUri ->
+            LiquidButton(
+                onClick = { onViewOutput(outputUri) },
+                backdrop = backdrop,
+                tint = Color(0xFF1976D2),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                BasicText("View PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.SemiBold))
             }
         }
 

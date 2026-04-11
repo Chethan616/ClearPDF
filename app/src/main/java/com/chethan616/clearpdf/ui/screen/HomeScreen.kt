@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.screen
 
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -48,7 +49,8 @@ import java.util.Locale
 fun HomeScreen(
     backdrop: LayerBackdrop,
     onNavigateToOpenPdf: () -> Unit,
-    onNavigateToScan: () -> Unit
+    onNavigateToScan: () -> Unit,
+    onRecentFileSelected: (Uri) -> Unit
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val isLight = !isDarkMode
@@ -154,7 +156,7 @@ fun HomeScreen(
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .clickable { onNavigateToOpenPdf() }
+                            .clickable { onRecentFileSelected(recent.uri) }
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)

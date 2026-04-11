@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
+import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.kyant.pdfcore.model.PdfDocument
 import com.kyant.pdfcore.splitter.PdfSplitter
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +39,9 @@ data class SplitPdfUiState(
     val isSplitting: Boolean = false,
     val resultMessage: String? = null,
     val errorMessage: String? = null,
-    val pageThumbnails: List<Bitmap?> = emptyList()
+    val pageThumbnails: List<Bitmap?> = emptyList(),
+    val lastOutputUri: Uri? = null,
+    val saveLocationLabel: String = "Downloads (default)"
 )
 
 class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
@@ -120,17 +123,20 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
 
     fun onSplitAll(context: Context) {
         val srcUri = _uiState.value.sourceUri ?: return
-        _uiState.value = _uiState.value.copy(isSplitting = true, errorMessage = null, resultMessage = null)
+        _uiState.value = _uiState.value.copy(isSplitting = true, errorMessage = null, resultMessage = null, lastOutputUri = null)
         viewModelScope.launch {
             try {
+                val saveLabel = SaveLocationManager.getSavePathDisplay(context)
                 val outDir = Uri.fromFile(context.cacheDir)
                 val source = PdfDocument(uri = srcUri, name = _uiState.value.sourceFileName)
                 val results = withContext(Dispatchers.IO) { splitter.splitAll(context, source, outDir) }
+                var firstOutputUri: Uri? = null
 
                 // Copy split pages to Downloads
                 withContext(Dispatchers.IO) {
                     for (doc in results) {
-                        val outUri = createDownloadUri(context, doc.name)
+                        val outUri = createOutputUri(context, doc.name)
+                        if (firstOutputUri == null) firstOutputUri = outUri
                         val inFile = java.io.File(doc.uri.path!!)
                         context.contentResolver.openOutputStream(outUri)?.use { out ->
                             inFile.inputStream().use { it.copyTo(out) }
@@ -144,7 +150,9 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
 
                 _uiState.value = _uiState.value.copy(
                     isSplitting = false,
-                    resultMessage = "Split into ${results.size} pages\nSaved to Downloads"
+                    lastOutputUri = firstOutputUri,
+                    saveLocationLabel = saveLabel,
+                    resultMessage = "Split into ${results.size} pages\nSaved to $saveLabel"
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -157,15 +165,24 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
 
     fun onExtractPages(context: Context, pages: List<Int>) {
         val srcUri = _uiState.value.sourceUri ?: return
-        _uiState.value = _uiState.value.copy(isSplitting = true, errorMessage = null, resultMessage = null)
+        _uiState.value = _uiState.value.copy(isSplitting = true, errorMessage = null, resultMessage = null, lastOutputUri = null)
         viewModelScope.launch {
             try {
-                val outUri = createDownloadUri(context, "ClearPDF_Extract_${System.currentTimeMillis()}.pdf")
+                val saveLabel = SaveLocationManager.getSavePathDisplay(context)
+                val outUri = createOutputUri(context, "ClearPDF_Extract_${System.currentTimeMillis()}.pdf")
                 val source = PdfDocument(uri = srcUri, name = _uiState.value.sourceFileName)
                 withContext(Dispatchers.IO) { splitter.extractPages(context, source, pages, outUri) }
+                RecentFilesManager.addRecent(context, RecentFile(
+                    name = queryFileName(context, outUri) ?: "Extracted.pdf",
+                    uriString = outUri.toString(),
+                    timestamp = System.currentTimeMillis(),
+                    pageCount = pages.size
+                ))
                 _uiState.value = _uiState.value.copy(
                     isSplitting = false,
-                    resultMessage = "Extracted ${pages.size} pages\nSaved to Downloads"
+                    lastOutputUri = outUri,
+                    saveLocationLabel = saveLabel,
+                    resultMessage = "Extracted ${pages.size} pages\nSaved to $saveLabel"
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -202,6 +219,19 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                 } else null
             }
         } catch (_: Exception) { null }
+    }
+
+    private fun createOutputUri(context: Context, fileName: String): Uri {
+        val customUri = SaveLocationManager.getSaveUri(context)
+        if (customUri != null) {
+            return try {
+                val docUri = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, customUri)
+                docUri?.createFile("application/pdf", fileName)?.uri ?: createDownloadUri(context, fileName)
+            } catch (_: Exception) {
+                createDownloadUri(context, fileName)
+            }
+        }
+        return createDownloadUri(context, fileName)
     }
 
     private fun createDownloadUri(context: Context, fileName: String): Uri {

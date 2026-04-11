@@ -2,6 +2,7 @@ package com.chethan616.clearpdf.ui.viewmodel
 
 import android.content.ContentValues
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
@@ -9,8 +10,10 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
+import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.domain.usecase.CreatePdfUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,7 +37,9 @@ data class CreatePdfUiState(
     val isCreating: Boolean = false,
     val resultMessage: String? = null,
     val errorMessage: String? = null,
-    val pdfFileName: String = ""
+    val pdfFileName: String = "",
+    val lastOutputUri: Uri? = null,
+    val saveLocationLabel: String = "Downloads (default)"
 )
 
 class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewModel() {
@@ -42,7 +47,7 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
     val uiState: StateFlow<CreatePdfUiState> = _uiState.asStateFlow()
 
     fun onModeSelected(mode: CreateMode) {
-        _uiState.update { it.copy(selectedMode = mode, errorMessage = null, resultMessage = null) }
+        _uiState.update { it.copy(selectedMode = mode, errorMessage = null, resultMessage = null, lastOutputUri = null) }
     }
 
     fun onTextChanged(text: String) {
@@ -54,7 +59,7 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
     }
 
     fun onImagesSelected(uris: List<Uri>) {
-        _uiState.update { it.copy(selectedImageUris = it.selectedImageUris + uris) }
+        _uiState.update { it.copy(selectedImageUris = it.selectedImageUris + uris, lastOutputUri = null) }
     }
 
     fun moveImage(fromIndex: Int, toIndex: Int) {
@@ -70,7 +75,7 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
     }
 
     fun removeImage(index: Int) {
-        _uiState.update { it.copy(selectedImageUris = it.selectedImageUris.filterIndexed { i, _ -> i != index }) }
+        _uiState.update { it.copy(selectedImageUris = it.selectedImageUris.filterIndexed { i, _ -> i != index }, lastOutputUri = null) }
     }
 
     fun onBlankPageCountChanged(pageCount: Int) {
@@ -111,10 +116,11 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
             }
         }
 
-        _uiState.update { it.copy(isCreating = true, errorMessage = null, resultMessage = null) }
+        _uiState.update { it.copy(isCreating = true, errorMessage = null, resultMessage = null, lastOutputUri = null) }
 
         viewModelScope.launch {
             try {
+                val saveLabel = SaveLocationManager.getSavePathDisplay(context)
                 val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                 val fileName = state.pdfFileName.ifBlank {
                     when (state.selectedMode) {
@@ -131,9 +137,10 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
                 val doc = withContext(Dispatchers.IO) {
                     when (state.selectedMode) {
                         CreateMode.FROM_IMAGES -> {
+                            val quality = AppSettingsManager.getDefaultQuality(context)
                             val bitmaps = state.selectedImageUris.mapNotNull { uri ->
                                 context.contentResolver.openInputStream(uri)?.use { stream ->
-                                    BitmapFactory.decodeStream(stream)
+                                    BitmapFactory.decodeStream(stream)?.let { optimizeBitmapForQuality(it, quality) }
                                 }
                             }
                             if (bitmaps.isEmpty()) throw Exception("Could not decode any images")
@@ -162,7 +169,9 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
                 _uiState.update {
                     it.copy(
                         isCreating = false,
-                        resultMessage = "Created $fileName (${doc.pageCount} pages)"
+                        lastOutputUri = outputUri,
+                        saveLocationLabel = saveLabel,
+                        resultMessage = "Created $fileName (${doc.pageCount} pages)\nSaved to $saveLabel"
                     )
                 }
             } catch (e: Exception) {
@@ -174,6 +183,19 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
     }
 
     private fun createOutputUri(context: Context, fileName: String): Uri? {
+        val customUri = SaveLocationManager.getSaveUri(context)
+        if (customUri != null) {
+            return try {
+                val docUri = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, customUri)
+                docUri?.createFile("application/pdf", fileName)?.uri ?: createDownloadUri(context, fileName)
+            } catch (_: Exception) {
+                createDownloadUri(context, fileName)
+            }
+        }
+        return createDownloadUri(context, fileName)
+    }
+
+    private fun createDownloadUri(context: Context, fileName: String): Uri? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
@@ -186,5 +208,21 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
             val file = File(dir, fileName)
             Uri.fromFile(file)
         }
+    }
+
+    private fun optimizeBitmapForQuality(source: Bitmap, quality: Float): Bitmap {
+        val clamped = quality.coerceIn(0.2f, 1f)
+        val scale = (0.5f + (clamped * 0.5f)).coerceIn(0.5f, 1f)
+        if (scale >= 0.99f) {
+            return source
+        }
+
+        val targetWidth = (source.width * scale).toInt().coerceAtLeast(1)
+        val targetHeight = (source.height * scale).toInt().coerceAtLeast(1)
+        val resized = Bitmap.createScaledBitmap(source, targetWidth, targetHeight, true)
+        if (resized != source && !source.isRecycled) {
+            source.recycle()
+        }
+        return resized
     }
 }

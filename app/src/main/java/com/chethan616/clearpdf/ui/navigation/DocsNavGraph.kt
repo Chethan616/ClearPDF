@@ -5,7 +5,9 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.NavHostController
+import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.chethan616.clearpdf.data.repository.PdfServiceLocator
@@ -33,6 +35,27 @@ import com.chethan616.clearpdf.ui.viewmodel.SplitPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.ScanViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
 
+private const val ROUTE_HOME = "home"
+private const val ROUTE_TOOLS = "tools"
+private const val ROUTE_SETTINGS = "settings"
+private const val ROUTE_SCAN = "scan_document"
+private const val ROUTE_VIEWER_BASE = "pdf_viewer"
+private const val ROUTE_MERGE = "merge_pdf"
+private const val ROUTE_SPLIT = "split_pdf"
+private const val ROUTE_COMPRESS = "compress_pdf"
+private const val ROUTE_CREATE = "create_pdf"
+private const val ARG_PDF_URI = "uri"
+private const val ROUTE_VIEWER = "$ROUTE_VIEWER_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
+
+private fun NavHostController.navigateToPdfViewer(uri: Uri? = null) {
+    val route = if (uri == null) {
+        ROUTE_VIEWER_BASE
+    } else {
+        "$ROUTE_VIEWER_BASE?$ARG_PDF_URI=${Uri.encode(uri.toString())}"
+    }
+    navigate(route) { launchSingleTop = true }
+}
+
 @Composable
 fun DocsNavGraph(
     navController: NavHostController,
@@ -48,7 +71,7 @@ fun DocsNavGraph(
     // eliminates GPU work that competes with the backdrop rendering pipeline.
     NavHost(
         navController = navController,
-        startDestination = "home",
+        startDestination = ROUTE_HOME,
         enterTransition = { EnterTransition.None },
         exitTransition = { ExitTransition.None },
         popEnterTransition = { EnterTransition.None },
@@ -57,30 +80,33 @@ fun DocsNavGraph(
 
         // ── Main tabs ──
 
-        composable("home") {
+        composable(ROUTE_HOME) {
             HomeScreen(
                 backdrop = backdrop,
                 onNavigateToOpenPdf = {
-                    navController.navigate("pdf_viewer") { launchSingleTop = true }
+                    navController.navigateToPdfViewer()
                 },
                 onNavigateToScan = {
-                    navController.navigate("scan_document") { launchSingleTop = true }
+                    navController.navigate(ROUTE_SCAN) { launchSingleTop = true }
+                },
+                onRecentFileSelected = { uri ->
+                    navController.navigateToPdfViewer(uri)
                 }
             )
         }
 
-        composable("tools") {
+        composable(ROUTE_TOOLS) {
             ToolsScreen(
                 backdrop = backdrop,
-                onNavigateToOpenPdf = { navController.navigate("pdf_viewer") { launchSingleTop = true } },
-                onNavigateToMergePdf = { navController.navigate("merge_pdf") { launchSingleTop = true } },
-                onNavigateToSplitPdf = { navController.navigate("split_pdf") { launchSingleTop = true } },
-                onNavigateToCompressPdf = { navController.navigate("compress_pdf") { launchSingleTop = true } },
-                onNavigateToCreatePdf = { navController.navigate("create_pdf") { launchSingleTop = true } }
+                onNavigateToOpenPdf = { navController.navigateToPdfViewer() },
+                onNavigateToMergePdf = { navController.navigate(ROUTE_MERGE) { launchSingleTop = true } },
+                onNavigateToSplitPdf = { navController.navigate(ROUTE_SPLIT) { launchSingleTop = true } },
+                onNavigateToCompressPdf = { navController.navigate(ROUTE_COMPRESS) { launchSingleTop = true } },
+                onNavigateToCreatePdf = { navController.navigate(ROUTE_CREATE) { launchSingleTop = true } }
             )
         }
 
-        composable("settings") {
+        composable(ROUTE_SETTINGS) {
             SettingsScreen(
                 backdrop = backdrop,
                 isDarkMode = isDarkMode,
@@ -90,7 +116,7 @@ fun DocsNavGraph(
 
         // ── Tool detail screens ──
 
-        composable("scan_document") {
+        composable(ROUTE_SCAN) {
             val vm: ScanViewModel = viewModel()
             ScanDocumentScreen(
                 backdrop = backdrop,
@@ -99,7 +125,16 @@ fun DocsNavGraph(
             )
         }
 
-        composable("pdf_viewer") {
+        composable(
+            route = ROUTE_VIEWER,
+            arguments = listOf(
+                navArgument(ARG_PDF_URI) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
             val context = LocalContext.current
             val vm: PdfViewerViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
@@ -108,16 +143,20 @@ fun DocsNavGraph(
                         PdfViewerViewModel(OpenPdfUseCase(PdfServiceLocator.pdfViewer)) as T
                 }
             )
+            val routeUri = backStackEntry.arguments
+                ?.getString(ARG_PDF_URI)
+                ?.let { Uri.parse(Uri.decode(it)) }
             // Auto-load PDF if opened from external app
-            LaunchedEffect(incomingPdfUri) {
-                if (incomingPdfUri != null) {
-                    vm.openPdf(context, incomingPdfUri)
+            LaunchedEffect(routeUri, incomingPdfUri) {
+                val targetUri = routeUri ?: incomingPdfUri
+                if (targetUri != null) {
+                    vm.openPdf(context, targetUri)
                 }
             }
             PdfViewerScreen(backdrop = backdrop, viewModel = vm, onBack = { navController.popBackStack() })
         }
 
-        composable("merge_pdf") {
+        composable(ROUTE_MERGE) {
             val vm: MergePdfViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
@@ -125,10 +164,15 @@ fun DocsNavGraph(
                         MergePdfViewModel(MergePdfUseCase(PdfServiceLocator.pdfMerger)) as T
                 }
             )
-            MergePdfScreen(backdrop = backdrop, viewModel = vm, onBack = { navController.popBackStack() })
+            MergePdfScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onViewOutput = { uri -> navController.navigateToPdfViewer(uri) }
+            )
         }
 
-        composable("split_pdf") {
+        composable(ROUTE_SPLIT) {
             val vm: SplitPdfViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
@@ -136,10 +180,15 @@ fun DocsNavGraph(
                         SplitPdfViewModel(PdfServiceLocator.pdfSplitter) as T
                 }
             )
-            SplitPdfScreen(backdrop = backdrop, viewModel = vm, onBack = { navController.popBackStack() })
+            SplitPdfScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onViewOutput = { uri -> navController.navigateToPdfViewer(uri) }
+            )
         }
 
-        composable("compress_pdf") {
+        composable(ROUTE_COMPRESS) {
             val vm: CompressPdfViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
@@ -147,10 +196,15 @@ fun DocsNavGraph(
                         CompressPdfViewModel(CompressPdfUseCase(PdfServiceLocator.pdfCompressor)) as T
                 }
             )
-            CompressPdfScreen(backdrop = backdrop, viewModel = vm, onBack = { navController.popBackStack() })
+            CompressPdfScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onViewOutput = { uri -> navController.navigateToPdfViewer(uri) }
+            )
         }
 
-        composable("create_pdf") {
+        composable(ROUTE_CREATE) {
             val vm: CreatePdfViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
@@ -158,7 +212,12 @@ fun DocsNavGraph(
                         CreatePdfViewModel(CreatePdfUseCase(PdfServiceLocator.pdfCreator)) as T
                 }
             )
-            CreatePdfScreen(backdrop = backdrop, viewModel = vm, onBack = { navController.popBackStack() })
+            CreatePdfScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onViewOutput = { uri -> navController.navigateToPdfViewer(uri) }
+            )
         }
     }
 }

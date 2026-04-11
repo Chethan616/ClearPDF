@@ -29,7 +29,9 @@ data class MergePdfUiState(
     val isMerging: Boolean = false,
     val resultMessage: String? = null,
     val errorMessage: String? = null,
-    val progress: Float = 0f
+    val progress: Float = 0f,
+    val lastOutputUri: Uri? = null,
+    val saveLocationLabel: String = "Downloads (default)"
 )
 
 class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewModel() {
@@ -43,7 +45,8 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
                 selectedFiles = _uiState.value.selectedFiles + newNames,
                 selectedUris = _uiState.value.selectedUris + uris,
                 resultMessage = null,
-                errorMessage = null
+                errorMessage = null,
+                lastOutputUri = null
             )
         }
     }
@@ -67,7 +70,7 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
         if (index in files.indices) {
             files.removeAt(index)
             uris.removeAt(index)
-            _uiState.value = _uiState.value.copy(selectedFiles = files, selectedUris = uris)
+            _uiState.value = _uiState.value.copy(selectedFiles = files, selectedUris = uris, lastOutputUri = null)
         }
     }
 
@@ -77,9 +80,10 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
             _uiState.value = _uiState.value.copy(errorMessage = "Select at least 2 PDFs")
             return
         }
-        _uiState.value = _uiState.value.copy(isMerging = true, errorMessage = null, resultMessage = null)
+        _uiState.value = _uiState.value.copy(isMerging = true, errorMessage = null, resultMessage = null, lastOutputUri = null)
         viewModelScope.launch {
             try {
+                val saveLabel = SaveLocationManager.getSavePathDisplay(context)
                 val sources = uris.map { uri ->
                     PdfDocument(uri = uri, name = queryFileName(context, uri) ?: "file.pdf")
                 }
@@ -95,7 +99,9 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
                 ))
                 _uiState.value = _uiState.value.copy(
                     isMerging = false,
-                    resultMessage = "Merged ${uris.size} files → $outName\nSaved to Downloads"
+                    lastOutputUri = outputUri,
+                    saveLocationLabel = saveLabel,
+                    resultMessage = "Merged ${uris.size} files → $outName\nSaved to $saveLabel"
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(

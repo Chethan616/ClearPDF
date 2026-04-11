@@ -34,7 +34,9 @@ data class CompressPdfUiState(
     val isCompressing: Boolean = false,
     val resultMessage: String? = null,
     val errorMessage: String? = null,
-    val compressedSizeBytes: Long = -1
+    val compressedSizeBytes: Long = -1,
+    val lastOutputUri: Uri? = null,
+    val saveLocationLabel: String = "Downloads (default)"
 )
 
 class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) : ViewModel() {
@@ -117,9 +119,10 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
 
     fun onCompress(context: Context) {
         val srcUri = _uiState.value.sourceUri ?: return
-        _uiState.value = _uiState.value.copy(isCompressing = true, errorMessage = null, resultMessage = null)
+        _uiState.value = _uiState.value.copy(isCompressing = true, errorMessage = null, resultMessage = null, lastOutputUri = null)
         viewModelScope.launch {
             try {
+                val saveLabel = SaveLocationManager.getSavePathDisplay(context)
                 val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                 val fileName = "ClearPDF_Compressed_$ts.pdf"
                 val outUri = createOutputUri(context, fileName)
@@ -142,7 +145,9 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
                 _uiState.value = _uiState.value.copy(
                     isCompressing = false,
                     compressedSizeBytes = result.sizeBytes,
-                    resultMessage = "Compressed: ${origKb}KB → ${compKb}KB (${reduction}% smaller)\nSaved to Downloads"
+                    lastOutputUri = outUri,
+                    saveLocationLabel = saveLabel,
+                    resultMessage = "Compressed: ${origKb}KB → ${compKb}KB (${reduction}% smaller)\nSaved to $saveLabel"
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
