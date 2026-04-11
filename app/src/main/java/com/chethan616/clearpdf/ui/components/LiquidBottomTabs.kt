@@ -3,7 +3,6 @@ package com.chethan616.clearpdf.ui.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -16,11 +15,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -51,15 +48,13 @@ import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
 
 @Composable
 fun LiquidBottomTabs(
-    selectedTabIndex: () -> Int,
+    selectedTabIndex: Int,
     onTabSelected: (index: Int) -> Unit,
     backdrop: Backdrop,
     tabsCount: Int,
@@ -72,42 +67,55 @@ fun LiquidBottomTabs(
     val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f) else Color(0xFF121212).copy(0.4f)
 
     val tabsBackdrop = rememberLayerBackdrop()
+    val combinedBackdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
 
     BoxWithConstraints(
         modifier,
         contentAlignment = Alignment.CenterStart
     ) {
+        val maxTabIndex = (tabsCount - 1).coerceAtLeast(0)
+        val selectedIndex = selectedTabIndex.coerceIn(0, maxTabIndex)
+        val selectedIndexState = rememberUpdatedState(selectedIndex)
+        val onTabSelectedState = rememberUpdatedState(onTabSelected)
+
         val density = LocalDensity.current
+        val horizontalInsetPx = with(density) { 4f.dp.toPx() }
+        val blurRadiusPx = with(density) { 8f.dp.toPx() }
+        val containerLensRadiusPx = with(density) { 24f.dp.toPx() }
+        val indicatorLensRadiusXPx = with(density) { 10f.dp.toPx() }
+        val indicatorLensRadiusYPx = with(density) { 14f.dp.toPx() }
+        val pressStretchPx = with(density) { 16f.dp.toPx() }
+
         val tabWidth = with(density) {
-            (constraints.maxWidth.toFloat() - 8f.dp.toPx()) / tabsCount
+            (constraints.maxWidth.toFloat() - horizontalInsetPx * 2f) / tabsCount
         }
 
         val offsetAnimation = remember { Animatable(0f) }
-        val panelOffset by remember(density) {
+        val panelOffset by remember(horizontalInsetPx, constraints.maxWidth) {
             derivedStateOf {
-                val fraction = (offsetAnimation.value / constraints.maxWidth).fastCoerceIn(-1f, 1f)
-                with(density) {
-                    4f.dp.toPx() * fraction.sign * EaseOut.transform(abs(fraction))
-                }
+                val width = constraints.maxWidth.coerceAtLeast(1)
+                val fraction = (offsetAnimation.value / width).fastCoerceIn(-1f, 1f)
+                horizontalInsetPx * fraction.sign * EaseOut.transform(abs(fraction))
             }
         }
 
         val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
         val animationScope = rememberCoroutineScope()
-        var currentIndex by remember(selectedTabIndex) { mutableIntStateOf(selectedTabIndex()) }
-        val dampedDragAnimation = remember(animationScope) {
+        val dampedDragAnimation = remember(animationScope, isLtr, tabWidth, tabsCount) {
             DampedDragAnimation(
                 animationScope = animationScope,
-                initialValue = selectedTabIndex().toFloat(),
-                valueRange = 0f..(tabsCount - 1).toFloat(),
+                initialValue = selectedIndex.toFloat(),
+                valueRange = 0f..maxTabIndex.toFloat(),
                 visibilityThreshold = 0.001f,
                 initialScale = 1f,
                 pressedScale = 78f / 56f,
                 onDragStarted = {},
                 onDragStopped = {
-                    val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, tabsCount - 1)
-                    currentIndex = targetIndex
+                    val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, maxTabIndex)
                     animateToValue(targetIndex.toFloat())
+                    if (targetIndex != selectedIndexState.value) {
+                        onTabSelectedState.value(targetIndex)
+                    }
                     animationScope.launch {
                         offsetAnimation.animateTo(
                             0f,
@@ -126,20 +134,12 @@ fun LiquidBottomTabs(
                 }
             )
         }
-        LaunchedEffect(selectedTabIndex) {
-            snapshotFlow { selectedTabIndex() }
-                .collectLatest { index -> currentIndex = index }
-        }
-        LaunchedEffect(dampedDragAnimation) {
-            snapshotFlow { currentIndex }
-                .drop(1)
-                .collectLatest { index ->
-                    dampedDragAnimation.animateToValue(index.toFloat())
-                    onTabSelected(index)
-                }
+
+        LaunchedEffect(selectedIndex, dampedDragAnimation) {
+            dampedDragAnimation.animateToValue(selectedIndex.toFloat())
         }
 
-        val interactiveHighlight = remember(animationScope) {
+        val interactiveHighlight = remember(animationScope, isLtr, tabWidth) {
             InteractiveHighlight(
                 animationScope = animationScope,
                 position = { size, _ ->
@@ -161,12 +161,12 @@ fun LiquidBottomTabs(
                     shape = { Capsule },
                     effects = {
                         vibrancy()
-                        blur(8f.dp.toPx())
-                        lens(24f.dp.toPx(), 24f.dp.toPx())
+                        blur(blurRadiusPx)
+                        lens(containerLensRadiusPx, containerLensRadiusPx)
                     },
                     layerBlock = {
                         val progress = dampedDragAnimation.pressProgress
-                        val scale = lerp(1f, 1f + 16f.dp.toPx() / size.width, progress)
+                        val scale = lerp(1f, 1f + pressStretchPx / size.width, progress)
                         scaleX = scale
                         scaleY = scale
                     },
@@ -198,10 +198,10 @@ fun LiquidBottomTabs(
                         effects = {
                             val progress = dampedDragAnimation.pressProgress
                             vibrancy()
-                            blur(8f.dp.toPx())
+                            blur(blurRadiusPx)
                             lens(
-                                24f.dp.toPx() * progress,
-                                24f.dp.toPx() * progress
+                                containerLensRadiusPx * progress,
+                                containerLensRadiusPx * progress
                             )
                         },
                         highlight = {
@@ -232,13 +232,13 @@ fun LiquidBottomTabs(
                 .then(interactiveHighlight.gestureModifier)
                 .then(dampedDragAnimation.modifier)
                 .drawBackdrop(
-                    backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop),
+                    backdrop = combinedBackdrop,
                     shape = { Capsule },
                     effects = {
                         val progress = dampedDragAnimation.pressProgress
                         lens(
-                            10f.dp.toPx() * progress,
-                            14f.dp.toPx() * progress,
+                            indicatorLensRadiusXPx * progress,
+                            indicatorLensRadiusYPx * progress,
                             chromaticAberration = true
                         )
                     },

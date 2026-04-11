@@ -239,13 +239,13 @@ fun PdfViewerScreen(
         viewModel.clearExportFeedback()
     }
 
-    LaunchedEffect(state.document, controlsVisible, controlsPinned, zoomAnim.value, activeTool, lastInteractionAtMs) {
+    LaunchedEffect(state.document, controlsVisible, controlsPinned, activeTool, lastInteractionAtMs) {
         if (state.document != null && controlsVisible && !controlsPinned
-            && zoomScale <= 1.01f && activeTool == PdfEditTool.None
+            && zoomAnim.value <= 1.01f && activeTool == PdfEditTool.None
         ) {
             val snap = lastInteractionAtMs
             delay(3500)
-            if (controlsVisible && !controlsPinned && zoomScale <= 1.01f
+            if (controlsVisible && !controlsPinned && zoomAnim.value <= 1.01f
                 && activeTool == PdfEditTool.None && snap == lastInteractionAtMs)
                 controlsVisible = false
         }

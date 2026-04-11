@@ -110,7 +110,8 @@ sealed class ExportOverlay {
 class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel() {
     private val _uiState = MutableStateFlow(PdfViewerUiState())
     val uiState: StateFlow<PdfViewerUiState> = _uiState.asStateFlow()
-    private val renderingPages = mutableSetOf<Int>()
+    private val renderingPages = mutableSetOf<Pair<Uri, Int>>()
+    private val renderedPageWidths = mutableMapOf<Int, Int>()
     private val ocrProcessingPages = mutableSetOf<Int>()
     private val textRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
@@ -123,6 +124,8 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
     fun openPdf(context: Context, uri: Uri) {
         _uiState.value.document?.let { openPdfUseCase.close(it) }
         recycleBitmaps(_uiState.value.pageBitmaps)
+        renderingPages.clear()
+        renderedPageWidths.clear()
         ocrProcessingPages.clear()
         _uiState.value = _uiState.value.copy(
             isLoading = true,
@@ -259,9 +262,16 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         val state = _uiState.value
         val doc = state.document ?: return
         if (pageIndex !in state.pageBitmaps.indices) return
-        if (!renderingPages.add(pageIndex)) return
 
         val renderWidth = targetWidthPx.coerceAtLeast(MIN_RENDER_WIDTH)
+        val cachedBitmap = state.pageBitmaps[pageIndex]
+        val cachedWidth = renderedPageWidths[pageIndex] ?: 0
+        if (cachedBitmap != null && !cachedBitmap.isRecycled && cachedWidth >= renderWidth) return
+
+        val documentUri = doc.uri
+        val renderKey = documentUri to pageIndex
+        if (!renderingPages.add(renderKey)) return
+
         viewModelScope.launch {
             try {
                 val bitmap = withContext(Dispatchers.IO) {
@@ -269,6 +279,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                 }
 
                 val currentState = _uiState.value
+                if (currentState.document?.uri != documentUri) return@launch
                 if (pageIndex !in currentState.pageBitmaps.indices) return@launch
 
                 val bitmaps = currentState.pageBitmaps.toMutableList()
@@ -277,22 +288,28 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     previous.recycle()
                 }
                 bitmaps[pageIndex] = bitmap
+                if (bitmap == null) {
+                    renderedPageWidths.remove(pageIndex)
+                } else {
+                    renderedPageWidths[pageIndex] = renderWidth
+                }
 
                 // Keep only nearby pages in memory for smooth swipes without OOMs.
                 bitmaps.forEachIndexed { index, existing ->
                     if (existing != null && index != pageIndex && abs(index - currentState.currentPage) > CACHE_RADIUS) {
                         if (!existing.isRecycled) existing.recycle()
                         bitmaps[index] = null
+                        renderedPageWidths.remove(index)
                     }
                 }
 
                 _uiState.value = currentState.copy(pageBitmaps = bitmaps)
 
-                if (bitmap != null) {
-                    runOcrForPage(pageIndex, bitmap)
+                if (bitmap != null && !bitmap.isRecycled) {
+                    runOcrForPage(documentUri, pageIndex, bitmap)
                 }
             } finally {
-                renderingPages.remove(pageIndex)
+                renderingPages.remove(renderKey)
             }
         }
     }
@@ -306,6 +323,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
             if (existing != null && abs(index - page) > CACHE_RADIUS) {
                 if (!existing.isRecycled) existing.recycle()
                 bitmaps[index] = null
+                renderedPageWidths.remove(index)
             }
         }
 
@@ -428,13 +446,17 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
 
     override fun onCleared() {
         recycleBitmaps(_uiState.value.pageBitmaps)
+        renderingPages.clear()
+        renderedPageWidths.clear()
+        ocrProcessingPages.clear()
         _uiState.value.document?.let { openPdfUseCase.close(it) }
         textRecognizer.close()
         super.onCleared()
     }
 
-    private fun runOcrForPage(pageIndex: Int, bitmap: Bitmap) {
+    private fun runOcrForPage(documentUri: Uri, pageIndex: Int, bitmap: Bitmap) {
         val state = _uiState.value
+        if (state.document?.uri != documentUri) return
         if (state.ocrBlocksByPage.containsKey(pageIndex)) return
         if (!ocrProcessingPages.add(pageIndex)) return
         _uiState.value = _uiState.value.copy(ocrPagesInProgress = ocrProcessingPages.toSet())
@@ -442,6 +464,13 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         val image = InputImage.fromBitmap(bitmap, 0)
         textRecognizer.process(image)
             .addOnSuccessListener { text ->
+                val current = _uiState.value
+                if (current.document?.uri != documentUri) {
+                    ocrProcessingPages.remove(pageIndex)
+                    _uiState.value = current.copy(ocrPagesInProgress = ocrProcessingPages.toSet())
+                    return@addOnSuccessListener
+                }
+
                 val width = bitmap.width.toFloat().coerceAtLeast(1f)
                 val height = bitmap.height.toFloat().coerceAtLeast(1f)
 
@@ -457,7 +486,6 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     )
                 }
 
-                val current = _uiState.value
                 val updated = current.ocrBlocksByPage.toMutableMap()
                 updated[pageIndex] = blocks
                 ocrProcessingPages.remove(pageIndex)

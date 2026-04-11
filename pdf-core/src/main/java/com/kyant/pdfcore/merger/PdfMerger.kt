@@ -52,37 +52,50 @@ class PdfMergerImpl : PdfMerger {
     ): PdfDocument {
         val outDoc = android.graphics.pdf.PdfDocument()
         var globalPage = 0
+        var reusableBitmap: android.graphics.Bitmap? = null
 
-        for (src in sources) {
-            val fd = context.contentResolver.openFileDescriptor(src.uri, "r") ?: continue
-            val renderer = android.graphics.pdf.PdfRenderer(fd)
+        try {
+            for (src in sources) {
+                context.contentResolver.openFileDescriptor(src.uri, "r")?.use { fd ->
+                    val renderer = android.graphics.pdf.PdfRenderer(fd)
+                    try {
+                        for (i in 0 until renderer.pageCount) {
+                            val srcPage = renderer.openPage(i)
+                            try {
+                                val w = srcPage.width
+                                val h = srcPage.height
+                                val bitmap = obtainReusableBitmap(reusableBitmap, w, h)
+                                if (bitmap !== reusableBitmap) {
+                                    reusableBitmap?.recycle()
+                                    reusableBitmap = bitmap
+                                }
+                                bitmap.eraseColor(android.graphics.Color.WHITE)
+                                srcPage.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
 
-            for (i in 0 until renderer.pageCount) {
-                val srcPage = renderer.openPage(i)
-                val w = srcPage.width
-                val h = srcPage.height
-                val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
-                bitmap.eraseColor(android.graphics.Color.WHITE)
-                srcPage.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
-                srcPage.close()
-
-                val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(w, h, globalPage++).create()
-                val page = outDoc.startPage(pageInfo)
-                page.canvas.drawBitmap(bitmap, 0f, 0f, null)
-                outDoc.finishPage(page)
-                bitmap.recycle()
+                                val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(w, h, globalPage++).create()
+                                val page = outDoc.startPage(pageInfo)
+                                page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+                                outDoc.finishPage(page)
+                            } finally {
+                                srcPage.close()
+                            }
+                        }
+                    } finally {
+                        renderer.close()
+                    }
+                }
             }
-            renderer.close()
-            fd.close()
-        }
 
-        val mergeOutput = context.contentResolver.openOutputStream(outputUri)
-            ?: throw IllegalStateException("Cannot write merged PDF output")
-        mergeOutput.use {
-            outDoc.writeTo(it)
-            it.flush()
+            val mergeOutput = context.contentResolver.openOutputStream(outputUri)
+                ?: throw IllegalStateException("Cannot write merged PDF output")
+            mergeOutput.use {
+                outDoc.writeTo(it)
+                it.flush()
+            }
+        } finally {
+            reusableBitmap?.recycle()
+            outDoc.close()
         }
-        outDoc.close()
 
         return PdfDocument(uri = outputUri, name = "Merged.pdf", pageCount = globalPage)
     }
@@ -94,39 +107,63 @@ class PdfMergerImpl : PdfMerger {
     ): PdfDocument {
         val outDoc = android.graphics.pdf.PdfDocument()
         var globalPage = 0
+        var reusableBitmap: android.graphics.Bitmap? = null
 
-        for ((src, pages) in sources) {
-            val fd = context.contentResolver.openFileDescriptor(src.uri, "r") ?: continue
-            val renderer = android.graphics.pdf.PdfRenderer(fd)
+        try {
+            for ((src, pages) in sources) {
+                context.contentResolver.openFileDescriptor(src.uri, "r")?.use { fd ->
+                    val renderer = android.graphics.pdf.PdfRenderer(fd)
+                    try {
+                        for (i in pages) {
+                            if (i < 0 || i >= renderer.pageCount) continue
+                            val srcPage = renderer.openPage(i)
+                            try {
+                                val w = srcPage.width
+                                val h = srcPage.height
+                                val bitmap = obtainReusableBitmap(reusableBitmap, w, h)
+                                if (bitmap !== reusableBitmap) {
+                                    reusableBitmap?.recycle()
+                                    reusableBitmap = bitmap
+                                }
+                                bitmap.eraseColor(android.graphics.Color.WHITE)
+                                srcPage.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
 
-            for (i in pages) {
-                if (i < 0 || i >= renderer.pageCount) continue
-                val srcPage = renderer.openPage(i)
-                val w = srcPage.width
-                val h = srcPage.height
-                val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
-                bitmap.eraseColor(android.graphics.Color.WHITE)
-                srcPage.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
-                srcPage.close()
-
-                val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(w, h, globalPage++).create()
-                val page = outDoc.startPage(pageInfo)
-                page.canvas.drawBitmap(bitmap, 0f, 0f, null)
-                outDoc.finishPage(page)
-                bitmap.recycle()
+                                val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(w, h, globalPage++).create()
+                                val page = outDoc.startPage(pageInfo)
+                                page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+                                outDoc.finishPage(page)
+                            } finally {
+                                srcPage.close()
+                            }
+                        }
+                    } finally {
+                        renderer.close()
+                    }
+                }
             }
-            renderer.close()
-            fd.close()
-        }
 
-        val mergePagesOutput = context.contentResolver.openOutputStream(outputUri)
-            ?: throw IllegalStateException("Cannot write merged PDF output")
-        mergePagesOutput.use {
-            outDoc.writeTo(it)
-            it.flush()
+            val mergePagesOutput = context.contentResolver.openOutputStream(outputUri)
+                ?: throw IllegalStateException("Cannot write merged PDF output")
+            mergePagesOutput.use {
+                outDoc.writeTo(it)
+                it.flush()
+            }
+        } finally {
+            reusableBitmap?.recycle()
+            outDoc.close()
         }
-        outDoc.close()
 
         return PdfDocument(uri = outputUri, name = "Merged.pdf", pageCount = globalPage)
+    }
+
+    private fun obtainReusableBitmap(
+        existing: android.graphics.Bitmap?,
+        width: Int,
+        height: Int
+    ): android.graphics.Bitmap {
+        if (existing != null && !existing.isRecycled && existing.width == width && existing.height == height) {
+            return existing
+        }
+        return android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
     }
 }

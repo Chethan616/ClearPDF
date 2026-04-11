@@ -1,0 +1,11 @@
+# Copy this file to key.properties and fill with your upload key details.
+# You can also use env vars:
+# CLEARPDF_UPLOAD_STORE_FILE
+# CLEARPDF_UPLOAD_STORE_PASSWORD
+# CLEARPDF_UPLOAD_KEY_ALIAS
+# CLEARPDF_UPLOAD_KEY_PASSWORD
+
+storeFile=.signing/upload-keystore.jks
+storePassword=CHANGE_ME
+keyAlias=upload
+keyPassword=CHANGE_ME

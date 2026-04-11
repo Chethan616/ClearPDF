@@ -65,6 +65,27 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
         var selectedTab by rememberSaveable { mutableIntStateOf(0) }
         val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
         val showBottomTabs = currentRoute == "home" || currentRoute == "tools" || currentRoute == "settings"
+        val onBottomTabSelected: (Int) -> Unit = remember(navController) {
+            { index ->
+                selectedTab = index
+                when (index) {
+                    0 -> navController.navigate("home") {
+                        popUpTo("home") { inclusive = true }
+                        launchSingleTop = true
+                    }
+
+                    1 -> navController.navigate("tools") {
+                        popUpTo("home")
+                        launchSingleTop = true
+                    }
+
+                    2 -> navController.navigate("settings") {
+                        popUpTo("home")
+                        launchSingleTop = true
+                    }
+                }
+            }
+        }
 
         // Handle app shortcut deep links
         LaunchedEffect(shortcutRoute) {
@@ -113,26 +134,8 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
 
             if (showBottomTabs) {
                 DocsBottomTabs(
-                    selectedTab = { selectedTab },
-                    onTabSelected = { index ->
-                        selectedTab = index
-                        when (index) {
-                            0 -> navController.navigate("home") {
-                                popUpTo("home") { inclusive = true }
-                                launchSingleTop = true
-                            }
-
-                            1 -> navController.navigate("tools") {
-                                popUpTo("home")
-                                launchSingleTop = true
-                            }
-
-                            2 -> navController.navigate("settings") {
-                                popUpTo("home")
-                                launchSingleTop = true
-                            }
-                        }
-                    },
+                    selectedTabIndex = selectedTab,
+                    onTabSelected = onBottomTabSelected,
                     backdrop = backdrop,
                     modifier = Modifier
                         .padding(horizontal = 24.dp, vertical = 8.dp)

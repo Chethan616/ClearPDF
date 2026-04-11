@@ -43,7 +43,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -113,7 +112,6 @@ fun SettingsScreen(
             .fillMaxSize()
             .statusBarsPadding()
             .padding(16.dp)
-            .graphicsLayer { }
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -288,7 +286,12 @@ fun SettingsScreen(
             }
             LiquidSlider(
                 value = { defaultQuality },
-                onValueChange = { defaultQuality = it },
+                onValueChange = {
+                    val snapped = ((it * 100f).toInt() / 100f).coerceIn(0f, 1f)
+                    if (snapped != defaultQuality) {
+                        defaultQuality = snapped
+                    }
+                },
                 valueRange = 0f..1f,
                 visibilityThreshold = 0.005f,
                 backdrop = backdrop,

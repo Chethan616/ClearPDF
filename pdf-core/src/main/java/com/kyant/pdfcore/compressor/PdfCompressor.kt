@@ -64,49 +64,72 @@ class PdfCompressorImpl : PdfCompressor {
             CompressionQuality.HIGH -> 0.85f
         }
 
-        val fd = context.contentResolver.openFileDescriptor(source.uri, "r")
+        val sourceFd = context.contentResolver.openFileDescriptor(source.uri, "r")
             ?: throw IllegalArgumentException("Cannot open source PDF")
-        val renderer = android.graphics.pdf.PdfRenderer(fd)
-        val outDoc = android.graphics.pdf.PdfDocument()
 
-        for (i in 0 until renderer.pageCount) {
-            val srcPage = renderer.openPage(i)
-            val origW = srcPage.width
-            val origH = srcPage.height
-            val w = (origW * scaleFactor).toInt()
-            val h = (origH * scaleFactor).toInt()
-
-            // Render at reduced resolution
-            val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
-            bitmap.eraseColor(android.graphics.Color.WHITE)
+        sourceFd.use { fd ->
+            val renderer = android.graphics.pdf.PdfRenderer(fd)
+            val outDoc = android.graphics.pdf.PdfDocument()
+            var reusableBitmap: android.graphics.Bitmap? = null
             val matrix = android.graphics.Matrix()
-            matrix.setScale(scaleFactor, scaleFactor)
-            srcPage.render(bitmap, null, matrix, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
-            srcPage.close()
+            val stream = java.io.ByteArrayOutputStream(256 * 1024)
+            try {
+                for (i in 0 until renderer.pageCount) {
+                    val srcPage = renderer.openPage(i)
+                    try {
+                        val origW = srcPage.width
+                        val origH = srcPage.height
+                        val w = (origW * scaleFactor).toInt().coerceAtLeast(1)
+                        val h = (origH * scaleFactor).toInt().coerceAtLeast(1)
 
-            // Re-encode as JPEG to compress
-            val stream = java.io.ByteArrayOutputStream()
-            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, jpegQuality, stream)
-            bitmap.recycle()
-            val compressed = android.graphics.BitmapFactory.decodeByteArray(stream.toByteArray(), 0, stream.size())
+                        val workingBitmap = obtainReusableBitmap(reusableBitmap, w, h)
+                        if (workingBitmap !== reusableBitmap) {
+                            reusableBitmap?.recycle()
+                            reusableBitmap = workingBitmap
+                        }
 
-            val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(origW, origH, i).create()
-            val page = outDoc.startPage(pageInfo)
-            val destRect = android.graphics.RectF(0f, 0f, origW.toFloat(), origH.toFloat())
-            page.canvas.drawBitmap(compressed, null, destRect, null)
-            outDoc.finishPage(page)
-            compressed.recycle()
+                        workingBitmap.eraseColor(android.graphics.Color.WHITE)
+                        matrix.reset()
+                        matrix.setScale(scaleFactor, scaleFactor)
+                        srcPage.render(
+                            workingBitmap,
+                            null,
+                            matrix,
+                            android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT
+                        )
+
+                        // Re-encode as JPEG to compress.
+                        stream.reset()
+                        workingBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, jpegQuality, stream)
+                        val compressed = android.graphics.BitmapFactory.decodeByteArray(
+                            stream.toByteArray(),
+                            0,
+                            stream.size()
+                        ) ?: throw IllegalStateException("Failed to compress page ${i + 1}")
+
+                        val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(origW, origH, i).create()
+                        val page = outDoc.startPage(pageInfo)
+                        val destRect = android.graphics.RectF(0f, 0f, origW.toFloat(), origH.toFloat())
+                        page.canvas.drawBitmap(compressed, null, destRect, null)
+                        outDoc.finishPage(page)
+                        compressed.recycle()
+                    } finally {
+                        srcPage.close()
+                    }
+                }
+
+                val compressOutput = context.contentResolver.openOutputStream(outputUri)
+                    ?: throw IllegalStateException("Cannot write compressed PDF output")
+                compressOutput.use {
+                    outDoc.writeTo(it)
+                    it.flush()
+                }
+            } finally {
+                reusableBitmap?.recycle()
+                outDoc.close()
+                renderer.close()
+            }
         }
-        renderer.close()
-        fd.close()
-
-        val compressOutput = context.contentResolver.openOutputStream(outputUri)
-            ?: throw IllegalStateException("Cannot write compressed PDF output")
-        compressOutput.use {
-            outDoc.writeTo(it)
-            it.flush()
-        }
-        outDoc.close()
 
         val outSize = try {
             context.contentResolver.openFileDescriptor(outputUri, "r")?.use { it.statSize } ?: -1L
@@ -131,5 +154,16 @@ class PdfCompressorImpl : PdfCompressor {
             CompressionQuality.HIGH -> 0.75
         }
         return (source.sizeBytes * ratio).toLong()
+    }
+
+    private fun obtainReusableBitmap(
+        existing: android.graphics.Bitmap?,
+        width: Int,
+        height: Int
+    ): android.graphics.Bitmap {
+        if (existing != null && !existing.isRecycled && existing.width == width && existing.height == height) {
+            return existing
+        }
+        return android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
     }
 }

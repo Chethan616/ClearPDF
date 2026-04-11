@@ -24,75 +24,114 @@ class PdfSplitterImpl : PdfSplitter {
     override fun splitAll(context: Context, source: PdfDocument, outputDir: Uri): List<PdfDocument> {
         // Split into individual pages - each saved via content resolver
         val results = mutableListOf<PdfDocument>()
-        val fd = context.contentResolver.openFileDescriptor(source.uri, "r") ?: return results
-        val renderer = android.graphics.pdf.PdfRenderer(fd)
+        context.contentResolver.openFileDescriptor(source.uri, "r")?.use { fd ->
+            val renderer = android.graphics.pdf.PdfRenderer(fd)
+            var reusableBitmap: android.graphics.Bitmap? = null
+            try {
+                for (i in 0 until renderer.pageCount) {
+                    val srcPage = renderer.openPage(i)
+                    try {
+                        val w = srcPage.width
+                        val h = srcPage.height
+                        val bitmap = obtainReusableBitmap(reusableBitmap, w, h)
+                        if (bitmap !== reusableBitmap) {
+                            reusableBitmap?.recycle()
+                            reusableBitmap = bitmap
+                        }
+                        bitmap.eraseColor(android.graphics.Color.WHITE)
+                        srcPage.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
 
-        for (i in 0 until renderer.pageCount) {
-            val srcPage = renderer.openPage(i)
-            val w = srcPage.width
-            val h = srcPage.height
-            val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
-            bitmap.eraseColor(android.graphics.Color.WHITE)
-            srcPage.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
-            srcPage.close()
+                        val outDoc = android.graphics.pdf.PdfDocument()
+                        try {
+                            val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(w, h, 0).create()
+                            val page = outDoc.startPage(pageInfo)
+                            page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+                            outDoc.finishPage(page)
 
-            val outDoc = android.graphics.pdf.PdfDocument()
-            val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(w, h, 0).create()
-            val page = outDoc.startPage(pageInfo)
-            page.canvas.drawBitmap(bitmap, 0f, 0f, null)
-            outDoc.finishPage(page)
-            bitmap.recycle()
-
-            // Write to cache and record
-            val baseName = source.name.removeSuffix(".pdf")
-            val fileName = "${baseName}_page${i + 1}.pdf"
-            val outFile = java.io.File(context.cacheDir, fileName)
-            outFile.outputStream().use {
-                outDoc.writeTo(it)
-                it.flush()
+                            // Write to cache and record
+                            val baseName = source.name.removeSuffix(".pdf")
+                            val fileName = "${baseName}_page${i + 1}.pdf"
+                            val outFile = java.io.File(context.cacheDir, fileName)
+                            outFile.outputStream().use {
+                                outDoc.writeTo(it)
+                                it.flush()
+                            }
+                            results.add(PdfDocument(uri = Uri.fromFile(outFile), name = fileName, pageCount = 1))
+                        } finally {
+                            outDoc.close()
+                        }
+                    } finally {
+                        srcPage.close()
+                    }
+                }
+            } finally {
+                reusableBitmap?.recycle()
+                renderer.close()
             }
-            outDoc.close()
+        } ?: return results
 
-            results.add(PdfDocument(uri = Uri.fromFile(outFile), name = fileName, pageCount = 1))
-        }
-        renderer.close()
-        fd.close()
         return results
     }
 
     override fun extractPages(context: Context, source: PdfDocument, pages: List<Int>, outputUri: Uri): PdfDocument {
-        val fd = context.contentResolver.openFileDescriptor(source.uri, "r")
-            ?: throw IllegalArgumentException("Cannot open source")
-        val renderer = android.graphics.pdf.PdfRenderer(fd)
         val outDoc = android.graphics.pdf.PdfDocument()
+        var writtenPages = 0
 
-        pages.forEachIndexed { index, pageIdx ->
-            if (pageIdx < 0 || pageIdx >= renderer.pageCount) return@forEachIndexed
-            val srcPage = renderer.openPage(pageIdx)
-            val w = srcPage.width
-            val h = srcPage.height
-            val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
-            bitmap.eraseColor(android.graphics.Color.WHITE)
-            srcPage.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
-            srcPage.close()
+        try {
+            context.contentResolver.openFileDescriptor(source.uri, "r")?.use { fd ->
+                val renderer = android.graphics.pdf.PdfRenderer(fd)
+                var reusableBitmap: android.graphics.Bitmap? = null
+                try {
+                    for (pageIdx in pages) {
+                        if (pageIdx < 0 || pageIdx >= renderer.pageCount) continue
+                        val srcPage = renderer.openPage(pageIdx)
+                        try {
+                            val w = srcPage.width
+                            val h = srcPage.height
+                            val bitmap = obtainReusableBitmap(reusableBitmap, w, h)
+                            if (bitmap !== reusableBitmap) {
+                                reusableBitmap?.recycle()
+                                reusableBitmap = bitmap
+                            }
+                            bitmap.eraseColor(android.graphics.Color.WHITE)
+                            srcPage.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
 
-            val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(w, h, index).create()
-            val page = outDoc.startPage(pageInfo)
-            page.canvas.drawBitmap(bitmap, 0f, 0f, null)
-            outDoc.finishPage(page)
-            bitmap.recycle()
+                            val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(w, h, writtenPages).create()
+                            val page = outDoc.startPage(pageInfo)
+                            page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+                            outDoc.finishPage(page)
+                            writtenPages += 1
+                        } finally {
+                            srcPage.close()
+                        }
+                    }
+                } finally {
+                    reusableBitmap?.recycle()
+                    renderer.close()
+                }
+            } ?: throw IllegalArgumentException("Cannot open source")
+
+            val splitOutput = context.contentResolver.openOutputStream(outputUri)
+                ?: throw IllegalStateException("Cannot write split PDF output")
+            splitOutput.use {
+                outDoc.writeTo(it)
+                it.flush()
+            }
+        } finally {
+            outDoc.close()
         }
-        renderer.close()
-        fd.close()
 
-        val splitOutput = context.contentResolver.openOutputStream(outputUri)
-            ?: throw IllegalStateException("Cannot write split PDF output")
-        splitOutput.use {
-            outDoc.writeTo(it)
-            it.flush()
+        return PdfDocument(uri = outputUri, name = "Split.pdf", pageCount = writtenPages)
+    }
+
+    private fun obtainReusableBitmap(
+        existing: android.graphics.Bitmap?,
+        width: Int,
+        height: Int
+    ): android.graphics.Bitmap {
+        if (existing != null && !existing.isRecycled && existing.width == width && existing.height == height) {
+            return existing
         }
-        outDoc.close()
-
-        return PdfDocument(uri = outputUri, name = "Split.pdf", pageCount = pages.size)
+        return android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
     }
 }
