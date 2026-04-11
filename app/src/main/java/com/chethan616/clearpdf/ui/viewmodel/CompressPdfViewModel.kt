@@ -10,10 +10,12 @@ import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.domain.usecase.CompressPdfUseCase
+import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.kyant.pdfcore.model.CompressionQuality
 import com.kyant.pdfcore.model.PdfDocument
 import kotlinx.coroutines.Dispatchers
@@ -160,6 +162,10 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
                     saveLocationLabel = saveLabel,
                     resultMessage = "Compressed: ${origKb}KB → ${compKb}KB (${reduction}% smaller)\nSaved to $saveLabel"
                 )
+
+                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                    StarPromptEventBus.requestPrompt()
+                }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isCompressing = false,

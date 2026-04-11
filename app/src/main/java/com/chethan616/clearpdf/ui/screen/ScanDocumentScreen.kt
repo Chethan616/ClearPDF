@@ -77,11 +77,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.model.ScanFilter
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
+import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.ScanViewModel
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
@@ -489,6 +491,9 @@ fun ScanDocumentScreen(
                         viewModel.cancelScanning()
                         if (pdfUri != null) {
                             viewModel.markAsSaved(pdfUri)
+                            if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                                StarPromptEventBus.requestPrompt()
+                            }
                             Toast.makeText(context, "PDF saved successfully!", Toast.LENGTH_SHORT).show()
                         } else {
                             viewModel.setError("Failed to save PDF")

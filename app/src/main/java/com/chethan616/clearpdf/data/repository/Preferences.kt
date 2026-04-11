@@ -136,3 +136,57 @@ object AppSettingsManager {
     fun setThemeMode(context: Context, value: Int) =
         prefs(context).edit().putInt(KEY_THEME_MODE, value).apply()
 }
+
+/**
+ * Tracks usage for the GitHub star prompt.
+ * Prompt rule:
+ * - Show after every 3 successful PDF interactions (open/create/modify)
+ * - If user taps Yes, snooze prompt for 2 weeks
+ */
+object GitHubStarPromptManager {
+    private const val PREFS_NAME = "clearpdf_settings"
+    private const val KEY_INTERACTION_COUNT = "github_star_interaction_count"
+    private const val KEY_PROMPT_SNOOZE_UNTIL_MS = "github_star_prompt_snooze_until_ms"
+
+    private const val INTERACTION_THRESHOLD = 3
+    private const val TWO_WEEKS_MS = 14L * 24L * 60L * 60L * 1000L
+
+    const val REPO_URL: String = "https://github.com/Chethan616/ClearPDF"
+
+    private fun prefs(context: Context): SharedPreferences =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    fun recordPdfInteraction(context: Context): Boolean {
+        val preferences = prefs(context)
+        val now = System.currentTimeMillis()
+        val snoozeUntil = preferences.getLong(KEY_PROMPT_SNOOZE_UNTIL_MS, 0L)
+
+        // Ignore counting while prompt is snoozed after a "Yes" action.
+        if (now < snoozeUntil) return false
+
+        val nextCount = preferences.getInt(KEY_INTERACTION_COUNT, 0) + 1
+        preferences.edit().putInt(KEY_INTERACTION_COUNT, nextCount).apply()
+        return nextCount >= INTERACTION_THRESHOLD
+    }
+
+    fun shouldShowPrompt(context: Context): Boolean {
+        val preferences = prefs(context)
+        val now = System.currentTimeMillis()
+        val snoozeUntil = preferences.getLong(KEY_PROMPT_SNOOZE_UNTIL_MS, 0L)
+        if (now < snoozeUntil) return false
+        return preferences.getInt(KEY_INTERACTION_COUNT, 0) >= INTERACTION_THRESHOLD
+    }
+
+    fun onPromptAccepted(context: Context) {
+        val nextEligibleAt = System.currentTimeMillis() + TWO_WEEKS_MS
+        prefs(context).edit()
+            .putInt(KEY_INTERACTION_COUNT, 0)
+            .putLong(KEY_PROMPT_SNOOZE_UNTIL_MS, nextEligibleAt)
+            .apply()
+    }
+
+    fun onPromptDismissed(context: Context) {
+        // Show again after another 3 interactions.
+        prefs(context).edit().putInt(KEY_INTERACTION_COUNT, 0).apply()
+    }
+}

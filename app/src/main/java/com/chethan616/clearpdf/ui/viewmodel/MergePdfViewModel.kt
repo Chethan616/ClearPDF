@@ -10,10 +10,12 @@ import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.domain.usecase.MergePdfUseCase
+import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.kyant.pdfcore.model.PdfDocument
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -115,6 +117,10 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
                     saveLocationLabel = saveLabel,
                     resultMessage = "Merged ${uris.size} files → $outName\nSaved to $saveLabel"
                 )
+
+                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                    StarPromptEventBus.requestPrompt()
+                }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isMerging = false,

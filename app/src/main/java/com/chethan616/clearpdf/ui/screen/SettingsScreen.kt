@@ -1,5 +1,7 @@
 package com.chethan616.clearpdf.ui.screen
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -51,6 +53,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
+import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
@@ -75,6 +78,9 @@ fun SettingsScreen(
     val label = if (isLight) Color(0xFF444444) else Color(0xFFCCCCCC)
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
+    val openRepo = remember(context) {
+        { openExternalLink(context, GitHubStarPromptManager.REPO_URL) }
+    }
 
     var autoCompress by remember { mutableStateOf(AppSettingsManager.getAutoCompress(context)) }
     var keepOriginal by remember { mutableStateOf(AppSettingsManager.getKeepOriginal(context)) }
@@ -320,6 +326,26 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             BasicText("Open Source Licenses", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                BasicText("ClearPDF is open source.", style = TextStyle(label, 14.sp, fontWeight = FontWeight.Medium))
+                BasicText(
+                    "If you like this app, please star the project on GitHub:",
+                    style = TextStyle(sub, 12.sp)
+                )
+                BasicText(
+                    GitHubStarPromptManager.REPO_URL,
+                    style = TextStyle(Color(0xFF0088FF), 12.sp),
+                    modifier = Modifier.clickable { openRepo() }
+                )
+                LiquidButton(
+                    onClick = openRepo,
+                    backdrop = backdrop,
+                    tint = Color(0xFF1976D2)
+                ) {
+                    BasicText("Star ClearPDF on GitHub", style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold))
+                }
+            }
             
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 BasicText("AndroidLiquidGlass (Backdrop)", style = TextStyle(label, 14.sp, fontWeight = FontWeight.Medium))
@@ -339,6 +365,15 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(80.dp))
+    }
+}
+
+private fun openExternalLink(context: Context, url: String) {
+    runCatching {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
     }
 }
 

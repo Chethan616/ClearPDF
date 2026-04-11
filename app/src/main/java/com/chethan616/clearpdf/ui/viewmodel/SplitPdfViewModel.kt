@@ -11,9 +11,11 @@ import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.kyant.pdfcore.model.PdfDocument
 import com.kyant.pdfcore.splitter.PdfSplitter
 import kotlinx.coroutines.Dispatchers
@@ -168,6 +170,10 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                     saveLocationLabel = saveLabel,
                     resultMessage = "Split into ${results.size} pages\nSaved to $saveLabel"
                 )
+
+                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                    StarPromptEventBus.requestPrompt()
+                }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSplitting = false,
@@ -198,6 +204,10 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                     saveLocationLabel = saveLabel,
                     resultMessage = "Extracted ${pages.size} pages\nSaved to $saveLabel"
                 )
+
+                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                    StarPromptEventBus.requestPrompt()
+                }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSplitting = false,

@@ -12,10 +12,12 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
+import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.domain.usecase.CreatePdfUseCase
+import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -167,6 +169,10 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
                         saveLocationLabel = saveLabel,
                         resultMessage = "Created $fileName (${doc.pageCount} pages)\nSaved to $saveLabel"
                     )
+                }
+
+                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                    StarPromptEventBus.requestPrompt()
                 }
             } catch (e: Exception) {
                 _uiState.update {

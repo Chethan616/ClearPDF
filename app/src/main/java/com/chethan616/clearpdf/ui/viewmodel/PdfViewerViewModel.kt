@@ -15,10 +15,12 @@ import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.domain.usecase.OpenPdfUseCase
+import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -171,6 +173,11 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     pageCount = doc.pageCount,
                     sizeBytes = doc.sizeBytes
                 ))
+
+                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                    StarPromptEventBus.requestPrompt()
+                }
+
                 // Render first page
                 renderPage(context, 0, DEFAULT_RENDER_WIDTH)
             } catch (e: Exception) {
@@ -435,6 +442,10 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     exportMessage = "Saved edited copy as $outputName",
                     lastExportedUri = outputUri
                 )
+
+                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                    StarPromptEventBus.requestPrompt()
+                }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isExporting = false,
