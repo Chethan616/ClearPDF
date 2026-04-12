@@ -47,7 +47,9 @@ git clone https://github.com/Chethan616/ClearPDF.git
 
 ## Credits
 
-Liquid glass effects are inspired by the AndroidLiquidGlass project by kyant0:
+Liquid glass and backdrop effects in ClearPDF are inspired by and partially adapted from AndroidLiquidGlass by kyant0.
+
+AndroidLiquidGlass is licensed under Apache License 2.0:
 https://github.com/Kyant0/AndroidLiquidGlass
 
 ---

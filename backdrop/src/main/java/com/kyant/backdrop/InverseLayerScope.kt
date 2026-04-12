@@ -1,3 +1,9 @@
+/*
+ * Adapted from AndroidLiquidGlass by kyant0.
+ * Source: https://github.com/Kyant0/AndroidLiquidGlass
+ * Licensed under the Apache License, Version 2.0.
+ */
+
 package com.kyant.backdrop
 
 import androidx.compose.ui.geometry.Offset
