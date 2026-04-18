@@ -1,15 +1,55 @@
+# IntelliJ / Android Studio
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+*.ipr
+*.iws
+
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+
+# Gradle / Kotlin
+.gradle/
+.kotlin/
+.kotlinc/
+
+# Build outputs (all modules)
 **/build/
-/Pdf_Tools-master
+build/
+out/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Android local config
+local.properties
+
+# Signing and sensitive local files
 key.properties
+.signing/
 *.jks
 *.keystore
+*.pem
+
+# Android distribution artifacts
+*.apk
+*.aab
+*.ap_
+
+# Logs
+*.log
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Temporary / backups
+*.tmp
+*.swp
+*~
+
+# Ownership verification token file (local-only)
+app/src/main/assets/adi-registration.properties
+
+# Legacy extracted folder
+/Pdf_Tools-master/

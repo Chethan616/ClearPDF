@@ -68,4 +68,10 @@ MIT License. See [LICENSE](LICENSE).
 
 ## Support
 
-If you find this project useful, consider giving it a star to support development.
+If you find this project useful, consider giving it a star.
+
+You can also support development through GitHub Sponsors:
+
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=githubsponsors)](https://github.com/sponsors/Chethan616)
+
+Repository funding metadata lives in [.github/FUNDING.yml](.github/FUNDING.yml).
