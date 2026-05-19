@@ -1,7 +1,7 @@
 # ClearPDF
 
 <p align="center">
-  <img src="banner_gh.png" alt="ClearPDF Banner">
+  <img src="Screenshots/banner_gh.png" alt="ClearPDF Banner">
 </p>
 
 <p align="center">
