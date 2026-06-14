@@ -74,6 +74,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
@@ -185,6 +187,8 @@ fun PdfViewerScreen(
     var activeTool         by rememberSaveable { mutableStateOf(PdfEditTool.None) }
     var currentColorLong   by rememberSaveable { mutableLongStateOf(0xFF00BCD4L) }
     val currentColor        = Color(currentColorLong)
+    var currentStrokeWidth by rememberSaveable { mutableFloatStateOf(6f) }
+    var activeImageId      by remember { mutableStateOf<Long?>(null) }
     var showSaveDialog     by rememberSaveable { mutableStateOf(false) }
 
     val annotationsByPage  = remember { mutableStateMapOf<Int, MutableList<PdfMarkup>>() }
@@ -193,6 +197,35 @@ fun PdfViewerScreen(
 
     fun getPageMarks(page: Int): MutableList<PdfMarkup> =
         annotationsByPage.getOrPut(page) { mutableStateListOf() }
+
+    // Picks an image from the device and stamps it onto the current page, centred.
+    val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val bmp = runCatching {
+            context.contentResolver.openInputStream(uri)?.use {
+                android.graphics.BitmapFactory.decodeStream(it)
+            }
+        }.getOrNull() ?: return@rememberLauncherForActivityResult
+        val page = state.currentPage
+        val cs = pageCanvasSizes[page] ?: Size(bmp.width.toFloat(), bmp.height.toFloat())
+        val frame = fitBitmapRect(cs, (pageBitmapSizes[page]?.width ?: cs.width), (pageBitmapSizes[page]?.height ?: cs.height))
+        val maxW = (if (frame.width > 0f) frame.width else cs.width) * 0.5f
+        val ratio = bmp.height.toFloat() / bmp.width.toFloat().coerceAtLeast(1f)
+        val w = maxW.coerceAtLeast(1f)
+        val h = w * ratio
+        val center = if (frame.width > 0f) frame.center else Offset(cs.width / 2f, cs.height / 2f)
+        val id = System.nanoTime()
+        getPageMarks(page).add(
+            PdfMarkup.ImageMarkup(
+                id = id,
+                bitmap = bmp,
+                start = Offset(center.x - w / 2f, center.y - h / 2f),
+                end = Offset(center.x + w / 2f, center.y + h / 2f)
+            )
+        )
+        activeImageId = id
+        activeTool = PdfEditTool.Image
+    }
 
     // Helper: animate zoom + pan together
     suspend fun animateZoomPan(
@@ -328,10 +361,8 @@ fun PdfViewerScreen(
             PdfEditTool.Ellipse, PdfEditTool.Line, PdfEditTool.Arrow
         )
 
-        // Pager owns swipe only at 1× zoom and no active tool
-        val pagerScrollEnabled = !drawingToolActive
-                && activeTool != PdfEditTool.SelectText
-                && zoomScale <= 1.02f
+        // Pager owns swipe only at 1× zoom and no active editing tool
+        val pagerScrollEnabled = activeTool == PdfEditTool.None && zoomScale <= 1.02f
 
         LaunchedEffect(pagerState.currentPage, renderWidthPx) {
             viewModel.renderPage(context, pagerState.currentPage, renderWidthPx)
@@ -374,16 +405,14 @@ fun PdfViewerScreen(
                         pageCanvasSizes[page] = Size(sz.width.toFloat(), sz.height.toFloat())
                     }
             ) {
-                // ── Zoomed content layer ──────────────────────────────────────
+                // ── Gesture layer (UNTRANSFORMED) ─────────────────────────────
+                // Gestures must live on a node that is NOT scaled by graphicsLayer,
+                // otherwise pointer deltas arrive in the zoomed coordinate space and
+                // desync from the screen-space pan/focal math. The graphicsLayer is
+                // applied to an inner wrapper around the page content instead.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer(
-                            scaleX       = zoomScale,
-                            scaleY       = zoomScale,
-                            translationX = panOffset.x,
-                            translationY = panOffset.y
-                        )
                         // ─────────────────────────────────────────────────────
                         // UNIFIED GESTURE HANDLER — Adobe-style focal-point zoom
                         //
@@ -592,6 +621,17 @@ fun PdfViewerScreen(
                             )
                         }
                 ) {
+                  // ── Transformed content layer (zoom + pan applied here) ──────
+                  Box(
+                      modifier = Modifier
+                          .fillMaxSize()
+                          .graphicsLayer(
+                              scaleX       = zoomScale,
+                              scaleY       = zoomScale,
+                              translationX = panOffset.x,
+                              translationY = panOffset.y
+                          )
+                  ) {
                     Image(
                         bitmap          = bitmap.asImageBitmap(),
                         contentDescription = "Page ${page + 1}",
@@ -620,11 +660,11 @@ fun PdfViewerScreen(
                             when (markup) {
                                 is PdfMarkup.StrokeMarkup -> {
                                     if (markup.points.size > 1) {
-                                        val path = Path().apply {
-                                            moveTo(markup.points.first().x, markup.points.first().y)
-                                            markup.points.drop(1).forEach { lineTo(it.x, it.y) }
-                                        }
-                                        drawPath(path, markup.color.copy(markup.alpha), style = Stroke(markup.width))
+                                        val path = smoothPath(markup.points)
+                                        drawPath(
+                                            path, markup.color.copy(markup.alpha),
+                                            style = Stroke(markup.width, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                                        )
                                     }
                                 }
                                 is PdfMarkup.RectMarkup -> {
@@ -662,22 +702,45 @@ fun PdfViewerScreen(
                                         drawLine(markup.color.copy(markup.alpha), Offset(r.left, y), Offset(r.right, y), markup.width)
                                     }
                                 }
+                                is PdfMarkup.ImageMarkup -> {
+                                    val r = Rect(
+                                        min(markup.start.x, markup.end.x), min(markup.start.y, markup.end.y),
+                                        max(markup.start.x, markup.end.x), max(markup.start.y, markup.end.y)
+                                    )
+                                    drawImage(
+                                        image     = markup.bitmap.asImageBitmap(),
+                                        srcOffset = androidx.compose.ui.unit.IntOffset.Zero,
+                                        srcSize   = androidx.compose.ui.unit.IntSize(markup.bitmap.width, markup.bitmap.height),
+                                        dstOffset = androidx.compose.ui.unit.IntOffset(r.left.toInt(), r.top.toInt()),
+                                        dstSize   = androidx.compose.ui.unit.IntSize(r.width.toInt().coerceAtLeast(1), r.height.toInt().coerceAtLeast(1))
+                                    )
+                                    if (activeTool == PdfEditTool.Image && markup.id == activeImageId) {
+                                        drawRect(Color(0xFF1976D2), r.topLeft, r.size, style = Stroke(2f))
+                                        // bottom-right resize handle
+                                        drawCircle(Color(0xFF1976D2), 14f, Offset(r.right, r.bottom))
+                                        drawCircle(Color.White, 7f, Offset(r.right, r.bottom))
+                                    }
+                                }
                             }
                         }
 
                         if (draftPoints.size > 1) {
-                            val path = Path().apply {
-                                moveTo(draftPoints.first().x, draftPoints.first().y)
-                                draftPoints.drop(1).forEach { lineTo(it.x, it.y) }
-                            }
-                            drawPath(path, Color(0xFF00BCD4), style = Stroke(6f))
+                            val path = smoothPath(draftPoints)
+                            val isHl = activeTool == PdfEditTool.Highlight
+                            drawPath(
+                                path,
+                                currentColor.copy(if (isHl) 0.32f else 0.95f),
+                                style = Stroke(
+                                    if (isHl) currentStrokeWidth * 3.5f else currentStrokeWidth,
+                                    cap = StrokeCap.Round, join = StrokeJoin.Round
+                                )
+                            )
                         }
 
                         if (draftRectStart != null && draftRectEnd != null) {
                             val s = draftRectStart!!; val e = draftRectEnd!!
                             val pr = Rect(min(s.x, e.x), min(s.y, e.y), max(s.x, e.x), max(s.y, e.y))
                             when (activeTool) {
-                                PdfEditTool.Highlight -> drawRect(Color(0xFFFFEB3B).copy(0.28f), pr.topLeft, pr.size)
                                 PdfEditTool.Rect      -> drawRect(Color(0xFF42A5F5), pr.topLeft, pr.size, style = Stroke(3f))
                                 PdfEditTool.Ellipse   -> drawOval(Color(0xFF26A69A), pr.topLeft, pr.size, style = Stroke(3f))
                                 PdfEditTool.Line      -> drawLine(Color(0xFF66BB6A), s, e, 4f)
@@ -693,36 +756,116 @@ fun PdfViewerScreen(
                             drawRect(Color(0xFFAB47BC), r.topLeft, r.size, style = Stroke(2f))
                         }
                     }
-                } // zoomed Box
+                  } // transformed content layer
+                } // gesture Box
 
                 // ── Drawing overlay ───────────────────────────────────────────
                 if (drawingToolActive) {
                     Box(
                         Modifier.fillMaxSize().pointerInput(page, activeTool) {
+                            fun toContent(o: Offset): Offset {
+                                val cs = pageCanvasSizes[page] ?: Size.Zero
+                                val bc = Offset(cs.width / 2f, cs.height / 2f)
+                                return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
+                            }
+                            val freehand = activeTool == PdfEditTool.Draw || activeTool == PdfEditTool.Highlight
                             detectDragGestures(
                                 onDragStart = { start ->
                                     lastInteractionAtMs = System.currentTimeMillis()
-                                    if (activeTool == PdfEditTool.Draw) draftPoints = listOf(start)
-                                    else { draftRectStart = start; draftRectEnd = start }
+                                    val p = toContent(start)
+                                    if (freehand) draftPoints = listOf(p)
+                                    else { draftRectStart = p; draftRectEnd = p }
                                 },
                                 onDrag = { change, _ ->
                                     change.consume()
                                     lastInteractionAtMs = System.currentTimeMillis()
-                                    if (activeTool == PdfEditTool.Draw) draftPoints = draftPoints + change.position
-                                    else draftRectEnd = change.position
+                                    val p = toContent(change.position)
+                                    if (freehand) draftPoints = draftPoints + p
+                                    else draftRectEnd = p
                                 },
                                 onDragCancel = { draftPoints = emptyList(); draftRectStart = null; draftRectEnd = null },
                                 onDragEnd = {
                                     when (activeTool) {
-                                        PdfEditTool.Draw      -> if (draftPoints.size > 1) marks.add(PdfMarkup.StrokeMarkup(draftPoints, currentColor, 6f, 0.95f))
-                                        PdfEditTool.Highlight -> draftRectStart?.let { s -> draftRectEnd?.let { e -> marks.add(PdfMarkup.RectMarkup(s, e, currentColor, 0.30f, true)) } }
+                                        PdfEditTool.Draw      -> if (draftPoints.size > 1) marks.add(PdfMarkup.StrokeMarkup(draftPoints, currentColor, currentStrokeWidth, 0.95f))
+                                        PdfEditTool.Highlight -> if (draftPoints.size > 1) marks.add(PdfMarkup.StrokeMarkup(draftPoints, currentColor, currentStrokeWidth * 3.5f, 0.32f))
                                         PdfEditTool.Rect      -> draftRectStart?.let { s -> draftRectEnd?.let { e -> marks.add(PdfMarkup.RectMarkup(s, e, currentColor, 1f, false)) } }
                                         PdfEditTool.Ellipse   -> draftRectStart?.let { s -> draftRectEnd?.let { e -> marks.add(PdfMarkup.OvalMarkup(s, e, currentColor, 1f, false)) } }
-                                        PdfEditTool.Line      -> draftRectStart?.let { s -> draftRectEnd?.let { e -> marks.add(PdfMarkup.LineMarkup(s, e, currentColor, 4f, 1f, false)) } }
-                                        PdfEditTool.Arrow     -> draftRectStart?.let { s -> draftRectEnd?.let { e -> marks.add(PdfMarkup.LineMarkup(s, e, currentColor, 4f, 1f, true)) } }
+                                        PdfEditTool.Line      -> draftRectStart?.let { s -> draftRectEnd?.let { e -> marks.add(PdfMarkup.LineMarkup(s, e, currentColor, currentStrokeWidth, 1f, false)) } }
+                                        PdfEditTool.Arrow     -> draftRectStart?.let { s -> draftRectEnd?.let { e -> marks.add(PdfMarkup.LineMarkup(s, e, currentColor, currentStrokeWidth, 1f, true)) } }
                                         else -> Unit
                                     }
                                     draftPoints = emptyList(); draftRectStart = null; draftRectEnd = null
+                                }
+                            )
+                        }
+                    )
+                }
+
+                // ── Eraser overlay (tap / drag to remove marks) ────────────────
+                if (activeTool == PdfEditTool.Eraser) {
+                    Box(
+                        Modifier.fillMaxSize().pointerInput(page) {
+                            fun toContent(o: Offset): Offset {
+                                val cs = pageCanvasSizes[page] ?: Size.Zero
+                                val bc = Offset(cs.width / 2f, cs.height / 2f)
+                                return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
+                            }
+                            fun eraseAt(o: Offset) {
+                                val p = toContent(o)
+                                val idx = marks.indexOfLast { it.hitTest(p) }
+                                if (idx >= 0) marks.removeAt(idx)
+                            }
+                            detectTapGestures { eraseAt(it); lastInteractionAtMs = System.currentTimeMillis() }
+                        }.pointerInput(page) {
+                            fun toContent(o: Offset): Offset {
+                                val cs = pageCanvasSizes[page] ?: Size.Zero
+                                val bc = Offset(cs.width / 2f, cs.height / 2f)
+                                return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
+                            }
+                            detectDragGestures(onDrag = { change, _ ->
+                                change.consume()
+                                val p = toContent(change.position)
+                                val idx = marks.indexOfLast { it.hitTest(p) }
+                                if (idx >= 0) marks.removeAt(idx)
+                                lastInteractionAtMs = System.currentTimeMillis()
+                            })
+                        }
+                    )
+                }
+
+                // ── Image move / resize overlay ────────────────────────────────
+                if (activeTool == PdfEditTool.Image && activeImageId != null) {
+                    Box(
+                        Modifier.fillMaxSize().pointerInput(page, activeImageId) {
+                            fun toContent(o: Offset): Offset {
+                                val cs = pageCanvasSizes[page] ?: Size.Zero
+                                val bc = Offset(cs.width / 2f, cs.height / 2f)
+                                return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
+                            }
+                            var resizing = false
+                            detectDragGestures(
+                                onDragStart = { start ->
+                                    val p = toContent(start)
+                                    val idx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
+                                    val img = marks.getOrNull(idx) as? PdfMarkup.ImageMarkup
+                                    resizing = img != null && (p - img.end).getDistance() <= 36f
+                                    lastInteractionAtMs = System.currentTimeMillis()
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    val idx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
+                                    val img = marks.getOrNull(idx) as? PdfMarkup.ImageMarkup ?: return@detectDragGestures
+                                    val d = dragAmount / zoomAnim.value
+                                    marks[idx] = if (resizing) {
+                                        val newEnd = Offset(
+                                            (img.end.x + d.x).coerceAtLeast(img.start.x + 24f),
+                                            (img.end.y + d.y).coerceAtLeast(img.start.y + 24f)
+                                        )
+                                        img.copy(end = newEnd)
+                                    } else {
+                                        img.copy(start = img.start + d, end = img.end + d)
+                                    }
+                                    lastInteractionAtMs = System.currentTimeMillis()
                                 }
                             )
                         }
@@ -734,26 +877,37 @@ fun PdfViewerScreen(
                     Box(
                         Modifier.fillMaxSize()
                             .pointerInput(page, ocrBlocks) {
+                                fun toContent(o: Offset): Offset {
+                                    val cs = pageCanvasSizes[page] ?: Size.Zero
+                                    val bc = Offset(cs.width / 2f, cs.height / 2f)
+                                    return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
+                                }
                                 detectTapGestures { tap ->
                                     lastInteractionAtMs = System.currentTimeMillis()
                                     val cs    = pageCanvasSizes[page] ?: return@detectTapGestures
                                     val bs    = pageBitmapSizes[page]  ?: return@detectTapGestures
                                     val frame = fitBitmapRect(cs, bs.width, bs.height)
-                                    val hit   = hitTestOcrBlock(ocrBlocks, tap, frame)
+                                    val hit   = hitTestOcrBlock(ocrBlocks, toContent(tap), frame)
                                     if (hit != null) viewModel.toggleOcrSelection(page, hit.id)
                                     else viewModel.clearOcrSelection(page)
                                 }
                             }
                             .pointerInput(page, ocrBlocks) {
+                                fun toContent(o: Offset): Offset {
+                                    val cs = pageCanvasSizes[page] ?: Size.Zero
+                                    val bc = Offset(cs.width / 2f, cs.height / 2f)
+                                    return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
+                                }
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = { s ->
                                         lastInteractionAtMs = System.currentTimeMillis()
-                                        selDragStart = s; selDragEnd = s
+                                        val p = toContent(s)
+                                        selDragStart = p; selDragEnd = p
                                     },
                                     onDrag = { change, _ ->
                                         change.consume()
                                         lastInteractionAtMs = System.currentTimeMillis()
-                                        selDragEnd = change.position
+                                        selDragEnd = toContent(change.position)
                                     },
                                     onDragCancel = { selDragStart = null; selDragEnd = null },
                                     onDragEnd = {
@@ -885,10 +1039,24 @@ fun PdfViewerScreen(
                             )
                         }
 
-                        if (drawingToolActive || activeTool == PdfEditTool.SelectText) {
+                        LiquidButton(
+                            onClick  = { imagePickerLauncher.launch("image/*") },
+                            backdrop = backdrop,
+                            tint     = if (activeTool == PdfEditTool.Image) Color(0xFF1976D2) else Color.Transparent
+                        ) { BasicText("Add Image", style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
+
+                        LiquidButton(
+                            onClick  = { activeTool = if (activeTool == PdfEditTool.Eraser) PdfEditTool.None else PdfEditTool.Eraser },
+                            backdrop = backdrop,
+                            tint     = if (activeTool == PdfEditTool.Eraser) Color(0xFFEF5350) else Color.Transparent
+                        ) { BasicText("Eraser", style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
+
+                        if (drawingToolActive || activeTool == PdfEditTool.SelectText ||
+                            activeTool == PdfEditTool.Image || activeTool == PdfEditTool.Eraser) {
                             LiquidIconButton(
                                 onClick = {
                                     activeTool = PdfEditTool.None
+                                    activeImageId = null
                                     viewModel.clearOcrSelection(state.currentPage)
                                 },
                                 backdrop = backdrop,
@@ -930,11 +1098,12 @@ fun PdfViewerScreen(
                         }
                     }
 
-                    // Integrated Edit Panel (Drawing or OCR)
+                    // Integrated Edit Panel (Drawing / OCR / Image)
                     val showDrawTools = drawingToolActive
                     val showOcrTools = activeTool == PdfEditTool.SelectText || selectedTextCount > 0
+                    val showImageTools = activeTool == PdfEditTool.Image && activeImageId != null
 
-                    AnimatedVisibility(visible = showDrawTools || showOcrTools) {
+                    AnimatedVisibility(visible = showDrawTools || showOcrTools || showImageTools) {
                         Column(
                             Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -1029,6 +1198,44 @@ fun PdfViewerScreen(
                                             onClick  = { viewModel.clearOcrSelection(state.currentPage) },
                                             backdrop = backdrop
                                         ) { BasicText("Clear Sel", style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
+                                    } else if (showImageTools) {
+                                        BasicText(
+                                            "Drag to move · drag corner to resize",
+                                            style = TextStyle(Color.White.copy(0.75f), 12.sp)
+                                        )
+                                        LiquidButton(
+                                            onClick = { imagePickerLauncher.launch("image/*") },
+                                            backdrop = backdrop
+                                        ) { BasicText("Replace", style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
+                                        LiquidButton(
+                                            onClick = {
+                                                val m = getPageMarks(state.currentPage)
+                                                val idx = m.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
+                                                if (idx >= 0) m.removeAt(idx)
+                                                activeImageId = null
+                                                activeTool = PdfEditTool.None
+                                            },
+                                            backdrop = backdrop, tint = Color(0xFFEF5350)
+                                        ) { BasicText("Remove", style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
+                                    }
+                                }
+                            }
+
+                            // Thickness selector (draw tools only)
+                            if (showDrawTools) {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    BasicText("Size", style = TextStyle(Color.White.copy(0.7f), 12.sp))
+                                    listOf("S" to 3f, "M" to 6f, "L" to 11f, "XL" to 18f).forEach { (label, w) ->
+                                        val sel = currentStrokeWidth == w
+                                        LiquidButton(
+                                            onClick = { currentStrokeWidth = w },
+                                            backdrop = backdrop,
+                                            surfaceColor = if (sel) currentColor.copy(0.30f) else Color.White.copy(0.08f)
+                                        ) { BasicText(label, style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
                                     }
                                 }
                             }
@@ -1149,7 +1356,7 @@ fun PdfViewerScreen(
 // Enums & sealed classes
 // ─────────────────────────────────────────────────────────────────────────────
 
-private enum class PdfEditTool { None, Draw, Highlight, Rect, Ellipse, Line, Arrow, SelectText }
+private enum class PdfEditTool { None, Draw, Highlight, Rect, Ellipse, Line, Arrow, SelectText, Image, Eraser }
 
 private sealed class PdfMarkup {
     data class StrokeMarkup(val points: List<Offset>, val color: Color, val width: Float, val alpha: Float) : PdfMarkup()
@@ -1158,11 +1365,59 @@ private sealed class PdfMarkup {
     data class LineMarkup(val start: Offset, val end: Offset, val color: Color, val width: Float, val alpha: Float, val arrowHead: Boolean) : PdfMarkup()
     data class TextBlockHighlightMarkup(val blockId: String, val color: Color, val alpha: Float) : PdfMarkup()
     data class TextBlockLineMarkup(val blockId: String, val color: Color, val width: Float, val alpha: Float, val strikeThrough: Boolean) : PdfMarkup()
+    data class ImageMarkup(val id: Long, val bitmap: android.graphics.Bitmap, val start: Offset, val end: Offset) : PdfMarkup()
+}
+
+/** A markup is "hittable" for the eraser if a point falls on/near it. */
+private fun PdfMarkup.hitTest(p: Offset): Boolean = when (this) {
+    is PdfMarkup.StrokeMarkup -> points.any { (it - p).getDistance() <= (width / 2f + 14f) }
+    is PdfMarkup.RectMarkup -> nearRectEdgeOrInside(p, start, end, filled)
+    is PdfMarkup.OvalMarkup -> nearRectEdgeOrInside(p, start, end, filled)
+    is PdfMarkup.LineMarkup -> distanceToSegment(p, start, end) <= (width / 2f + 14f)
+    is PdfMarkup.ImageMarkup -> {
+        val r = Rect(min(start.x, end.x), min(start.y, end.y), max(start.x, end.x), max(start.y, end.y))
+        p.x in r.left..r.right && p.y in r.top..r.bottom
+    }
+    else -> false
+}
+
+private fun nearRectEdgeOrInside(p: Offset, a: Offset, b: Offset, filled: Boolean): Boolean {
+    val r = Rect(min(a.x, b.x), min(a.y, b.y), max(a.x, b.x), max(a.y, b.y))
+    if (filled) return p.x in r.left..r.right && p.y in r.top..r.bottom
+    val pad = 14f
+    val inOuter = p.x in (r.left - pad)..(r.right + pad) && p.y in (r.top - pad)..(r.bottom + pad)
+    val inInner = p.x in (r.left + pad)..(r.right - pad) && p.y in (r.top + pad)..(r.bottom - pad)
+    return inOuter && !inInner
+}
+
+private fun distanceToSegment(p: Offset, a: Offset, b: Offset): Float {
+    val ab = b - a
+    val lenSq = ab.x * ab.x + ab.y * ab.y
+    if (lenSq <= 0.0001f) return (p - a).getDistance()
+    val t = (((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / lenSq).coerceIn(0f, 1f)
+    return (p - Offset(a.x + ab.x * t, a.y + ab.y * t)).getDistance()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Geometry helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Builds a smooth path from raw points using quadratic midpoint smoothing. */
+private fun smoothPath(points: List<Offset>): Path {
+    val path = Path()
+    if (points.isEmpty()) return path
+    path.moveTo(points.first().x, points.first().y)
+    if (points.size < 3) {
+        points.drop(1).forEach { path.lineTo(it.x, it.y) }
+        return path
+    }
+    for (i in 1 until points.size - 1) {
+        val mid = Offset((points[i].x + points[i + 1].x) / 2f, (points[i].y + points[i + 1].y) / 2f)
+        path.quadraticTo(points[i].x, points[i].y, mid.x, mid.y)
+    }
+    path.lineTo(points.last().x, points.last().y)
+    return path
+}
 
 private fun fitBitmapRect(container: Size, bitmapWidth: Float, bitmapHeight: Float): Rect {
     if (bitmapWidth <= 0f || bitmapHeight <= 0f || container.width <= 0f || container.height <= 0f)
@@ -1269,12 +1524,31 @@ private fun buildExportOverlays(
                         ))
                     }
                 }
+                is PdfMarkup.ImageMarkup -> {
+                    val s = screenToNormalized(markup.start, ir)
+                    val e = screenToNormalized(markup.end,   ir)
+                    if (s != null && e != null)
+                        overlays.add(ExportOverlay.ImageStamp(markup.bitmap, s, e))
+                }
             }
         }
         if (overlays.isNotEmpty()) output[page] = overlays
     }
     return output
 }
+
+/**
+ * Maps a screen-space pointer position into the un-zoomed content coordinate space.
+ *
+ * The content layer is transformed by graphicsLayer as:
+ *   screen = (P - center) * scale + center + pan
+ * so the inverse used here is:
+ *   P = (screen - center - pan) / scale + center
+ *
+ * This keeps annotations/OCR hit-testing aligned with the page at any zoom level.
+ */
+private fun screenToContent(screen: Offset, scale: Float, pan: Offset, center: Offset): Offset =
+    if (scale <= 0f) screen else (screen - center - pan) / scale + center
 
 private fun screenToNormalized(point: Offset, imageRect: Rect): NormalizedPoint? {
     if (imageRect.width <= 0f || imageRect.height <= 0f) return null

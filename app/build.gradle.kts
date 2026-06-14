@@ -81,7 +81,14 @@ android {
                 "kotlin-tooling-metadata.json",
                 "kotlin/**",
                 "META-INF/*.version",
-                "META-INF/**/LICENSE.txt"
+                "META-INF/**/LICENSE.txt",
+                // PdfBox-Android bundles these and they collide with other deps.
+                "META-INF/DEPENDENCIES",
+                "META-INF/INDEX.LIST",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.md",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.md"
             )
         }
         dex {

@@ -19,16 +19,18 @@
 
 # ✨ Features
 
-- 📖 Fast and lightweight PDF reader
-- 🔀 Merge multiple PDFs
-- ✂️ Split and extract PDF pages
+- 📖 Fast PDF reader with smooth, Adobe-style pinch-zoom & pan
+- ✍️ Annotate: pen, highlighter, shapes, arrows + on-device text selection (OCR)
+- 🗂️ Organize pages: reorder, rotate & delete — losslessly
+- 🔀 Merge multiple PDFs (lossless — text & vectors preserved)
+- ✂️ Split and extract PDF pages (lossless)
 - 🗜️ Compress PDFs with quality controls
-- 📄 Create PDFs from images, scans, or blank pages
-- 📷 Document scanner with edge detection
+- 🖼️ Images → PDF and 📄 Create PDFs from scans or blank pages
+- 🔎 Extract text from PDFs (copy / share)
+- 📷 Document scanner with edge detection (Google ML Kit)
 - 🌗 Beautiful liquid glass UI for light & dark mode
 - ⚡ Smooth performance built with Jetpack Compose
-- 🔒 Offline-first and privacy friendly
-- 🎨 Modern Android experience
+- 🔒 Fully offline & privacy friendly — no cloud, no accounts
 
 ---
 
@@ -108,7 +110,12 @@ Liquid glass and backdrop effects are inspired by and partially adapted from:
 AndroidLiquidGlass by kyant0  
 https://github.com/Kyant0/AndroidLiquidGlass
 
-Licensed under Apache License 2.0.
+Lossless PDF page operations and text extraction are powered by:
+
+PdfBox-Android by Tom Roush (a port of Apache PDFBox)  
+https://github.com/TomRoush/PdfBox-Android
+
+Both are licensed under the Apache License 2.0.
 
 ---
 

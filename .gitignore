@@ -53,3 +53,7 @@ app/src/main/assets/adi-registration.properties
 
 # Legacy extracted folder
 /Pdf_Tools-master/
+/ClearPDF-main/
+
+# Local Claude Code config
+.claude/

@@ -19,6 +19,9 @@ import androidx.compose.material.icons.automirrored.rounded.CallMerge
 import androidx.compose.material.icons.automirrored.rounded.CallSplit
 import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.FileOpen
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Reorder
+import androidx.compose.material.icons.rounded.TextSnippet
 import androidx.compose.material.icons.automirrored.rounded.NoteAdd
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
@@ -41,7 +44,10 @@ fun ToolsScreen(
     onNavigateToMergePdf: () -> Unit,
     onNavigateToSplitPdf: () -> Unit,
     onNavigateToCompressPdf: () -> Unit,
-    onNavigateToCreatePdf: () -> Unit
+    onNavigateToCreatePdf: () -> Unit,
+    onNavigateToOrganizePdf: () -> Unit = {},
+    onNavigateToExtractText: () -> Unit = {},
+    onNavigateToImagesToPdf: () -> Unit = {}
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val isLight = !isDarkMode
@@ -98,12 +104,38 @@ fun ToolsScreen(
             }
         }
 
-        LiquidGlassCard(
-            title = "Create PDF", subtitle = "From scratch, images, or text",
-            accentColor = Color(0xFFE65100), backdrop = backdrop, uiSensor = uiSensor,
-            onClick = onNavigateToCreatePdf, modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.AutoMirrored.Rounded.NoteAdd, null, Modifier.size(26.dp), Color(0xFFE65100))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LiquidGlassCard(
+                title = "Organize", subtitle = "Reorder & rotate",
+                accentColor = Color(0xFF00897B), backdrop = backdrop, uiSensor = uiSensor,
+                onClick = onNavigateToOrganizePdf, modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Rounded.Reorder, null, Modifier.size(26.dp), Color(0xFF00897B))
+            }
+            LiquidGlassCard(
+                title = "Images → PDF", subtitle = "Photos to PDF",
+                accentColor = Color(0xFF5E35B1), backdrop = backdrop, uiSensor = uiSensor,
+                onClick = onNavigateToImagesToPdf, modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Rounded.Image, null, Modifier.size(26.dp), Color(0xFF5E35B1))
+            }
+        }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LiquidGlassCard(
+                title = "Extract Text", subtitle = "Copy text out",
+                accentColor = Color(0xFF00838F), backdrop = backdrop, uiSensor = uiSensor,
+                onClick = onNavigateToExtractText, modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Rounded.TextSnippet, null, Modifier.size(26.dp), Color(0xFF00838F))
+            }
+            LiquidGlassCard(
+                title = "Create PDF", subtitle = "Blank, images, text",
+                accentColor = Color(0xFFE65100), backdrop = backdrop, uiSensor = uiSensor,
+                onClick = onNavigateToCreatePdf, modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.AutoMirrored.Rounded.NoteAdd, null, Modifier.size(26.dp), Color(0xFFE65100))
+            }
         }
 
         Spacer(Modifier.height(80.dp))

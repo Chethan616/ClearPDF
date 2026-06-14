@@ -2,102 +2,51 @@ package com.kyant.pdfcore.merger
 
 import android.content.Context
 import android.net.Uri
+import com.kyant.pdfcore.internal.PdfBox
 import com.kyant.pdfcore.model.PdfDocument
+import com.tom_roush.pdfbox.io.MemoryUsageSetting
+import com.tom_roush.pdfbox.multipdf.PDFMergerUtility
+import com.tom_roush.pdfbox.pdmodel.PDDocument
 
 /**
  * Merges two or more PDF files into a single output document.
- *
- * Implementations may use iText, PDFBox-Android, or a native solution.
  */
 interface PdfMerger {
 
-    /**
-     * Merge a list of PDF [sources] into one document written to [outputUri].
-     *
-     * @param context    Application context for content resolution.
-     * @param sources    Ordered list of PDFs to merge.
-     * @param outputUri  Destination URI for the merged file.
-     * @return A [PdfDocument] describing the merged output.
-     */
-    fun merge(
-        context: Context,
-        sources: List<PdfDocument>,
-        outputUri: Uri
-    ): PdfDocument
+    /** Merge a list of PDF [sources] (whole documents) into one file at [outputUri]. */
+    fun merge(context: Context, sources: List<PdfDocument>, outputUri: Uri): PdfDocument
 
-    /**
-     * Merge only selected pages from each source.
-     *
-     * @param context    Application context.
-     * @param sources    List of pairs: (document, page-indices to include).
-     * @param outputUri  Destination URI.
-     * @return A [PdfDocument] describing the merged output.
-     */
-    fun mergePages(
-        context: Context,
-        sources: List<Pair<PdfDocument, List<Int>>>,
-        outputUri: Uri
-    ): PdfDocument
+    /** Merge only selected pages from each source. */
+    fun mergePages(context: Context, sources: List<Pair<PdfDocument, List<Int>>>, outputUri: Uri): PdfDocument
 }
 
 /**
- * Real implementation using Android's PdfRenderer + PdfDocument APIs.
+ * Lossless implementation using PdfBox — pages are copied with their original text and
+ * vector content intact (no rasterisation, no quality loss, output stays small).
  */
 class PdfMergerImpl : PdfMerger {
 
-    override fun merge(
-        context: Context,
-        sources: List<PdfDocument>,
-        outputUri: Uri
-    ): PdfDocument {
-        val outDoc = android.graphics.pdf.PdfDocument()
-        var globalPage = 0
-        var reusableBitmap: android.graphics.Bitmap? = null
+    override fun merge(context: Context, sources: List<PdfDocument>, outputUri: Uri): PdfDocument {
+        PdfBox.ensureInitialized(context)
+        if (sources.isEmpty()) throw IllegalArgumentException("No PDFs to merge")
 
-        try {
+        val merger = PDFMergerUtility()
+        val outputStream = context.contentResolver.openOutputStream(outputUri)
+            ?: throw IllegalStateException("Cannot write merged PDF output")
+
+        var totalPages = 0
+        outputStream.use { out ->
+            merger.destinationStream = out
             for (src in sources) {
-                context.contentResolver.openFileDescriptor(src.uri, "r")?.use { fd ->
-                    val renderer = android.graphics.pdf.PdfRenderer(fd)
-                    try {
-                        for (i in 0 until renderer.pageCount) {
-                            val srcPage = renderer.openPage(i)
-                            try {
-                                val w = srcPage.width
-                                val h = srcPage.height
-                                val bitmap = obtainReusableBitmap(reusableBitmap, w, h)
-                                if (bitmap !== reusableBitmap) {
-                                    reusableBitmap?.recycle()
-                                    reusableBitmap = bitmap
-                                }
-                                bitmap.eraseColor(android.graphics.Color.WHITE)
-                                srcPage.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
-
-                                val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(w, h, globalPage++).create()
-                                val page = outDoc.startPage(pageInfo)
-                                page.canvas.drawBitmap(bitmap, 0f, 0f, null)
-                                outDoc.finishPage(page)
-                            } finally {
-                                srcPage.close()
-                            }
-                        }
-                    } finally {
-                        renderer.close()
-                    }
-                }
+                val input = context.contentResolver.openInputStream(src.uri)
+                    ?: throw IllegalStateException("Cannot read ${src.name}")
+                merger.addSource(input)
+                totalPages += countPages(context, src.uri)
             }
-
-            val mergeOutput = context.contentResolver.openOutputStream(outputUri)
-                ?: throw IllegalStateException("Cannot write merged PDF output")
-            mergeOutput.use {
-                outDoc.writeTo(it)
-                it.flush()
-            }
-        } finally {
-            reusableBitmap?.recycle()
-            outDoc.close()
+            merger.mergeDocuments(MemoryUsageSetting.setupTempFileOnly())
         }
 
-        return PdfDocument(uri = outputUri, name = "Merged.pdf", pageCount = globalPage)
+        return PdfDocument(uri = outputUri, name = "Merged.pdf", pageCount = totalPages)
     }
 
     override fun mergePages(
@@ -105,65 +54,41 @@ class PdfMergerImpl : PdfMerger {
         sources: List<Pair<PdfDocument, List<Int>>>,
         outputUri: Uri
     ): PdfDocument {
-        val outDoc = android.graphics.pdf.PdfDocument()
-        var globalPage = 0
-        var reusableBitmap: android.graphics.Bitmap? = null
+        PdfBox.ensureInitialized(context)
 
+        val output = PDDocument()
+        var written = 0
         try {
             for ((src, pages) in sources) {
-                context.contentResolver.openFileDescriptor(src.uri, "r")?.use { fd ->
-                    val renderer = android.graphics.pdf.PdfRenderer(fd)
-                    try {
+                val input = context.contentResolver.openInputStream(src.uri)
+                    ?: throw IllegalStateException("Cannot read ${src.name}")
+                input.use { stream ->
+                    PDDocument.load(stream).use { doc ->
                         for (i in pages) {
-                            if (i < 0 || i >= renderer.pageCount) continue
-                            val srcPage = renderer.openPage(i)
-                            try {
-                                val w = srcPage.width
-                                val h = srcPage.height
-                                val bitmap = obtainReusableBitmap(reusableBitmap, w, h)
-                                if (bitmap !== reusableBitmap) {
-                                    reusableBitmap?.recycle()
-                                    reusableBitmap = bitmap
-                                }
-                                bitmap.eraseColor(android.graphics.Color.WHITE)
-                                srcPage.render(bitmap, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
-
-                                val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(w, h, globalPage++).create()
-                                val page = outDoc.startPage(pageInfo)
-                                page.canvas.drawBitmap(bitmap, 0f, 0f, null)
-                                outDoc.finishPage(page)
-                            } finally {
-                                srcPage.close()
+                            if (i in 0 until doc.numberOfPages) {
+                                output.importPage(doc.getPage(i))
+                                written++
                             }
                         }
-                    } finally {
-                        renderer.close()
                     }
                 }
             }
-
-            val mergePagesOutput = context.contentResolver.openOutputStream(outputUri)
+            val out = context.contentResolver.openOutputStream(outputUri)
                 ?: throw IllegalStateException("Cannot write merged PDF output")
-            mergePagesOutput.use {
-                outDoc.writeTo(it)
-                it.flush()
-            }
+            out.use { output.save(it) }
         } finally {
-            reusableBitmap?.recycle()
-            outDoc.close()
+            output.close()
         }
 
-        return PdfDocument(uri = outputUri, name = "Merged.pdf", pageCount = globalPage)
+        return PdfDocument(uri = outputUri, name = "Merged.pdf", pageCount = written)
     }
 
-    private fun obtainReusableBitmap(
-        existing: android.graphics.Bitmap?,
-        width: Int,
-        height: Int
-    ): android.graphics.Bitmap {
-        if (existing != null && !existing.isRecycled && existing.width == width && existing.height == height) {
-            return existing
-        }
-        return android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+    /** Cheap page count via the native renderer (no full PdfBox parse). */
+    private fun countPages(context: Context, uri: Uri): Int = try {
+        context.contentResolver.openFileDescriptor(uri, "r")?.use { fd ->
+            android.graphics.pdf.PdfRenderer(fd).use { it.pageCount }
+        } ?: 0
+    } catch (_: Exception) {
+        0
     }
 }
