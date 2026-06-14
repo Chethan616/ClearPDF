@@ -5,4 +5,13 @@ Source: https://github.com/Kyant0/AndroidLiquidGlass
 
 AndroidLiquidGlass is licensed under the Apache License, Version 2.0.
 
+This project depends on PdfBox-Android by Tom Roush, used for lossless PDF page
+operations (merge, split, organize) and text extraction.
+Source: https://github.com/TomRoush/PdfBox-Android
+PdfBox-Android is licensed under the Apache License, Version 2.0, and is itself a
+port of Apache PDFBox (https://pdfbox.apache.org/).
+
+This project uses Google ML Kit (document scanner and on-device text recognition)
+for the scanning and text-selection features only.
+
 ClearPDF remains licensed under the MIT License (see LICENSE).

@@ -107,6 +107,12 @@ sealed class ExportOverlay {
         val alpha: Float,
         val arrowHead: Boolean
     ) : ExportOverlay()
+
+    data class ImageStamp(
+        val bitmap: Bitmap,
+        val start: NormalizedPoint,
+        val end: NormalizedPoint
+    ) : ExportOverlay()
 }
 
 class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel() {
@@ -626,6 +632,16 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                         val y2 = endY - (headLength * sin(angle + theta)).toFloat()
                         canvas.drawLine(endX, endY, x1, y1, paint)
                         canvas.drawLine(endX, endY, x2, y2, paint)
+                    }
+                }
+
+                is ExportOverlay.ImageStamp -> {
+                    val dst = normalizedRect(
+                        overlay.start.x, overlay.start.y, overlay.end.x, overlay.end.y, width, height
+                    )
+                    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true }
+                    if (!overlay.bitmap.isRecycled) {
+                        canvas.drawBitmap(overlay.bitmap, null, dst, paint)
                     }
                 }
             }

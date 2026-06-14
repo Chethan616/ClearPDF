@@ -20,8 +20,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import com.chethan616.clearpdf.ui.screen.CompressPdfScreen
 import com.chethan616.clearpdf.ui.screen.CreatePdfScreen
+import com.chethan616.clearpdf.ui.screen.ExtractTextScreen
+import com.chethan616.clearpdf.ui.screen.ImagesToPdfScreen
 import com.chethan616.clearpdf.ui.screen.HomeScreen
 import com.chethan616.clearpdf.ui.screen.MergePdfScreen
+import com.chethan616.clearpdf.ui.screen.PageOrganizerScreen
 import com.chethan616.clearpdf.ui.screen.PdfViewerScreen
 import com.chethan616.clearpdf.ui.screen.SettingsScreen
 import com.chethan616.clearpdf.ui.screen.SplitPdfScreen
@@ -29,7 +32,10 @@ import com.chethan616.clearpdf.ui.screen.ScanDocumentScreen
 import com.chethan616.clearpdf.ui.screen.ToolsScreen
 import com.chethan616.clearpdf.ui.viewmodel.CompressPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.CreatePdfViewModel
+import com.chethan616.clearpdf.ui.viewmodel.ExtractTextViewModel
+import com.chethan616.clearpdf.ui.viewmodel.ImagesToPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.MergePdfViewModel
+import com.chethan616.clearpdf.ui.viewmodel.PageOrganizerViewModel
 import com.chethan616.clearpdf.ui.viewmodel.PdfViewerViewModel
 import com.chethan616.clearpdf.ui.viewmodel.SplitPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.ScanViewModel
@@ -44,6 +50,9 @@ private const val ROUTE_MERGE = "merge_pdf"
 private const val ROUTE_SPLIT = "split_pdf"
 private const val ROUTE_COMPRESS = "compress_pdf"
 private const val ROUTE_CREATE = "create_pdf"
+private const val ROUTE_ORGANIZE = "organize_pdf"
+private const val ROUTE_EXTRACT_TEXT = "extract_text"
+private const val ROUTE_IMAGES_TO_PDF = "images_to_pdf"
 private const val ARG_PDF_URI = "uri"
 private const val ROUTE_VIEWER = "$ROUTE_VIEWER_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
 
@@ -115,7 +124,10 @@ fun DocsNavGraph(
                 onNavigateToMergePdf = { navController.navigate(ROUTE_MERGE) { launchSingleTop = true } },
                 onNavigateToSplitPdf = { navController.navigate(ROUTE_SPLIT) { launchSingleTop = true } },
                 onNavigateToCompressPdf = { navController.navigate(ROUTE_COMPRESS) { launchSingleTop = true } },
-                onNavigateToCreatePdf = { navController.navigate(ROUTE_CREATE) { launchSingleTop = true } }
+                onNavigateToCreatePdf = { navController.navigate(ROUTE_CREATE) { launchSingleTop = true } },
+                onNavigateToOrganizePdf = { navController.navigate(ROUTE_ORGANIZE) { launchSingleTop = true } },
+                onNavigateToExtractText = { navController.navigate(ROUTE_EXTRACT_TEXT) { launchSingleTop = true } },
+                onNavigateToImagesToPdf = { navController.navigate(ROUTE_IMAGES_TO_PDF) { launchSingleTop = true } }
             )
         }
 
@@ -228,6 +240,53 @@ fun DocsNavGraph(
                 }
             )
             CreatePdfScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onViewOutput = { uri -> navController.navigateToPdfViewer(uri) }
+            )
+        }
+
+        composable(ROUTE_ORGANIZE) {
+            val vm: PageOrganizerViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                        PageOrganizerViewModel(PdfServiceLocator.pdfEditor) as T
+                }
+            )
+            PageOrganizerScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onViewOutput = { uri -> navController.navigateToPdfViewer(uri) }
+            )
+        }
+
+        composable(ROUTE_EXTRACT_TEXT) {
+            val vm: ExtractTextViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                        ExtractTextViewModel(PdfServiceLocator.pdfConverter) as T
+                }
+            )
+            ExtractTextScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(ROUTE_IMAGES_TO_PDF) {
+            val vm: ImagesToPdfViewModel = viewModel(
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                        ImagesToPdfViewModel(PdfServiceLocator.pdfConverter) as T
+                }
+            )
+            ImagesToPdfScreen(
                 backdrop = backdrop,
                 viewModel = vm,
                 onBack = { navController.popBackStack() },
