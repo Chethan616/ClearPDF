@@ -39,6 +39,8 @@ data class PageOrganizerUiState(
     val sourceFileName: String = "",
     val sourceUri: Uri? = null,
     val pages: List<OrganizerPage> = emptyList(),
+    /** Stable ids (= originalIndex) of currently multi-selected pages. */
+    val selectedIds: Set<Int> = emptySet(),
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val resultMessage: String? = null,
@@ -73,13 +75,6 @@ class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
         }
     }
 
-    fun movePage(from: Int, to: Int) {
-        val pages = _uiState.value.pages.toMutableList()
-        if (from !in pages.indices || to !in pages.indices) return
-        pages.add(to, pages.removeAt(from))
-        _uiState.value = _uiState.value.copy(pages = pages, resultMessage = null)
-    }
-
     fun rotatePage(index: Int, deltaDegrees: Int = 90) {
         val pages = _uiState.value.pages.toMutableList()
         if (index !in pages.indices) return
@@ -91,8 +86,67 @@ class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
     fun deletePage(index: Int) {
         val pages = _uiState.value.pages.toMutableList()
         if (index !in pages.indices || pages.size <= 1) return
-        pages.removeAt(index)
+        val removed = pages.removeAt(index)
+        _uiState.value = _uiState.value.copy(
+            pages = pages,
+            selectedIds = _uiState.value.selectedIds - removed.originalIndex,
+            resultMessage = null
+        )
+    }
+
+    // ── Selection ─────────────────────────────────────────────────────────────
+
+    fun toggleSelect(id: Int) {
+        val sel = _uiState.value.selectedIds.toMutableSet()
+        if (!sel.add(id)) sel.remove(id)
+        _uiState.value = _uiState.value.copy(selectedIds = sel, resultMessage = null)
+    }
+
+    fun clearSelection() {
+        _uiState.value = _uiState.value.copy(selectedIds = emptySet())
+    }
+
+    fun selectAll() {
+        _uiState.value = _uiState.value.copy(selectedIds = _uiState.value.pages.map { it.originalIndex }.toSet())
+    }
+
+    fun rotateSelected(deltaDegrees: Int = 90) {
+        val sel = _uiState.value.selectedIds
+        if (sel.isEmpty()) return
+        val pages = _uiState.value.pages.map {
+            if (it.originalIndex in sel) it.copy(rotation = (((it.rotation + deltaDegrees) % 360) + 360) % 360) else it
+        }
         _uiState.value = _uiState.value.copy(pages = pages, resultMessage = null)
+    }
+
+    fun deleteSelected() {
+        val sel = _uiState.value.selectedIds
+        if (sel.isEmpty()) return
+        val pages = _uiState.value.pages.filterNot { it.originalIndex in sel }
+        if (pages.isEmpty()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Can't delete every page")
+            return
+        }
+        _uiState.value = _uiState.value.copy(pages = pages, selectedIds = emptySet(), resultMessage = null)
+    }
+
+    // ── Drag reorder ────────────────────────────────────────────────────────────
+
+    /**
+     * Moves the pages identified by [ids] (kept in their current relative order) so they
+     * land at [targetIndex] in the full list. Powers both single- and multi-page drag.
+     */
+    fun movePagesTo(ids: List<Int>, targetIndex: Int) {
+        if (ids.isEmpty()) return
+        val current = _uiState.value.pages
+        val idSet = ids.toSet()
+        val moving = current.filter { it.originalIndex in idSet }
+        if (moving.isEmpty()) return
+        val remaining = current.filterNot { it.originalIndex in idSet }
+        val removedBefore = current.take(targetIndex.coerceIn(0, current.size)).count { it.originalIndex in idSet }
+        val insertAt = (targetIndex - removedBefore).coerceIn(0, remaining.size)
+        val result = remaining.toMutableList().apply { addAll(insertAt, moving) }
+        _uiState.value = _uiState.value.copy(pages = result, resultMessage = null)
     }
 
     fun save(context: Context, fileName: String, overrideUri: Uri? = null) {
