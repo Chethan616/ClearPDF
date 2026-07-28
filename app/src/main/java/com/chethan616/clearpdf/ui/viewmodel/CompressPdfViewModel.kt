@@ -105,25 +105,26 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
     }
 
     fun onQualitySliderChanged(value: Float) {
+        val current = _uiState.value
         val quality = when {
             value < 0.33f -> CompressionQuality.LOW
             value < 0.66f -> CompressionQuality.MEDIUM
             else -> CompressionQuality.HIGH
         }
-        val sourceUri = _uiState.value.sourceUri
-        val estimate = if (sourceUri != null) {
+        val sourceUri = current.sourceUri
+        val estimate = if (quality != current.selectedQuality && sourceUri != null) {
             compressPdfUseCase.estimateSize(
                 source = PdfDocument(
                     uri = sourceUri,
-                    name = _uiState.value.sourceFileName,
-                    sizeBytes = _uiState.value.originalSizeBytes
+                    name = current.sourceFileName,
+                    sizeBytes = current.originalSizeBytes
                 ),
                 quality = quality
             )
         } else {
-            -1
+            current.estimatedSizeBytes
         }
-        _uiState.value = _uiState.value.copy(
+        _uiState.value = current.copy(
             qualitySlider = value,
             selectedQuality = quality,
             estimatedSizeBytes = estimate

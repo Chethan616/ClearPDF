@@ -11,6 +11,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -49,10 +50,15 @@ class DampedDragAnimation(
     private val mutatorMutex = MutatorMutex()
     private val velocityTracker = VelocityTracker()
     private var lastVelocityTarget = 0f
+    private var valueUpdateJob: Job? = null
+    private var velocityUpdateJob: Job? = null
+    private var inputTargetValue = initialValue
 
     val value: Float get() = valueAnimation.value
     val progress: Float get() = (value - valueRange.start) / (valueRange.endInclusive - valueRange.start)
-    val targetValue: Float get() = valueAnimation.targetValue
+    // Keep the touch target synchronous even though Animatable updates on the
+    // animation scope. This prevents a fast drag from reading a stale target.
+    val targetValue: Float get() = inputTargetValue
     val pressProgress: Float get() = pressProgressAnimation.value
     val scaleX: Float get() = scaleXAnimation.value
     val scaleY: Float get() = scaleYAnimation.value
@@ -93,7 +99,7 @@ class DampedDragAnimation(
             if (value != targetValue) {
                 val threshold = (valueRange.endInclusive - valueRange.start) * 0.025f
                 snapshotFlow { valueAnimation.value }
-                    .filter { abs(it - valueAnimation.targetValue) < threshold }
+                    .filter { abs(it - targetValue) < threshold }
                     .first()
             }
             launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
@@ -104,17 +110,25 @@ class DampedDragAnimation(
 
     fun updateValue(value: Float) {
         val targetValue = value.coerceIn(valueRange)
-        animationScope.launch {
-            launch { valueAnimation.animateTo(targetValue, valueAnimationSpec) { updateVelocity() } }
+        inputTargetValue = targetValue
+        valueUpdateJob?.cancel()
+        valueUpdateJob = animationScope.launch {
+            // A drag is already a continuous gesture. Animating every sample
+            // creates a queue of spring jobs and makes the thumb trail behind.
+            valueAnimation.snapTo(targetValue)
+            updateVelocity()
         }
     }
 
     fun animateToValue(value: Float) {
+        val target = value.coerceIn(valueRange)
+        inputTargetValue = target
+        valueUpdateJob?.cancel()
+        velocityUpdateJob?.cancel()
         animationScope.launch {
             mutatorMutex.mutate {
                 press()
-                val targetValue = value.coerceIn(valueRange)
-                launch { valueAnimation.animateTo(targetValue, valueAnimationSpec) }
+                launch { valueAnimation.animateTo(target, valueAnimationSpec) }
                 if (velocity != 0f) {
                     launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
                 }
@@ -129,6 +143,11 @@ class DampedDragAnimation(
         val targetVelocity = velocityTracker.calculateVelocity().x / range
         if (abs(targetVelocity - lastVelocityTarget) < VELOCITY_DELTA_EPSILON) return
         lastVelocityTarget = targetVelocity
-        animationScope.launch { velocityAnimation.animateTo(targetVelocity, velocityAnimationSpec) }
+        velocityUpdateJob?.cancel()
+        velocityUpdateJob = animationScope.launch {
+            // Velocity is visual feedback during a gesture; snapping to the
+            // newest sample is smoother than stacking spring animations.
+            velocityAnimation.snapTo(targetVelocity)
+        }
     }
 }

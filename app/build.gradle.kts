@@ -61,8 +61,9 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
-            if (!hasReleaseSigning) {
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
                 logger.warn("Release signing key is not configured. Add key.properties or signing env vars before running release tasks.")
             }
             isMinifyEnabled = true
@@ -108,7 +109,7 @@ android {
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(17)
     compilerOptions {
         freeCompilerArgs.addAll(
             "-Xlambdas=class"

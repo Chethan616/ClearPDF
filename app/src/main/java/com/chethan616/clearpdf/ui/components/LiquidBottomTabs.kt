@@ -1,8 +1,5 @@
 package com.chethan616.clearpdf.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOut
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -11,23 +8,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
@@ -37,9 +29,6 @@ import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.DampedDragAnimation
 import com.chethan616.clearpdf.ui.utils.InteractiveHighlight
 import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
@@ -48,9 +37,6 @@ import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
-import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.sign
 
 @Composable
 fun LiquidBottomTabs(
@@ -65,9 +51,6 @@ fun LiquidBottomTabs(
     val isLightTheme = !isDarkMode
     val accentColor = if (isLightTheme) Color(0xFF0088FF) else Color(0xFF0091FF)
     val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f) else Color(0xFF121212).copy(0.4f)
-
-    val tabsBackdrop = rememberLayerBackdrop()
-    val combinedBackdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
 
     BoxWithConstraints(
         modifier,
@@ -90,15 +73,6 @@ fun LiquidBottomTabs(
             (constraints.maxWidth.toFloat() - horizontalInsetPx * 2f) / tabsCount
         }
 
-        val offsetAnimation = remember { Animatable(0f) }
-        val panelOffset by remember(horizontalInsetPx, constraints.maxWidth) {
-            derivedStateOf {
-                val width = constraints.maxWidth.coerceAtLeast(1)
-                val fraction = (offsetAnimation.value / width).fastCoerceIn(-1f, 1f)
-                horizontalInsetPx * fraction.sign * EaseOut.transform(abs(fraction))
-            }
-        }
-
         val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
         val animationScope = rememberCoroutineScope()
         val dampedDragAnimation = remember(animationScope, isLtr, tabWidth, tabsCount) {
@@ -116,21 +90,12 @@ fun LiquidBottomTabs(
                     if (targetIndex != selectedIndexState.value) {
                         onTabSelectedState.value(targetIndex)
                     }
-                    animationScope.launch {
-                        offsetAnimation.animateTo(
-                            0f,
-                            spring(1f, 300f, 0.5f)
-                        )
-                    }
                 },
                 onDrag = { _, dragAmount ->
                     updateValue(
                         (targetValue + dragAmount.x / tabWidth * if (isLtr) 1f else -1f)
                             .fastCoerceIn(0f, (tabsCount - 1).toFloat())
                     )
-                    animationScope.launch {
-                        offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x)
-                    }
                 }
             )
         }
@@ -144,8 +109,8 @@ fun LiquidBottomTabs(
                 animationScope = animationScope,
                 position = { size, _ ->
                     Offset(
-                        if (isLtr) (dampedDragAnimation.value + 0.5f) * tabWidth + panelOffset
-                        else size.width - (dampedDragAnimation.value + 0.5f) * tabWidth + panelOffset,
+                        if (isLtr) (dampedDragAnimation.value + 0.5f) * tabWidth
+                        else size.width - (dampedDragAnimation.value + 0.5f) * tabWidth,
                         size.height / 2f
                     )
                 }
@@ -155,7 +120,6 @@ fun LiquidBottomTabs(
         // Container row
         Row(
             Modifier
-                .graphicsLayer { translationX = panelOffset }
                 .drawBackdrop(
                     backdrop = backdrop,
                     shape = { Capsule },
@@ -180,59 +144,19 @@ fun LiquidBottomTabs(
             content = content
         )
 
-        // Hidden tinted row
-        CompositionLocalProvider(
-            LocalLiquidBottomTabScale provides {
-                lerp(1f, 1.2f, dampedDragAnimation.pressProgress)
-            }
-        ) {
-            Row(
-                Modifier
-                    .clearAndSetSemantics {}
-                    .alpha(0f)
-                    .layerBackdrop(tabsBackdrop)
-                    .graphicsLayer { translationX = panelOffset }
-                    .drawBackdrop(
-                        backdrop = backdrop,
-                        shape = { Capsule },
-                        effects = {
-                            val progress = dampedDragAnimation.pressProgress
-                            vibrancy()
-                            blur(blurRadiusPx)
-                            lens(
-                                containerLensRadiusPx * progress,
-                                containerLensRadiusPx * progress
-                            )
-                        },
-                        highlight = {
-                            val progress = dampedDragAnimation.pressProgress
-                            Highlight.Default.copy(alpha = progress)
-                        },
-                        onDrawSurface = { drawRect(containerColor) }
-                    )
-                    .then(interactiveHighlight.modifier)
-                    .height(56f.dp)
-                    .fillMaxWidth()
-                    .padding(horizontal = 4f.dp)
-                    .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
-                verticalAlignment = Alignment.CenterVertically,
-                content = content
-            )
-        }
-
         // Indicator
         Box(
             Modifier
                 .padding(horizontal = 4f.dp)
                 .graphicsLayer {
                     translationX =
-                        if (isLtr) dampedDragAnimation.value * tabWidth + panelOffset
-                        else size.width - (dampedDragAnimation.value + 1f) * tabWidth + panelOffset
+                        if (isLtr) dampedDragAnimation.value * tabWidth
+                        else size.width - (dampedDragAnimation.value + 1f) * tabWidth
                 }
                 .then(interactiveHighlight.gestureModifier)
                 .then(dampedDragAnimation.modifier)
                 .drawBackdrop(
-                    backdrop = combinedBackdrop,
+                    backdrop = backdrop,
                     shape = { Capsule },
                     effects = {
                         val progress = dampedDragAnimation.pressProgress
@@ -266,6 +190,7 @@ fun LiquidBottomTabs(
                     },
                     onDrawSurface = {
                         val progress = dampedDragAnimation.pressProgress
+                        drawRect(accentColor.copy(alpha = if (isLightTheme) 0.12f else 0.2f))
                         drawRect(
                             if (isLightTheme) Color.Black.copy(0.1f) else Color.White.copy(0.1f),
                             alpha = 1f - progress

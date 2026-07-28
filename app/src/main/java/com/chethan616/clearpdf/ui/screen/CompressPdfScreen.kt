@@ -132,7 +132,7 @@ fun CompressPdfScreen(
                 BasicText("Size: ${state.originalSizeBytes / 1024} KB", style = TextStyle(sub, 13.sp))
             }
 
-            // Quality presets
+            // One focused control surface: preset first, fine-tuning second.
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -141,6 +141,10 @@ fun CompressPdfScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 BasicText("Compression Level", style = TextStyle(text, 15.sp, fontWeight = FontWeight.Medium))
+                BasicText(
+                    "Start with a preset, then fine-tune the size and quality balance.",
+                    style = TextStyle(sub, 12.sp)
+                )
 
                 val qualities = listOf(
                     Triple(CompressionQuality.LOW, "Maximum Compression", "Smallest file, lower quality"),
@@ -184,43 +188,27 @@ fun CompressPdfScreen(
                         }
                     }
                 }
-            }
-
-            if (state.estimatedSizeBytes > 0) {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .liquidGlassPanel(backdrop, uiSensor)
-                        .padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    val currentKb = state.originalSizeBytes / 1024
-                    val estimateKb = state.estimatedSizeBytes / 1024
-                    BasicText("Estimated output", style = TextStyle(text, 14.sp, fontWeight = FontWeight.SemiBold))
-                    BasicText("$currentKb KB -> about $estimateKb KB", style = TextStyle(sub, 13.sp))
-                }
-            }
-
-            // Quality slider for fine-tuning
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .liquidGlassPanel(backdrop, uiSensor)
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), accent)
-                    BasicText("Fine-tune Quality", style = TextStyle(text, 15.sp, fontWeight = FontWeight.Medium))
+                    BasicText("Fine-tune quality", style = TextStyle(text, 14.sp, fontWeight = FontWeight.Medium))
+                    val qualityLabel = when (state.selectedQuality) {
+                        CompressionQuality.LOW -> "Low"
+                        CompressionQuality.MEDIUM -> "Balanced"
+                        CompressionQuality.HIGH -> "High"
+                    }
+                    BasicText(
+                        qualityLabel,
+                        style = TextStyle(accent, 12.sp, fontWeight = FontWeight.SemiBold),
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1
+                    )
+                    BasicText(
+                        "${(state.qualitySlider * 100).toInt()}%",
+                        style = TextStyle(text, 13.sp, fontWeight = FontWeight.SemiBold)
+                    )
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     BasicText("Smaller file", style = TextStyle(sub, 13.sp))
-                    val qualityLabel = when (state.selectedQuality) {
-                        CompressionQuality.LOW -> "Low"
-                        CompressionQuality.MEDIUM -> "Medium"
-                        CompressionQuality.HIGH -> "High"
-                    }
-                    BasicText(qualityLabel, style = TextStyle(text, 13.sp, fontWeight = FontWeight.SemiBold))
                     BasicText("Better quality", style = TextStyle(sub, 13.sp))
                 }
                 LiquidSlider(
@@ -233,6 +221,14 @@ fun CompressPdfScreen(
                     backdrop = backdrop,
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (state.estimatedSizeBytes > 0) {
+                    val currentKb = state.originalSizeBytes / 1024
+                    val estimateKb = state.estimatedSizeBytes / 1024
+                    BasicText(
+                        "Estimated output  $currentKb KB  ->  about $estimateKb KB",
+                        style = TextStyle(sub, 12.sp, fontWeight = FontWeight.Medium)
+                    )
+                }
             }
 
             // Compress button
