@@ -55,6 +55,17 @@ object RecentFilesManager {
     fun clearRecents(context: Context) {
         prefs(context).edit().remove(KEY_RECENTS).apply()
     }
+
+    fun removeRecent(context: Context, uri: Uri) {
+        val remaining = getRecents(context).filterNot { it.uriString == uri.toString() }
+        prefs(context).edit().apply {
+            if (remaining.isEmpty()) {
+                remove(KEY_RECENTS)
+            } else {
+                putString(KEY_RECENTS, json.encodeToString(remaining))
+            }
+        }.apply()
+    }
 }
 
 /**

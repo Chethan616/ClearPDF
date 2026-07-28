@@ -30,7 +30,8 @@
 - 📷 Document scanner with edge detection (Google ML Kit)
 - 🌗 Beautiful liquid glass UI for light & dark mode
 - ⚡ Smooth performance built with Jetpack Compose
-- 🔒 Fully offline & privacy friendly — no cloud, no accounts
+- 🔒 Offline-first & privacy friendly — no cloud PDF processing, accounts, ads, or analytics
+- 🛡️ No hidden uploads — PDF work stays on-device; scanner/text-selection ML components are disclosed in `NOTICE`
 
 ---
 
@@ -88,6 +89,14 @@ Open the project in Android Studio and run:
 2. Build the project
 3. Run on a real device or emulator
 
+The project uses JDK 17 or newer and Android SDK 36. Build the release variant locally with:
+
+```bash
+./gradlew assembleRelease
+```
+
+The release build is intentionally unsigned for contributors unless local signing credentials are configured. Never commit `key.properties`, keystores, APKs, or private documents.
+
 ---
 
 # ❤️ Open Source
@@ -100,6 +109,8 @@ If you like the project:
 - 🍴 Fork the project
 - 🛠 Contribute improvements
 - 📢 Share it with others
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the offline-first contribution principles and release workflow. See [PRIVACY.md](PRIVACY.md) for the app's privacy and offline behavior. Please use the issue templates for bugs and feature requests.
 
 ---
 

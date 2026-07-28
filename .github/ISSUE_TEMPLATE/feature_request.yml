@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest an improvement that fits ClearPDF's offline-first mission.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What user workflow is difficult or missing today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Project principles
+      options:
+        - label: This can work offline and does not require ads, accounts, or cloud processing.
+          required: true
+        - label: I have checked for existing issues or pull requests.
+          required: true

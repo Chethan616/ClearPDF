@@ -57,3 +57,6 @@ app/src/main/assets/adi-registration.properties
 
 # Local Claude Code config
 .claude/
+
+# Local graphify knowledge graph
+/graphify-out/

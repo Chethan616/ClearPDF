@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.util.fastCoerceIn
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class InteractiveHighlight(
@@ -30,6 +31,7 @@ class InteractiveHighlight(
     private val positionAnimation = Animatable(Offset.Zero, Offset.VectorConverter, Offset.VisibilityThreshold)
 
     private var startPosition = Offset.Zero
+    private var positionUpdateJob: Job? = null
     val pressProgress: Float get() = pressProgressAnimation.value
     val offset: Offset get() = positionAnimation.value - startPosition
 
@@ -82,25 +84,33 @@ half4 main(float2 coord) {
             inspectDragGestures(
                 onDragStart = { down ->
                     startPosition = down.position
+                    positionUpdateJob?.cancel()
                     animationScope.launch {
                         launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
                         launch { positionAnimation.snapTo(startPosition) }
                     }
                 },
                 onDragEnd = {
+                    positionUpdateJob?.cancel()
                     animationScope.launch {
                         launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
                         launch { positionAnimation.animateTo(startPosition, positionAnimationSpec) }
                     }
                 },
                 onDragCancel = {
+                    positionUpdateJob?.cancel()
                     animationScope.launch {
                         launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
                         launch { positionAnimation.animateTo(startPosition, positionAnimationSpec) }
                     }
                 }
             ) { change, _ ->
-                animationScope.launch { positionAnimation.snapTo(change.position) }
+                // Pointer events can arrive faster than a frame. Keep only the
+                // newest position instead of queuing one coroutine per sample.
+                positionUpdateJob?.cancel()
+                positionUpdateJob = animationScope.launch {
+                    positionAnimation.snapTo(change.position)
+                }
             }
         }
 }
