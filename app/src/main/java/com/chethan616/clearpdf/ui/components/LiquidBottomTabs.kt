@@ -3,7 +3,6 @@ package com.chethan616.clearpdf.ui.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -68,8 +67,8 @@ fun LiquidBottomTabs(
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
-    val accentColor = if (isLightTheme) Color(0xFF0088FF) else Color(0xFF0091FF)
-    val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f) else Color(0xFF121212).copy(0.4f)
+    val accentColor = Color(0xFF0A84FF)
+    val containerColor = if (isLightTheme) Color.White.copy(0.40f) else Color(0xFF111216).copy(0.48f)
 
     val tabsBackdrop = rememberLayerBackdrop()
 
@@ -94,7 +93,10 @@ fun LiquidBottomTabs(
 
         val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
         val animationScope = rememberCoroutineScope()
-        var currentIndex by remember(selectedTabIndex) { mutableIntStateOf(selectedTabIndex()) }
+        // Keep the animation state stable when the parent recomposes. The
+        // selected-tab lambda is intentionally observed through snapshotFlow
+        // below instead of being used as a remember key.
+        var currentIndex by remember { mutableIntStateOf(selectedTabIndex()) }
         val dampedDragAnimation = remember(animationScope) {
             DampedDragAnimation(
                 animationScope = animationScope,
@@ -126,7 +128,7 @@ fun LiquidBottomTabs(
                 }
             )
         }
-        LaunchedEffect(selectedTabIndex) {
+        LaunchedEffect(Unit) {
             snapshotFlow { selectedTabIndex() }
                 .collectLatest { index -> currentIndex = index }
         }
@@ -161,8 +163,8 @@ fun LiquidBottomTabs(
                     shape = { Capsule },
                     effects = {
                         vibrancy()
-                        blur(8f.dp.toPx())
-                        lens(24f.dp.toPx(), 24f.dp.toPx())
+                        blur(6f.dp.toPx())
+                        lens(18f.dp.toPx(), 20f.dp.toPx())
                     },
                     layerBlock = {
                         val progress = dampedDragAnimation.pressProgress
@@ -198,7 +200,7 @@ fun LiquidBottomTabs(
                         effects = {
                             val progress = dampedDragAnimation.pressProgress
                             vibrancy()
-                            blur(8f.dp.toPx())
+                            blur(6f.dp.toPx())
                             lens(
                                 24f.dp.toPx() * progress,
                                 24f.dp.toPx() * progress
