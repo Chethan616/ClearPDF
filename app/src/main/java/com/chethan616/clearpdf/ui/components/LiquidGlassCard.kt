@@ -6,11 +6,18 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -113,6 +120,55 @@ fun LiquidGlassCard(
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             BasicText(title, style = TextStyle(titleColor, 16.sp, FontWeight.Bold))
             BasicText(subtitle, style = TextStyle(subtitleColor, 12.sp))
+        }
+    }
+}
+
+@Composable
+fun LiquidGlassErrorCard(
+    message: String,
+    backdrop: Backdrop,
+    uiSensor: UISensor,
+    onDismiss: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val isDarkMode = LocalIsDarkMode.current
+    val isLight = !isDarkMode
+    val errorRed = Color(0xFFEF5350)
+    val errorBg = if (isLight) Color(0xFFFFEBEE).copy(0.6f) else Color(0xFF2C1C1C).copy(0.6f)
+    val textColor = if (isLight) Color(0xFFC62828) else Color(0xFFFF8A80)
+
+    Row(
+        modifier
+            .fillMaxWidth()
+            .liquidGlassPanel(backdrop, uiSensor)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(errorRed.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Rounded.ErrorOutline, null, Modifier.size(20.dp), errorRed)
+        }
+        BasicText(
+            message,
+            style = TextStyle(textColor, 13.sp, FontWeight.Medium),
+            modifier = Modifier.weight(1f)
+        )
+        if (onDismiss != null) {
+            LiquidIconButton(
+                onClick = onDismiss,
+                backdrop = backdrop,
+                tint = errorRed,
+                modifier = Modifier.size(30.dp)
+            ) {
+                CloseCrossIcon(Modifier.size(12.dp), Color.White)
+            }
         }
     }
 }

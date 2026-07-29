@@ -176,12 +176,14 @@ fun LiquidSlider(
                     shape = { Capsule },
                     effects = {
                         val progress = dampedDragAnimation.pressProgress
-                        // Optimized: reduced blur from 8dp to 6dp for better performance
-                        blur(6f.dp.toPx() * (1f - progress))
+                        // Optimize blur & lens effect dynamically when dragging to avoid dropped frames (120fps smooth performance)
+                        val blurPx = if (isDragging) 2f.dp.toPx() else (5f.dp.toPx() * (1f - progress))
+                        val lensRad = if (isDragging) 4f.dp.toPx() else (10f.dp.toPx() * progress)
+                        blur(blurPx)
                         lens(
-                            10f.dp.toPx() * progress,
-                            14f.dp.toPx() * progress,
-                            chromaticAberration = true
+                            lensRad,
+                            lensRad * 1.4f,
+                            chromaticAberration = !isDragging
                         )
                     },
                     highlight = {

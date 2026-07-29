@@ -1,6 +1,16 @@
 package com.chethan616.clearpdf.ui.screen
 
+import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -15,31 +25,39 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.FileOpen
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.PictureAsPdf
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
 import androidx.compose.material.icons.rounded.Scanner
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -47,6 +65,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.ui.components.LiquidButton
+import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
@@ -55,6 +74,8 @@ import com.kyant.backdrop.backdrops.LayerBackdrop
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 
 @Composable
 fun HomeScreen(
@@ -69,6 +90,7 @@ fun HomeScreen(
     val text = if (isLight) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
     val sub = if (isLight) Color(0xFF666666) else Color(0xFFAAAAAA)
     val accent = Color(0xFF0088FF)
+    val redAccent = Color(0xFFEF5350)
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
 
@@ -96,200 +118,359 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-        LiquidGlassTopBar(title = "ClearPDF", backdrop = backdrop, uiSensor = uiSensor)
+            LiquidGlassTopBar(title = "ClearPDF", backdrop = backdrop, uiSensor = uiSensor)
 
-        // Welcome card
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .liquidGlassPanel(backdrop, uiSensor)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                Icons.Rounded.Description, contentDescription = null,
-                tint = accent, modifier = Modifier.size(56.dp)
-            )
-            Spacer(Modifier.height(16.dp))
-            BasicText(
-                "Welcome to ClearPDF",
-                style = TextStyle(text, 22.sp, FontWeight.Bold, textAlign = TextAlign.Center)
-            )
-            Spacer(Modifier.height(8.dp))
-            BasicText(
-                "Your all-in-one PDF toolkit.\nScan, open, merge, split, compress, and create PDFs.",
-                style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center)
-            )
-            Spacer(Modifier.height(20.dp))
+            // Welcome card
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .liquidGlassPanel(backdrop, uiSensor)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    Icons.Rounded.Description, contentDescription = null,
+                    tint = accent, modifier = Modifier.size(56.dp)
+                )
+                Spacer(Modifier.height(16.dp))
+                BasicText(
+                    "Welcome to ClearPDF",
+                    style = TextStyle(text, 22.sp, FontWeight.Bold, textAlign = TextAlign.Center)
+                )
+                Spacer(Modifier.height(8.dp))
+                BasicText(
+                    "Your all-in-one PDF toolkit.\nScan, open, merge, split, compress, and create PDFs.",
+                    style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center)
+                )
+                Spacer(Modifier.height(20.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                LiquidButton(onClick = onNavigateToOpenPdf, backdrop = backdrop, tint = accent) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Rounded.FileOpen, null, Modifier.size(18.dp), Color.White)
-                        BasicText("Open PDF", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LiquidButton(onClick = onNavigateToOpenPdf, backdrop = backdrop, tint = accent) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Rounded.FileOpen, null, Modifier.size(18.dp), Color.White)
+                            BasicText("Open PDF", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
+                        }
                     }
-                }
-                LiquidButton(
-                    onClick = onNavigateToScan, backdrop = backdrop,
-                    tint = Color(0xFF4CAF50)
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    LiquidButton(
+                        onClick = onNavigateToScan, backdrop = backdrop,
+                        tint = Color(0xFF4CAF50)
                     ) {
-                        Icon(Icons.Rounded.Scanner, null, Modifier.size(18.dp), Color.White)
-                        BasicText("Scan", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Rounded.Scanner, null, Modifier.size(18.dp), Color.White)
+                            BasicText("Scan", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
+                        }
                     }
                 }
             }
-        }
 
-        // Recent files
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .liquidGlassPanel(backdrop, uiSensor)
-                .padding(20.dp)
-        ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            // Recent files
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .liquidGlassPanel(backdrop, uiSensor)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                BasicText("Recent Files", style = TextStyle(text, 16.sp, FontWeight.Bold))
-                if (recents.isNotEmpty()) {
-                    if (recents.size > homeRecentLimit) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    BasicText("Recent Files", style = TextStyle(text, 16.sp, FontWeight.Bold))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (recents.isNotEmpty() && recents.size > homeRecentLimit) {
+                            BasicText(
+                                if (showAllRecents) "Show less" else "See all (${recents.size})",
+                                style = TextStyle(accent, 12.sp, FontWeight.SemiBold),
+                                modifier = Modifier.clickable { showAllRecents = !showAllRecents }
+                            )
+                        }
+                        if (recents.isNotEmpty()) {
+                            LiquidIconButton(
+                                onClick = {
+                                    RecentFilesManager.clearRecents(context)
+                                    recents = emptyList()
+                                    showAllRecents = false
+                                },
+                                backdrop = backdrop,
+                                tint = redAccent,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                CloseCrossIcon(Modifier.size(16.dp), Color.White)
+                            }
+                        }
+                    }
+                }
+
+                if (recents.isEmpty()) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(36.dp), sub.copy(0.5f))
                         BasicText(
-                            if (showAllRecents) "Show less" else "See all (${recents.size})",
-                            style = TextStyle(accent, 12.sp, FontWeight.SemiBold),
-                            modifier = Modifier.clickable { showAllRecents = !showAllRecents }
+                            "No recent files",
+                            style = TextStyle(sub, 14.sp, FontWeight.Medium, textAlign = TextAlign.Center)
+                        )
+                        BasicText(
+                            "Opened and exported PDFs will appear here.",
+                            style = TextStyle(sub.copy(0.7f), 12.sp, textAlign = TextAlign.Center)
                         )
                     }
-                    Icon(
-                        Icons.Rounded.DeleteOutline, "Clear recents",
-                        Modifier
-                            .size(20.dp)
-                            .clickable {
-                                RecentFilesManager.clearRecents(context)
-                                recents = emptyList()
-                                showAllRecents = false
-                            },
-                        sub
-                    )
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-
-            if (recents.isEmpty()) {
-                BasicText("Your opened and exported PDFs will show up here.", style = TextStyle(sub, 14.sp))
-            } else {
-                val visibleRecents = if (showAllRecents) recents else recents.take(homeRecentLimit)
-                visibleRecents.forEach { recent ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (isLight) Color.White.copy(0.18f) else Color.White.copy(0.06f))
-                            .combinedClickable(
-                                onClick = { onRecentFileSelected(recent.uri) },
-                                onLongClick = { selectedRecent = recent }
-                            )
-                            .padding(horizontal = 10.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
+                } else {
+                    val visibleRecents = if (showAllRecents) recents else recents.take(homeRecentLimit)
+                    visibleRecents.forEach { recent ->
+                        Row(
                             Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFE53935).copy(alpha = if (isLight) 0.14f else 0.25f)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (isLight) Color.White.copy(0.18f) else Color.White.copy(0.06f))
+                                .combinedClickable(
+                                    onClick = { onRecentFileSelected(recent.uri) },
+                                    onLongClick = { selectedRecent = recent }
+                                )
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(24.dp), Color(0xFFE53935))
+                            Box(
+                                Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFE53935).copy(alpha = if (isLight) 0.14f else 0.25f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(24.dp), Color(0xFFE53935))
+                            }
+                            Column(Modifier.weight(1f)) {
+                                BasicText(
+                                    recent.name,
+                                    style = TextStyle(text, 14.sp, FontWeight.Medium),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                val timeStr = formatTimestamp(recent.timestamp)
+                                val sizeStr = if (recent.sizeBytes > 0) " · ${formatFileSize(recent.sizeBytes)}" else ""
+                                val pageStr = if (recent.pageCount > 0) " · ${recent.pageCount} pg" else ""
+                                BasicText("$timeStr$sizeStr$pageStr", style = TextStyle(sub, 11.sp))
+                            }
+                            
+                            Box(
+                                Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(accent.copy(0.12f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                BasicText("PDF", style = TextStyle(accent, 9.sp, FontWeight.Bold))
+                            }
                         }
-                        Column(Modifier.weight(1f)) {
-                            BasicText(recent.name, style = TextStyle(text, 14.sp, FontWeight.Medium))
-                            val timeStr = formatTimestamp(recent.timestamp)
-                            val sizeStr = if (recent.sizeBytes > 0) " · ${recent.sizeBytes / 1024} KB" else ""
-                            val pageStr = if (recent.pageCount > 0) " · ${recent.pageCount} pages" else ""
-                            BasicText("$timeStr$sizeStr$pageStr", style = TextStyle(sub, 11.sp))
-                        }
-                        BasicText("PDF", style = TextStyle(accent, 10.sp, FontWeight.Bold))
+                    }
+                    if (recents.size > homeRecentLimit && !showAllRecents) {
+                        BasicText(
+                            "Long press for quick actions",
+                            style = TextStyle(sub.copy(0.6f), 11.sp, textAlign = TextAlign.Center),
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                        )
                     }
                 }
-                if (!showAllRecents && recents.size > homeRecentLimit) {
-                    BasicText(
-                        "Hold a file for quick actions",
-                        style = TextStyle(sub, 11.sp),
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
             }
+
+            Spacer(Modifier.height(80.dp))
         }
 
-        Spacer(Modifier.height(80.dp))
-        }
-
-        selectedRecent?.let { recent ->
+        // ── Long-press Bouncy Jelly Glass Pop Menu ──
+        AnimatedVisibility(
+            visible = selectedRecent != null,
+            enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)),
+            exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMedium))
+        ) {
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.28f))
+                    .background(Color.Black.copy(alpha = 0.45f))
                     .clickable { selectedRecent = null },
                 contentAlignment = Alignment.BottomCenter
             ) {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .liquidGlassPanel(backdrop, uiSensor)
-                        .clickable { /* Consume taps inside the action sheet. */ }
-                        .padding(22.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    BasicText("Quick actions", style = TextStyle(text, 18.sp, FontWeight.Bold))
-                    BasicText(
-                        recent.name,
-                        style = TextStyle(sub, 13.sp),
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                    LiquidButton(
-                        onClick = {
-                            selectedRecent = null
-                            onRecentFileSelected(recent.uri)
-                        },
-                        backdrop = backdrop,
-                        tint = accent,
-                        modifier = Modifier.fillMaxWidth()
+                selectedRecent?.let { recent ->
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = slideInVertically(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            initialOffsetY = { it / 2 }
+                        ) + scaleIn(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            initialScale = 0.7f
+                        ) + fadeIn(),
+                        exit = slideOutVertically(
+                            animationSpec = spring(stiffness = Spring.StiffnessMedium)
+                        ) + scaleOut(targetScale = 0.8f) + fadeOut()
                     ) {
-                        BasicText("Open PDF", style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                                .liquidGlassPanel(backdrop, uiSensor)
+                                .clickable { /* Consume inner taps */ }
+                                .padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // Header
+                            Row(
+                                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFE53935).copy(alpha = if (isLight) 0.14f else 0.25f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(24.dp), Color(0xFFE53935))
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    BasicText(
+                                        recent.name,
+                                        style = TextStyle(text, 15.sp, FontWeight.SemiBold),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    val details = buildString {
+                                        if (recent.sizeBytes > 0) append(formatFileSize(recent.sizeBytes))
+                                        if (recent.pageCount > 0) {
+                                            if (isNotEmpty()) append(" · ")
+                                            append("${recent.pageCount} pages")
+                                        }
+                                        if (isNotEmpty()) append(" · ")
+                                        append(formatTimestamp(recent.timestamp))
+                                    }
+                                    BasicText(details, style = TextStyle(sub, 12.sp))
+                                }
+                            }
+
+                            // Divider
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.08f))
+                            )
+
+                            // Open
+                            ActionSheetItem(
+                                icon = Icons.Rounded.OpenInNew,
+                                label = "Open PDF",
+                                tint = accent,
+                                textColor = text,
+                                onClick = {
+                                    selectedRecent = null
+                                    onRecentFileSelected(recent.uri)
+                                }
+                            )
+
+                            // Share
+                            ActionSheetItem(
+                                icon = Icons.Rounded.Share,
+                                label = "Share",
+                                tint = Color(0xFF4CAF50),
+                                textColor = text,
+                                onClick = {
+                                    selectedRecent = null
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/pdf"
+                                        putExtra(Intent.EXTRA_STREAM, recent.uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(
+                                        Intent.createChooser(shareIntent, "Share PDF")
+                                    )
+                                }
+                            )
+
+                            // File Info
+                            ActionSheetItem(
+                                icon = Icons.Rounded.Info,
+                                label = "File Info",
+                                tint = Color(0xFF7B1FA2),
+                                textColor = text,
+                                onClick = {
+                                    selectedRecent = null
+                                }
+                            )
+
+                            // Remove
+                            ActionSheetItem(
+                                icon = Icons.Rounded.RemoveCircleOutline,
+                                label = "Remove from Recents",
+                                tint = redAccent,
+                                textColor = redAccent,
+                                onClick = {
+                                    RecentFilesManager.removeRecent(context, recent.uri)
+                                    recents = recents.filterNot { it.uriString == recent.uri.toString() }
+                                    selectedRecent = null
+                                }
+                            )
+
+                            // Cancel
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
+                                    .clickable { selectedRecent = null }
+                                    .padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                BasicText(
+                                    "Cancel",
+                                    style = TextStyle(sub, 14.sp, FontWeight.Medium)
+                                )
+                            }
+                        }
                     }
-                    LiquidButton(
-                        onClick = {
-                            RecentFilesManager.removeRecent(context, recent.uri)
-                            recents = recents.filterNot { it.uriString == recent.uri.toString() }
-                            selectedRecent = null
-                        },
-                        backdrop = backdrop,
-                        surfaceColor = Color.White.copy(alpha = 0.08f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        BasicText("Remove from Recents", style = TextStyle(text, 14.sp, FontWeight.Medium))
-                    }
-                    BasicText(
-                        "Cancel",
-                        style = TextStyle(accent, 13.sp, FontWeight.SemiBold, textAlign = TextAlign.Center),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { selectedRecent = null }
-                            .padding(vertical = 8.dp)
-                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ActionSheetItem(
+    icon: ImageVector,
+    label: String,
+    tint: Color,
+    textColor: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Icon(icon, null, Modifier.size(22.dp), tint)
+        BasicText(label, style = TextStyle(textColor, 15.sp, FontWeight.Medium))
     }
 }
 
@@ -303,4 +484,10 @@ private fun formatTimestamp(ts: Long): String {
         diff < 172_800_000 -> "Yesterday"
         else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(ts))
     }
+}
+
+private fun formatFileSize(bytes: Long): String = when {
+    bytes < 1024 -> "$bytes B"
+    bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+    else -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MB"
 }

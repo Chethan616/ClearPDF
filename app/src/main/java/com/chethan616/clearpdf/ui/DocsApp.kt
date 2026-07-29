@@ -7,12 +7,24 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -22,27 +34,34 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.ui.components.DocsBottomTabs
+import com.chethan616.clearpdf.ui.components.LiquidButton
+import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.navigation.DocsNavGraph
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
+import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.flow.collectLatest
@@ -163,37 +182,72 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
 
 
             if (showStarPrompt) {
-                AlertDialog(
+                val uiSensor = rememberUISensor()
+                val starText = if (!isDarkMode) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
+                val starSub = if (!isDarkMode) Color(0xFF666666) else Color(0xFFAAAAAA)
+                val starAccent = Color(0xFFFFC107)
+                Dialog(
                     onDismissRequest = {
                         GitHubStarPromptManager.onPromptDismissed(context)
                         showStarPrompt = false
                     },
-                    title = { Text("Support ClearPDF") },
-                    text = {
-                        Text("ClearPDF is open source on GitHub. Would you like to star the project?")
-                    },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            GitHubStarPromptManager.onPromptAccepted(context)
-                            showStarPrompt = false
-                            openRepo()
-                        }) {
-                            Text("Yes, Star It")
+                    properties = DialogProperties(usePlatformDefaultWidth = false)
+                ) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth(0.88f)
+                            .liquidGlassPanel(backdrop, uiSensor)
+                            .padding(28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Star, null,
+                            Modifier.size(52.dp), starAccent
+                        )
+                        BasicText(
+                            "Support ClearPDF",
+                            style = TextStyle(starText, 20.sp, FontWeight.Bold, textAlign = TextAlign.Center)
+                        )
+                        BasicText(
+                            "ClearPDF is open source on GitHub.\nWould you like to star the project?",
+                            style = TextStyle(starSub, 14.sp, textAlign = TextAlign.Center)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        LiquidButton(
+                            onClick = {
+                                GitHubStarPromptManager.onPromptAccepted(context)
+                                showStarPrompt = false
+                                openRepo()
+                            },
+                            backdrop = backdrop,
+                            tint = starAccent,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Rounded.Star, null, Modifier.size(18.dp), Color.White)
+                                BasicText("Yes, Star It", style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold))
+                            }
                         }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = {
-                            GitHubStarPromptManager.onPromptDismissed(context)
-                            showStarPrompt = false
-                        }) {
-                            Text("Not Now")
-                        }
+                        BasicText(
+                            "Not Now",
+                            style = TextStyle(starSub, 14.sp, FontWeight.Medium, textAlign = TextAlign.Center),
+                            modifier = Modifier
+                                .clickable {
+                                    GitHubStarPromptManager.onPromptDismissed(context)
+                                    showStarPrompt = false
+                                }
+                                .padding(vertical = 8.dp)
+                        )
                     }
-                )
+                }
             }
             if (showBottomTabs) {
                 DocsBottomTabs(
-                    selectedTabIndex = selectedTab,
+                    selectedTab = { selectedTab },
                     onTabSelected = onBottomTabSelected,
                     backdrop = backdrop,
                     modifier = Modifier

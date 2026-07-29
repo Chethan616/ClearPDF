@@ -97,6 +97,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
@@ -1060,9 +1061,10 @@ fun PdfViewerScreen(
                                     viewModel.clearOcrSelection(state.currentPage)
                                 },
                                 backdrop = backdrop,
-                                surfaceColor = Color.White.copy(0.12f)
+                                tint = Color(0xFFEF5350),
+                                modifier = Modifier.size(32.dp)
                             ) {
-                                Icon(Icons.Rounded.Close, "Close Tool", Modifier.size(18.dp), Color.White)
+                                CloseCrossIcon(Modifier.size(14.dp), Color.White)
                             }
                         }
 

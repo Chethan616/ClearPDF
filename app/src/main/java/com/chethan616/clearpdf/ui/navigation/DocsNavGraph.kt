@@ -94,10 +94,30 @@ fun DocsNavGraph(
     NavHost(
         navController = navController,
         startDestination = ROUTE_HOME,
-        enterTransition = { EnterTransition.None },
-        exitTransition = { ExitTransition.None },
-        popEnterTransition = { EnterTransition.None },
-        popExitTransition = { ExitTransition.None }
+        enterTransition = {
+            androidx.compose.animation.slideInHorizontally(
+                animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.82f, stiffness = 380f),
+                initialOffsetX = { (it * 0.35f).toInt() }
+            ) + androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.spring(stiffness = 380f)) + androidx.compose.animation.scaleIn(initialScale = 0.95f)
+        },
+        exitTransition = {
+            androidx.compose.animation.slideOutHorizontally(
+                animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.82f, stiffness = 380f),
+                targetOffsetX = { (-it * 0.25f).toInt() }
+            ) + androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.spring(stiffness = 380f)) + androidx.compose.animation.scaleOut(targetScale = 0.95f)
+        },
+        popEnterTransition = {
+            androidx.compose.animation.slideInHorizontally(
+                animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.82f, stiffness = 380f),
+                initialOffsetX = { (-it * 0.25f).toInt() }
+            ) + androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.spring(stiffness = 380f)) + androidx.compose.animation.scaleIn(initialScale = 0.95f)
+        },
+        popExitTransition = {
+            androidx.compose.animation.slideOutHorizontally(
+                animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.82f, stiffness = 380f),
+                targetOffsetX = { (it * 0.35f).toInt() }
+            ) + androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.spring(stiffness = 380f)) + androidx.compose.animation.scaleOut(targetScale = 0.95f)
+        }
     ) {
 
         // ── Main tabs ──

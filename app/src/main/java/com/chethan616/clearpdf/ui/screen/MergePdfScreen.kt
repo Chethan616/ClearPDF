@@ -41,7 +41,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 import com.chethan616.clearpdf.ui.components.LiquidButton
+import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
@@ -150,13 +152,14 @@ fun MergePdfScreen(
                                 .clickable(enabled = index < state.selectedFiles.lastIndex) { viewModel.moveFile(index, index + 1) },
                             if (index < state.selectedFiles.lastIndex) accent else sub.copy(0.45f)
                         )
-                        Icon(
-                            Icons.Rounded.Close, "Remove",
-                            Modifier
-                                .size(18.dp)
-                                .clickable { viewModel.onRemoveFile(index) },
-                            sub
-                        )
+                        LiquidIconButton(
+                            onClick = { viewModel.onRemoveFile(index) },
+                            backdrop = backdrop,
+                            tint = Color(0xFFEF5350),
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            CloseCrossIcon(Modifier.size(12.dp), Color.White)
+                        }
                     }
                 }
             }

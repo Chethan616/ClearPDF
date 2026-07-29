@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.components
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Home
@@ -15,7 +16,7 @@ import com.kyant.backdrop.Backdrop
 
 @Composable
 fun DocsBottomTabs(
-    selectedTabIndex: Int,
+    selectedTab: () -> Int,
     onTabSelected: (Int) -> Unit,
     backdrop: Backdrop,
     modifier: Modifier = Modifier
@@ -25,7 +26,7 @@ fun DocsBottomTabs(
     val tint = if (isLight) Color(0xFF444444) else Color(0xFFCCCCCC)
 
     LiquidBottomTabs(
-        selectedTabIndex = selectedTabIndex,
+        selectedTabIndex = selectedTab,
         onTabSelected = onTabSelected,
         backdrop = backdrop,
         tabsCount = 3,
