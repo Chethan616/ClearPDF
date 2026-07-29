@@ -30,6 +30,32 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.tanh
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
+
+private const val CLOSE_CROSS_SVG_PATH =
+    "M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z"
+
+@Composable
+fun CloseCrossIcon(modifier: Modifier = Modifier, tint: Color = Color.White) {
+    val vector = remember(tint) {
+        ImageVector.Builder(
+            name = "CloseCross",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 960f,
+            viewportHeight = 960f
+        ).addGroup(
+            name = "group",
+            translationY = 960f
+        ).addPath(
+            pathData = PathParser().parsePathString(CLOSE_CROSS_SVG_PATH).toNodes(),
+            fill = androidx.compose.ui.graphics.SolidColor(tint)
+        ).build()
+    }
+    Icon(vector, contentDescription = "Close", modifier = modifier, tint = tint)
+}
 
 /**
  * Catalog-style LiquidButton — matches the "Pick an Image" button exactly.

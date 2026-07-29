@@ -252,15 +252,12 @@ fun CompressPdfScreen(
         }
 
         if (state.errorMessage != null) {
-            Column(Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(16.dp)) {
-                BasicText(state.errorMessage!!, style = TextStyle(Color(0xFFD32F2F), 14.sp))
-            }
-        }
-
-        if (!state.resultMessage.isNullOrEmpty()) {
-            Column(Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(16.dp)) {
-                BasicText(state.resultMessage!!, style = TextStyle(Color(0xFF388E3C), 14.sp))
-            }
+            com.chethan616.clearpdf.ui.components.LiquidGlassErrorCard(
+                message = state.errorMessage!!,
+                backdrop = backdrop,
+                uiSensor = uiSensor,
+                onDismiss = { viewModel.clearFeedback() }
+            )
         }
 
         state.lastOutputUri?.let { outputUri ->

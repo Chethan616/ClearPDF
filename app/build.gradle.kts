@@ -31,9 +31,7 @@ val hasReleaseSigning = !releaseStoreFilePath.isNullOrBlank() &&
 
 android {
     namespace = "com.chethan616.clearpdf"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
     buildToolsVersion = "36.1.0"
 
     defaultConfig {
@@ -64,7 +62,8 @@ android {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             } else {
-                logger.warn("Release signing key is not configured. Add key.properties or signing env vars before running release tasks.")
+                signingConfig = signingConfigs.getByName("debug")
+                logger.warn("Release signing key is not configured. Falling back to debug signing for testing release build.")
             }
             isMinifyEnabled = true
             isShrinkResources = true
@@ -91,12 +90,6 @@ android {
                 "META-INF/NOTICE",
                 "META-INF/NOTICE.md"
             )
-        }
-        dex {
-            useLegacyPackaging = true
-        }
-        jniLibs {
-            useLegacyPackaging = true
         }
     }
     dependenciesInfo {
@@ -136,7 +129,7 @@ dependencies {
     
     // ML Kit Document Scanner & Camera
     implementation(libs.play.services.mlkit.scanner)
-    implementation(libs.mlkit.text.recognition)
+    implementation(libs.play.services.mlkit.text.recognition)
     implementation(libs.camerax.core)
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)
