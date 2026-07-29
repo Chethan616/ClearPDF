@@ -67,8 +67,8 @@ fun LiquidBottomTabs(
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
-    val accentColor = Color(0xFF0A84FF)
-    val containerColor = if (isLightTheme) Color.White.copy(0.40f) else Color(0xFF111216).copy(0.48f)
+    val accentColor = if (isLightTheme) Color(0xFF0088FF) else Color(0xFF0091FF)
+    val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.40f) else Color(0xFF121212).copy(0.40f)
 
     val tabsBackdrop = rememberLayerBackdrop()
 
@@ -163,8 +163,8 @@ fun LiquidBottomTabs(
                     shape = { Capsule },
                     effects = {
                         vibrancy()
-                        blur(6f.dp.toPx())
-                        lens(18f.dp.toPx(), 20f.dp.toPx())
+                        blur(8f.dp.toPx())
+                        lens(24f.dp.toPx(), 24f.dp.toPx())
                     },
                     layerBlock = {
                         val progress = dampedDragAnimation.pressProgress
@@ -200,7 +200,7 @@ fun LiquidBottomTabs(
                         effects = {
                             val progress = dampedDragAnimation.pressProgress
                             vibrancy()
-                            blur(6f.dp.toPx())
+                            blur(8f.dp.toPx())
                             lens(
                                 24f.dp.toPx() * progress,
                                 24f.dp.toPx() * progress

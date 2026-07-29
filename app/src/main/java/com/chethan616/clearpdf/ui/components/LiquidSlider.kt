@@ -136,7 +136,7 @@ fun LiquidSlider(
                             onValueChangeState.value(targetValue)
                         }
                     }
-                    .height(8f.dp)
+                    .height(6f.dp)
                     .fillMaxWidth()
             )
 
@@ -144,7 +144,7 @@ fun LiquidSlider(
                 Modifier
                     .clip(Capsule)
                     .background(accentColor)
-                    .height(8f.dp)
+                    .height(6f.dp)
                     .layout { measurable, constraints ->
                         val placeable = measurable.measure(constraints)
                         val width = (constraints.maxWidth * dampedDragAnimation.progress).fastRoundToInt()
@@ -176,14 +176,12 @@ fun LiquidSlider(
                     shape = { Capsule },
                     effects = {
                         val progress = dampedDragAnimation.pressProgress
-                        // Optimize blur & lens effect dynamically when dragging to avoid dropped frames (120fps smooth performance)
-                        val blurPx = if (isDragging) 2f.dp.toPx() else (5f.dp.toPx() * (1f - progress))
-                        val lensRad = if (isDragging) 4f.dp.toPx() else (10f.dp.toPx() * progress)
-                        blur(blurPx)
+                        // Reference catalog recipe: soft blur at rest, refraction on press.
+                        blur(8f.dp.toPx() * (1f - progress))
                         lens(
-                            lensRad,
-                            lensRad * 1.4f,
-                            chromaticAberration = !isDragging
+                            10f.dp.toPx() * progress,
+                            14f.dp.toPx() * progress,
+                            chromaticAberration = true
                         )
                     },
                     highlight = {
@@ -191,7 +189,7 @@ fun LiquidSlider(
                         Highlight.Ambient.copy(
                             width = Highlight.Ambient.width / 1.5f,
                             blurRadius = Highlight.Ambient.blurRadius / 1.5f,
-                            alpha = 0.42f + (progress * 0.58f)
+                            alpha = progress
                         )
                     },
                     shadow = {
@@ -213,7 +211,7 @@ fun LiquidSlider(
                         drawRect(Color.White.copy(alpha = 1f - progress))
                     }
                 )
-                .size(44f.dp, 28f.dp)
+                .size(40f.dp, 24f.dp)
         )
     }
 }
