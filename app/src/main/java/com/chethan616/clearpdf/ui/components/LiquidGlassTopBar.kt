@@ -60,8 +60,8 @@ fun LiquidGlassTopBar(
                 onDrawSurface = { drawRect(containerColor) }
             )
             .fillMaxWidth()
-            .height(52.dp)
-            .padding(horizontal = 16.dp),
+            .height(56.dp)
+            .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         BasicText(

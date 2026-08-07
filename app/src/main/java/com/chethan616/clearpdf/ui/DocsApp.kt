@@ -2,6 +2,7 @@ package com.chethan616.clearpdf.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +33,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,6 +45,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.ui.components.DocsBottomTabs
@@ -57,7 +61,7 @@ import kotlinx.coroutines.flow.collectLatest
 
 /**
  * Root composable for the Docs app.
- * Provides the lightweight doodle backdrop, bottom tabs, and navigation host.
+ * Provides the wallpaper backdrop, bottom tabs, and navigation host.
  */
 @Composable
 fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = null) {
@@ -139,11 +143,13 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
             }
         }
 
-        DoodleBackdrop(
-            isDarkMode = isDarkMode,
+        Image(
+            painterResource(if (!isDarkMode) R.drawable.wallpaper_light else R.drawable.wallpaper_dark),
+            contentDescription = null,
             modifier = Modifier
                 .layerBackdrop(backdrop)
-                .fillMaxSize()
+                .fillMaxSize(),
+            contentScale = ContentScale.Crop
         )
 
         CompositionLocalProvider(LocalIsDarkMode provides isDarkMode) {
