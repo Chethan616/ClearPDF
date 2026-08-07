@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="424dp"
+    android:height="420dp"
+    android:viewportWidth="424"
+    android:viewportHeight="420">
+    <!-- Adapted from UI/svgs/Crispy Doodles/024.svg. Kept as a vector so it adds almost no APK weight. -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="20"
+        android:pathData="M117.881,223.869C129.641,204.457 170.502,180.437 203.729,204.151M346.783,171.882C326.392,158.063 286.269,163.328 271.125,192.428M153.4,291.802C190.893,385.094 355.334,340.346 342.619,241.615C342.619,241.615 306.659,259.11 255.354,272.718C204.048,286.326 153.4,291.802 153.4,291.802ZM412.633,199.371C423.273,321.681 325.35,408.506 214.629,409.975C103.907,411.444 28.4506,347.204 11.908,234.259C-4.63469,121.314 89.4282,19.8464 194.009,10.7412C298.591,1.63601 401.994,77.0605 412.633,199.371Z" />
+</vector>

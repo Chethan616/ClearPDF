@@ -157,7 +157,9 @@ fun DocsNavGraph(
                 isDarkMode = isDarkMode,
                 onDarkModeChanged = onDarkModeChanged,
                 themeMode = themeMode,
-                onThemeModeChanged = onThemeModeChanged
+                onThemeModeChanged = onThemeModeChanged,
+                onNavigateToOpenPdf = { navController.navigateToPdfViewer() },
+                onNavigateToScan = { navController.navigate(ROUTE_SCAN) { launchSingleTop = true } }
             )
         }
 
