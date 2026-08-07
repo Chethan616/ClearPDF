@@ -1,6 +1,7 @@
 package com.chethan616.clearpdf.ui.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -126,7 +127,7 @@ fun LiquidButton(
             )
             .clickable(
                 interactionSource = null,
-                indication = null,
+                indication = if (isInteractive) null else LocalIndication.current,
                 role = Role.Button,
                 onClick = onClick
             )

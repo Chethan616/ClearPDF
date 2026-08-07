@@ -2,7 +2,6 @@ package com.chethan616.clearpdf.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.InteractiveHighlight
 import com.chethan616.clearpdf.ui.utils.UISensor
@@ -63,9 +63,9 @@ fun LiquidGlassCard(
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val isLight = !isDarkMode
-    val container = if (isLight) Color(0xFFFAFAFA).copy(0.4f) else Color(0xFF1E1E1E).copy(0.4f)
-    val titleColor = if (isLight) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
-    val subtitleColor = if (isLight) Color(0xFF777777) else Color(0xFFAAAAAA)
+    val container = if (isLight) Color.White.copy(0.34f) else Color(0xFF111216).copy(0.46f)
+    val titleColor = LiquidGlassColors.text(!isLight)
+    val subtitleColor = LiquidGlassColors.secondary(!isLight)
 
     val animationScope = rememberCoroutineScope()
     val interactiveHighlight = remember(animationScope) {
@@ -79,14 +79,14 @@ fun LiquidGlassCard(
                 shape = { RoundedRectangle(24f.dp) },
                 effects = {
                     vibrancy()
-                    blur(8f.dp.toPx())
-                    lens(24f.dp.toPx(), 48f.dp.toPx(), depthEffect = true)
+                    blur(6f.dp.toPx())
+                    lens(18f.dp.toPx(), 34f.dp.toPx(), depthEffect = true)
                 },
                 highlight = {
                     Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f))
                 },
-                shadow = { Shadow(radius = 8f.dp, color = Color.Black.copy(alpha = 0.12f)) },
-                innerShadow = { InnerShadow(radius = 4f.dp, alpha = 0.4f) },
+                shadow = { Shadow(radius = 7f.dp, color = Color.Black.copy(alpha = 0.10f)) },
+                innerShadow = { InnerShadow(radius = 3f.dp, alpha = 0.32f) },
                 layerBlock = {
                     val progress = interactiveHighlight.pressProgress
                     val scale = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress)
@@ -99,8 +99,8 @@ fun LiquidGlassCard(
                     scaleX = scale + maxDragScale * abs(cos(offsetAngle) * offset.x / size.maxDimension)
                     scaleY = scale + maxDragScale * abs(sin(offsetAngle) * offset.y / size.maxDimension)
                 },
-                onDrawSurface = { drawRect(container) }
-            )
+                 onDrawSurface = { drawRect(container) }
+             )
             .clickable(interactionSource = null, indication = null, role = Role.Button, onClick = onClick)
             .then(interactiveHighlight.modifier)
             .then(interactiveHighlight.gestureModifier)

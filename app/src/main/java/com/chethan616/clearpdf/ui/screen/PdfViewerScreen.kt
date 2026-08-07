@@ -579,7 +579,9 @@ fun PdfViewerScreen(
                         .pointerInput(page, activeTool) {
                             detectTapGestures(
                                 onTap = {
-                                    controlsVisible = true
+                                    // A single tap is the deliberate immersive-mode toggle:
+                                    // hide the chrome, then bring it back on the next tap.
+                                    controlsVisible = !controlsVisible
                                     lastInteractionAtMs = System.currentTimeMillis()
                                 },
                                 onDoubleTap = { tap ->

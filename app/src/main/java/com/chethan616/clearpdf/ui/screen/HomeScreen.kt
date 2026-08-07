@@ -68,6 +68,7 @@ import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
@@ -87,16 +88,17 @@ fun HomeScreen(
     val homeRecentLimit = 5
     val isDarkMode = LocalIsDarkMode.current
     val isLight = !isDarkMode
-    val text = if (isLight) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
-    val sub = if (isLight) Color(0xFF666666) else Color(0xFFAAAAAA)
-    val accent = Color(0xFF0088FF)
-    val redAccent = Color(0xFFEF5350)
+    val text = LiquidGlassColors.text(isDarkMode)
+    val sub = LiquidGlassColors.secondary(isDarkMode)
+    val accent = LiquidGlassColors.Blue
+    val redAccent = LiquidGlassColors.Red
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
 
     var recents by remember { mutableStateOf(RecentFilesManager.getRecents(context)) }
     var showAllRecents by remember { mutableStateOf(false) }
     var selectedRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
+    var infoRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner, context) {
@@ -114,56 +116,88 @@ fun HomeScreen(
             Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            LiquidGlassTopBar(title = "ClearPDF", backdrop = backdrop, uiSensor = uiSensor)
+            LiquidGlassTopBar(
+                title = "ClearPDF",
+                backdrop = backdrop,
+                uiSensor = uiSensor,
+                actions = {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(accent.copy(alpha = if (isLight) 0.12f else 0.18f))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        BasicText(
+                            "ON DEVICE",
+                            style = TextStyle(accent, 10.sp, FontWeight.Bold)
+                        )
+                    }
+                }
+            )
 
             // Welcome card
             Column(
                 Modifier
-                    .fillMaxWidth()
-                    .liquidGlassPanel(backdrop, uiSensor)
-                    .padding(24.dp),
+                .fillMaxWidth()
+                .liquidGlassPanel(backdrop, uiSensor)
+                    .padding(horizontal = 22.dp, vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
                     Icons.Rounded.Description, contentDescription = null,
-                    tint = accent, modifier = Modifier.size(56.dp)
+                    tint = accent, modifier = Modifier.size(50.dp)
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(14.dp))
                 BasicText(
-                    "Welcome to ClearPDF",
-                    style = TextStyle(text, 22.sp, FontWeight.Bold, textAlign = TextAlign.Center)
+                    "PDF WORKSPACE",
+                    style = TextStyle(accent, 11.sp, FontWeight.Bold, letterSpacing = 1.4.sp)
                 )
                 Spacer(Modifier.height(8.dp))
                 BasicText(
-                    "Your all-in-one PDF toolkit.\nScan, open, merge, split, compress, and create PDFs.",
+                    "PDF work, beautifully simple.",
+                    style = TextStyle(text, 23.sp, FontWeight.Bold, textAlign = TextAlign.Center)
+                )
+                Spacer(Modifier.height(8.dp))
+                BasicText(
+                    "Open, scan, and organize your files—privately on your device.",
                     style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center)
                 )
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(22.dp))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    LiquidButton(onClick = onNavigateToOpenPdf, backdrop = backdrop, tint = accent) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    LiquidButton(
+                        onClick = onNavigateToOpenPdf,
+                        backdrop = backdrop,
+                        tint = accent,
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Rounded.FileOpen, null, Modifier.size(18.dp), Color.White)
-                            BasicText("Open PDF", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
+                            BasicText("Open PDF", style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
                         }
                     }
                     LiquidButton(
-                        onClick = onNavigateToScan, backdrop = backdrop,
-                        tint = Color(0xFF4CAF50)
+                        onClick = onNavigateToScan,
+                        backdrop = backdrop,
+                        tint = LiquidGlassColors.Green,
+                        modifier = Modifier.weight(1f)
                     ) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Rounded.Scanner, null, Modifier.size(18.dp), Color.White)
-                            BasicText("Scan", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
+                            BasicText("Scan", style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
                         }
                     }
                 }
@@ -182,7 +216,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    BasicText("Recent Files", style = TextStyle(text, 16.sp, FontWeight.Bold))
+                    BasicText("Recent files", style = TextStyle(text, 18.sp, FontWeight.Bold))
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -218,14 +252,14 @@ fun HomeScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(36.dp), sub.copy(0.5f))
-                        BasicText(
-                            "No recent files",
-                            style = TextStyle(sub, 14.sp, FontWeight.Medium, textAlign = TextAlign.Center)
-                        )
-                        BasicText(
-                            "Opened and exported PDFs will appear here.",
-                            style = TextStyle(sub.copy(0.7f), 12.sp, textAlign = TextAlign.Center)
-                        )
+                            BasicText(
+                                "Your workspace is ready.",
+                                style = TextStyle(sub, 14.sp, FontWeight.Medium, textAlign = TextAlign.Center)
+                            )
+                            BasicText(
+                                "Opened and exported PDFs will appear here.",
+                                style = TextStyle(sub.copy(0.7f), 12.sp, textAlign = TextAlign.Center)
+                            )
                     }
                 } else {
                     val visibleRecents = if (showAllRecents) recents else recents.take(homeRecentLimit)
@@ -412,6 +446,7 @@ fun HomeScreen(
                                 textColor = text,
                                 onClick = {
                                     selectedRecent = null
+                                    infoRecent = recent
                                 }
                             )
 
@@ -449,6 +484,102 @@ fun HomeScreen(
                 }
             }
         }
+
+        // File information dialog. Keep it in the same glass layer as the action sheet
+        // so the action has an immediate, readable result instead of silently closing.
+        AnimatedVisibility(
+            visible = infoRecent != null,
+            enter = fadeIn() + scaleIn(initialScale = 0.94f),
+            exit = fadeOut() + scaleOut(targetScale = 0.96f)
+        ) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .clickable { infoRecent = null },
+                contentAlignment = Alignment.Center
+            ) {
+                infoRecent?.let { recent ->
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                            .liquidGlassPanel(backdrop, uiSensor)
+                            .clickable { /* Consume inner taps */ }
+                            .padding(22.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFE53935).copy(alpha = if (isLight) 0.14f else 0.25f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(24.dp), Color(0xFFE53935))
+                            }
+                            Column(Modifier.weight(1f)) {
+                                BasicText(
+                                    "File Info",
+                                    style = TextStyle(text, 18.sp, FontWeight.SemiBold)
+                                )
+                                BasicText(
+                                    recent.name,
+                                    style = TextStyle(sub, 12.sp),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.08f))
+                        )
+
+                        InfoRow("Pages", if (recent.pageCount > 0) recent.pageCount.toString() else "Unknown", text, sub)
+                        InfoRow("Size", if (recent.sizeBytes > 0) formatFileSize(recent.sizeBytes) else "Unknown", text, sub)
+                        InfoRow("Added", formatTimestamp(recent.timestamp), text, sub)
+                        InfoRow("Location", recent.uri.toString(), text, sub, maxLines = 3)
+
+                        LiquidButton(
+                            onClick = { infoRecent = null },
+                            backdrop = backdrop,
+                            tint = accent,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            BasicText("Done", style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(
+    label: String,
+    value: String,
+    textColor: Color,
+    secondaryColor: Color,
+    maxLines: Int = 1
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        BasicText(label.uppercase(), style = TextStyle(secondaryColor, 10.sp, FontWeight.Bold, letterSpacing = 0.8.sp))
+        BasicText(
+            value,
+            style = TextStyle(textColor, 13.sp, FontWeight.Medium),
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

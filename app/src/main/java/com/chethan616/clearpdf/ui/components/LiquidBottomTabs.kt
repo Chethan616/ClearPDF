@@ -3,7 +3,6 @@ package com.chethan616.clearpdf.ui.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -69,7 +68,7 @@ fun LiquidBottomTabs(
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
     val accentColor = if (isLightTheme) Color(0xFF0088FF) else Color(0xFF0091FF)
-    val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f) else Color(0xFF121212).copy(0.4f)
+    val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.40f) else Color(0xFF121212).copy(0.40f)
 
     val tabsBackdrop = rememberLayerBackdrop()
 
@@ -94,7 +93,10 @@ fun LiquidBottomTabs(
 
         val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
         val animationScope = rememberCoroutineScope()
-        var currentIndex by remember(selectedTabIndex) { mutableIntStateOf(selectedTabIndex()) }
+        // Keep the animation state stable when the parent recomposes. The
+        // selected-tab lambda is intentionally observed through snapshotFlow
+        // below instead of being used as a remember key.
+        var currentIndex by remember { mutableIntStateOf(selectedTabIndex()) }
         val dampedDragAnimation = remember(animationScope) {
             DampedDragAnimation(
                 animationScope = animationScope,
@@ -126,7 +128,7 @@ fun LiquidBottomTabs(
                 }
             )
         }
-        LaunchedEffect(selectedTabIndex) {
+        LaunchedEffect(Unit) {
             snapshotFlow { selectedTabIndex() }
                 .collectLatest { index -> currentIndex = index }
         }

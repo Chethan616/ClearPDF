@@ -1,10 +1,12 @@
 package com.chethan616.clearpdf.ui.components
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.UISensor
@@ -26,26 +28,36 @@ fun Modifier.liquidGlassPanel(
 ): Modifier {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
-    val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.45f) else Color(0xFF141414).copy(0.55f)
+    // Match the stronger, dimensional glass language used by the Tools cards.
+    val containerColor = if (isLightTheme) Color.White.copy(0.34f) else Color(0xFF111216).copy(0.46f)
+    val rimColor = if (isLightTheme) Color.White.copy(0.52f) else Color.White.copy(0.16f)
+    val surfaceHighlight = remember(isLightTheme) {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color.White.copy(alpha = if (isLightTheme) 0.14f else 0.08f),
+                Color.Transparent
+            )
+        )
+    }
     return this.drawBackdrop(
         backdrop = backdrop,
         shape = { RoundedRectangle(28f.dp) },
         effects = {
             vibrancy()
-            blur(8f.dp.toPx())
-            lens(20f.dp.toPx(), 40f.dp.toPx(), depthEffect = true)
+            blur(6f.dp.toPx())
+            lens(18f.dp.toPx(), 34f.dp.toPx(), depthEffect = true)
         },
         highlight = { Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f)) },
-        shadow = { Shadow(radius = 10f.dp, color = Color.Black.copy(alpha = 0.16f)) },
-        innerShadow = { InnerShadow(radius = 6f.dp, alpha = 0.55f) },
+         shadow = { Shadow(radius = 7f.dp, color = Color.Black.copy(alpha = 0.10f)) },
+         innerShadow = { InnerShadow(radius = 3f.dp, alpha = 0.32f) },
         onDrawSurface = {
             drawRect(containerColor)
-            val vignette = Brush.radialGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(0.22f)),
-                center = center,
-                radius = maxOf(size.width, size.height) * 0.75f
+            drawRect(surfaceHighlight)
+            drawRoundRect(
+                color = rimColor,
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(28f.dp.toPx()),
+                style = Stroke(width = 1f.dp.toPx(), cap = StrokeCap.Round)
             )
-            drawRect(vignette)
         }
     )
 }
