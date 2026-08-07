@@ -14,7 +14,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.kyant.backdrop.Backdrop
@@ -40,8 +39,8 @@ fun LiquidGlassTopBar(
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
-    val containerColor = if (isLightTheme) Color.White.copy(0.34f) else Color(0xFF111216).copy(0.42f)
-    val titleColor = LiquidGlassColors.text(!isLightTheme)
+    val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.35f) else Color(0xFF1E1E1E).copy(0.35f)
+    val titleColor = if (isLightTheme) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
 
     Row(
         modifier
@@ -50,8 +49,8 @@ fun LiquidGlassTopBar(
                 shape = { Capsule },
                 effects = {
                     vibrancy()
-                    blur(6f.dp.toPx())
-                    lens(12f.dp.toPx(), 24f.dp.toPx())
+                    blur(8f.dp.toPx())
+                    lens(16f.dp.toPx(), 32f.dp.toPx())
                 },
                 highlight = {
                     Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f))
@@ -61,7 +60,7 @@ fun LiquidGlassTopBar(
                 onDrawSurface = { drawRect(containerColor) }
             )
             .fillMaxWidth()
-            .height(58.dp)
+            .height(56.dp)
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
