@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -44,7 +43,6 @@ import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -101,12 +99,7 @@ fun HomeScreen(
     var showAllRecents by remember { mutableStateOf(false) }
     var selectedRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
     var infoRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
-    var contentVisible by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
-
-    LaunchedEffect(Unit) {
-        contentVisible = true
-    }
 
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
@@ -119,40 +112,32 @@ fun HomeScreen(
     }
 
     Box(Modifier.fillMaxSize()) {
-        AnimatedVisibility(
-            visible = contentVisible,
-            modifier = Modifier.fillMaxSize(),
-            enter = fadeIn(tween(280)) + slideInVertically(
-                animationSpec = tween(420),
-                initialOffsetY = { it / 18 }
-            )
+        Column(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                LiquidGlassTopBar(
-                    title = "ClearPDF",
-                    backdrop = backdrop,
-                    uiSensor = uiSensor,
-                    actions = {
-                        Box(
-                            Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(accent.copy(alpha = if (isLight) 0.12f else 0.18f))
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            BasicText(
-                                "ON DEVICE",
-                                style = TextStyle(accent, 10.sp, FontWeight.Bold)
-                            )
-                        }
+            LiquidGlassTopBar(
+                title = "ClearPDF",
+                backdrop = backdrop,
+                uiSensor = uiSensor,
+                actions = {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(accent.copy(alpha = if (isLight) 0.12f else 0.18f))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        BasicText(
+                            "ON DEVICE",
+                            style = TextStyle(accent, 10.sp, FontWeight.Bold)
+                        )
                     }
-                )
+                }
+            )
 
             // Welcome card
             Column(
@@ -334,8 +319,7 @@ fun HomeScreen(
                 }
             }
 
-                Spacer(Modifier.height(80.dp))
-            }
+            Spacer(Modifier.height(80.dp))
         }
 
         // ── Long-press Bouncy Jelly Glass Pop Menu ──
