@@ -24,14 +24,14 @@ fun Modifier.liquidGlassPanel(
 ): Modifier {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
-    val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f) else Color(0xFF1E1E1E).copy(0.4f)
+    val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.30f) else Color(0xFF1E1E1E).copy(0.34f)
     return this.drawBackdrop(
         backdrop = backdrop,
-        shape = { RoundedRectangle(28f.dp) },
+         shape = { RoundedRectangle(22f.dp) },
         effects = {
             vibrancy()
-            blur(8f.dp.toPx())
-            lens(20f.dp.toPx(), 40f.dp.toPx(), depthEffect = true)
+             blur(6f.dp.toPx())
+             lens(16f.dp.toPx(), 32f.dp.toPx(), depthEffect = true)
         },
         highlight = { Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f)) },
         shadow = { Shadow(radius = 8f.dp, color = Color.Black.copy(alpha = 0.1f)) },

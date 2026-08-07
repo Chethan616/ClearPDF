@@ -5,6 +5,10 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,12 +33,14 @@ import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.FileCopy
+import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Scanner
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
@@ -75,7 +81,9 @@ fun SettingsScreen(
     isDarkMode: Boolean = false,
     onDarkModeChanged: (Boolean) -> Unit = {},
     themeMode: Int = 0,
-    onThemeModeChanged: (Int) -> Unit = {}
+    onThemeModeChanged: (Int) -> Unit = {},
+    onNavigateToOpenPdf: () -> Unit = {},
+    onNavigateToScan: () -> Unit = {}
 ) {
     val isLight = !isDarkMode
     val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
@@ -100,6 +108,11 @@ fun SettingsScreen(
 
     var saveUri by remember { mutableStateOf(SaveLocationManager.getSaveUri(context)) }
 
+    var contentVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        contentVisible = true
+    }
+
     val folderPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
@@ -118,15 +131,67 @@ fun SettingsScreen(
         }
     }
 
+    AnimatedVisibility(
+        visible = contentVisible,
+        modifier = Modifier.fillMaxSize(),
+        enter = fadeIn(tween(280)) + slideInVertically(
+            animationSpec = tween(420),
+            initialOffsetY = { it / 16 }
+        )
+    ) {
     Column(
         Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .padding(16.dp)
+            .padding(horizontal = 14.dp)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         LiquidGlassTopBar(title = "Settings", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.fillMaxWidth())
+
+        // Quick actions keep Settings useful as a launchpad, not a dead end.
+        Column(
+            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Rounded.AutoFixHigh, null, Modifier.size(20.dp), Color(0xFF0088FF))
+                Column {
+                    BasicText("Quick actions", style = TextStyle(text, 16.sp, fontWeight = FontWeight.SemiBold))
+                    BasicText("Start a task without leaving Settings", style = TextStyle(sub, 11.sp))
+                }
+            }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                LiquidButton(
+                    onClick = onNavigateToOpenPdf,
+                    backdrop = backdrop,
+                    tint = Color(0xFF0088FF),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.FileOpen, null, Modifier.size(17.dp), Color.White)
+                        BasicText("Open PDF", style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold))
+                    }
+                }
+                LiquidButton(
+                    onClick = onNavigateToScan,
+                    backdrop = backdrop,
+                    tint = Color(0xFF30D158),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Scanner, null, Modifier.size(17.dp), Color.White)
+                        BasicText("Scan", style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold))
+                    }
+                }
+            }
+        }
 
         // ── Theme Mode Selector ──
         Column(
@@ -500,6 +565,7 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(80.dp))
     }
+}
 }
 
 private fun openExternalLink(context: Context, url: String) {
