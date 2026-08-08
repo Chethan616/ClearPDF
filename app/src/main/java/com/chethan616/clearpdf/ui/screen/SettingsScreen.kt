@@ -29,8 +29,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.FileCopy
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.FolderSpecial
 import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LightMode
@@ -255,11 +257,12 @@ fun SettingsScreen(
                 )
                 options.forEach { option ->
                     val isSelected = themeMode == option.idx
+                    val itemContentColor = if (isSelected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
                     LiquidButton(
                         onClick = { onThemeModeChanged(option.idx) },
                         backdrop = backdrop,
                         tint = if (isSelected) option.activeColor else Color.Transparent,
-                        surfaceColor = if (isSelected) option.activeColor.copy(0.18f) else (if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f)),
+                        surfaceColor = if (isSelected) option.activeColor.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
                         modifier = Modifier.weight(1f)
                     ) {
                         Row(
@@ -269,12 +272,12 @@ fun SettingsScreen(
                             Icon(
                                 option.icon, null,
                                 Modifier.size(17.dp),
-                                if (isSelected) Color.White else label
+                                itemContentColor
                             )
                             BasicText(
                                 option.label,
                                 style = TextStyle(
-                                    if (isSelected) Color.White else label,
+                                    itemContentColor,
                                     13.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
@@ -310,10 +313,77 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), Color(0xFF1976D2))
+                Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), Color(0xFF0088FF))
                 BasicText("Save Location", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
+            // Liquid Glass Save Location Mode Selector
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                val isDefault = saveUri == null
+                val activeBlue = Color(0xFF0088FF)
+                val activeGreen = Color(0xFF00C853)
+
+                // 1. Default Downloads Button
+                val defContentColor = if (isDefault) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+                LiquidButton(
+                    onClick = {
+                        if (!isDefault) {
+                            SaveLocationManager.clearSaveLocation(context)
+                            saveUri = null
+                        }
+                    },
+                    backdrop = backdrop,
+                    tint = if (isDefault) activeBlue else Color.Transparent,
+                    surfaceColor = if (isDefault) activeBlue.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(Icons.Rounded.Download, null, Modifier.size(17.dp), defContentColor)
+                        BasicText(
+                            "Downloads",
+                            style = TextStyle(
+                                defContentColor,
+                                13.sp,
+                                fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Medium
+                            )
+                        )
+                    }
+                }
+
+                // 2. Custom Folder Button
+                val isCustom = !isDefault
+                val customContentColor = if (isCustom) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+                LiquidButton(
+                    onClick = { folderPicker.launch(null) },
+                    backdrop = backdrop,
+                    tint = if (isCustom) activeGreen else Color.Transparent,
+                    surfaceColor = if (isCustom) activeGreen.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(Icons.Rounded.FolderSpecial, null, Modifier.size(17.dp), customContentColor)
+                        BasicText(
+                            "Custom Folder",
+                            style = TextStyle(
+                                customContentColor,
+                                13.sp,
+                                fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Medium
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Path Details Card
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -324,50 +394,30 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val iconColor = if (saveUri != null) Color(0xFF00C853) else Color(0xFF0088FF)
                 Box(
                     Modifier
-                        .size(40.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF1976D2).copy(0.14f)),
+                        .background(iconColor.copy(0.14f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Rounded.FolderOpen, null, Modifier.size(20.dp), Color(0xFF1976D2))
+                    Icon(
+                        if (saveUri != null) Icons.Rounded.FolderSpecial else Icons.Rounded.Download,
+                        null,
+                        Modifier.size(19.dp),
+                        iconColor
+                    )
                 }
                 Column(Modifier.weight(1f)) {
                     BasicText(
-                        if (saveUri != null) "Custom Output Directory" else "Default Directory",
-                        style = TextStyle(label, 14.sp, fontWeight = FontWeight.SemiBold)
+                        if (saveUri != null) "Custom Directory" else "Default Directory",
+                        style = TextStyle(label, 13.sp, fontWeight = FontWeight.SemiBold)
                     )
                     val path = if (saveUri != null) {
                         saveUri!!.lastPathSegment?.replace("primary:", "") ?: saveUri.toString()
                     } else "Downloads / ClearPDF"
                     BasicText(path, style = TextStyle(sub, 12.sp))
-                }
-            }
-
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                LiquidButton(
-                    onClick = { folderPicker.launch(null) },
-                    backdrop = backdrop,
-                    tint = Color(0xFF1976D2),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    BasicText("Change Folder", style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold))
-                }
-                if (saveUri != null) {
-                    LiquidButton(
-                        onClick = {
-                            SaveLocationManager.clearSaveLocation(context)
-                            saveUri = null
-                        },
-                        backdrop = backdrop,
-                        surfaceColor = Color.White.copy(0.08f)
-                    ) {
-                        BasicText("Reset", style = TextStyle(text, 13.sp, fontWeight = FontWeight.SemiBold))
-                    }
                 }
             }
         }

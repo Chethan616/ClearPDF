@@ -55,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
@@ -122,8 +123,8 @@ fun HomeScreen(
     val morphProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (selectedRecent != null) 1f else 0f,
         animationSpec = spring(
-            dampingRatio = 0.58f,
-            stiffness = 220f
+            dampingRatio = 0.70f,
+            stiffness = Spring.StiffnessMedium
         ),
         label = "morphProgress"
     )
@@ -466,32 +467,39 @@ fun HomeScreen(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(if (isLight) Color.Black.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.22f))
-                    .clickable { selectedRecent = null },
+                    .background(Color.Transparent)
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) { selectedRecent = null },
                 contentAlignment = Alignment.Center
             ) {
                 selectedRecent?.let { recent ->
                     AnimatedVisibility(
                         visible = true,
-                        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
-                        exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+                        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)),
+                        exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMedium))
                     ) {
                         Column(
                             Modifier
                                 .padding(horizontal = 24.dp)
                                 .graphicsLayer {
-                                    val scaleXValue = lerp(0.35f, 1.0f, morphProgress)
-                                    val scaleYValue = lerp(0.20f, 1.0f, morphProgress)
-                                    val translateYValue = lerp(100f, 0f, morphProgress) * density
+                                    val scaleXValue = lerp(0.50f, 1.0f, morphProgress)
+                                    val scaleYValue = lerp(0.40f, 1.0f, morphProgress)
+                                    val translateYValue = lerp(40f, 0f, morphProgress) * density
                                     scaleX = scaleXValue
                                     scaleY = scaleYValue
                                     translationY = translateYValue
                                     alpha = morphProgress.coerceIn(0f, 1f)
                                     transformOrigin = TransformOrigin(0.5f, 0.85f)
-                                    shadowElevation = (18f * morphProgress).dp.toPx()
+                                    shadowElevation = (12f * morphProgress).dp.toPx()
+                                    compositingStrategy = CompositingStrategy.Offscreen
                                 }
                                 .liquidGlassPanel(backdrop, uiSensor)
-                                .clickable { /* Consume inner taps */ }
+                                .clickable(
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                    indication = null
+                                ) { /* Consume inner taps */ }
                                 .padding(horizontal = 18.dp, vertical = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
