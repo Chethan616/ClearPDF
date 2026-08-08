@@ -262,16 +262,36 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                                     BasicText("Yes, Star It", style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold))
                                 }
                             }
-                            BasicText(
-                                "Not Now",
-                                style = TextStyle(starSub, 14.sp, FontWeight.Medium, textAlign = TextAlign.Center),
-                                modifier = Modifier
-                                    .clickable {
-                                        GitHubStarPromptManager.onPromptDismissed(context)
-                                        showStarPrompt = false
-                                    }
-                                    .padding(vertical = 8.dp)
-                            )
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                BasicText(
+                                    "Not Now",
+                                    style = TextStyle(starSub, 13.sp, FontWeight.Medium, textAlign = TextAlign.Center),
+                                    modifier = Modifier
+                                        .clickable {
+                                            GitHubStarPromptManager.onPromptDismissed(context)
+                                            showStarPrompt = false
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                                )
+                                BasicText(
+                                    "•",
+                                    style = TextStyle(starSub.copy(0.4f), 13.sp)
+                                )
+                                BasicText(
+                                    "Don't Ask Again",
+                                    style = TextStyle(starSub.copy(0.7f), 13.sp, FontWeight.Medium, textAlign = TextAlign.Center),
+                                    modifier = Modifier
+                                        .clickable {
+                                            GitHubStarPromptManager.setNeverShowAgain(context)
+                                            showStarPrompt = false
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                                )
+                            }
                         }
                     }
                 }

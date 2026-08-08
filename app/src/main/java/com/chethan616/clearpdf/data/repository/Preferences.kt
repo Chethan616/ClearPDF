@@ -156,17 +156,19 @@ object AppSettingsManager {
 
 /**
  * Tracks usage for the GitHub star prompt.
- * Prompt rule:
- * - Show after every 3 successful PDF interactions (open/create/modify)
- * - If user taps Yes, snooze prompt for 2 weeks
+ * Best practice prompt rules:
+ * - Requires at least 10 successful PDF interactions
+ * - Permanently disables after user stars or clicks "Don't show again"
+ * - Snoozes for 30 days if user clicks "Not now"
  */
 object GitHubStarPromptManager {
     private const val PREFS_NAME = "clearpdf_settings"
     private const val KEY_INTERACTION_COUNT = "github_star_interaction_count"
     private const val KEY_PROMPT_SNOOZE_UNTIL_MS = "github_star_prompt_snooze_until_ms"
+    private const val KEY_NEVER_SHOW = "github_star_never_show"
 
-    private const val INTERACTION_THRESHOLD = 3
-    private const val TWO_WEEKS_MS = 14L * 24L * 60L * 60L * 1000L
+    private const val INTERACTION_THRESHOLD = 10
+    private const val THIRTY_DAYS_MS = 30L * 24L * 60L * 60L * 1000L
 
     const val REPO_URL: String = "https://github.com/Chethan616/ClearPDF"
 
@@ -175,10 +177,10 @@ object GitHubStarPromptManager {
 
     fun recordPdfInteraction(context: Context): Boolean {
         val preferences = prefs(context)
+        if (preferences.getBoolean(KEY_NEVER_SHOW, false)) return false
+
         val now = System.currentTimeMillis()
         val snoozeUntil = preferences.getLong(KEY_PROMPT_SNOOZE_UNTIL_MS, 0L)
-
-        // Ignore counting while prompt is snoozed after a "Yes" action.
         if (now < snoozeUntil) return false
 
         val nextCount = preferences.getInt(KEY_INTERACTION_COUNT, 0) + 1
@@ -188,6 +190,8 @@ object GitHubStarPromptManager {
 
     fun shouldShowPrompt(context: Context): Boolean {
         val preferences = prefs(context)
+        if (preferences.getBoolean(KEY_NEVER_SHOW, false)) return false
+
         val now = System.currentTimeMillis()
         val snoozeUntil = preferences.getLong(KEY_PROMPT_SNOOZE_UNTIL_MS, 0L)
         if (now < snoozeUntil) return false
@@ -195,15 +199,21 @@ object GitHubStarPromptManager {
     }
 
     fun onPromptAccepted(context: Context) {
-        val nextEligibleAt = System.currentTimeMillis() + TWO_WEEKS_MS
-        prefs(context).edit()
-            .putInt(KEY_INTERACTION_COUNT, 0)
-            .putLong(KEY_PROMPT_SNOOZE_UNTIL_MS, nextEligibleAt)
-            .apply()
+        setNeverShowAgain(context)
     }
 
     fun onPromptDismissed(context: Context) {
-        // Show again after another 3 interactions.
-        prefs(context).edit().putInt(KEY_INTERACTION_COUNT, 0).apply()
+        val snoozeUntil = System.currentTimeMillis() + THIRTY_DAYS_MS
+        prefs(context).edit()
+            .putInt(KEY_INTERACTION_COUNT, 0)
+            .putLong(KEY_PROMPT_SNOOZE_UNTIL_MS, snoozeUntil)
+            .apply()
+    }
+
+    fun setNeverShowAgain(context: Context) {
+        prefs(context).edit()
+            .putBoolean(KEY_NEVER_SHOW, true)
+            .putInt(KEY_INTERACTION_COUNT, 0)
+            .apply()
     }
 }
