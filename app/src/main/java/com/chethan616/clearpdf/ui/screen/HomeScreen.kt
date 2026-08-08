@@ -12,6 +12,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,10 +48,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import com.chethan616.clearpdf.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.LocalContext
@@ -59,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -77,6 +84,13 @@ import java.util.Date
 import java.util.Locale
 
 import com.chethan616.clearpdf.ui.components.CloseCrossIcon
+
+import androidx.compose.ui.graphics.graphicsLayer
+
+private val SourGummyFontFamily = FontFamily(
+    Font(R.font.sour_gummy_regular, FontWeight.Normal),
+    Font(R.font.sour_gummy_bold, FontWeight.Bold)
+)
 
 @Composable
 fun HomeScreen(
@@ -101,6 +115,49 @@ fun HomeScreen(
     var infoRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    var b1Visible by remember { mutableStateOf(false) }
+    var b2Visible by remember { mutableStateOf(false) }
+    var b3Visible by remember { mutableStateOf(false) }
+    var b4Visible by remember { mutableStateOf(false) }
+
+    val morphProgress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (selectedRecent != null) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = 0.68f,
+            stiffness = 180f
+        ),
+        label = "morphProgress"
+    )
+
+    androidx.compose.runtime.LaunchedEffect(selectedRecent) {
+        if (selectedRecent != null) {
+            b1Visible = false
+            b2Visible = false
+            b3Visible = false
+            b4Visible = false
+            // Wait for pop-up container to morph open gracefully (~220ms)
+            kotlinx.coroutines.delay(220L)
+            b1Visible = true
+            kotlinx.coroutines.delay(65L)
+            b2Visible = true
+            kotlinx.coroutines.delay(65L)
+            b3Visible = true
+            kotlinx.coroutines.delay(65L)
+            b4Visible = true
+        } else {
+            b1Visible = false
+            b2Visible = false
+            b3Visible = false
+            b4Visible = false
+        }
+    }
+
+    val btnSpring = spring<Float>(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
+    val b1Scale by androidx.compose.animation.core.animateFloatAsState(if (b1Visible) 1f else 0f, btnSpring, label = "b1")
+    val b2Scale by androidx.compose.animation.core.animateFloatAsState(if (b2Visible) 1f else 0f, btnSpring, label = "b2")
+    val b3Scale by androidx.compose.animation.core.animateFloatAsState(if (b3Visible) 1f else 0f, btnSpring, label = "b3")
+    val b4Scale by androidx.compose.animation.core.animateFloatAsState(if (b4Visible) 1f else 0f, btnSpring, label = "b4")
+
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -111,6 +168,47 @@ fun HomeScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    var isVisible by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        isVisible = true
+    }
+
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+
+    // Progressive staggered component animations (slow fade-in)
+    val topBarAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 550, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "topBarAlpha"
+    )
+    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 18f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 550, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "topBarOffsetY"
+    )
+
+    val cardAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 620, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "cardAlpha"
+    )
+    val cardOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 24f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 620, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "cardOffsetY"
+    )
+
+    val recentsAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 200, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "recentsAlpha"
+    )
+    val recentsOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 30f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 200, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "recentsOffsetY"
+    )
+
     Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
@@ -120,30 +218,43 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            LiquidGlassTopBar(
-                title = "ClearPDF",
-                backdrop = backdrop,
-                uiSensor = uiSensor,
-                actions = {
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(accent.copy(alpha = if (isLight) 0.12f else 0.18f))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        BasicText(
-                            "ON DEVICE",
-                            style = TextStyle(accent, 10.sp, FontWeight.Bold)
-                        )
-                    }
+            Box(
+                Modifier.graphicsLayer {
+                    alpha = topBarAlpha
+                    translationY = topBarOffsetY * density
                 }
-            )
+            ) {
+                LiquidGlassTopBar(
+                    title = "ClearPDF",
+                    backdrop = backdrop,
+                    uiSensor = uiSensor,
+                    fontFamily = SourGummyFontFamily,
+                    titleFontSize = 24.sp,
+                    actions = {
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(accent.copy(alpha = if (isLight) 0.12f else 0.18f))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            BasicText(
+                                "ON DEVICE",
+                                style = TextStyle(accent, 10.sp, FontWeight.Bold)
+                            )
+                        }
+                    }
+                )
+            }
 
             // Welcome card
             Column(
                 Modifier
-                .fillMaxWidth()
-                .liquidGlassPanel(backdrop, uiSensor)
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = cardAlpha
+                        translationY = cardOffsetY * density
+                    }
+                    .liquidGlassPanel(backdrop, uiSensor)
                     .padding(horizontal = 22.dp, vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -159,7 +270,13 @@ fun HomeScreen(
                 Spacer(Modifier.height(8.dp))
                 BasicText(
                     "PDF work, beautifully simple.",
-                    style = TextStyle(text, 23.sp, FontWeight.Bold, textAlign = TextAlign.Center)
+                    style = TextStyle(
+                        color = text,
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = SourGummyFontFamily,
+                        textAlign = TextAlign.Center
+                    )
                 )
                 Spacer(Modifier.height(8.dp))
                 BasicText(
@@ -207,6 +324,10 @@ fun HomeScreen(
             Column(
                 Modifier
                     .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = recentsAlpha
+                        translationY = recentsOffsetY * density
+                    }
                     .liquidGlassPanel(backdrop, uiSensor)
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -322,162 +443,194 @@ fun HomeScreen(
             Spacer(Modifier.height(80.dp))
         }
 
-        // ── Long-press Bouncy Jelly Glass Pop Menu ──
+        // ── Floating Liquid Glass Chat Bubble Reaction Bar ──
         AnimatedVisibility(
             visible = selectedRecent != null,
-            enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)),
-            exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMedium))
+            enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessHigh)),
+            exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessHigh))
         ) {
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.45f))
-                    .clickable { selectedRecent = null },
-                contentAlignment = Alignment.BottomCenter
+                    .background(Color.Transparent)
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) { selectedRecent = null },
+                contentAlignment = Alignment.Center
             ) {
                 selectedRecent?.let { recent ->
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = slideInVertically(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
-                            initialOffsetY = { it / 2 }
-                        ) + scaleIn(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
-                            initialScale = 0.7f
-                        ) + fadeIn(),
-                        exit = slideOutVertically(
-                            animationSpec = spring(stiffness = Spring.StiffnessMedium)
-                        ) + scaleOut(targetScale = 0.8f) + fadeOut()
+                    Column(
+                        Modifier
+                            .padding(horizontal = 24.dp)
+                            .graphicsLayer {
+                                val scaleXValue = lerp(0.20f, 1.0f, morphProgress)
+                                val scaleYValue = lerp(0.15f, 1.0f, morphProgress)
+                                val translateYValue = lerp(100f, 0f, morphProgress) * density
+                                scaleX = scaleXValue
+                                scaleY = scaleYValue
+                                translationY = translateYValue
+                                alpha = morphProgress.coerceIn(0f, 1f)
+                                transformOrigin = TransformOrigin(0.5f, 0.85f)
+                                shadowElevation = (16f * morphProgress).dp.toPx()
+                                compositingStrategy = CompositingStrategy.Offscreen
+                            }
+                            .liquidGlassPanel(backdrop, uiSensor)
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null
+                            ) { /* Consume inner taps */ }
+                            .padding(horizontal = 18.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Column(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                                .liquidGlassPanel(backdrop, uiSensor)
-                                .clickable { /* Consume inner taps */ }
-                                .padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        // Chat bubble reaction header (filename & close)
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Header
                             Row(
-                                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                Modifier.weight(1f),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Box(
                                     Modifier
-                                        .size(44.dp)
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .size(32.dp)
+                                        .clip(CircleShape)
                                         .background(Color(0xFFE53935).copy(alpha = if (isLight) 0.14f else 0.25f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(24.dp), Color(0xFFE53935))
+                                    Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(18.dp), Color(0xFFE53935))
                                 }
-                                Column(Modifier.weight(1f)) {
-                                    BasicText(
-                                        recent.name,
-                                        style = TextStyle(text, 15.sp, FontWeight.SemiBold),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    val details = buildString {
-                                        if (recent.sizeBytes > 0) append(formatFileSize(recent.sizeBytes))
-                                        if (recent.pageCount > 0) {
-                                            if (isNotEmpty()) append(" · ")
-                                            append("${recent.pageCount} pages")
-                                        }
-                                        if (isNotEmpty()) append(" · ")
-                                        append(formatTimestamp(recent.timestamp))
-                                    }
-                                    BasicText(details, style = TextStyle(sub, 12.sp))
-                                }
+                                BasicText(
+                                    recent.name,
+                                    style = TextStyle(text, 14.sp, FontWeight.SemiBold),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
                             }
 
-                            // Divider
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(1.dp)
-                                    .background(if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.08f))
-                            )
-
-                            // Open
-                            ActionSheetItem(
-                                icon = Icons.Rounded.OpenInNew,
-                                label = "Open PDF",
-                                tint = accent,
-                                textColor = text,
-                                onClick = {
-                                    selectedRecent = null
-                                    onRecentFileSelected(recent.uri)
-                                }
-                            )
-
-                            // Share
-                            ActionSheetItem(
-                                icon = Icons.Rounded.Share,
-                                label = "Share",
-                                tint = Color(0xFF4CAF50),
-                                textColor = text,
-                                onClick = {
-                                    selectedRecent = null
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "application/pdf"
-                                        putExtra(Intent.EXTRA_STREAM, recent.uri)
-                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                    }
-                                    context.startActivity(
-                                        Intent.createChooser(shareIntent, "Share PDF")
-                                    )
-                                }
-                            )
-
-                            // File Info
-                            ActionSheetItem(
-                                icon = Icons.Rounded.Info,
-                                label = "File Info",
-                                tint = Color(0xFF7B1FA2),
-                                textColor = text,
-                                onClick = {
-                                    selectedRecent = null
-                                    infoRecent = recent
-                                }
-                            )
-
-                            // Remove
-                            ActionSheetItem(
-                                icon = Icons.Rounded.RemoveCircleOutline,
-                                label = "Remove from Recents",
-                                tint = redAccent,
-                                textColor = redAccent,
-                                onClick = {
-                                    RecentFilesManager.removeRecent(context, recent.uri)
-                                    recents = recents.filterNot { it.uriString == recent.uri.toString() }
-                                    selectedRecent = null
-                                }
-                            )
-
-                            // Cancel
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 4.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
-                                    .clickable { selectedRecent = null }
-                                    .padding(vertical = 12.dp),
-                                contentAlignment = Alignment.Center
+                            LiquidIconButton(
+                                onClick = { selectedRecent = null },
+                                backdrop = backdrop,
+                                surfaceColor = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.1f),
+                                modifier = Modifier.size(28.dp)
                             ) {
-                                BasicText(
-                                    "Cancel",
-                                    style = TextStyle(sub, 14.sp, FontWeight.Medium)
-                                )
+                                CloseCrossIcon(Modifier.size(14.dp), sub)
+                            }
+                        }
+
+                        // Horizontal Staggered Reaction Buttons
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 1. Open Button (Blue)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        scaleX = b1Scale; scaleY = b1Scale
+                                        alpha = b1Scale.coerceIn(0f, 1f)
+                                    }
+                            ) {
+                                LiquidIconButton(
+                                    onClick = {
+                                        selectedRecent = null
+                                        onRecentFileSelected(recent.uri)
+                                    },
+                                    backdrop = backdrop,
+                                    tint = Color(0xFF0088FF),
+                                    modifier = Modifier.size(50.dp)
+                                ) {
+                                    Icon(Icons.Rounded.FileOpen, null, Modifier.size(22.dp), Color.White)
+                                }
+                                BasicText("Open", style = TextStyle(text, 11.sp, FontWeight.Medium))
+                            }
+
+                            // 2. Share Button (Green)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        scaleX = b2Scale; scaleY = b2Scale
+                                        alpha = b2Scale.coerceIn(0f, 1f)
+                                    }
+                            ) {
+                                LiquidIconButton(
+                                    onClick = {
+                                        selectedRecent = null
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "application/pdf"
+                                            putExtra(Intent.EXTRA_STREAM, recent.uri)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
+                                    },
+                                    backdrop = backdrop,
+                                    tint = Color(0xFF4CAF50),
+                                    modifier = Modifier.size(50.dp)
+                                ) {
+                                    Icon(Icons.Rounded.Share, null, Modifier.size(22.dp), Color.White)
+                                }
+                                BasicText("Share", style = TextStyle(text, 11.sp, FontWeight.Medium))
+                            }
+
+                            // 3. Info Button (Purple)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        scaleX = b3Scale; scaleY = b3Scale
+                                        alpha = b3Scale.coerceIn(0f, 1f)
+                                    }
+                            ) {
+                                LiquidIconButton(
+                                    onClick = {
+                                        selectedRecent = null
+                                        infoRecent = recent
+                                    },
+                                    backdrop = backdrop,
+                                    tint = Color(0xFF9C27B0),
+                                    modifier = Modifier.size(50.dp)
+                                ) {
+                                    Icon(Icons.Rounded.Info, null, Modifier.size(22.dp), Color.White)
+                                }
+                                BasicText("Details", style = TextStyle(text, 11.sp, FontWeight.Medium))
+                            }
+
+                            // 4. Remove Button (Red)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        scaleX = b4Scale; scaleY = b4Scale
+                                        alpha = b4Scale.coerceIn(0f, 1f)
+                                    }
+                            ) {
+                                LiquidIconButton(
+                                    onClick = {
+                                        RecentFilesManager.removeRecent(context, recent.uri)
+                                        recents = recents.filterNot { it.uriString == recent.uri.toString() }
+                                        selectedRecent = null
+                                    },
+                                    backdrop = backdrop,
+                                    tint = Color(0xFFE53935),
+                                    modifier = Modifier.size(50.dp)
+                                ) {
+                                    CloseCrossIcon(Modifier.size(18.dp), Color.White)
+                                }
+                                BasicText("Remove", style = TextStyle(redAccent, 11.sp, FontWeight.Medium))
                             }
                         }
                     }

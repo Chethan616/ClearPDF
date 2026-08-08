@@ -176,7 +176,6 @@ fun LiquidSlider(
                     shape = { Capsule },
                     effects = {
                         val progress = dampedDragAnimation.pressProgress
-                        // Reference catalog recipe: soft blur at rest, refraction on press.
                         blur(8f.dp.toPx() * (1f - progress))
                         lens(
                             10f.dp.toPx() * progress,

@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,8 +29,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.FileCopy
 import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.FolderSpecial
 import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LightMode
@@ -68,6 +71,8 @@ import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
+
+import androidx.compose.ui.graphics.graphicsLayer
 
 @Composable
 fun SettingsScreen(
@@ -118,6 +123,90 @@ fun SettingsScreen(
         }
     }
 
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
+
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+
+    val topBarAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 550, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsTopBarAlpha"
+    )
+    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 18f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 550, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsTopBarOffsetY"
+    )
+
+    val panel1Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 60, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel1Alpha"
+    )
+    val panel1OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 20f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 60, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel1OffsetY"
+    )
+
+    val panel2Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 620, delayMillis = 120, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel2Alpha"
+    )
+    val panel2OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 24f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 620, delayMillis = 120, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel2OffsetY"
+    )
+
+    val panel3Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 640, delayMillis = 180, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel3Alpha"
+    )
+    val panel3OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 28f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 640, delayMillis = 180, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel3OffsetY"
+    )
+
+    val panel4Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 660, delayMillis = 240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel4Alpha"
+    )
+    val panel4OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 32f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 660, delayMillis = 240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel4OffsetY"
+    )
+
+    val panel5Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 680, delayMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel5Alpha"
+    )
+    val panel5OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 36f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 680, delayMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel5OffsetY"
+    )
+
+    val panel6Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 360, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel6Alpha"
+    )
+    val panel6OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 40f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 360, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel6OffsetY"
+    )
+
     Column(
         Modifier
             .fillMaxSize()
@@ -126,11 +215,25 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        LiquidGlassTopBar(title = "Settings", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.fillMaxWidth())
+        Box(
+            Modifier.graphicsLayer {
+                alpha = topBarAlpha
+                translationY = topBarOffsetY * density
+            }
+        ) {
+            LiquidGlassTopBar(title = "Settings", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.fillMaxWidth())
+        }
 
         // ── Theme Mode Selector ──
         Column(
-            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel1Alpha
+                    translationY = panel1OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
@@ -141,53 +244,45 @@ fun SettingsScreen(
                 BasicText("Appearance", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
-            // Segmented pill selector
+            // Liquid Glass Theme Mode Selector
             Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector)
+                data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector, val activeColor: Color)
                 val options = listOf(
-                    ThemeOption(0, "System", Icons.Rounded.PhoneAndroid),
-                    ThemeOption(1, "Light", Icons.Rounded.LightMode),
-                    ThemeOption(2, "Dark", Icons.Rounded.DarkMode)
+                    ThemeOption(0, "Auto", Icons.Rounded.PhoneAndroid, Color(0xFF0088FF)),
+                    ThemeOption(1, "Light", Icons.Rounded.LightMode, Color(0xFFFFA726)),
+                    ThemeOption(2, "Dark", Icons.Rounded.DarkMode, Color(0xFF7C4DFF))
                 )
                 options.forEach { option ->
                     val isSelected = themeMode == option.idx
-                    val pillColor = when {
-                        isSelected && option.idx == 2 -> Color(0xFF5C6BC0)
-                        isSelected && option.idx == 1 -> Color(0xFFFFA726)
-                        isSelected -> Color(0xFF0088FF)
-                        else -> Color.Transparent
-                    }
-                    Row(
-                        Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) pillColor.copy(0.18f) else Color.Transparent)
-                            .clickable { onThemeModeChanged(option.idx) }
-                            .padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                    val itemContentColor = if (isSelected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+                    LiquidButton(
+                        onClick = { onThemeModeChanged(option.idx) },
+                        backdrop = backdrop,
+                        tint = if (isSelected) option.activeColor else Color.Transparent,
+                        surfaceColor = if (isSelected) option.activeColor.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Icon(
-                            option.icon, null,
-                            Modifier.size(16.dp),
-                            if (isSelected) pillColor else sub
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        BasicText(
-                            option.label,
-                            style = TextStyle(
-                                if (isSelected) pillColor else sub,
-                                12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                option.icon, null,
+                                Modifier.size(17.dp),
+                                itemContentColor
                             )
-                        )
+                            BasicText(
+                                option.label,
+                                style = TextStyle(
+                                    itemContentColor,
+                                    13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -204,71 +299,139 @@ fun SettingsScreen(
 
         // ── Save Location ──
         Column(
-            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel2Alpha
+                    translationY = panel2OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), label)
+                Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), Color(0xFF0088FF))
                 BasicText("Save Location", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
+            // Liquid Glass Save Location Mode Selector
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                val isDefault = saveUri == null
+                val activeBlue = Color(0xFF0088FF)
+                val activeGreen = Color(0xFF00C853)
+
+                // 1. Default Downloads Button
+                val defContentColor = if (isDefault) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+                LiquidButton(
+                    onClick = {
+                        if (!isDefault) {
+                            SaveLocationManager.clearSaveLocation(context)
+                            saveUri = null
+                        }
+                    },
+                    backdrop = backdrop,
+                    tint = if (isDefault) activeBlue else Color.Transparent,
+                    surfaceColor = if (isDefault) activeBlue.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(Icons.Rounded.Download, null, Modifier.size(17.dp), defContentColor)
+                        BasicText(
+                            "Downloads",
+                            style = TextStyle(
+                                defContentColor,
+                                13.sp,
+                                fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Medium
+                            )
+                        )
+                    }
+                }
+
+                // 2. Custom Folder Button
+                val isCustom = !isDefault
+                val customContentColor = if (isCustom) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+                LiquidButton(
+                    onClick = { folderPicker.launch(null) },
+                    backdrop = backdrop,
+                    tint = if (isCustom) activeGreen else Color.Transparent,
+                    surfaceColor = if (isCustom) activeGreen.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(Icons.Rounded.FolderSpecial, null, Modifier.size(17.dp), customContentColor)
+                        BasicText(
+                            "Custom Folder",
+                            style = TextStyle(
+                                customContentColor,
+                                13.sp,
+                                fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Medium
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Path Details Card
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(if (isLight) Color.Black.copy(0.03f) else Color.White.copy(0.05f))
+                    .border(1.dp, if (isLight) Color.Black.copy(0.05f) else Color.White.copy(0.08f), RoundedCornerShape(16.dp))
                     .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val iconColor = if (saveUri != null) Color(0xFF00C853) else Color(0xFF0088FF)
                 Box(
-                    Modifier.size(36.dp).clip(CircleShape)
-                        .background(Color(0xFF1976D2).copy(0.12f)),
+                    Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(iconColor.copy(0.14f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Rounded.FolderOpen, null, Modifier.size(18.dp), Color(0xFF1976D2))
+                    Icon(
+                        if (saveUri != null) Icons.Rounded.FolderSpecial else Icons.Rounded.Download,
+                        null,
+                        Modifier.size(19.dp),
+                        iconColor
+                    )
                 }
                 Column(Modifier.weight(1f)) {
                     BasicText(
-                        if (saveUri != null) "Custom Location" else "Default (Downloads)",
-                        style = TextStyle(label, 14.sp, fontWeight = FontWeight.Medium)
+                        if (saveUri != null) "Custom Directory" else "Default Directory",
+                        style = TextStyle(label, 13.sp, fontWeight = FontWeight.SemiBold)
                     )
-                    if (saveUri != null) {
-                        val path = saveUri!!.lastPathSegment?.replace("primary:", "") ?: saveUri.toString()
-                        BasicText(path, style = TextStyle(sub, 11.sp))
-                    } else {
-                        BasicText("PDFs saved to Downloads folder", style = TextStyle(sub, 11.sp))
-                    }
-                }
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                LiquidButton(
-                    onClick = { folderPicker.launch(null) },
-                    backdrop = backdrop, tint = Color(0xFF1976D2)
-                ) {
-                    BasicText("Choose Folder", style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.Medium))
-                }
-                if (saveUri != null) {
-                    LiquidButton(
-                        onClick = {
-                            SaveLocationManager.clearSaveLocation(context)
-                            saveUri = null
-                        },
-                        backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)
-                    ) {
-                        BasicText("Reset", style = TextStyle(text, 13.sp, fontWeight = FontWeight.Medium))
-                    }
+                    val path = if (saveUri != null) {
+                        saveUri!!.lastPathSegment?.replace("primary:", "") ?: saveUri.toString()
+                    } else "Downloads / ClearPDF"
+                    BasicText(path, style = TextStyle(sub, 12.sp))
                 }
             }
         }
 
         // ── File Handling ──
         Column(
-            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel3Alpha
+                    translationY = panel3OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Row(
@@ -327,103 +490,71 @@ fun SettingsScreen(
 
         // ── Default Quality ──
         Column(
-            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel4Alpha
+                    translationY = panel4OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), Color(0xFF1976D2))
-                BasicText("Default Quality", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
-            }
-
-            // Quality presets as segmented glass pills
             Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                data class QualityPreset(val target: Float, val title: String, val desc: String, val color: Color)
-                val qualities = listOf(
-                    QualityPreset(0.15f, "Low", "Smallest", Color(0xFF4CAF50)),
-                    QualityPreset(0.5f, "Medium", "Balanced", Color(0xFF2196F3)),
-                    QualityPreset(0.85f, "High", "Best", Color(0xFF9C27B0))
-                )
-                qualities.forEach { preset ->
-                    val isSelected = when {
-                        preset.target < 0.33f -> defaultQuality < 0.33f
-                        preset.target < 0.66f -> defaultQuality in 0.33f..0.66f
-                        else -> defaultQuality > 0.66f
-                    }
-                    Column(
-                        Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (isSelected) preset.color.copy(0.15f) else Color.Transparent)
-                            .clickable { defaultQuality = preset.target }
-                            .padding(vertical = 10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        BasicText(
-                            preset.title,
-                            style = TextStyle(
-                                if (isSelected) preset.color else sub,
-                                13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            )
-                        )
-                        BasicText(
-                            preset.desc,
-                            style = TextStyle(
-                                if (isSelected) preset.color.copy(0.7f) else sub.copy(0.6f),
-                                10.sp
-                            )
-                        )
-                    }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), Color(0xFF1976D2))
+                    BasicText("Compression Quality", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+                }
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF1976D2).copy(0.14f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    BasicText(
+                        "${(defaultQuality * 100).toInt()}%",
+                        style = TextStyle(Color(0xFF1976D2), 13.sp, fontWeight = FontWeight.Bold)
+                    )
                 }
             }
 
-            // Fine-tune slider
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    BasicText("Fine-tune", style = TextStyle(sub, 12.sp))
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFF1976D2).copy(0.12f))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        BasicText(
-                            "${(defaultQuality * 100).toInt()}%",
-                            style = TextStyle(Color(0xFF1976D2), 12.sp, fontWeight = FontWeight.Bold)
-                        )
+            LiquidSlider(
+                value = { defaultQuality },
+                onValueChange = {
+                    val snapped = ((it * 100f).toInt() / 100f).coerceIn(0f, 1f)
+                    if (snapped != defaultQuality) {
+                        defaultQuality = snapped
                     }
-                }
-                LiquidSlider(
-                    value = { defaultQuality },
-                    onValueChange = {
-                        val snapped = ((it * 100f).toInt() / 100f).coerceIn(0f, 1f)
-                        if (snapped != defaultQuality) {
-                            defaultQuality = snapped
-                        }
-                    },
-                    valueRange = 0f..1f,
-                    visibilityThreshold = 0.005f,
-                    backdrop = backdrop,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    BasicText("Smaller file", style = TextStyle(sub.copy(0.6f), 11.sp))
-                    BasicText("Better quality", style = TextStyle(sub.copy(0.6f), 11.sp))
-                }
+                },
+                valueRange = 0f..1f,
+                visibilityThreshold = 0.005f,
+                backdrop = backdrop,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                BasicText("Smaller file size", style = TextStyle(sub.copy(0.7f), 11.sp))
+                BasicText("Higher image clarity", style = TextStyle(sub.copy(0.7f), 11.sp))
             }
         }
 
         // ── About & Open Source ──
         Column(
-            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(24.dp),
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel5Alpha
+                    translationY = panel5OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -467,7 +598,14 @@ fun SettingsScreen(
 
         // ── Licenses ──
         Column(
-            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel6Alpha
+                    translationY = panel6OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
@@ -502,6 +640,15 @@ fun SettingsScreen(
     }
 }
 
+private fun Modifier.liquidGlassSection(isLight: Boolean): Modifier {
+    val containerColor = if (isLight) Color.White.copy(0.68f) else Color(0xFF161820).copy(0.72f)
+    val borderColor = if (isLight) Color.White.copy(0.80f) else Color.White.copy(0.12f)
+    return this
+        .clip(RoundedCornerShape(24.dp))
+        .background(containerColor)
+        .border(1.dp, borderColor, RoundedCornerShape(24.dp))
+}
+
 private fun openExternalLink(context: Context, url: String) {
     runCatching {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
@@ -523,7 +670,11 @@ private fun SettingsToggleRow(
     subColor: Color
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 6.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {

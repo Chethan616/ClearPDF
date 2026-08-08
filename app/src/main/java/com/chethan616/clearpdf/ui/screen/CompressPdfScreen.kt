@@ -4,7 +4,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,10 +30,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -48,7 +51,6 @@ import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.CompressPdfViewModel
-import com.kyant.pdfcore.model.CompressionQuality
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
 
@@ -81,196 +83,201 @@ fun CompressPdfScreen(
         if (uri != null) viewModel.onSelectFile(context, uri)
     }
 
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { isVisible = true }
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+
+    val topBarAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "compressTopBarAlpha"
+    )
+    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 16f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "compressTopBarOffsetY"
+    )
+
+    val contentAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "compressContentAlpha"
+    )
+    val contentOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 24f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "compressContentOffsetY"
+    )
+
     Column(
         Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Floating Liquid Glass Top Bar
+        Row(
+            Modifier.graphicsLayer {
+                alpha = topBarAlpha
+                translationY = topBarOffsetY * density
+            },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
                 Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
             }
-            LiquidGlassTopBar(title = "Compress PDF", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
+            LiquidGlassTopBar(title = "Compress PDF", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f), titleFontSize = 18.sp)
         }
 
+        // Scrollable Body Content
         Column(
             Modifier
                 .fillMaxWidth()
-                .liquidGlassPanel(backdrop, uiSensor)
-                .padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .weight(1f)
+                .graphicsLayer {
+                    alpha = contentAlpha
+                    translationY = contentOffsetY * density
+                }
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(Icons.Rounded.Compress, null, Modifier.size(56.dp), accent)
-            BasicText("Reduce File Size", style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
-            BasicText("Compress your PDF while preserving quality", style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center))
-
-            LiquidButton(
-                onClick = { filePicker.launch(arrayOf("application/pdf")) },
-                backdrop = backdrop, tint = accent
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .liquidGlassPanel(backdrop, uiSensor)
+                    .padding(28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
-                    BasicText("Select PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+                Icon(Icons.Rounded.Compress, null, Modifier.size(56.dp), accent)
+                BasicText("Reduce File Size", style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
+                BasicText("Compress your PDF while preserving quality", style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center))
+
+                LiquidButton(
+                    onClick = { filePicker.launch(arrayOf("application/pdf")) },
+                    backdrop = backdrop, tint = accent
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
+                        BasicText("Select PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+                    }
                 }
             }
-        }
 
-        if (state.sourceFileName.isNotEmpty()) {
-            // File info
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .liquidGlassPanel(backdrop, uiSensor)
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                BasicText(state.sourceFileName, style = TextStyle(text, 15.sp, fontWeight = FontWeight.Medium))
-                BasicText("Size: ${state.originalSizeBytes / 1024} KB", style = TextStyle(sub, 13.sp))
-            }
+            if (state.sourceFileName.isNotEmpty()) {
+                // File info
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .liquidGlassPanel(backdrop, uiSensor)
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    BasicText(state.sourceFileName, style = TextStyle(text, 15.sp, fontWeight = FontWeight.Medium))
+                    BasicText("Size: ${state.originalSizeBytes / 1024} KB", style = TextStyle(sub, 13.sp))
+                }
 
-            // One focused control surface: preset first, fine-tuning second.
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .liquidGlassPanel(backdrop, uiSensor)
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                BasicText("Compression Level", style = TextStyle(text, 15.sp, fontWeight = FontWeight.Medium))
-                BasicText(
-                    "Start with a preset, then fine-tune the size and quality balance.",
-                    style = TextStyle(sub, 12.sp)
-                )
-
-                val qualities = listOf(
-                    Triple(CompressionQuality.LOW, "Maximum Compression", "Smallest file, lower quality"),
-                    Triple(CompressionQuality.MEDIUM, "Balanced", "Good balance of size and quality"),
-                    Triple(CompressionQuality.HIGH, "Minimum Compression", "Best quality, larger file")
-                )
-
-                qualities.forEach { (quality, title, desc) ->
-                    val isSelected = state.selectedQuality == quality
+                // Un-nested slider control for maximum performance (no glass card lag)
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) accent.copy(0.15f) else Color.Transparent)
-                            .clickable {
-                                viewModel.onQualityChanged(quality)
-                            }
-                            .padding(12.dp),
+                        Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), accent)
+                            BasicText("Compression Quality", style = TextStyle(text, 16.sp, fontWeight = FontWeight.SemiBold))
+                        }
                         Box(
                             Modifier
-                                .size(20.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) accent else sub.copy(0.3f)),
-                            contentAlignment = Alignment.Center
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(accent.copy(0.12f))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
-                            if (isSelected) {
-                                Box(
-                                    Modifier
-                                        .size(8.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color.White)
-                                )
-                            }
-                        }
-                        Column {
-                            BasicText(title, style = TextStyle(text, 14.sp, fontWeight = FontWeight.Medium))
-                            BasicText(desc, style = TextStyle(sub, 12.sp))
+                            BasicText(
+                                "${(state.qualitySlider * 100).toInt()}%",
+                                style = TextStyle(accent, 13.sp, fontWeight = FontWeight.Bold)
+                            )
                         }
                     }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), accent)
-                    BasicText("Fine-tune quality", style = TextStyle(text, 14.sp, fontWeight = FontWeight.Medium))
-                    val qualityLabel = when (state.selectedQuality) {
-                        CompressionQuality.LOW -> "Low"
-                        CompressionQuality.MEDIUM -> "Balanced"
-                        CompressionQuality.HIGH -> "High"
+
+                    LiquidSlider(
+                        value = { state.qualitySlider },
+                        onValueChange = { v ->
+                            viewModel.onQualitySliderChanged(v)
+                        },
+                        valueRange = 0f..1f,
+                        visibilityThreshold = 0.005f,
+                        backdrop = backdrop,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        BasicText("Smaller file", style = TextStyle(sub, 12.sp))
+                        BasicText("Better quality", style = TextStyle(sub, 12.sp))
                     }
-                    BasicText(
-                        qualityLabel,
-                        style = TextStyle(accent, 12.sp, fontWeight = FontWeight.SemiBold),
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1
-                    )
-                    BasicText(
-                        "${(state.qualitySlider * 100).toInt()}%",
-                        style = TextStyle(text, 13.sp, fontWeight = FontWeight.SemiBold)
-                    )
+
+                    if (state.estimatedSizeBytes > 0) {
+                        val currentKb = state.originalSizeBytes / 1024
+                        val estimateKb = state.estimatedSizeBytes / 1024
+                        BasicText(
+                            "Estimated output  $currentKb KB  ->  about $estimateKb KB",
+                            style = TextStyle(sub, 12.sp, fontWeight = FontWeight.Medium)
+                        )
+                    }
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    BasicText("Smaller file", style = TextStyle(sub, 13.sp))
-                    BasicText("Better quality", style = TextStyle(sub, 13.sp))
+
+                // Compress button
+                LiquidButton(
+                    onClick = { viewModel.onCompress(context) },
+                    backdrop = backdrop, tint = accent,
+                    isInteractive = !state.isCompressing
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (state.isCompressing) {
+                            CircularProgressIndicator(Modifier.size(18.dp), Color.White, strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Rounded.Compress, null, Modifier.size(18.dp), Color.White)
+                        }
+                        BasicText(
+                            if (state.isCompressing) "Compressing..." else "Compress Now",
+                            style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium)
+                        )
+                    }
                 }
-                LiquidSlider(
-                    value = { state.qualitySlider },
-                    onValueChange = { v ->
-                        viewModel.onQualitySliderChanged(v)
-                    },
-                    valueRange = 0f..1f,
-                    visibilityThreshold = 0.005f,
+            }
+
+            if (state.errorMessage != null) {
+                com.chethan616.clearpdf.ui.components.LiquidGlassErrorCard(
+                    message = state.errorMessage!!,
                     backdrop = backdrop,
-                    modifier = Modifier.fillMaxWidth()
+                    uiSensor = uiSensor,
+                    onDismiss = { viewModel.clearFeedback() }
                 )
-                if (state.estimatedSizeBytes > 0) {
-                    val currentKb = state.originalSizeBytes / 1024
-                    val estimateKb = state.estimatedSizeBytes / 1024
-                    BasicText(
-                        "Estimated output  $currentKb KB  ->  about $estimateKb KB",
-                        style = TextStyle(sub, 12.sp, fontWeight = FontWeight.Medium)
-                    )
+            }
+
+            state.lastOutputUri?.let { outputUri ->
+                LiquidButton(
+                    onClick = { onViewOutput(outputUri) },
+                    backdrop = backdrop,
+                    tint = Color(0xFF1976D2),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    BasicText("View PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.SemiBold))
                 }
             }
 
-            // Compress button
-            LiquidButton(
-                onClick = { viewModel.onCompress(context) },
-                backdrop = backdrop, tint = accent,
-                isInteractive = !state.isCompressing
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (state.isCompressing) {
-                        CircularProgressIndicator(Modifier.size(18.dp), Color.White, strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.Rounded.Compress, null, Modifier.size(18.dp), Color.White)
-                    }
-                    BasicText(
-                        if (state.isCompressing) "Compressing..." else "Compress Now",
-                        style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium)
-                    )
-                }
-            }
+            Spacer(Modifier.height(40.dp))
         }
-
-        if (state.errorMessage != null) {
-            com.chethan616.clearpdf.ui.components.LiquidGlassErrorCard(
-                message = state.errorMessage!!,
-                backdrop = backdrop,
-                uiSensor = uiSensor,
-                onDismiss = { viewModel.clearFeedback() }
-            )
-        }
-
-        state.lastOutputUri?.let { outputUri ->
-            LiquidButton(
-                onClick = { onViewOutput(outputUri) },
-                backdrop = backdrop,
-                tint = Color(0xFF1976D2),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                BasicText("View PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.SemiBold))
-            }
-        }
-
-        Spacer(Modifier.height(80.dp))
     }
 }

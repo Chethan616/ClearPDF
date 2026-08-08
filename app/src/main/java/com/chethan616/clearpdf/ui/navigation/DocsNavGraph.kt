@@ -2,6 +2,8 @@ package com.chethan616.clearpdf.ui.navigation
 
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -76,6 +78,15 @@ private fun NavHostController.navigateToPdfViewer(uri: Uri? = null) {
     navigate(route) { launchSingleTop = true }
 }
 
+private val MAIN_TAB_ROUTES = setOf(ROUTE_HOME, ROUTE_TOOLS, ROUTE_SETTINGS)
+
+private fun routeToTabIdx(route: String?): Int = when (route) {
+    ROUTE_HOME -> 0
+    ROUTE_TOOLS -> 1
+    ROUTE_SETTINGS -> 2
+    else -> 0
+}
+
 @Composable
 fun DocsNavGraph(
     navController: NavHostController,
@@ -88,35 +99,88 @@ fun DocsNavGraph(
     onThemeModeChanged: (Int) -> Unit,
     incomingPdfUri: Uri? = null
 ) {
-    // Disable NavHost transition animations - the LiquidBottomTabs already
-    // handles its own spring-based animation. Removing crossfade transitions
-    // eliminates GPU work that competes with the backdrop rendering pipeline.
     NavHost(
         navController = navController,
         startDestination = ROUTE_HOME,
         enterTransition = {
-            androidx.compose.animation.slideInHorizontally(
-                animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.82f, stiffness = 380f),
-                initialOffsetX = { (it * 0.35f).toInt() }
-            ) + androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.spring(stiffness = 380f)) + androidx.compose.animation.scaleIn(initialScale = 0.95f)
+            val isMainTabSwitch = initialState.destination.route in MAIN_TAB_ROUTES && targetState.destination.route in MAIN_TAB_ROUTES
+            if (isMainTabSwitch) {
+                val dist = kotlin.math.abs(routeToTabIdx(targetState.destination.route) - routeToTabIdx(initialState.destination.route))
+                val fadeDuration = if (dist >= 2) 520 else 350
+                androidx.compose.animation.fadeIn(
+                    animationSpec = tween(durationMillis = fadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                )
+            } else {
+                androidx.compose.animation.fadeIn(
+                    animationSpec = tween(durationMillis = 280, easing = EaseInOut)
+                ) + androidx.compose.animation.slideInHorizontally(
+                    animationSpec = androidx.compose.animation.core.spring(
+                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                    ),
+                    initialOffsetX = { (it * 0.06f).toInt() }
+                )
+            }
         },
         exitTransition = {
-            androidx.compose.animation.slideOutHorizontally(
-                animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.82f, stiffness = 380f),
-                targetOffsetX = { (-it * 0.25f).toInt() }
-            ) + androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.spring(stiffness = 380f)) + androidx.compose.animation.scaleOut(targetScale = 0.95f)
+            val isMainTabSwitch = initialState.destination.route in MAIN_TAB_ROUTES && targetState.destination.route in MAIN_TAB_ROUTES
+            if (isMainTabSwitch) {
+                val dist = kotlin.math.abs(routeToTabIdx(targetState.destination.route) - routeToTabIdx(initialState.destination.route))
+                val fadeDuration = if (dist >= 2) 520 else 350
+                androidx.compose.animation.fadeOut(
+                    animationSpec = tween(durationMillis = fadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                )
+            } else {
+                androidx.compose.animation.fadeOut(
+                    animationSpec = tween(durationMillis = 180, easing = EaseInOut)
+                ) + androidx.compose.animation.slideOutHorizontally(
+                    animationSpec = androidx.compose.animation.core.spring(
+                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                    ),
+                    targetOffsetX = { (-it * 0.06f).toInt() }
+                )
+            }
         },
         popEnterTransition = {
-            androidx.compose.animation.slideInHorizontally(
-                animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.82f, stiffness = 380f),
-                initialOffsetX = { (-it * 0.25f).toInt() }
-            ) + androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.spring(stiffness = 380f)) + androidx.compose.animation.scaleIn(initialScale = 0.95f)
+            val isMainTabSwitch = initialState.destination.route in MAIN_TAB_ROUTES && targetState.destination.route in MAIN_TAB_ROUTES
+            if (isMainTabSwitch) {
+                val dist = kotlin.math.abs(routeToTabIdx(targetState.destination.route) - routeToTabIdx(initialState.destination.route))
+                val fadeDuration = if (dist >= 2) 520 else 350
+                androidx.compose.animation.fadeIn(
+                    animationSpec = tween(durationMillis = fadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                )
+            } else {
+                androidx.compose.animation.fadeIn(
+                    animationSpec = tween(durationMillis = 280, easing = EaseInOut)
+                ) + androidx.compose.animation.slideInHorizontally(
+                    animationSpec = androidx.compose.animation.core.spring(
+                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                    ),
+                    initialOffsetX = { (-it * 0.06f).toInt() }
+                )
+            }
         },
         popExitTransition = {
-            androidx.compose.animation.slideOutHorizontally(
-                animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.82f, stiffness = 380f),
-                targetOffsetX = { (it * 0.35f).toInt() }
-            ) + androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.spring(stiffness = 380f)) + androidx.compose.animation.scaleOut(targetScale = 0.95f)
+            val isMainTabSwitch = initialState.destination.route in MAIN_TAB_ROUTES && targetState.destination.route in MAIN_TAB_ROUTES
+            if (isMainTabSwitch) {
+                val dist = kotlin.math.abs(routeToTabIdx(targetState.destination.route) - routeToTabIdx(initialState.destination.route))
+                val fadeDuration = if (dist >= 2) 520 else 350
+                androidx.compose.animation.fadeOut(
+                    animationSpec = tween(durationMillis = fadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                )
+            } else {
+                androidx.compose.animation.fadeOut(
+                    animationSpec = tween(durationMillis = 180, easing = EaseInOut)
+                ) + androidx.compose.animation.slideOutHorizontally(
+                    animationSpec = androidx.compose.animation.core.spring(
+                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                    ),
+                    targetOffsetX = { (it * 0.06f).toInt() }
+                )
+            }
         }
     ) {
 

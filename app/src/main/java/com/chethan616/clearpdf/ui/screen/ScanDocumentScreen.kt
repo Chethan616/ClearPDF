@@ -100,6 +100,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+
 @Composable
 fun ScanDocumentScreen(
     backdrop: LayerBackdrop,
@@ -116,6 +122,32 @@ fun ScanDocumentScreen(
     val context = LocalContext.current
     val activity = context as Activity
     val scope = rememberCoroutineScope()
+
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { isVisible = true }
+    val density = LocalDensity.current.density
+
+    val topBarAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "scanTopBarAlpha"
+    )
+    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 16f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "scanTopBarOffsetY"
+    )
+
+    val contentAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "scanContentAlpha"
+    )
+    val contentOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 24f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "scanContentOffsetY"
+    )
 
     // ── ML Kit Document Scanner (created lazily to avoid composition crash) ──
     val scannerLauncher = rememberLauncherForActivityResult(
@@ -175,8 +207,24 @@ fun ScanDocumentScreen(
             title = "Scan Document",
             backdrop = backdrop,
             uiSensor = uiSensor,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = topBarAlpha
+                    translationY = topBarOffsetY * density
+                }
         )
+
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .graphicsLayer {
+                    alpha = contentAlpha
+                    translationY = contentOffsetY * density
+                },
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
 
         // Error display
         AnimatedVisibility(
@@ -518,6 +566,7 @@ fun ScanDocumentScreen(
                     )
                 }
             }
+        }
         }
     }
 }

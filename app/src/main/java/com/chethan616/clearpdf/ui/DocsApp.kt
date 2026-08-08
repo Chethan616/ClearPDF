@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Star
@@ -61,7 +60,7 @@ import kotlinx.coroutines.flow.collectLatest
 
 /**
  * Root composable for the Docs app.
- * Provides the wallpaper backdrop, bottom tabs, and navigation host.
+ * Provides the wallpaper backdrop, floating bottom tabs, and navigation host.
  */
 @Composable
 fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = null) {
@@ -94,7 +93,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
             }
         }
     }
-    
+
     Box(
         Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter
@@ -153,8 +152,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
         )
 
         CompositionLocalProvider(LocalIsDarkMode provides isDarkMode) {
-            Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f)) {
+            Box(Modifier.fillMaxSize()) {
                 DocsNavGraph(
                     navController = navController,
                     backdrop = backdrop,
@@ -163,90 +161,141 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     isDarkMode = isDarkMode,
                     onDarkModeChanged = { /* unused */ },
                     themeMode = themeMode,
-                    onThemeModeChanged = { 
+                    onThemeModeChanged = {
                         themeMode = it
                         AppSettingsManager.setThemeMode(context, it)
                     },
                     incomingPdfUri = incomingPdfUri
                 )
-            }
 
-
-            if (showStarPrompt) {
-                val uiSensor = rememberUISensor()
-                val starText = if (!isDarkMode) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
-                val starSub = if (!isDarkMode) Color(0xFF666666) else Color(0xFFAAAAAA)
-                val starAccent = Color(0xFFFFC107)
-                Dialog(
-                    onDismissRequest = {
-                        GitHubStarPromptManager.onPromptDismissed(context)
-                        showStarPrompt = false
-                    },
-                    properties = DialogProperties(usePlatformDefaultWidth = false)
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showBottomTabs,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding(),
+                    enter = androidx.compose.animation.fadeIn(
+                        // EaseInOut tween: opacity arrives slightly after the slide,
+                        // giving a sequential layered feel.
+                        animationSpec = androidx.compose.animation.core.tween(
+                            durationMillis = 320,
+                            delayMillis = 40,
+                            easing = androidx.compose.animation.core.EaseInOut
+                        )
+                    ) + androidx.compose.animation.slideInVertically(
+                        // Critically-overdamped spring = no bounce, pure fluid glide.
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                        ),
+                        initialOffsetY = { it }
+                    ),
+                    exit = androidx.compose.animation.fadeOut(
+                        animationSpec = androidx.compose.animation.core.tween(
+                            durationMillis = 200,
+                            easing = androidx.compose.animation.core.EaseInOut
+                        )
+                    ) + androidx.compose.animation.slideOutVertically(
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                        ),
+                        targetOffsetY = { it }
+                    )
                 ) {
-                    Column(
-                        Modifier
-                            .fillMaxWidth(0.88f)
-                            .liquidGlassPanel(backdrop, uiSensor)
-                            .padding(28.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    DocsBottomTabs(
+                        selectedTab = { selectedTab },
+                        onTabSelected = onBottomTabSelected,
+                        backdrop = backdrop,
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp, vertical = 12.dp)
+                    )
+                }
+
+                if (showStarPrompt) {
+                    val uiSensor = rememberUISensor()
+                    val starText = if (!isDarkMode) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
+                    val starSub = if (!isDarkMode) Color(0xFF666666) else Color(0xFFAAAAAA)
+                    val starAccent = Color(0xFFFFC107)
+                    Dialog(
+                        onDismissRequest = {
+                            GitHubStarPromptManager.onPromptDismissed(context)
+                            showStarPrompt = false
+                        },
+                        properties = DialogProperties(usePlatformDefaultWidth = false)
                     ) {
-                        Icon(
-                            Icons.Rounded.Star, null,
-                            Modifier.size(52.dp), starAccent
-                        )
-                        BasicText(
-                            "Support ClearPDF",
-                            style = TextStyle(starText, 20.sp, FontWeight.Bold, textAlign = TextAlign.Center)
-                        )
-                        BasicText(
-                            "ClearPDF is open source on GitHub.\nWould you like to star the project?",
-                            style = TextStyle(starSub, 14.sp, textAlign = TextAlign.Center)
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        LiquidButton(
-                            onClick = {
-                                GitHubStarPromptManager.onPromptAccepted(context)
-                                showStarPrompt = false
-                                openRepo()
-                            },
-                            backdrop = backdrop,
-                            tint = starAccent,
-                            modifier = Modifier.fillMaxWidth()
+                        Column(
+                            Modifier
+                                .fillMaxWidth(0.88f)
+                                .liquidGlassPanel(backdrop, uiSensor)
+                                .padding(28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
+                            Icon(
+                                Icons.Rounded.Star, null,
+                                Modifier.size(52.dp), starAccent
+                            )
+                            BasicText(
+                                "Support ClearPDF",
+                                style = TextStyle(starText, 20.sp, FontWeight.Bold, textAlign = TextAlign.Center)
+                            )
+                            BasicText(
+                                "ClearPDF is open source on GitHub.\nWould you like to star the project?",
+                                style = TextStyle(starSub, 14.sp, textAlign = TextAlign.Center)
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            LiquidButton(
+                                onClick = {
+                                    GitHubStarPromptManager.onPromptAccepted(context)
+                                    showStarPrompt = false
+                                    openRepo()
+                                },
+                                backdrop = backdrop,
+                                tint = starAccent,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Rounded.Star, null, Modifier.size(18.dp), Color.White)
+                                    BasicText("Yes, Star It", style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold))
+                                }
+                            }
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Rounded.Star, null, Modifier.size(18.dp), Color.White)
-                                BasicText("Yes, Star It", style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold))
+                                BasicText(
+                                    "Not Now",
+                                    style = TextStyle(starSub, 13.sp, FontWeight.Medium, textAlign = TextAlign.Center),
+                                    modifier = Modifier
+                                        .clickable {
+                                            GitHubStarPromptManager.onPromptDismissed(context)
+                                            showStarPrompt = false
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                                )
+                                BasicText(
+                                    "•",
+                                    style = TextStyle(starSub.copy(0.4f), 13.sp)
+                                )
+                                BasicText(
+                                    "Don't Ask Again",
+                                    style = TextStyle(starSub.copy(0.7f), 13.sp, FontWeight.Medium, textAlign = TextAlign.Center),
+                                    modifier = Modifier
+                                        .clickable {
+                                            GitHubStarPromptManager.setNeverShowAgain(context)
+                                            showStarPrompt = false
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                                )
                             }
                         }
-                        BasicText(
-                            "Not Now",
-                            style = TextStyle(starSub, 14.sp, FontWeight.Medium, textAlign = TextAlign.Center),
-                            modifier = Modifier
-                                .clickable {
-                                    GitHubStarPromptManager.onPromptDismissed(context)
-                                    showStarPrompt = false
-                                }
-                                .padding(vertical = 8.dp)
-                        )
                     }
                 }
             }
-            if (showBottomTabs) {
-                DocsBottomTabs(
-                    selectedTab = { selectedTab },
-                    onTabSelected = onBottomTabSelected,
-                    backdrop = backdrop,
-                    modifier = Modifier
-                        .padding(horizontal = 24.dp, vertical = 8.dp)
-                        .navigationBarsPadding()
-                )
-            }
-        }
         }
     }
 }

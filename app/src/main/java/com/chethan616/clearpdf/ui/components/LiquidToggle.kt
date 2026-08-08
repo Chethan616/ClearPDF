@@ -1,6 +1,6 @@
 package com.chethan616.clearpdf.ui.components
 
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -10,7 +10,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -55,8 +54,12 @@ fun LiquidToggle(
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
-    val accentColor = if (isLightTheme) Color(0xFF34C759) else Color(0xFF30D158)
-    val trackColor = if (isLightTheme) Color(0xFF787878).copy(0.2f) else Color(0xFF787880).copy(0.36f)
+    val accentColor =
+        if (isLightTheme) Color(0xFF34C759)
+        else Color(0xFF30D158)
+    val trackColor =
+        if (isLightTheme) Color(0xFF787878).copy(0.2f)
+        else Color(0xFF787880).copy(0.36f)
 
     val density = LocalDensity.current
     val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
@@ -64,12 +67,6 @@ fun LiquidToggle(
     val animationScope = rememberCoroutineScope()
     var didDrag by remember { mutableStateOf(false) }
     var fraction by remember { mutableFloatStateOf(if (selected()) 1f else 0f) }
-
-    // Keep references to callbacks up-to-date so the remembered DampedDragAnimation
-    // always calls through to the latest lambda even after recomposition.
-    val currentSelected by rememberUpdatedState(selected)
-    val currentOnSelect by rememberUpdatedState(onSelect)
-
     val dampedDragAnimation = remember(animationScope) {
         DampedDragAnimation(
             animationScope = animationScope,
@@ -82,15 +79,17 @@ fun LiquidToggle(
             onDragStopped = {
                 if (didDrag) {
                     fraction = if (targetValue >= 0.5f) 1f else 0f
-                    currentOnSelect(fraction == 1f)
+                    onSelect(fraction == 1f)
                     didDrag = false
                 } else {
-                    fraction = if (currentSelected()) 0f else 1f
-                    currentOnSelect(fraction == 1f)
+                    fraction = if (selected()) 0f else 1f
+                    onSelect(fraction == 1f)
                 }
             },
             onDrag = { _, dragAmount ->
-                if (!didDrag) { didDrag = dragAmount.x != 0f }
+                if (!didDrag) {
+                    didDrag = dragAmount.x != 0f
+                }
                 val delta = dragAmount.x / dragWidth
                 fraction =
                     if (isLtr) (fraction + delta).fastCoerceIn(0f, 1f)
@@ -100,7 +99,9 @@ fun LiquidToggle(
     }
     LaunchedEffect(dampedDragAnimation) {
         snapshotFlow { fraction }
-            .collectLatest { dampedDragAnimation.updateValue(it) }
+            .collectLatest { fraction ->
+                dampedDragAnimation.updateValue(fraction)
+            }
     }
     LaunchedEffect(selected) {
         snapshotFlow { selected() }
@@ -115,13 +116,21 @@ fun LiquidToggle(
 
     val trackBackdrop = rememberLayerBackdrop()
 
-    Box(modifier, contentAlignment = Alignment.CenterStart) {
+    Box(
+        modifier
+            .clip(Capsule)
+            .clickable {
+                onSelect(!selected())
+            },
+        contentAlignment = Alignment.CenterStart
+    ) {
         Box(
             Modifier
                 .layerBackdrop(trackBackdrop)
                 .clip(Capsule)
                 .drawBehind {
-                    drawRect(lerp(trackColor, accentColor, dampedDragAnimation.value))
+                    val fraction = dampedDragAnimation.value
+                    drawRect(lerp(trackColor, accentColor, fraction))
                 }
                 .size(64f.dp, 28f.dp)
         )
@@ -129,40 +138,58 @@ fun LiquidToggle(
         Box(
             Modifier
                 .graphicsLayer {
-                    val f = dampedDragAnimation.value
+                    val fraction = dampedDragAnimation.value
                     val padding = 2f.dp.toPx()
                     translationX =
-                        if (isLtr) lerp(padding, padding + dragWidth, f)
-                        else lerp(-padding, -(padding + dragWidth), f)
+                        if (isLtr) lerp(padding, padding + dragWidth, fraction)
+                        else lerp(-padding, -(padding + dragWidth), fraction)
                 }
-                .semantics { role = Role.Switch }
+                .semantics {
+                    role = Role.Switch
+                }
                 .then(dampedDragAnimation.modifier)
                 .drawBackdrop(
                     backdrop = rememberCombinedBackdrop(
                         backdrop,
                         rememberBackdrop(trackBackdrop) { drawBackdrop ->
-                            val p = dampedDragAnimation.pressProgress
-                            scale(lerp(2f / 3f, 0.75f, p), lerp(0f, 0.75f, p)) { drawBackdrop() }
+                            val progress = dampedDragAnimation.pressProgress
+                            val scaleX = lerp(2f / 3f, 0.75f, progress)
+                            val scaleY = lerp(0f, 0.75f, progress)
+                            scale(scaleX, scaleY) {
+                                drawBackdrop()
+                            }
                         }
                     ),
                     shape = { Capsule },
                     effects = {
-                        val p = dampedDragAnimation.pressProgress
-                        blur(8f.dp.toPx() * (1f - p))
-                        lens(5f.dp.toPx() * p, 10f.dp.toPx() * p, chromaticAberration = true)
+                        val progress = dampedDragAnimation.pressProgress
+                        blur(8f.dp.toPx() * (1f - progress))
+                        lens(
+                            5f.dp.toPx() * progress,
+                            10f.dp.toPx() * progress,
+                            chromaticAberration = true
+                        )
                     },
                     highlight = {
-                        val p = dampedDragAnimation.pressProgress
+                        val progress = dampedDragAnimation.pressProgress
                         Highlight.Ambient.copy(
                             width = Highlight.Ambient.width / 1.5f,
                             blurRadius = Highlight.Ambient.blurRadius / 1.5f,
-                            alpha = p
+                            alpha = progress
                         )
                     },
-                    shadow = { Shadow(radius = 4f.dp, color = Color.Black.copy(alpha = 0.05f)) },
+                    shadow = {
+                        Shadow(
+                            radius = 4f.dp,
+                            color = Color.Black.copy(alpha = 0.05f)
+                        )
+                    },
                     innerShadow = {
-                        val p = dampedDragAnimation.pressProgress
-                        InnerShadow(radius = 4f.dp * p, alpha = p)
+                        val progress = dampedDragAnimation.pressProgress
+                        InnerShadow(
+                            radius = 4f.dp * progress,
+                            alpha = progress
+                        )
                     },
                     layerBlock = {
                         scaleX = dampedDragAnimation.scaleX
@@ -172,7 +199,8 @@ fun LiquidToggle(
                         scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                     },
                     onDrawSurface = {
-                        drawRect(Color.White.copy(alpha = 1f - dampedDragAnimation.pressProgress))
+                        val progress = dampedDragAnimation.pressProgress
+                        drawRect(Color.White.copy(alpha = 1f - progress))
                     }
                 )
                 .size(40f.dp, 24f.dp)

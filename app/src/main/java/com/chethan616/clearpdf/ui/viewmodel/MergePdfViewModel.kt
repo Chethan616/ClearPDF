@@ -17,6 +17,7 @@ import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.domain.usecase.MergePdfUseCase
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.kyant.pdfcore.model.PdfDocument
+import com.chethan616.clearpdf.ui.utils.AppDispatchers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,17 +45,19 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
 
     fun addFiles(context: Context, uris: List<Uri>) {
         viewModelScope.launch {
-            uris.forEach { uri ->
-                try {
-                    context.contentResolver.takePersistableUriPermission(
-                        uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                } catch (_: Exception) {
-                    // Some providers do not support persistable grants.
+            val newNames = withContext(Dispatchers.IO) {
+                uris.forEach { uri ->
+                    try {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    } catch (_: Exception) {
+                        // Some providers do not support persistable grants.
+                    }
                 }
+                uris.map { uri -> queryFileName(context, uri) ?: "Unknown.pdf" }
             }
-            val newNames = uris.map { uri -> queryFileName(context, uri) ?: "Unknown.pdf" }
             _uiState.value = _uiState.value.copy(
                 selectedFiles = _uiState.value.selectedFiles + newNames,
                 selectedUris = _uiState.value.selectedUris + uris,
@@ -101,7 +104,7 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
                 val sources = uris.map { uri ->
                     PdfDocument(uri = uri, name = queryFileName(context, uri) ?: "file.pdf")
                 }
-                val outputUri = withContext(Dispatchers.IO) {
+                val outputUri = withContext(AppDispatchers.pdf) {
                     val outUri = createOutputUri(context, "Merged")
                     mergePdfUseCase.merge(context, sources, outUri)
                     outUri

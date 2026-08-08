@@ -67,8 +67,12 @@ fun LiquidBottomTabs(
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
-    val accentColor = if (isLightTheme) Color(0xFF0088FF) else Color(0xFF0091FF)
-    val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.40f) else Color(0xFF121212).copy(0.40f)
+    val accentColor =
+        if (isLightTheme) Color(0xFF0088FF)
+        else Color(0xFF0091FF)
+    val containerColor =
+        if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f)
+        else Color(0xFF121212).copy(0.4f)
 
     val tabsBackdrop = rememberLayerBackdrop()
 
@@ -93,10 +97,9 @@ fun LiquidBottomTabs(
 
         val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
         val animationScope = rememberCoroutineScope()
-        // Keep the animation state stable when the parent recomposes. The
-        // selected-tab lambda is intentionally observed through snapshotFlow
-        // below instead of being used as a remember key.
-        var currentIndex by remember { mutableIntStateOf(selectedTabIndex()) }
+        var currentIndex by remember(selectedTabIndex) {
+            mutableIntStateOf(selectedTabIndex())
+        }
         val dampedDragAnimation = remember(animationScope) {
             DampedDragAnimation(
                 animationScope = animationScope,
@@ -128,9 +131,11 @@ fun LiquidBottomTabs(
                 }
             )
         }
-        LaunchedEffect(Unit) {
+        LaunchedEffect(selectedTabIndex) {
             snapshotFlow { selectedTabIndex() }
-                .collectLatest { index -> currentIndex = index }
+                .collectLatest { index ->
+                    currentIndex = index
+                }
         }
         LaunchedEffect(dampedDragAnimation) {
             snapshotFlow { currentIndex }
@@ -144,7 +149,7 @@ fun LiquidBottomTabs(
         val interactiveHighlight = remember(animationScope) {
             InteractiveHighlight(
                 animationScope = animationScope,
-                position = { size, _ ->
+                position = { size, offset ->
                     Offset(
                         if (isLtr) (dampedDragAnimation.value + 0.5f) * tabWidth + panelOffset
                         else size.width - (dampedDragAnimation.value + 0.5f) * tabWidth + panelOffset,
@@ -154,10 +159,11 @@ fun LiquidBottomTabs(
             )
         }
 
-        // Container row
         Row(
             Modifier
-                .graphicsLayer { translationX = panelOffset }
+                .graphicsLayer {
+                    translationX = panelOffset
+                }
                 .drawBackdrop(
                     backdrop = backdrop,
                     shape = { Capsule },
@@ -182,7 +188,6 @@ fun LiquidBottomTabs(
             content = content
         )
 
-        // Hidden tinted row
         CompositionLocalProvider(
             LocalLiquidBottomTabScale provides {
                 lerp(1f, 1.2f, dampedDragAnimation.pressProgress)
@@ -193,7 +198,9 @@ fun LiquidBottomTabs(
                     .clearAndSetSemantics {}
                     .alpha(0f)
                     .layerBackdrop(tabsBackdrop)
-                    .graphicsLayer { translationX = panelOffset }
+                    .graphicsLayer {
+                        translationX = panelOffset
+                    }
                     .drawBackdrop(
                         backdrop = backdrop,
                         shape = { Capsule },
@@ -222,7 +229,6 @@ fun LiquidBottomTabs(
             )
         }
 
-        // Indicator
         Box(
             Modifier
                 .padding(horizontal = 4f.dp)
@@ -269,7 +275,8 @@ fun LiquidBottomTabs(
                     onDrawSurface = {
                         val progress = dampedDragAnimation.pressProgress
                         drawRect(
-                            if (isLightTheme) Color.Black.copy(0.1f) else Color.White.copy(0.1f),
+                            if (isLightTheme) Color.Black.copy(0.1f)
+                            else Color.White.copy(0.1f),
                             alpha = 1f - progress
                         )
                         drawRect(Color.Black.copy(alpha = 0.03f * progress))
