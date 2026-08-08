@@ -123,8 +123,8 @@ fun HomeScreen(
     val morphProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (selectedRecent != null) 1f else 0f,
         animationSpec = spring(
-            dampingRatio = 0.70f,
-            stiffness = Spring.StiffnessMedium
+            dampingRatio = 0.65f,
+            stiffness = 140f
         ),
         label = "morphProgress"
     )
@@ -135,14 +135,14 @@ fun HomeScreen(
             b2Visible = false
             b3Visible = false
             b4Visible = false
-            // Wait for pop-up container to build and pop open first
-            kotlinx.coroutines.delay(180L)
+            // Wait for pop-up container to morph open gracefully (~220ms)
+            kotlinx.coroutines.delay(220L)
             b1Visible = true
-            kotlinx.coroutines.delay(70L)
+            kotlinx.coroutines.delay(65L)
             b2Visible = true
-            kotlinx.coroutines.delay(70L)
+            kotlinx.coroutines.delay(65L)
             b3Visible = true
-            kotlinx.coroutines.delay(70L)
+            kotlinx.coroutines.delay(65L)
             b4Visible = true
         } else {
             b1Visible = false
@@ -484,15 +484,15 @@ fun HomeScreen(
                             Modifier
                                 .padding(horizontal = 24.dp)
                                 .graphicsLayer {
-                                    val scaleXValue = lerp(0.50f, 1.0f, morphProgress)
-                                    val scaleYValue = lerp(0.40f, 1.0f, morphProgress)
-                                    val translateYValue = lerp(40f, 0f, morphProgress) * density
+                                    val scaleXValue = lerp(0.20f, 1.0f, morphProgress)
+                                    val scaleYValue = lerp(0.15f, 1.0f, morphProgress)
+                                    val translateYValue = lerp(100f, 0f, morphProgress) * density
                                     scaleX = scaleXValue
                                     scaleY = scaleYValue
                                     translationY = translateYValue
                                     alpha = morphProgress.coerceIn(0f, 1f)
                                     transformOrigin = TransformOrigin(0.5f, 0.85f)
-                                    shadowElevation = (12f * morphProgress).dp.toPx()
+                                    shadowElevation = (16f * morphProgress).dp.toPx()
                                     compositingStrategy = CompositingStrategy.Offscreen
                                 }
                                 .liquidGlassPanel(backdrop, uiSensor)
