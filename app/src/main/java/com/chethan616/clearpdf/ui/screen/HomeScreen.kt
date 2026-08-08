@@ -513,16 +513,11 @@ fun HomeScreen(
                                 )
                             }
 
-                            Box(
-                                Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.1f))
-                                    .clickable(
-                                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                        indication = null
-                                    ) { selectedRecent = null },
-                                contentAlignment = Alignment.Center
+                            LiquidIconButton(
+                                onClick = { selectedRecent = null },
+                                backdrop = backdrop,
+                                surfaceColor = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.1f),
+                                modifier = Modifier.size(28.dp)
                             ) {
                                 CloseCrossIcon(Modifier.size(14.dp), sub)
                             }
@@ -546,19 +541,14 @@ fun HomeScreen(
                                         alpha = b1Scale.coerceIn(0f, 1f)
                                     }
                             ) {
-                                Box(
-                                    Modifier
-                                        .size(50.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF0088FF))
-                                        .clickable(
-                                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                            indication = null
-                                        ) {
-                                            selectedRecent = null
-                                            onRecentFileSelected(recent.uri)
-                                        },
-                                    contentAlignment = Alignment.Center
+                                LiquidIconButton(
+                                    onClick = {
+                                        selectedRecent = null
+                                        onRecentFileSelected(recent.uri)
+                                    },
+                                    backdrop = backdrop,
+                                    tint = Color(0xFF0088FF),
+                                    modifier = Modifier.size(50.dp)
                                 ) {
                                     Icon(Icons.Rounded.FileOpen, null, Modifier.size(22.dp), Color.White)
                                 }
@@ -575,24 +565,19 @@ fun HomeScreen(
                                         alpha = b2Scale.coerceIn(0f, 1f)
                                     }
                             ) {
-                                Box(
-                                    Modifier
-                                        .size(50.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF4CAF50))
-                                        .clickable(
-                                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                            indication = null
-                                        ) {
-                                            selectedRecent = null
-                                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                                type = "application/pdf"
-                                                putExtra(Intent.EXTRA_STREAM, recent.uri)
-                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                            }
-                                            context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
-                                        },
-                                    contentAlignment = Alignment.Center
+                                LiquidIconButton(
+                                    onClick = {
+                                        selectedRecent = null
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "application/pdf"
+                                            putExtra(Intent.EXTRA_STREAM, recent.uri)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
+                                    },
+                                    backdrop = backdrop,
+                                    tint = Color(0xFF4CAF50),
+                                    modifier = Modifier.size(50.dp)
                                 ) {
                                     Icon(Icons.Rounded.Share, null, Modifier.size(22.dp), Color.White)
                                 }
@@ -609,19 +594,14 @@ fun HomeScreen(
                                         alpha = b3Scale.coerceIn(0f, 1f)
                                     }
                             ) {
-                                Box(
-                                    Modifier
-                                        .size(50.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF9C27B0))
-                                        .clickable(
-                                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                            indication = null
-                                        ) {
-                                            selectedRecent = null
-                                            infoRecent = recent
-                                        },
-                                    contentAlignment = Alignment.Center
+                                LiquidIconButton(
+                                    onClick = {
+                                        selectedRecent = null
+                                        infoRecent = recent
+                                    },
+                                    backdrop = backdrop,
+                                    tint = Color(0xFF9C27B0),
+                                    modifier = Modifier.size(50.dp)
                                 ) {
                                     Icon(Icons.Rounded.Info, null, Modifier.size(22.dp), Color.White)
                                 }
@@ -638,20 +618,15 @@ fun HomeScreen(
                                         alpha = b4Scale.coerceIn(0f, 1f)
                                     }
                             ) {
-                                Box(
-                                    Modifier
-                                        .size(50.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFE53935))
-                                        .clickable(
-                                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                            indication = null
-                                        ) {
-                                            RecentFilesManager.removeRecent(context, recent.uri)
-                                            recents = recents.filterNot { it.uriString == recent.uri.toString() }
-                                            selectedRecent = null
-                                        },
-                                    contentAlignment = Alignment.Center
+                                LiquidIconButton(
+                                    onClick = {
+                                        RecentFilesManager.removeRecent(context, recent.uri)
+                                        recents = recents.filterNot { it.uriString == recent.uri.toString() }
+                                        selectedRecent = null
+                                    },
+                                    backdrop = backdrop,
+                                    tint = Color(0xFFE53935),
+                                    modifier = Modifier.size(50.dp)
                                 ) {
                                     CloseCrossIcon(Modifier.size(18.dp), Color.White)
                                 }
