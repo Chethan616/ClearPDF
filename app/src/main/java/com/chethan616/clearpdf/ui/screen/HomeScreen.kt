@@ -123,8 +123,8 @@ fun HomeScreen(
     val morphProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (selectedRecent != null) 1f else 0f,
         animationSpec = spring(
-            dampingRatio = 0.65f,
-            stiffness = 140f
+            dampingRatio = 0.68f,
+            stiffness = 180f
         ),
         label = "morphProgress"
     )
@@ -152,26 +152,11 @@ fun HomeScreen(
         }
     }
 
-    val b1Scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (b1Visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-        label = "b1Scale"
-    )
-    val b2Scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (b2Visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-        label = "b2Scale"
-    )
-    val b3Scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (b3Visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-        label = "b3Scale"
-    )
-    val b4Scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (b4Visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
-        label = "b4Scale"
-    )
+    val btnSpring = spring<Float>(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
+    val b1Scale by androidx.compose.animation.core.animateFloatAsState(if (b1Visible) 1f else 0f, btnSpring, label = "b1")
+    val b2Scale by androidx.compose.animation.core.animateFloatAsState(if (b2Visible) 1f else 0f, btnSpring, label = "b2")
+    val b3Scale by androidx.compose.animation.core.animateFloatAsState(if (b3Visible) 1f else 0f, btnSpring, label = "b3")
+    val b4Scale by androidx.compose.animation.core.animateFloatAsState(if (b4Visible) 1f else 0f, btnSpring, label = "b4")
 
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
@@ -475,122 +460,130 @@ fun HomeScreen(
                 contentAlignment = Alignment.Center
             ) {
                 selectedRecent?.let { recent ->
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)),
-                        exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMedium))
+                    Column(
+                        Modifier
+                            .padding(horizontal = 24.dp)
+                            .graphicsLayer {
+                                val scaleXValue = lerp(0.20f, 1.0f, morphProgress)
+                                val scaleYValue = lerp(0.15f, 1.0f, morphProgress)
+                                val translateYValue = lerp(100f, 0f, morphProgress) * density
+                                scaleX = scaleXValue
+                                scaleY = scaleYValue
+                                translationY = translateYValue
+                                alpha = morphProgress.coerceIn(0f, 1f)
+                                transformOrigin = TransformOrigin(0.5f, 0.85f)
+                                shadowElevation = (16f * morphProgress).dp.toPx()
+                                compositingStrategy = CompositingStrategy.Offscreen
+                            }
+                            .liquidGlassPanel(backdrop, uiSensor)
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null
+                            ) { /* Consume inner taps */ }
+                            .padding(horizontal = 18.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Column(
-                            Modifier
-                                .padding(horizontal = 24.dp)
-                                .graphicsLayer {
-                                    val scaleXValue = lerp(0.20f, 1.0f, morphProgress)
-                                    val scaleYValue = lerp(0.15f, 1.0f, morphProgress)
-                                    val translateYValue = lerp(100f, 0f, morphProgress) * density
-                                    scaleX = scaleXValue
-                                    scaleY = scaleYValue
-                                    translationY = translateYValue
-                                    alpha = morphProgress.coerceIn(0f, 1f)
-                                    transformOrigin = TransformOrigin(0.5f, 0.85f)
-                                    shadowElevation = (16f * morphProgress).dp.toPx()
-                                    compositingStrategy = CompositingStrategy.Offscreen
-                                }
-                                .liquidGlassPanel(backdrop, uiSensor)
-                                .clickable(
-                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                    indication = null
-                                ) { /* Consume inner taps */ }
-                                .padding(horizontal = 18.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        // Chat bubble reaction header (filename & close)
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Chat bubble reaction header (filename & close)
                             Row(
-                                Modifier.fillMaxWidth(),
+                                Modifier.weight(1f),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Row(
-                                    Modifier.weight(1f),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                Box(
+                                    Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFE53935).copy(alpha = if (isLight) 0.14f else 0.25f)),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
-                                        Modifier
-                                            .size(32.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFFE53935).copy(alpha = if (isLight) 0.14f else 0.25f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(18.dp), Color(0xFFE53935))
-                                    }
-                                    BasicText(
-                                        recent.name,
-                                        style = TextStyle(text, 14.sp, FontWeight.SemiBold),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                    Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(18.dp), Color(0xFFE53935))
                                 }
-
-                                LiquidIconButton(
-                                    onClick = { selectedRecent = null },
-                                    backdrop = backdrop,
-                                    surfaceColor = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.1f),
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    CloseCrossIcon(Modifier.size(14.dp), sub)
-                                }
+                                BasicText(
+                                    recent.name,
+                                    style = TextStyle(text, 14.sp, FontWeight.SemiBold),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
                             }
 
-                            // Horizontal Staggered Reaction Buttons
-                            Row(
+                            Box(
                                 Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 2.dp),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.1f))
+                                    .clickable(
+                                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                        indication = null
+                                    ) { selectedRecent = null },
+                                contentAlignment = Alignment.Center
                             ) {
-                                // 1. Open Button (Blue) - Staggered 1
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier
-                                        .graphicsLayer {
-                                            scaleX = b1Scale
-                                            scaleY = b1Scale
-                                            alpha = b1Scale.coerceIn(0f, 1f)
-                                        }
-                                        .clickable {
-                                            selectedRecent = null
-                                            onRecentFileSelected(recent.uri)
-                                        }
-                                ) {
-                                    LiquidIconButton(
-                                        onClick = {
+                                CloseCrossIcon(Modifier.size(14.dp), sub)
+                            }
+                        }
+
+                        // Horizontal Staggered Reaction Buttons
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 1. Open Button (Blue)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        scaleX = b1Scale; scaleY = b1Scale
+                                        alpha = b1Scale.coerceIn(0f, 1f)
+                                    }
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(50.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF0088FF))
+                                        .clickable(
+                                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                            indication = null
+                                        ) {
                                             selectedRecent = null
                                             onRecentFileSelected(recent.uri)
                                         },
-                                        backdrop = backdrop,
-                                        tint = Color(0xFF0088FF),
-                                        modifier = Modifier.size(50.dp)
-                                    ) {
-                                        Icon(Icons.Rounded.FileOpen, null, Modifier.size(22.dp), Color.White)
-                                    }
-                                    BasicText("Open", style = TextStyle(text, 11.sp, FontWeight.Medium))
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Rounded.FileOpen, null, Modifier.size(22.dp), Color.White)
                                 }
+                                BasicText("Open", style = TextStyle(text, 11.sp, FontWeight.Medium))
+                            }
 
-                                // 2. Share Button (Green) - Staggered 2
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier
-                                        .graphicsLayer {
-                                            scaleX = b2Scale
-                                            scaleY = b2Scale
-                                            alpha = b2Scale.coerceIn(0f, 1f)
-                                        }
-                                        .clickable {
+                            // 2. Share Button (Green)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        scaleX = b2Scale; scaleY = b2Scale
+                                        alpha = b2Scale.coerceIn(0f, 1f)
+                                    }
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(50.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF4CAF50))
+                                        .clickable(
+                                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                            indication = null
+                                        ) {
                                             selectedRecent = null
                                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                                 type = "application/pdf"
@@ -598,86 +591,71 @@ fun HomeScreen(
                                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                             }
                                             context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
-                                        }
-                                ) {
-                                    LiquidIconButton(
-                                        onClick = {
-                                            selectedRecent = null
-                                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                                type = "application/pdf"
-                                                putExtra(Intent.EXTRA_STREAM, recent.uri)
-                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                            }
-                                            context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
                                         },
-                                        backdrop = backdrop,
-                                        tint = Color(0xFF4CAF50),
-                                        modifier = Modifier.size(50.dp)
-                                    ) {
-                                        Icon(Icons.Rounded.Share, null, Modifier.size(22.dp), Color.White)
-                                    }
-                                    BasicText("Share", style = TextStyle(text, 11.sp, FontWeight.Medium))
-                                }
-
-                                // 3. Info Button (Purple) - Staggered 3
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier
-                                        .graphicsLayer {
-                                            scaleX = b3Scale
-                                            scaleY = b3Scale
-                                            alpha = b3Scale.coerceIn(0f, 1f)
-                                        }
-                                        .clickable {
-                                            selectedRecent = null
-                                            infoRecent = recent
-                                        }
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    LiquidIconButton(
-                                        onClick = {
+                                    Icon(Icons.Rounded.Share, null, Modifier.size(22.dp), Color.White)
+                                }
+                                BasicText("Share", style = TextStyle(text, 11.sp, FontWeight.Medium))
+                            }
+
+                            // 3. Info Button (Purple)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        scaleX = b3Scale; scaleY = b3Scale
+                                        alpha = b3Scale.coerceIn(0f, 1f)
+                                    }
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(50.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF9C27B0))
+                                        .clickable(
+                                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                            indication = null
+                                        ) {
                                             selectedRecent = null
                                             infoRecent = recent
                                         },
-                                        backdrop = backdrop,
-                                        tint = Color(0xFF9C27B0),
-                                        modifier = Modifier.size(50.dp)
-                                    ) {
-                                        Icon(Icons.Rounded.Info, null, Modifier.size(22.dp), Color.White)
-                                    }
-                                    BasicText("Details", style = TextStyle(text, 11.sp, FontWeight.Medium))
-                                }
-
-                                // 4. Remove Button (Red) - Staggered 4
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier
-                                        .graphicsLayer {
-                                            scaleX = b4Scale
-                                            scaleY = b4Scale
-                                            alpha = b4Scale.coerceIn(0f, 1f)
-                                        }
-                                        .clickable {
-                                            RecentFilesManager.removeRecent(context, recent.uri)
-                                            recents = recents.filterNot { it.uriString == recent.uri.toString() }
-                                            selectedRecent = null
-                                        }
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    LiquidIconButton(
-                                        onClick = {
+                                    Icon(Icons.Rounded.Info, null, Modifier.size(22.dp), Color.White)
+                                }
+                                BasicText("Details", style = TextStyle(text, 11.sp, FontWeight.Medium))
+                            }
+
+                            // 4. Remove Button (Red)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        scaleX = b4Scale; scaleY = b4Scale
+                                        alpha = b4Scale.coerceIn(0f, 1f)
+                                    }
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(50.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFE53935))
+                                        .clickable(
+                                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                            indication = null
+                                        ) {
                                             RecentFilesManager.removeRecent(context, recent.uri)
                                             recents = recents.filterNot { it.uriString == recent.uri.toString() }
                                             selectedRecent = null
                                         },
-                                        backdrop = backdrop,
-                                        tint = Color(0xFFE53935),
-                                        modifier = Modifier.size(50.dp)
-                                    ) {
-                                        CloseCrossIcon(Modifier.size(18.dp), Color.White)
-                                    }
-                                    BasicText("Remove", style = TextStyle(redAccent, 11.sp, FontWeight.Medium))
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CloseCrossIcon(Modifier.size(18.dp), Color.White)
                                 }
+                                BasicText("Remove", style = TextStyle(redAccent, 11.sp, FontWeight.Medium))
                             }
                         }
                     }
