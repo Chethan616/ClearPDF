@@ -12,6 +12,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -122,13 +123,13 @@ fun HomeScreen(
             b2Visible = false
             b3Visible = false
             b4Visible = false
-            kotlinx.coroutines.delay(40)
+            kotlinx.coroutines.delay(10)
             b1Visible = true
-            kotlinx.coroutines.delay(50)
+            kotlinx.coroutines.delay(20)
             b2Visible = true
-            kotlinx.coroutines.delay(50)
+            kotlinx.coroutines.delay(20)
             b3Visible = true
-            kotlinx.coroutines.delay(50)
+            kotlinx.coroutines.delay(20)
             b4Visible = true
         } else {
             b1Visible = false
@@ -140,22 +141,22 @@ fun HomeScreen(
 
     val b1Scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (b1Visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "b1Scale"
     )
     val b2Scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (b2Visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "b2Scale"
     )
     val b3Scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (b3Visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "b3Scale"
     )
     val b4Scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (b4Visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "b4Scale"
     )
 
@@ -447,13 +448,13 @@ fun HomeScreen(
         // ── Floating Liquid Glass Chat Bubble Reaction Bar ──
         AnimatedVisibility(
             visible = selectedRecent != null,
-            enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)),
-            exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMedium))
+            enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessHigh)),
+            exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessHigh))
         ) {
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.40f))
+                    .background(if (isLight) Color.Black.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.22f))
                     .clickable { selectedRecent = null },
                 contentAlignment = Alignment.Center
             ) {
@@ -463,17 +464,27 @@ fun HomeScreen(
                         enter = scaleIn(
                             animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
+                                stiffness = Spring.StiffnessMedium
                             ),
-                            initialScale = 0.6f
+                            initialScale = 0.8f
                         ) + fadeIn(),
-                        exit = scaleOut(targetScale = 0.7f) + fadeOut()
+                        exit = scaleOut(targetScale = 0.85f) + fadeOut()
                     ) {
                         Column(
                             Modifier
-                                .padding(horizontal = 20.dp)
-                                .liquidGlassPanel(backdrop, uiSensor)
+                                .padding(horizontal = 24.dp)
                                 .clip(RoundedCornerShape(32.dp))
+                                .background(if (isLight) Color.White.copy(0.88f) else Color(0xFF1C1E26).copy(0.88f))
+                                .border(
+                                    1.5.dp,
+                                    if (isLight) Color.White.copy(0.95f) else Color.White.copy(0.18f),
+                                    RoundedCornerShape(32.dp)
+                                )
+                                .graphicsLayer {
+                                    shadowElevation = 16f.dp.toPx()
+                                    shape = RoundedCornerShape(32.dp)
+                                    clip = true
+                                }
                                 .clickable { /* Consume inner taps */ }
                                 .padding(horizontal = 18.dp, vertical = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
