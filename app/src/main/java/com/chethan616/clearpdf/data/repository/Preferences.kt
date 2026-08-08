@@ -167,7 +167,7 @@ object GitHubStarPromptManager {
     private const val KEY_PROMPT_SNOOZE_UNTIL_MS = "github_star_prompt_snooze_until_ms"
     private const val KEY_NEVER_SHOW = "github_star_never_show"
 
-    private const val INTERACTION_THRESHOLD = 10
+    private const val INTERACTION_THRESHOLD = 3
     private const val THIRTY_DAYS_MS = 30L * 24L * 60L * 60L * 1000L
 
     const val REPO_URL: String = "https://github.com/Chethan616/ClearPDF"

@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -229,7 +230,7 @@ fun SettingsScreen(
                     alpha = panel1Alpha
                     translationY = panel1OffsetY * density
                 }
-                .liquidGlassPanel(backdrop, uiSensor)
+                .liquidGlassSection(isLight)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -310,7 +311,7 @@ fun SettingsScreen(
                     alpha = panel2Alpha
                     translationY = panel2OffsetY * density
                 }
-                .liquidGlassPanel(backdrop, uiSensor)
+                .liquidGlassSection(isLight)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -381,7 +382,7 @@ fun SettingsScreen(
                     alpha = panel3Alpha
                     translationY = panel3OffsetY * density
                 }
-                .liquidGlassPanel(backdrop, uiSensor)
+                .liquidGlassSection(isLight)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -447,7 +448,7 @@ fun SettingsScreen(
                     alpha = panel4Alpha
                     translationY = panel4OffsetY * density
                 }
-                .liquidGlassPanel(backdrop, uiSensor)
+                .liquidGlassSection(isLight)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -550,7 +551,7 @@ fun SettingsScreen(
                     alpha = panel5Alpha
                     translationY = panel5OffsetY * density
                 }
-                .liquidGlassPanel(backdrop, uiSensor)
+                .liquidGlassSection(isLight)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -601,7 +602,7 @@ fun SettingsScreen(
                     alpha = panel6Alpha
                     translationY = panel6OffsetY * density
                 }
-                .liquidGlassPanel(backdrop, uiSensor)
+                .liquidGlassSection(isLight)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -637,6 +638,15 @@ fun SettingsScreen(
     }
 }
 
+private fun Modifier.liquidGlassSection(isLight: Boolean): Modifier {
+    val containerColor = if (isLight) Color.White.copy(0.68f) else Color(0xFF161820).copy(0.72f)
+    val borderColor = if (isLight) Color.White.copy(0.80f) else Color.White.copy(0.12f)
+    return this
+        .clip(RoundedCornerShape(24.dp))
+        .background(containerColor)
+        .border(1.dp, borderColor, RoundedCornerShape(24.dp))
+}
+
 private fun openExternalLink(context: Context, url: String) {
     runCatching {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
@@ -658,7 +668,11 @@ private fun SettingsToggleRow(
     subColor: Color
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 6.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {

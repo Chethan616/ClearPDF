@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -116,7 +117,11 @@ fun LiquidToggle(
     val trackBackdrop = rememberLayerBackdrop()
 
     Box(
-        modifier,
+        modifier
+            .clip(Capsule)
+            .clickable {
+                onSelect(!selected())
+            },
         contentAlignment = Alignment.CenterStart
     ) {
         Box(
