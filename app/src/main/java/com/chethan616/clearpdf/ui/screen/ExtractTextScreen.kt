@@ -125,8 +125,17 @@ fun ExtractTextScreen(
                 },
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                LiquidButton(onClick = { picker.launch(arrayOf("application/pdf")) }, backdrop = backdrop, tint = accent) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                LiquidButton(
+                    onClick = { picker.launch(arrayOf("application/pdf")) },
+                    backdrop = backdrop,
+                    tint = accent,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
                     BasicText("Pick a PDF", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
                 }
@@ -135,15 +144,19 @@ fun ExtractTextScreen(
                         Icon(Icons.Rounded.ContentCopy, null, Modifier.size(16.dp), text)
                         BasicText("Copy", style = TextStyle(text, 14.sp, FontWeight.Medium))
                     }
-                    LiquidButton(onClick = {
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, state.text)
-                        }
-                        context.startActivity(Intent.createChooser(send, "Share text"))
-                    }, backdrop = backdrop) {
-                        Icon(Icons.Rounded.Share, null, Modifier.size(16.dp), text)
-                        BasicText("Share", style = TextStyle(text, 14.sp, FontWeight.Medium))
+                    com.chethan616.clearpdf.ui.components.LiquidIconButton(
+                        onClick = {
+                            val send = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, state.text)
+                            }
+                            context.startActivity(Intent.createChooser(send, "Share text"))
+                        },
+                        backdrop = backdrop,
+                        tint = Color(0xFF0088FF),
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(Icons.Rounded.Share, "Share", Modifier.size(20.dp), Color.White)
                     }
                 }
             }

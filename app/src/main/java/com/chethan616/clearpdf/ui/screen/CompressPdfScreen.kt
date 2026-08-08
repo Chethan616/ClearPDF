@@ -109,21 +109,40 @@ fun CompressPdfScreen(
         label = "compressContentOffsetY"
     )
 
-    Box(Modifier.fillMaxSize()) {
-        // ── Scrollable Content (scrolls underneath floating nav bar) ──
+    Column(
+        Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Floating Liquid Glass Top Bar
+        Row(
+            Modifier.graphicsLayer {
+                alpha = topBarAlpha
+                translationY = topBarOffsetY * density
+            },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
+                Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
+            }
+            LiquidGlassTopBar(title = "Compress PDF", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f), titleFontSize = 18.sp)
+        }
+
+        // Scrollable Body Content
         Column(
             Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .weight(1f)
                 .graphicsLayer {
                     alpha = contentAlpha
                     translationY = contentOffsetY * density
                 }
-                .verticalScroll(rememberScrollState())
-                .padding(top = 76.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Spacer(Modifier.height(8.dp))
-
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -258,27 +277,7 @@ fun CompressPdfScreen(
                 }
             }
 
-            Spacer(Modifier.height(80.dp))
-        }
-
-        // ── Floating Liquid Glass Top Bar ──
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .graphicsLayer {
-                    alpha = topBarAlpha
-                    translationY = topBarOffsetY * density
-                },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
-            }
-            LiquidGlassTopBar(title = "Compress PDF", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
+            Spacer(Modifier.height(40.dp))
         }
     }
 }
