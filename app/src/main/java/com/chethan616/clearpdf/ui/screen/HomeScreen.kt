@@ -420,40 +420,56 @@ fun HomeScreen(
                                 .liquidGlassPanel(backdrop, uiSensor)
                                 .clickable { /* Consume inner taps */ }
                                 .padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // Header
+                            // Header with Close Cross
                             Row(
-                                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Box(
-                                    Modifier
-                                        .size(44.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFFE53935).copy(alpha = if (isLight) 0.14f else 0.25f)),
-                                    contentAlignment = Alignment.Center
+                                Row(
+                                    Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
-                                    Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(24.dp), Color(0xFFE53935))
-                                }
-                                Column(Modifier.weight(1f)) {
-                                    BasicText(
-                                        recent.name,
-                                        style = TextStyle(text, 15.sp, FontWeight.SemiBold),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    val details = buildString {
-                                        if (recent.sizeBytes > 0) append(formatFileSize(recent.sizeBytes))
-                                        if (recent.pageCount > 0) {
-                                            if (isNotEmpty()) append(" · ")
-                                            append("${recent.pageCount} pages")
-                                        }
-                                        if (isNotEmpty()) append(" · ")
-                                        append(formatTimestamp(recent.timestamp))
+                                    Box(
+                                        Modifier
+                                            .size(44.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color(0xFFE53935).copy(alpha = if (isLight) 0.14f else 0.25f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(24.dp), Color(0xFFE53935))
                                     }
-                                    BasicText(details, style = TextStyle(sub, 12.sp))
+                                    Column(Modifier.weight(1f)) {
+                                        BasicText(
+                                            recent.name,
+                                            style = TextStyle(text, 15.sp, FontWeight.SemiBold),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        val details = buildString {
+                                            if (recent.sizeBytes > 0) append(formatFileSize(recent.sizeBytes))
+                                            if (recent.pageCount > 0) {
+                                                if (isNotEmpty()) append(" · ")
+                                                append("${recent.pageCount} pages")
+                                            }
+                                            if (isNotEmpty()) append(" · ")
+                                            append(formatTimestamp(recent.timestamp))
+                                        }
+                                        BasicText(details, style = TextStyle(sub, 12.sp))
+                                    }
+                                }
+
+                                LiquidIconButton(
+                                    onClick = { selectedRecent = null },
+                                    backdrop = backdrop,
+                                    surfaceColor = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.1f),
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    CloseCrossIcon(Modifier.size(16.dp), sub)
                                 }
                             }
 
@@ -465,77 +481,117 @@ fun HomeScreen(
                                     .background(if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.08f))
                             )
 
-                            // Open
-                            ActionSheetItem(
-                                icon = Icons.Rounded.OpenInNew,
-                                label = "Open PDF",
-                                tint = accent,
-                                textColor = text,
-                                onClick = {
-                                    selectedRecent = null
-                                    onRecentFileSelected(recent.uri)
-                                }
-                            )
-
-                            // Share
-                            ActionSheetItem(
-                                icon = Icons.Rounded.Share,
-                                label = "Share",
-                                tint = Color(0xFF4CAF50),
-                                textColor = text,
-                                onClick = {
-                                    selectedRecent = null
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "application/pdf"
-                                        putExtra(Intent.EXTRA_STREAM, recent.uri)
-                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                    }
-                                    context.startActivity(
-                                        Intent.createChooser(shareIntent, "Share PDF")
-                                    )
-                                }
-                            )
-
-                            // File Info
-                            ActionSheetItem(
-                                icon = Icons.Rounded.Info,
-                                label = "File Info",
-                                tint = Color(0xFF7B1FA2),
-                                textColor = text,
-                                onClick = {
-                                    selectedRecent = null
-                                    infoRecent = recent
-                                }
-                            )
-
-                            // Remove
-                            ActionSheetItem(
-                                icon = Icons.Rounded.RemoveCircleOutline,
-                                label = "Remove from Recents",
-                                tint = redAccent,
-                                textColor = redAccent,
-                                onClick = {
-                                    RecentFilesManager.removeRecent(context, recent.uri)
-                                    recents = recents.filterNot { it.uriString == recent.uri.toString() }
-                                    selectedRecent = null
-                                }
-                            )
-
-                            // Cancel
-                            Box(
+                            // Horizontal Circular Action Buttons
+                            Row(
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 4.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
-                                    .clickable { selectedRecent = null }
-                                    .padding(vertical = 12.dp),
-                                contentAlignment = Alignment.Center
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                BasicText(
-                                    "Cancel",
-                                    style = TextStyle(sub, 14.sp, FontWeight.Medium)
-                                )
+                                // 1. Open Button (Blue)
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.clickable {
+                                        selectedRecent = null
+                                        onRecentFileSelected(recent.uri)
+                                    }
+                                ) {
+                                    LiquidIconButton(
+                                        onClick = {
+                                            selectedRecent = null
+                                            onRecentFileSelected(recent.uri)
+                                        },
+                                        backdrop = backdrop,
+                                        tint = Color(0xFF0088FF),
+                                        modifier = Modifier.size(52.dp)
+                                    ) {
+                                        Icon(Icons.Rounded.FileOpen, null, Modifier.size(24.dp), Color.White)
+                                    }
+                                    BasicText("Open", style = TextStyle(text, 12.sp, FontWeight.Medium))
+                                }
+
+                                // 2. Share Button (Green)
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.clickable {
+                                        selectedRecent = null
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "application/pdf"
+                                            putExtra(Intent.EXTRA_STREAM, recent.uri)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
+                                    }
+                                ) {
+                                    LiquidIconButton(
+                                        onClick = {
+                                            selectedRecent = null
+                                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "application/pdf"
+                                                putExtra(Intent.EXTRA_STREAM, recent.uri)
+                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
+                                            context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
+                                        },
+                                        backdrop = backdrop,
+                                        tint = Color(0xFF4CAF50),
+                                        modifier = Modifier.size(52.dp)
+                                    ) {
+                                        Icon(Icons.Rounded.Share, null, Modifier.size(24.dp), Color.White)
+                                    }
+                                    BasicText("Share", style = TextStyle(text, 12.sp, FontWeight.Medium))
+                                }
+
+                                // 3. Info Button (Purple)
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.clickable {
+                                        selectedRecent = null
+                                        infoRecent = recent
+                                    }
+                                ) {
+                                    LiquidIconButton(
+                                        onClick = {
+                                            selectedRecent = null
+                                            infoRecent = recent
+                                        },
+                                        backdrop = backdrop,
+                                        tint = Color(0xFF9C27B0),
+                                        modifier = Modifier.size(52.dp)
+                                    ) {
+                                        Icon(Icons.Rounded.Info, null, Modifier.size(24.dp), Color.White)
+                                    }
+                                    BasicText("Details", style = TextStyle(text, 12.sp, FontWeight.Medium))
+                                }
+
+                                // 4. Remove Button (Red with Close Cross style)
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.clickable {
+                                        RecentFilesManager.removeRecent(context, recent.uri)
+                                        recents = recents.filterNot { it.uriString == recent.uri.toString() }
+                                        selectedRecent = null
+                                    }
+                                ) {
+                                    LiquidIconButton(
+                                        onClick = {
+                                            RecentFilesManager.removeRecent(context, recent.uri)
+                                            recents = recents.filterNot { it.uriString == recent.uri.toString() }
+                                            selectedRecent = null
+                                        },
+                                        backdrop = backdrop,
+                                        tint = Color(0xFFE53935),
+                                        modifier = Modifier.size(52.dp)
+                                    ) {
+                                        CloseCrossIcon(Modifier.size(20.dp), Color.White)
+                                    }
+                                    BasicText("Remove", style = TextStyle(redAccent, 12.sp, FontWeight.Medium))
+                                }
                             }
                         }
                     }
