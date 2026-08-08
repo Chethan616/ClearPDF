@@ -123,13 +123,14 @@ fun HomeScreen(
             b2Visible = false
             b3Visible = false
             b4Visible = false
-            kotlinx.coroutines.delay(10)
+            // Wait for pop-up container to build and pop open first
+            kotlinx.coroutines.delay(180L)
             b1Visible = true
-            kotlinx.coroutines.delay(20)
+            kotlinx.coroutines.delay(70L)
             b2Visible = true
-            kotlinx.coroutines.delay(20)
+            kotlinx.coroutines.delay(70L)
             b3Visible = true
-            kotlinx.coroutines.delay(20)
+            kotlinx.coroutines.delay(70L)
             b4Visible = true
         } else {
             b1Visible = false
@@ -141,22 +142,22 @@ fun HomeScreen(
 
     val b1Scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (b1Visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "b1Scale"
     )
     val b2Scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (b2Visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "b2Scale"
     )
     val b3Scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (b3Visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "b3Scale"
     )
     val b4Scale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (b4Visible) 1f else 0f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "b4Scale"
     )
 
@@ -464,11 +465,11 @@ fun HomeScreen(
                         enter = scaleIn(
                             animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMedium
+                                stiffness = Spring.StiffnessMediumLow
                             ),
-                            initialScale = 0.8f
-                        ) + fadeIn(),
-                        exit = scaleOut(targetScale = 0.85f) + fadeOut()
+                            initialScale = 0.65f
+                        ) + fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
+                        exit = scaleOut(targetScale = 0.75f) + fadeOut()
                     ) {
                         Column(
                             Modifier
