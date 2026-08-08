@@ -242,52 +242,44 @@ fun SettingsScreen(
                 BasicText("Appearance", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
-            // Navbar-like segmented theme mode bar
+            // Liquid Glass Theme Mode Selector
             Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector)
+                data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector, val activeColor: Color)
                 val options = listOf(
-                    ThemeOption(0, "System", Icons.Rounded.PhoneAndroid),
-                    ThemeOption(1, "Light", Icons.Rounded.LightMode),
-                    ThemeOption(2, "Dark", Icons.Rounded.DarkMode)
+                    ThemeOption(0, "System", Icons.Rounded.PhoneAndroid, Color(0xFF0088FF)),
+                    ThemeOption(1, "Light", Icons.Rounded.LightMode, Color(0xFFFFA726)),
+                    ThemeOption(2, "Dark", Icons.Rounded.DarkMode, Color(0xFF7C4DFF))
                 )
                 options.forEach { option ->
                     val isSelected = themeMode == option.idx
-                    val activeColor = when (option.idx) {
-                        1 -> Color(0xFFFFA726)
-                        2 -> Color(0xFF7C4DFF)
-                        else -> Color(0xFF0088FF)
-                    }
-                    Row(
-                        Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) activeColor else Color.Transparent)
-                            .clickable { onThemeModeChanged(option.idx) }
-                            .padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                    LiquidButton(
+                        onClick = { onThemeModeChanged(option.idx) },
+                        backdrop = backdrop,
+                        tint = if (isSelected) option.activeColor else Color.Transparent,
+                        surfaceColor = if (isSelected) option.activeColor.copy(0.18f) else (if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f)),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Icon(
-                            option.icon, null,
-                            Modifier.size(17.dp),
-                            if (isSelected) Color.White else sub
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        BasicText(
-                            option.label,
-                            style = TextStyle(
-                                if (isSelected) Color.White else sub,
-                                13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                option.icon, null,
+                                Modifier.size(17.dp),
+                                if (isSelected) Color.White else label
                             )
-                        )
+                            BasicText(
+                                option.label,
+                                style = TextStyle(
+                                    if (isSelected) Color.White else label,
+                                    13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            )
+                        }
                     }
                 }
             }

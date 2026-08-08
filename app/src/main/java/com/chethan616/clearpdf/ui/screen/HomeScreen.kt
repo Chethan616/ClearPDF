@@ -55,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.platform.LocalContext
@@ -63,6 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -116,6 +118,15 @@ fun HomeScreen(
     var b2Visible by remember { mutableStateOf(false) }
     var b3Visible by remember { mutableStateOf(false) }
     var b4Visible by remember { mutableStateOf(false) }
+
+    val morphProgress by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (selectedRecent != null) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = 0.58f,
+            stiffness = 220f
+        ),
+        label = "morphProgress"
+    )
 
     androidx.compose.runtime.LaunchedEffect(selectedRecent) {
         if (selectedRecent != null) {
@@ -462,18 +473,25 @@ fun HomeScreen(
                 selectedRecent?.let { recent ->
                     AnimatedVisibility(
                         visible = true,
-                        enter = scaleIn(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
-                            initialScale = 0.65f
-                        ) + fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
-                        exit = scaleOut(targetScale = 0.75f) + fadeOut()
+                        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
+                        exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
                     ) {
                         Column(
                             Modifier
                                 .padding(horizontal = 24.dp)
+                                .graphicsLayer {
+                                    val scaleXValue = lerp(0.35f, 1.0f, morphProgress)
+                                    val scaleYValue = lerp(0.20f, 1.0f, morphProgress)
+                                    val translateYValue = lerp(100f, 0f, morphProgress) * density
+                                    scaleX = scaleXValue
+                                    scaleY = scaleYValue
+                                    translationY = translateYValue
+                                    alpha = morphProgress.coerceIn(0f, 1f)
+                                    transformOrigin = TransformOrigin(0.5f, 0.85f)
+                                    shadowElevation = (18f * morphProgress).dp.toPx()
+                                    shape = RoundedCornerShape(32.dp)
+                                    clip = true
+                                }
                                 .clip(RoundedCornerShape(32.dp))
                                 .background(if (isLight) Color.White.copy(0.88f) else Color(0xFF1C1E26).copy(0.88f))
                                 .border(
@@ -481,11 +499,6 @@ fun HomeScreen(
                                     if (isLight) Color.White.copy(0.95f) else Color.White.copy(0.18f),
                                     RoundedCornerShape(32.dp)
                                 )
-                                .graphicsLayer {
-                                    shadowElevation = 16f.dp.toPx()
-                                    shape = RoundedCornerShape(32.dp)
-                                    clip = true
-                                }
                                 .clickable { /* Consume inner taps */ }
                                 .padding(horizontal = 18.dp, vertical = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
