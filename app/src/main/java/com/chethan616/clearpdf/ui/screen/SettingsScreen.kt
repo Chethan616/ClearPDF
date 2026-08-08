@@ -140,35 +140,68 @@ fun SettingsScreen(
 
     val panel1Alpha by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 80, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 60, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "settingsPanel1Alpha"
     )
     val panel1OffsetY by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isVisible) 0f else 22f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 80, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        targetValue = if (isVisible) 0f else 20f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 60, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "settingsPanel1OffsetY"
     )
 
     val panel2Alpha by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 650, delayMillis = 160, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 620, delayMillis = 120, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "settingsPanel2Alpha"
     )
     val panel2OffsetY by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isVisible) 0f else 26f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 650, delayMillis = 160, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        targetValue = if (isVisible) 0f else 24f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 620, delayMillis = 120, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "settingsPanel2OffsetY"
     )
 
     val panel3Alpha by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 640, delayMillis = 180, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "settingsPanel3Alpha"
     )
     val panel3OffsetY by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isVisible) 0f else 30f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        targetValue = if (isVisible) 0f else 28f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 640, delayMillis = 180, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "settingsPanel3OffsetY"
+    )
+
+    val panel4Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 660, delayMillis = 240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel4Alpha"
+    )
+    val panel4OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 32f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 660, delayMillis = 240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel4OffsetY"
+    )
+
+    val panel5Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 680, delayMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel5Alpha"
+    )
+    val panel5OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 36f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 680, delayMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel5OffsetY"
+    )
+
+    val panel6Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 360, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel6Alpha"
+    )
+    val panel6OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 40f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 360, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel6OffsetY"
     )
 
     Column(
@@ -408,7 +441,14 @@ fun SettingsScreen(
 
         // ── Default Quality ──
         Column(
-            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel4Alpha
+                    translationY = panel4OffsetY * density
+                }
+                .liquidGlassPanel(backdrop, uiSensor)
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -504,7 +544,14 @@ fun SettingsScreen(
 
         // ── About & Open Source ──
         Column(
-            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(24.dp),
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel5Alpha
+                    translationY = panel5OffsetY * density
+                }
+                .liquidGlassPanel(backdrop, uiSensor)
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -548,7 +595,14 @@ fun SettingsScreen(
 
         // ── Licenses ──
         Column(
-            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel6Alpha
+                    translationY = panel6OffsetY * density
+                }
+                .liquidGlassPanel(backdrop, uiSensor)
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
