@@ -111,6 +111,54 @@ fun HomeScreen(
     var infoRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    var b1Visible by remember { mutableStateOf(false) }
+    var b2Visible by remember { mutableStateOf(false) }
+    var b3Visible by remember { mutableStateOf(false) }
+    var b4Visible by remember { mutableStateOf(false) }
+
+    androidx.compose.runtime.LaunchedEffect(selectedRecent) {
+        if (selectedRecent != null) {
+            b1Visible = false
+            b2Visible = false
+            b3Visible = false
+            b4Visible = false
+            kotlinx.coroutines.delay(40)
+            b1Visible = true
+            kotlinx.coroutines.delay(50)
+            b2Visible = true
+            kotlinx.coroutines.delay(50)
+            b3Visible = true
+            kotlinx.coroutines.delay(50)
+            b4Visible = true
+        } else {
+            b1Visible = false
+            b2Visible = false
+            b3Visible = false
+            b4Visible = false
+        }
+    }
+
+    val b1Scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (b1Visible) 1f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "b1Scale"
+    )
+    val b2Scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (b2Visible) 1f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "b2Scale"
+    )
+    val b3Scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (b3Visible) 1f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "b3Scale"
+    )
+    val b4Scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (b4Visible) 1f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "b4Scale"
+    )
+
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -181,6 +229,8 @@ fun HomeScreen(
                     title = "ClearPDF",
                     backdrop = backdrop,
                     uiSensor = uiSensor,
+                    fontFamily = SourGummyFontFamily,
+                    titleFontSize = 24.sp,
                     actions = {
                         Box(
                             Modifier
@@ -394,7 +444,7 @@ fun HomeScreen(
             Spacer(Modifier.height(80.dp))
         }
 
-        // ── Long-press Bouncy Jelly Glass Pop Menu ──
+        // ── Floating Liquid Glass Chat Bubble Reaction Bar ──
         AnimatedVisibility(
             visible = selectedRecent != null,
             enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)),
@@ -403,41 +453,33 @@ fun HomeScreen(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.45f))
+                    .background(Color.Black.copy(alpha = 0.40f))
                     .clickable { selectedRecent = null },
-                contentAlignment = Alignment.BottomCenter
+                contentAlignment = Alignment.Center
             ) {
                 selectedRecent?.let { recent ->
                     AnimatedVisibility(
                         visible = true,
-                        enter = slideInVertically(
+                        enter = scaleIn(
                             animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioMediumBouncy,
                                 stiffness = Spring.StiffnessMediumLow
                             ),
-                            initialOffsetY = { it / 2 }
-                        ) + scaleIn(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
-                            initialScale = 0.7f
+                            initialScale = 0.6f
                         ) + fadeIn(),
-                        exit = slideOutVertically(
-                            animationSpec = spring(stiffness = Spring.StiffnessMedium)
-                        ) + scaleOut(targetScale = 0.8f) + fadeOut()
+                        exit = scaleOut(targetScale = 0.7f) + fadeOut()
                     ) {
                         Column(
                             Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
+                                .padding(horizontal = 20.dp)
                                 .liquidGlassPanel(backdrop, uiSensor)
+                                .clip(RoundedCornerShape(32.dp))
                                 .clickable { /* Consume inner taps */ }
-                                .padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                                .padding(horizontal = 18.dp, vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // Header with Close Cross
+                            // Chat bubble reaction header (filename & close)
                             Row(
                                 Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -446,71 +488,58 @@ fun HomeScreen(
                                 Row(
                                     Modifier.weight(1f),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Box(
                                         Modifier
-                                            .size(44.dp)
-                                            .clip(RoundedCornerShape(12.dp))
+                                            .size(32.dp)
+                                            .clip(CircleShape)
                                             .background(Color(0xFFE53935).copy(alpha = if (isLight) 0.14f else 0.25f)),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(24.dp), Color(0xFFE53935))
+                                        Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(18.dp), Color(0xFFE53935))
                                     }
-                                    Column(Modifier.weight(1f)) {
-                                        BasicText(
-                                            recent.name,
-                                            style = TextStyle(text, 15.sp, FontWeight.SemiBold),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        val details = buildString {
-                                            if (recent.sizeBytes > 0) append(formatFileSize(recent.sizeBytes))
-                                            if (recent.pageCount > 0) {
-                                                if (isNotEmpty()) append(" · ")
-                                                append("${recent.pageCount} pages")
-                                            }
-                                            if (isNotEmpty()) append(" · ")
-                                            append(formatTimestamp(recent.timestamp))
-                                        }
-                                        BasicText(details, style = TextStyle(sub, 12.sp))
-                                    }
+                                    BasicText(
+                                        recent.name,
+                                        style = TextStyle(text, 14.sp, FontWeight.SemiBold),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
                                 }
 
                                 LiquidIconButton(
                                     onClick = { selectedRecent = null },
                                     backdrop = backdrop,
                                     surfaceColor = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.1f),
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(28.dp)
                                 ) {
-                                    CloseCrossIcon(Modifier.size(16.dp), sub)
+                                    CloseCrossIcon(Modifier.size(14.dp), sub)
                                 }
                             }
 
-                            // Divider
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(1.dp)
-                                    .background(if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.08f))
-                            )
-
-                            // Horizontal Circular Action Buttons
+                            // Horizontal Staggered Reaction Buttons
                             Row(
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                                    .padding(vertical = 2.dp),
                                 horizontalArrangement = Arrangement.SpaceEvenly,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // 1. Open Button (Blue)
+                                // 1. Open Button (Blue) - Staggered 1
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.clickable {
-                                        selectedRecent = null
-                                        onRecentFileSelected(recent.uri)
-                                    }
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier
+                                        .graphicsLayer {
+                                            scaleX = b1Scale
+                                            scaleY = b1Scale
+                                            alpha = b1Scale.coerceIn(0f, 1f)
+                                        }
+                                        .clickable {
+                                            selectedRecent = null
+                                            onRecentFileSelected(recent.uri)
+                                        }
                                 ) {
                                     LiquidIconButton(
                                         onClick = {
@@ -519,26 +548,32 @@ fun HomeScreen(
                                         },
                                         backdrop = backdrop,
                                         tint = Color(0xFF0088FF),
-                                        modifier = Modifier.size(52.dp)
+                                        modifier = Modifier.size(50.dp)
                                     ) {
-                                        Icon(Icons.Rounded.FileOpen, null, Modifier.size(24.dp), Color.White)
+                                        Icon(Icons.Rounded.FileOpen, null, Modifier.size(22.dp), Color.White)
                                     }
-                                    BasicText("Open", style = TextStyle(text, 12.sp, FontWeight.Medium))
+                                    BasicText("Open", style = TextStyle(text, 11.sp, FontWeight.Medium))
                                 }
 
-                                // 2. Share Button (Green)
+                                // 2. Share Button (Green) - Staggered 2
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.clickable {
-                                        selectedRecent = null
-                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                            type = "application/pdf"
-                                            putExtra(Intent.EXTRA_STREAM, recent.uri)
-                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier
+                                        .graphicsLayer {
+                                            scaleX = b2Scale
+                                            scaleY = b2Scale
+                                            alpha = b2Scale.coerceIn(0f, 1f)
                                         }
-                                        context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
-                                    }
+                                        .clickable {
+                                            selectedRecent = null
+                                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "application/pdf"
+                                                putExtra(Intent.EXTRA_STREAM, recent.uri)
+                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
+                                            context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
+                                        }
                                 ) {
                                     LiquidIconButton(
                                         onClick = {
@@ -552,21 +587,27 @@ fun HomeScreen(
                                         },
                                         backdrop = backdrop,
                                         tint = Color(0xFF4CAF50),
-                                        modifier = Modifier.size(52.dp)
+                                        modifier = Modifier.size(50.dp)
                                     ) {
-                                        Icon(Icons.Rounded.Share, null, Modifier.size(24.dp), Color.White)
+                                        Icon(Icons.Rounded.Share, null, Modifier.size(22.dp), Color.White)
                                     }
-                                    BasicText("Share", style = TextStyle(text, 12.sp, FontWeight.Medium))
+                                    BasicText("Share", style = TextStyle(text, 11.sp, FontWeight.Medium))
                                 }
 
-                                // 3. Info Button (Purple)
+                                // 3. Info Button (Purple) - Staggered 3
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.clickable {
-                                        selectedRecent = null
-                                        infoRecent = recent
-                                    }
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier
+                                        .graphicsLayer {
+                                            scaleX = b3Scale
+                                            scaleY = b3Scale
+                                            alpha = b3Scale.coerceIn(0f, 1f)
+                                        }
+                                        .clickable {
+                                            selectedRecent = null
+                                            infoRecent = recent
+                                        }
                                 ) {
                                     LiquidIconButton(
                                         onClick = {
@@ -575,22 +616,28 @@ fun HomeScreen(
                                         },
                                         backdrop = backdrop,
                                         tint = Color(0xFF9C27B0),
-                                        modifier = Modifier.size(52.dp)
+                                        modifier = Modifier.size(50.dp)
                                     ) {
-                                        Icon(Icons.Rounded.Info, null, Modifier.size(24.dp), Color.White)
+                                        Icon(Icons.Rounded.Info, null, Modifier.size(22.dp), Color.White)
                                     }
-                                    BasicText("Details", style = TextStyle(text, 12.sp, FontWeight.Medium))
+                                    BasicText("Details", style = TextStyle(text, 11.sp, FontWeight.Medium))
                                 }
 
-                                // 4. Remove Button (Red with Close Cross style)
+                                // 4. Remove Button (Red) - Staggered 4
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier.clickable {
-                                        RecentFilesManager.removeRecent(context, recent.uri)
-                                        recents = recents.filterNot { it.uriString == recent.uri.toString() }
-                                        selectedRecent = null
-                                    }
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier
+                                        .graphicsLayer {
+                                            scaleX = b4Scale
+                                            scaleY = b4Scale
+                                            alpha = b4Scale.coerceIn(0f, 1f)
+                                        }
+                                        .clickable {
+                                            RecentFilesManager.removeRecent(context, recent.uri)
+                                            recents = recents.filterNot { it.uriString == recent.uri.toString() }
+                                            selectedRecent = null
+                                        }
                                 ) {
                                     LiquidIconButton(
                                         onClick = {
@@ -600,11 +647,11 @@ fun HomeScreen(
                                         },
                                         backdrop = backdrop,
                                         tint = Color(0xFFE53935),
-                                        modifier = Modifier.size(52.dp)
+                                        modifier = Modifier.size(50.dp)
                                     ) {
-                                        CloseCrossIcon(Modifier.size(20.dp), Color.White)
+                                        CloseCrossIcon(Modifier.size(18.dp), Color.White)
                                     }
-                                    BasicText("Remove", style = TextStyle(redAccent, 12.sp, FontWeight.Medium))
+                                    BasicText("Remove", style = TextStyle(redAccent, 11.sp, FontWeight.Medium))
                                 }
                             }
                         }
