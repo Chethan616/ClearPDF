@@ -47,6 +47,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import com.chethan616.clearpdf.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -79,6 +82,11 @@ import java.util.Locale
 import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 
 import androidx.compose.ui.graphics.graphicsLayer
+
+private val SourGummyFontFamily = FontFamily(
+    Font(R.font.sour_gummy_regular, FontWeight.Normal),
+    Font(R.font.sour_gummy_bold, FontWeight.Bold)
+)
 
 @Composable
 fun HomeScreen(
@@ -213,7 +221,13 @@ fun HomeScreen(
                 Spacer(Modifier.height(8.dp))
                 BasicText(
                     "PDF work, beautifully simple.",
-                    style = TextStyle(text, 23.sp, FontWeight.Bold, textAlign = TextAlign.Center)
+                    style = TextStyle(
+                        color = text,
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = SourGummyFontFamily,
+                        textAlign = TextAlign.Center
+                    )
                 )
                 Spacer(Modifier.height(8.dp))
                 BasicText(
