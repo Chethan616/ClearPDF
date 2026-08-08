@@ -18,6 +18,7 @@ import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.kyant.pdfcore.model.PdfDocument
 import com.kyant.pdfcore.splitter.PdfSplitter
+import com.chethan616.clearpdf.ui.utils.AppDispatchers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,23 +56,22 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
     fun onSelectFile(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
-                try {
-                    context.contentResolver.takePersistableUriPermission(
-                        uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                } catch (_: Exception) {
-                    // Some providers do not support persistable grants.
-                }
+                val (name, count, thumbnails) = withContext(AppDispatchers.pdf) {
+                    try {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    } catch (_: Exception) {
+                        // Some providers do not support persistable grants.
+                    }
 
-                val fd = context.contentResolver.openFileDescriptor(uri, "r") ?: return@launch
-                val renderer = withContext(Dispatchers.IO) { android.graphics.pdf.PdfRenderer(fd) }
-                val name = queryFileName(context, uri) ?: "Unknown.pdf"
-                val count = renderer.pageCount
+                    val fd = context.contentResolver.openFileDescriptor(uri, "r") ?: return@withContext Triple("", 0, emptyList<Bitmap?>())
+                    val renderer = android.graphics.pdf.PdfRenderer(fd)
+                    val fileName = queryFileName(context, uri) ?: "Unknown.pdf"
+                    val pageCount = renderer.pageCount
 
-                // Render small thumbnails for all pages
-                val thumbnails = withContext(Dispatchers.IO) {
-                    (0 until count).map { i ->
+                    val thumbs = (0 until pageCount).map { i ->
                         try {
                             val page = renderer.openPage(i)
                             val thumbWidth = 300
@@ -84,10 +84,14 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                             bmp
                         } catch (_: Exception) { null }
                     }
+
+                    renderer.close()
+                    fd.close()
+                    Triple(fileName, pageCount, thumbs)
                 }
 
-                renderer.close()
-                fd.close()
+                if (count == 0) return@launch
+
                 _uiState.value = SplitPdfUiState(
                     sourceFileName = name,
                     sourceUri = uri,
@@ -142,11 +146,11 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                 val saveLabel = SaveLocationManager.getSavePathDisplay(context)
                 val outDir = Uri.fromFile(context.cacheDir)
                 val source = PdfDocument(uri = srcUri, name = _uiState.value.sourceFileName)
-                val results = withContext(Dispatchers.IO) { splitter.splitAll(context, source, outDir) }
+                val results = withContext(AppDispatchers.pdf) { splitter.splitAll(context, source, outDir) }
                 var firstOutputUri: Uri? = null
 
                 // Copy split pages to Downloads
-                withContext(Dispatchers.IO) {
+                withContext(AppDispatchers.pdf) {
                     for (doc in results) {
                         val outUri = createOutputUri(context, doc.name)
                         if (firstOutputUri == null) firstOutputUri = outUri
@@ -191,7 +195,7 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                 val saveLabel = SaveLocationManager.getSavePathDisplay(context)
                 val outUri = createOutputUri(context, "ClearPDF_Extract_${System.currentTimeMillis()}.pdf")
                 val source = PdfDocument(uri = srcUri, name = _uiState.value.sourceFileName)
-                withContext(Dispatchers.IO) { splitter.extractPages(context, source, pages, outUri) }
+                withContext(AppDispatchers.pdf) { splitter.extractPages(context, source, pages, outUri) }
                 RecentFilesManager.addRecent(context, RecentFile(
                     name = queryFileName(context, outUri) ?: "Extracted.pdf",
                     uriString = outUri.toString(),

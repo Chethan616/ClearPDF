@@ -52,6 +52,12 @@ import com.chethan616.clearpdf.ui.viewmodel.MergePdfViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+
 @Composable
 fun MergePdfScreen(
     backdrop: LayerBackdrop,
@@ -82,6 +88,32 @@ fun MergePdfScreen(
         if (uris.isNotEmpty()) viewModel.addFiles(context, uris)
     }
 
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { isVisible = true }
+    val density = LocalDensity.current.density
+
+    val topBarAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "mergeTopBarAlpha"
+    )
+    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 16f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "mergeTopBarOffsetY"
+    )
+
+    val contentAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "mergeContentAlpha"
+    )
+    val contentOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 24f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "mergeContentOffsetY"
+    )
+
     Column(
         Modifier
             .fillMaxSize()
@@ -90,12 +122,29 @@ fun MergePdfScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            Modifier.graphicsLayer {
+                alpha = topBarAlpha
+                translationY = topBarOffsetY * density
+            },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
                 Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
             }
             LiquidGlassTopBar(title = "Merge PDFs", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
         }
+
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = contentAlpha
+                    translationY = contentOffsetY * density
+                },
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
 
         Column(
             Modifier
@@ -213,5 +262,6 @@ fun MergePdfScreen(
         }
 
         Spacer(Modifier.height(80.dp))
+        }
     }
 }

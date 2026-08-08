@@ -164,19 +164,22 @@ class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
                 val rotations = pages.associate { it.originalIndex to it.rotation }.filterValues { it != 0 }
                 withContext(Dispatchers.IO) { editor.applyPageEdits(context, source, order, rotations, outUri) }
 
-                RecentFilesManager.addRecent(context, RecentFile(
-                    name = queryFileName(context, outUri) ?: target,
-                    uriString = outUri.toString(),
-                    timestamp = System.currentTimeMillis(),
-                    pageCount = pages.size
-                ))
+                withContext(Dispatchers.IO) {
+                    RecentFilesManager.addRecent(context, RecentFile(
+                        name = queryFileName(context, outUri) ?: target,
+                        uriString = outUri.toString(),
+                        timestamp = System.currentTimeMillis(),
+                        pageCount = pages.size
+                    ))
+                }
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     lastOutputUri = outUri,
                     saveLocationLabel = saveLabel,
                     resultMessage = "Saved ${pages.size} pages\nSaved to $saveLabel"
                 )
-                if (GitHubStarPromptManager.recordPdfInteraction(context)) StarPromptEventBus.requestPrompt()
+                val shouldPrompt = withContext(Dispatchers.IO) { GitHubStarPromptManager.recordPdfInteraction(context) }
+                if (shouldPrompt) StarPromptEventBus.requestPrompt()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = e.message ?: "Save failed")
             }

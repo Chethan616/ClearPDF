@@ -7,6 +7,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
@@ -25,6 +27,7 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,11 +37,21 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.material.icons.rounded.FormatListNumbered
+import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.SwapVert
+import kotlin.math.roundToInt
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -159,6 +172,8 @@ fun PdfViewerScreen(
     var controlsVisible     by rememberSaveable { mutableStateOf(true) }
     var controlsPinned      by rememberSaveable { mutableStateOf(false) }
     var lastInteractionAtMs by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
+    var scrollOrientation   by rememberSaveable { mutableStateOf(if (com.chethan616.clearpdf.data.repository.AppSettingsManager.getScrollOrientation(context) == 1) ScrollOrientation.Horizontal else ScrollOrientation.Vertical) }
+    var showPageJumpDialog  by rememberSaveable { mutableStateOf(false) }
 
     // ── Zoom / pan – backed by Animatable for smooth transitions ─────────────
     val zoomAnim = remember { Animatable(1f) }
@@ -373,11 +388,11 @@ fun PdfViewerScreen(
                 viewModel.renderPage(context, pagerState.currentPage + 1, renderWidthPx)
         }
 
-        HorizontalPager(
-            state          = pagerState,
-            userScrollEnabled = pagerScrollEnabled,
-            modifier       = Modifier.fillMaxSize()
-        ) { page ->
+        val pageContent: @Composable (Int) -> Unit = pageContent@ { page ->
+
+
+
+
 
             val bitmap         = state.pageBitmaps.getOrNull(page)
             val marks          = getPageMarks(page)
@@ -394,7 +409,7 @@ fun PdfViewerScreen(
                 Box(Modifier.fillMaxSize().background(Color(0xFF0E1218)), Alignment.Center) {
                     CircularProgressIndicator(color = accent, strokeWidth = 2.dp)
                 }
-                return@HorizontalPager
+                return@pageContent
             }
 
             pageBitmapSizes[page] = Size(bitmap.width.toFloat(), bitmap.height.toFloat())
@@ -423,7 +438,7 @@ fun PdfViewerScreen(
                         //   1 finger 1× vertical   → ignore (doc scroll)
                         //   1 finger zoomed-in      → pan + fling on lift
                         // ─────────────────────────────────────────────────────
-                        .pointerInput(page, activeTool) {
+                        .pointerInput(page, activeTool, scrollOrientation) {
                             if (activeTool != PdfEditTool.None) return@pointerInput
 
                             awaitEachGesture {
@@ -551,7 +566,9 @@ fun PdfViewerScreen(
                                             val isHoriz = angleDeg <= SWIPE_ANGLE_DEG
                                                     || angleDeg >= (180f - SWIPE_ANGLE_DEG)
 
-                                            if (isHoriz && zoomAnim.value <= 1.02f) {
+                                            val isSwipeForPager = if (scrollOrientation == ScrollOrientation.Horizontal) isHoriz else !isHoriz
+
+                                            if (isSwipeForPager && zoomAnim.value <= 1.02f) {
                                                 // Horizontal swipe at 1× → yield to pager
                                                 isOurGesture = false
                                                 break@loop
@@ -964,7 +981,54 @@ fun PdfViewerScreen(
                 }
 
             } // outer sizing Box
-        } // HorizontalPager
+        }
+
+        if (scrollOrientation == ScrollOrientation.Vertical) {
+            VerticalPager(
+                state          = pagerState,
+                userScrollEnabled = pagerScrollEnabled,
+                modifier       = Modifier.fillMaxSize(),
+                pageContent    = { page -> pageContent(page) }
+            )
+        } else {
+            HorizontalPager(
+                state          = pagerState,
+                userScrollEnabled = pagerScrollEnabled,
+                modifier       = Modifier.fillMaxSize(),
+                pageContent    = { page -> pageContent(page) }
+            )
+        }
+
+        // ── Controls overlay ──────────────────────────────────────────────────
+        // ── Page Scrubber Minimap (Tied to Controls Visibility) ───────────────
+        AnimatedVisibility(
+            visible  = controlsVisible && safePageCount > 1,
+            enter    = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) +
+                       scaleIn(initialScale = 0.92f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)),
+            exit     = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMedium)) +
+                       scaleOut(targetScale = 0.92f),
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .navigationBarsPadding()
+                .statusBarsPadding()
+                .padding(end = 8.dp)
+        ) {
+            PageScrubber(
+                currentPage   = pagerState.currentPage,
+                pageCount     = safePageCount,
+                pageBitmaps   = state.pageBitmaps,
+                backdrop      = backdrop,
+                uiSensor      = uiSensor,
+                onPageChange  = { page ->
+                    pagerScope.launch { pagerState.animateScrollToPage(page) }
+                    lastInteractionAtMs = System.currentTimeMillis()
+                },
+                onPageScrubbing = { page ->
+                    viewModel.renderPage(context, page, 400)
+                    lastInteractionAtMs = System.currentTimeMillis()
+                }
+            )
+        }
 
         // ── Controls overlay ──────────────────────────────────────────────────
         AnimatedVisibility(
@@ -993,10 +1057,13 @@ fun PdfViewerScreen(
                         title         = "Page ${state.currentPage + 1} / ${state.pageCount}",
                         backdrop      = backdrop,
                         uiSensor      = uiSensor,
-                        modifier      = Modifier.weight(1f),
+                        modifier      = Modifier
+                            .weight(1f)
+                            .clickable { showPageJumpDialog = true },
                         titleFontSize = 12.sp,
                         fontWeight    = FontWeight.Medium
                     )
+
                     LiquidButton(onClick = {
                         val t = (pagerState.currentPage - 1).coerceAtLeast(0)
                         if (t != pagerState.currentPage) pagerScope.launch { pagerState.animateScrollToPage(t) }
@@ -1354,13 +1421,342 @@ fun PdfViewerScreen(
             }
         )
     }
+
+    if (showPageJumpDialog) {
+        LiquidPageJumpDialog(
+            currentPage = pagerState.currentPage,
+            pageCount = safePageCount,
+            backdrop = backdrop,
+            uiSensor = uiSensor,
+            onDismiss = { showPageJumpDialog = false },
+            onJumpToPage = { targetPage ->
+                showPageJumpDialog = false
+                pagerScope.launch { pagerState.animateScrollToPage(targetPage) }
+            }
+        )
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Enums & sealed classes
 // ─────────────────────────────────────────────────────────────────────────────
 
+private enum class ScrollOrientation { Vertical, Horizontal }
+
 private enum class PdfEditTool { None, Draw, Highlight, Rect, Ellipse, Line, Arrow, SelectText, Image, Eraser }
+
+/**
+ * Floating vertical liquid-glass page scrubber minimap with Live PDF Page Preview Window.
+ * Features auto-hiding track, physics-based 120Hz spring motion, and a bouncy jelly glass preview window.
+ */
+@Composable
+private fun PageScrubber(
+    currentPage: Int,
+    pageCount: Int,
+    pageBitmaps: List<android.graphics.Bitmap?>,
+    backdrop: com.kyant.backdrop.backdrops.LayerBackdrop,
+    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
+    onPageChange: (Int) -> Unit,
+    onPageScrubbing: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDarkMode = LocalIsDarkMode.current
+    val accent = Color(0xFF0088FF)
+
+    var isDragging by remember { mutableStateOf(false) }
+    var isHoveredOrActive by remember { mutableStateOf(false) }
+    var dragPage by remember { mutableIntStateOf(currentPage) }
+    var lastTouchTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    // Auto-hide controller
+    LaunchedEffect(currentPage) {
+        if (!isDragging) {
+            dragPage = currentPage
+            isHoveredOrActive = true
+            lastTouchTime = System.currentTimeMillis()
+        }
+    }
+
+    LaunchedEffect(lastTouchTime, isDragging) {
+        if (!isDragging) {
+            delay(2200)
+            isHoveredOrActive = false
+        }
+    }
+
+    LaunchedEffect(dragPage, isDragging) {
+        if (isDragging) {
+            onPageScrubbing(dragPage)
+        }
+    }
+
+    val targetFraction = (currentPage.toFloat() / (pageCount - 1).coerceAtLeast(1)).coerceIn(0f, 1f)
+    val animatedFraction by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isDragging) (dragPage.toFloat() / (pageCount - 1).coerceAtLeast(1)).coerceIn(0f, 1f) else targetFraction,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "thumbFraction"
+    )
+
+    val scrubberHeightDp = 280.dp
+
+    // Track width expansion on drag
+    val trackWidthDp by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (isDragging) 12.dp else 6.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "trackWidth"
+    )
+
+    Box(
+        modifier = modifier.padding(end = 8.dp),
+        contentAlignment = Alignment.CenterEnd
+    ) {
+        // Scrubber Touch & Track Area
+        Box(
+            modifier = Modifier
+                .width(40.dp)
+                .height(scrubberHeightDp)
+                .pointerInput(pageCount) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            isDragging = true
+                            isHoveredOrActive = true
+                            val totalPx = size.height.toFloat()
+                            val frac = (offset.y / totalPx).coerceIn(0f, 1f)
+                            val target = (frac * (pageCount - 1)).roundToInt()
+                            dragPage = target
+                            onPageScrubbing(target)
+                            onPageChange(target)
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            lastTouchTime = System.currentTimeMillis()
+                            onPageChange(dragPage)
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                            lastTouchTime = System.currentTimeMillis()
+                        },
+                        onDrag = { change, _ ->
+                            isHoveredOrActive = true
+                            val totalPx = size.height.toFloat()
+                            val frac = (change.position.y / totalPx).coerceIn(0f, 1f)
+                            val target = (frac * (pageCount - 1)).roundToInt()
+                            if (target != dragPage) {
+                                dragPage = target
+                                onPageScrubbing(target)
+                                onPageChange(target)
+                            }
+                        }
+                    )
+                }
+                .pointerInput(pageCount) {
+                    detectTapGestures { offset ->
+                        isHoveredOrActive = true
+                        lastTouchTime = System.currentTimeMillis()
+                        val totalPx = size.height.toFloat()
+                        val frac = (offset.y / totalPx).coerceIn(0f, 1f)
+                        val target = (frac * (pageCount - 1)).roundToInt()
+                        dragPage = target
+                        onPageScrubbing(target)
+                        onPageChange(target)
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            // Thin Glass Pillar Track
+            Box(
+                modifier = Modifier
+                    .width(trackWidthDp)
+                    .height(scrubberHeightDp)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (isDarkMode) Color.White.copy(0.12f) else Color.Black.copy(0.08f)),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                // Glow Thumb Pill Handle
+                Box(
+                    Modifier
+                        .padding(top = (scrubberHeightDp * animatedFraction - 16.dp).coerceIn(0.dp, scrubberHeightDp - 32.dp))
+                        .size(width = if (isDragging) 16.dp else 10.dp, height = 32.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (isDragging) accent else Color.White.copy(alpha = 0.95f))
+                        .border(
+                            width = 1.dp,
+                            color = if (isDragging) Color.White.copy(0.6f) else Color.Black.copy(0.1f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                )
+            }
+        }
+
+        // Animated Floating Live Page Minimap Window
+        AnimatedVisibility(
+            visible = isDragging,
+            enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) +
+                    scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow)),
+            exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMedium)) +
+                   scaleOut(targetScale = 0.9f)
+        ) {
+            val previewBitmap = pageBitmaps.getOrNull(dragPage)
+            val yOffsetDp = (scrubberHeightDp * animatedFraction - scrubberHeightDp / 2).coerceIn(-115.dp, 115.dp)
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .offset(x = (-46).dp, y = yOffsetDp)
+                    .width(145.dp)
+                    .liquidGlassPanel(backdrop, uiSensor)
+                    .padding(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Liquid Glass Header Pill
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(accent.copy(0.22f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(accent)
+                    )
+                    BasicText(
+                        "${dragPage + 1} / $pageCount",
+                        style = TextStyle(Color.White, 12.sp, FontWeight.Bold)
+                    )
+                }
+
+                // Mini PDF Page Bitmap Paper Card
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isDarkMode) Color(0xFF1E1E1E) else Color.White)
+                        .border(
+                            width = 1.dp,
+                            color = if (isDarkMode) Color.White.copy(0.12f) else Color.Black.copy(0.08f),
+                            shape = RoundedCornerShape(10.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (previewBitmap != null && !previewBitmap.isRecycled) {
+                        Image(
+                            bitmap = previewBitmap.asImageBitmap(),
+                            contentDescription = "Page ${dragPage + 1} Minimap Preview",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(4.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                Modifier.size(24.dp),
+                                accent,
+                                strokeWidth = 2.5.dp
+                            )
+                            BasicText(
+                                "Rendering...",
+                                style = TextStyle(
+                                    if (isDarkMode) Color.LightGray else Color.DarkGray,
+                                    11.sp,
+                                    FontWeight.Medium
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiquidPageJumpDialog(
+    currentPage: Int,
+    pageCount: Int,
+    backdrop: com.kyant.backdrop.backdrops.LayerBackdrop,
+    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
+    onDismiss: () -> Unit,
+    onJumpToPage: (Int) -> Unit
+) {
+    var targetPage by remember { mutableIntStateOf(currentPage) }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .liquidGlassPanel(backdrop, uiSensor)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(Icons.Rounded.FormatListNumbered, null, Modifier.size(36.dp), Color(0xFF1976D2))
+            BasicText(
+                "Jump to Page",
+                style = TextStyle(Color.White, 18.sp, FontWeight.SemiBold)
+            )
+            BasicText(
+                "Page ${targetPage + 1} of $pageCount",
+                style = TextStyle(Color.White.copy(0.7f), 14.sp, FontWeight.Medium)
+            )
+
+            if (pageCount > 1) {
+                com.chethan616.clearpdf.ui.components.LiquidSlider(
+                    value = { targetPage.toFloat() },
+                    onValueChange = { targetPage = it.toInt().coerceIn(0, pageCount - 1) },
+                    valueRange = 0f..(pageCount - 1).toFloat(),
+                    visibilityThreshold = 0.5f,
+                    backdrop = backdrop,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                listOf(-5, -1, 1, 5).forEach { step ->
+                    LiquidButton(
+                        onClick = {
+                            targetPage = (targetPage + step).coerceIn(0, pageCount - 1)
+                        },
+                        backdrop = backdrop
+                    ) {
+                        BasicText(
+                            if (step > 0) "+$step" else "$step",
+                            style = TextStyle(Color.White, 12.sp, FontWeight.Medium)
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+            ) {
+                LiquidButton(onClick = onDismiss, backdrop = backdrop) {
+                    BasicText("Cancel", style = TextStyle(Color.White.copy(0.7f), 13.sp, FontWeight.Medium))
+                }
+                LiquidButton(
+                    onClick = { onJumpToPage(targetPage) },
+                    backdrop = backdrop,
+                    tint = Color(0xFF1976D2)
+                ) {
+                    BasicText("Go to Page", style = TextStyle(Color.White, 13.sp, FontWeight.SemiBold))
+                }
+            }
+        }
+    }
+}
 
 private sealed class PdfMarkup {
     data class StrokeMarkup(val points: List<Offset>, val color: Color, val width: Float, val alpha: Float) : PdfMarkup()

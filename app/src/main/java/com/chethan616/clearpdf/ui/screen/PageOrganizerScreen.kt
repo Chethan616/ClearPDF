@@ -73,6 +73,8 @@ import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
+import androidx.compose.ui.graphics.graphicsLayer
+
 @Composable
 fun PageOrganizerScreen(
     backdrop: LayerBackdrop,
@@ -90,6 +92,31 @@ fun PageOrganizerScreen(
     val density = LocalDensity.current
 
     var showSaveDialog by remember { mutableStateOf(false) }
+
+    var isVisible by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { isVisible = true }
+
+    val topBarAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "organizerTopBarAlpha"
+    )
+    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 16f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "organizerTopBarOffsetY"
+    )
+
+    val contentAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "organizerContentAlpha"
+    )
+    val contentOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 24f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "organizerContentOffsetY"
+    )
 
     // Drag-reorder state
     val listState = rememberLazyListState()
@@ -122,12 +149,30 @@ fun PageOrganizerScreen(
         Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            Modifier.graphicsLayer {
+                alpha = topBarAlpha
+                translationY = topBarOffsetY * density.density
+            },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
                 Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
             }
             LiquidGlassTopBar("Organize Pages", backdrop, uiSensor, Modifier.weight(1f), titleFontSize = 18.sp)
         }
+
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .graphicsLayer {
+                    alpha = contentAlpha
+                    translationY = contentOffsetY * density.density
+                },
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
 
         if (state.sourceUri == null) {
             Column(
@@ -362,6 +407,7 @@ fun PageOrganizerScreen(
             )
         }
         Spacer(Modifier.height(8.dp))
+        }
     }
 
     if (showSaveDialog) {

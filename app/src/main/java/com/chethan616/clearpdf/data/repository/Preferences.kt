@@ -146,6 +146,12 @@ object AppSettingsManager {
 
     fun setThemeMode(context: Context, value: Int) =
         prefs(context).edit().putInt(KEY_THEME_MODE, value).apply()
+
+    fun getScrollOrientation(context: Context): Int =
+        prefs(context).getInt("scroll_orientation", 0)
+
+    fun setScrollOrientation(context: Context, value: Int) =
+        prefs(context).edit().putInt("scroll_orientation", value).apply()
 }
 
 /**

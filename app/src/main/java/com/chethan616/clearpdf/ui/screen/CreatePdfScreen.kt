@@ -77,6 +77,9 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+
 @Composable
 fun CreatePdfScreen(
     backdrop: LayerBackdrop,
@@ -146,6 +149,32 @@ fun CreatePdfScreen(
         }
     }
 
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { isVisible = true }
+    val density = LocalDensity.current.density
+
+    val topBarAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "createTopBarAlpha"
+    )
+    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 16f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "createTopBarOffsetY"
+    )
+
+    val contentAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "createContentAlpha"
+    )
+    val contentOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 24f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "createContentOffsetY"
+    )
+
     Column(
         Modifier
             .fillMaxSize()
@@ -155,12 +184,29 @@ fun CreatePdfScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            Modifier.graphicsLayer {
+                alpha = topBarAlpha
+                translationY = topBarOffsetY * density
+            },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
                 Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
             }
             LiquidGlassTopBar(title = "Create PDF", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
         }
+
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = contentAlpha
+                    translationY = contentOffsetY * density
+                },
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
 
         Column(
             Modifier
@@ -460,6 +506,7 @@ fun CreatePdfScreen(
         }
 
         Spacer(Modifier.height(4.dp))
+        }
     }
 
     if (showSaveDialog) {

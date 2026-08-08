@@ -78,6 +78,8 @@ import java.util.Locale
 
 import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 
+import androidx.compose.ui.graphics.graphicsLayer
+
 @Composable
 fun HomeScreen(
     backdrop: LayerBackdrop,
@@ -111,6 +113,47 @@ fun HomeScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    var isVisible by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        isVisible = true
+    }
+
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+
+    // Progressive staggered component animations (slow fade-in)
+    val topBarAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 550, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "topBarAlpha"
+    )
+    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 18f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 550, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "topBarOffsetY"
+    )
+
+    val cardAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 620, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "cardAlpha"
+    )
+    val cardOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 24f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 620, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "cardOffsetY"
+    )
+
+    val recentsAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 200, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "recentsAlpha"
+    )
+    val recentsOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 30f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 200, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "recentsOffsetY"
+    )
+
     Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
@@ -120,30 +163,41 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            LiquidGlassTopBar(
-                title = "ClearPDF",
-                backdrop = backdrop,
-                uiSensor = uiSensor,
-                actions = {
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(accent.copy(alpha = if (isLight) 0.12f else 0.18f))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        BasicText(
-                            "ON DEVICE",
-                            style = TextStyle(accent, 10.sp, FontWeight.Bold)
-                        )
-                    }
+            Box(
+                Modifier.graphicsLayer {
+                    alpha = topBarAlpha
+                    translationY = topBarOffsetY * density
                 }
-            )
+            ) {
+                LiquidGlassTopBar(
+                    title = "ClearPDF",
+                    backdrop = backdrop,
+                    uiSensor = uiSensor,
+                    actions = {
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(accent.copy(alpha = if (isLight) 0.12f else 0.18f))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            BasicText(
+                                "ON DEVICE",
+                                style = TextStyle(accent, 10.sp, FontWeight.Bold)
+                            )
+                        }
+                    }
+                )
+            }
 
             // Welcome card
             Column(
                 Modifier
-                .fillMaxWidth()
-                .liquidGlassPanel(backdrop, uiSensor)
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = cardAlpha
+                        translationY = cardOffsetY * density
+                    }
+                    .liquidGlassPanel(backdrop, uiSensor)
                     .padding(horizontal = 22.dp, vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -207,6 +261,10 @@ fun HomeScreen(
             Column(
                 Modifier
                     .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = recentsAlpha
+                        translationY = recentsOffsetY * density
+                    }
                     .liquidGlassPanel(backdrop, uiSensor)
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)

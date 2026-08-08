@@ -46,6 +46,12 @@ import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.ExtractTextViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+
 @Composable
 fun ExtractTextScreen(
     backdrop: LayerBackdrop,
@@ -65,61 +71,105 @@ fun ExtractTextScreen(
         uri?.let { viewModel.onSelectFile(context, it) }
     }
 
+    var isVisible by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { isVisible = true }
+    val density = LocalDensity.current.density
+
+    val topBarAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "extractTopBarAlpha"
+    )
+    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 16f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "extractTopBarOffsetY"
+    )
+
+    val contentAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "extractContentAlpha"
+    )
+    val contentOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 24f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "extractContentOffsetY"
+    )
+
     Column(
         Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            Modifier.graphicsLayer {
+                alpha = topBarAlpha
+                translationY = topBarOffsetY * density
+            },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
                 Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
             }
             LiquidGlassTopBar("Extract Text", backdrop, uiSensor, Modifier.weight(1f), titleFontSize = 18.sp)
         }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            LiquidButton(onClick = { picker.launch(arrayOf("application/pdf")) }, backdrop = backdrop, tint = accent) {
-                Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
-                BasicText("Pick a PDF", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
-            }
-            if (state.text.isNotEmpty()) {
-                LiquidButton(onClick = { clipboard.setText(AnnotatedString(state.text)) }, backdrop = backdrop) {
-                    Icon(Icons.Rounded.ContentCopy, null, Modifier.size(16.dp), text)
-                    BasicText("Copy", style = TextStyle(text, 14.sp, FontWeight.Medium))
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .graphicsLayer {
+                    alpha = contentAlpha
+                    translationY = contentOffsetY * density
+                },
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LiquidButton(onClick = { picker.launch(arrayOf("application/pdf")) }, backdrop = backdrop, tint = accent) {
+                    Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
+                    BasicText("Pick a PDF", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
                 }
-                LiquidButton(onClick = {
-                    val send = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, state.text)
+                if (state.text.isNotEmpty()) {
+                    LiquidButton(onClick = { clipboard.setText(AnnotatedString(state.text)) }, backdrop = backdrop) {
+                        Icon(Icons.Rounded.ContentCopy, null, Modifier.size(16.dp), text)
+                        BasicText("Copy", style = TextStyle(text, 14.sp, FontWeight.Medium))
                     }
-                    context.startActivity(Intent.createChooser(send, "Share text"))
-                }, backdrop = backdrop) {
-                    Icon(Icons.Rounded.Share, null, Modifier.size(16.dp), text)
-                    BasicText("Share", style = TextStyle(text, 14.sp, FontWeight.Medium))
+                    LiquidButton(onClick = {
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, state.text)
+                        }
+                        context.startActivity(Intent.createChooser(send, "Share text"))
+                    }, backdrop = backdrop) {
+                        Icon(Icons.Rounded.Share, null, Modifier.size(16.dp), text)
+                        BasicText("Share", style = TextStyle(text, 14.sp, FontWeight.Medium))
+                    }
                 }
             }
-        }
 
-        state.sourceFileName.takeIf { it.isNotBlank() }?.let {
-            BasicText(it, style = TextStyle(sub, 12.sp))
-        }
-        state.errorMessage?.let { BasicText(it, style = TextStyle(Color(0xFFFFB300), 12.sp)) }
+            state.sourceFileName.takeIf { it.isNotBlank() }?.let {
+                BasicText(it, style = TextStyle(sub, 12.sp))
+            }
+            state.errorMessage?.let { BasicText(it, style = TextStyle(Color(0xFFFFB300), 12.sp)) }
 
-        Box(Modifier.fillMaxWidth().weight(1f).liquidGlassPanel(backdrop, uiSensor).padding(14.dp)) {
-            when {
-                state.isExtracting -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    CircularProgressIndicator(color = accent, strokeWidth = 2.dp)
-                }
-                state.text.isNotEmpty() -> SelectionContainer(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                    BasicText(state.text, style = TextStyle(text, 14.sp))
-                }
-                state.hasResult -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    BasicText("No text layer in this PDF.", style = TextStyle(sub, 13.sp))
-                }
-                else -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    BasicText("Pick a PDF to pull its text.", style = TextStyle(sub, 13.sp))
+            Box(Modifier.fillMaxWidth().weight(1f).liquidGlassPanel(backdrop, uiSensor).padding(14.dp)) {
+                when {
+                    state.isExtracting -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                        CircularProgressIndicator(color = accent, strokeWidth = 2.dp)
+                    }
+                    state.text.isNotEmpty() -> SelectionContainer(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        BasicText(state.text, style = TextStyle(text, 14.sp))
+                    }
+                    state.hasResult -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                        BasicText("No text layer in this PDF.", style = TextStyle(sub, 13.sp))
+                    }
+                    else -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                        BasicText("Pick a PDF to pull its text.", style = TextStyle(sub, 13.sp))
+                    }
                 }
             }
+            Spacer(Modifier.height(8.dp))
         }
-        Spacer(Modifier.height(8.dp))
     }
 }

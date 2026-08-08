@@ -18,6 +18,7 @@ import com.chethan616.clearpdf.domain.usecase.CompressPdfUseCase
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.kyant.pdfcore.model.CompressionQuality
 import com.kyant.pdfcore.model.PdfDocument
+import com.chethan616.clearpdf.ui.utils.AppDispatchers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,21 +51,19 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
     fun onSelectFile(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
-                try {
-                    context.contentResolver.takePersistableUriPermission(
-                        uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                } catch (_: Exception) {
-                    // Some providers do not support persistable grants.
+                val (name, size, estimate) = withContext(AppDispatchers.pdf) {
+                    try {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    } catch (_: Exception) {}
+                    val fileName = queryFileName(context, uri) ?: "Unknown.pdf"
+                    val fileSize = context.contentResolver.openFileDescriptor(uri, "r")
+                        ?.use { it.statSize } ?: -1L
+                    val source = PdfDocument(uri = uri, name = fileName, sizeBytes = fileSize)
+                    val est = compressPdfUseCase.estimateSize(source, CompressionQuality.MEDIUM)
+                    Triple(fileName, fileSize, est)
                 }
-
-                val name = queryFileName(context, uri) ?: "Unknown.pdf"
-                val size = context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize } ?: -1L
-
-                val source = PdfDocument(uri = uri, name = name, sizeBytes = size)
-                val estimate = compressPdfUseCase.estimateSize(source, CompressionQuality.MEDIUM)
-
                 _uiState.value = CompressPdfUiState(
                     sourceFileName = name,
                     sourceUri = uri,
@@ -112,23 +111,25 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
             else -> CompressionQuality.HIGH
         }
         val sourceUri = current.sourceUri
-        val estimate = if (quality != current.selectedQuality && sourceUri != null) {
-            compressPdfUseCase.estimateSize(
-                source = PdfDocument(
-                    uri = sourceUri,
-                    name = current.sourceFileName,
-                    sizeBytes = current.originalSizeBytes
-                ),
-                quality = quality
-            )
-        } else {
-            current.estimatedSizeBytes
-        }
         _uiState.value = current.copy(
             qualitySlider = value,
-            selectedQuality = quality,
-            estimatedSizeBytes = estimate
+            selectedQuality = quality
         )
+        if (quality != current.selectedQuality && sourceUri != null) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val estimate = compressPdfUseCase.estimateSize(
+                        source = PdfDocument(
+                            uri = sourceUri,
+                            name = current.sourceFileName,
+                            sizeBytes = current.originalSizeBytes
+                        ),
+                        quality = quality
+                    )
+                    _uiState.value = _uiState.value.copy(estimatedSizeBytes = estimate)
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     fun onCompress(context: Context) {
@@ -161,7 +162,7 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
                     compressedSizeBytes = result.sizeBytes,
                     lastOutputUri = outUri,
                     saveLocationLabel = saveLabel,
-                    resultMessage = "Compressed: ${origKb}KB → ${compKb}KB (${reduction}% smaller)\nSaved to $saveLabel"
+                    resultMessage = "Compressed: ${origKb}KB â†’ ${compKb}KB (${reduction}% smaller)\nSaved to $saveLabel"
                 )
 
                 if (GitHubStarPromptManager.recordPdfInteraction(context)) {
@@ -179,7 +180,6 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
     fun clearFeedback() {
         _uiState.value = _uiState.value.copy(resultMessage = null, errorMessage = null)
     }
-
     private fun queryFileName(context: Context, uri: Uri): String? {
         return try {
             context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->

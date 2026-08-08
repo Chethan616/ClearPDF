@@ -69,6 +69,8 @@ import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
 
+import androidx.compose.ui.graphics.graphicsLayer
+
 @Composable
 fun SettingsScreen(
     backdrop: LayerBackdrop,
@@ -118,6 +120,57 @@ fun SettingsScreen(
         }
     }
 
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
+
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+
+    val topBarAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 550, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsTopBarAlpha"
+    )
+    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 18f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 550, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsTopBarOffsetY"
+    )
+
+    val panel1Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 80, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel1Alpha"
+    )
+    val panel1OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 22f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 80, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel1OffsetY"
+    )
+
+    val panel2Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 650, delayMillis = 160, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel2Alpha"
+    )
+    val panel2OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 26f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 650, delayMillis = 160, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel2OffsetY"
+    )
+
+    val panel3Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel3Alpha"
+    )
+    val panel3OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 30f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel3OffsetY"
+    )
+
     Column(
         Modifier
             .fillMaxSize()
@@ -126,11 +179,25 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        LiquidGlassTopBar(title = "Settings", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.fillMaxWidth())
+        Box(
+            Modifier.graphicsLayer {
+                alpha = topBarAlpha
+                translationY = topBarOffsetY * density
+            }
+        ) {
+            LiquidGlassTopBar(title = "Settings", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.fillMaxWidth())
+        }
 
         // ── Theme Mode Selector ──
         Column(
-            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel1Alpha
+                    translationY = panel1OffsetY * density
+                }
+                .liquidGlassPanel(backdrop, uiSensor)
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
@@ -204,7 +271,14 @@ fun SettingsScreen(
 
         // ── Save Location ──
         Column(
-            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel2Alpha
+                    translationY = panel2OffsetY * density
+                }
+                .liquidGlassPanel(backdrop, uiSensor)
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(
@@ -268,7 +342,14 @@ fun SettingsScreen(
 
         // ── File Handling ──
         Column(
-            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel3Alpha
+                    translationY = panel3OffsetY * density
+                }
+                .liquidGlassPanel(backdrop, uiSensor)
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Row(

@@ -50,6 +50,10 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.tanh
 
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.ui.text.style.TextOverflow
+
 @Composable
 fun LiquidGlassCard(
     title: String,
@@ -63,7 +67,7 @@ fun LiquidGlassCard(
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val isLight = !isDarkMode
-    val container = if (isLight) Color.White.copy(0.34f) else Color(0xFF111216).copy(0.46f)
+    val container = if (isLight) Color.White.copy(0.36f) else Color(0xFF13151B).copy(0.52f)
     val titleColor = LiquidGlassColors.text(!isLight)
     val subtitleColor = LiquidGlassColors.secondary(!isLight)
 
@@ -74,19 +78,21 @@ fun LiquidGlassCard(
 
     Column(
         modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
             .drawBackdrop(
                 backdrop = backdrop,
-                shape = { RoundedRectangle(24f.dp) },
+                shape = { RoundedRectangle(28f.dp) },
                 effects = {
                     vibrancy()
-                    blur(6f.dp.toPx())
-                    lens(18f.dp.toPx(), 34f.dp.toPx(), depthEffect = true)
+                    blur(7f.dp.toPx())
+                    lens(20f.dp.toPx(), 38f.dp.toPx(), depthEffect = true)
                 },
                 highlight = {
                     Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f))
                 },
-                shadow = { Shadow(radius = 7f.dp, color = Color.Black.copy(alpha = 0.10f)) },
-                innerShadow = { InnerShadow(radius = 3f.dp, alpha = 0.32f) },
+                shadow = { Shadow(radius = 8f.dp, color = Color.Black.copy(alpha = 0.12f)) },
+                innerShadow = { InnerShadow(radius = 3.5f.dp, alpha = 0.35f) },
                 layerBlock = {
                     val progress = interactiveHighlight.pressProgress
                     val scale = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress)
@@ -99,27 +105,48 @@ fun LiquidGlassCard(
                     scaleX = scale + maxDragScale * abs(cos(offsetAngle) * offset.x / size.maxDimension)
                     scaleY = scale + maxDragScale * abs(sin(offsetAngle) * offset.y / size.maxDimension)
                 },
-                 onDrawSurface = { drawRect(container) }
-             )
+                onDrawSurface = { drawRect(container) }
+            )
             .clickable(interactionSource = null, indication = null, role = Role.Button, onClick = onClick)
             .then(interactiveHighlight.modifier)
             .then(interactiveHighlight.gestureModifier)
-            .height(160.dp)
-            .padding(20.dp),
+            .padding(18.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
+        // Icon pill
         Box(
             Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(accentColor.copy(alpha = 0.12f)),
+                .size(52.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(accentColor.copy(alpha = if (isLight) 0.14f else 0.22f)),
             contentAlignment = Alignment.Center
         ) {
             icon()
         }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            BasicText(title, style = TextStyle(titleColor, 16.sp, FontWeight.Bold))
-            BasicText(subtitle, style = TextStyle(subtitleColor, 12.sp))
+
+        // Bottom text content
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            BasicText(
+                title,
+                style = TextStyle(
+                    color = titleColor,
+                    fontSize = 16.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.3).sp
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            BasicText(
+                subtitle,
+                style = TextStyle(
+                    color = subtitleColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

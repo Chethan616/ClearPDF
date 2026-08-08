@@ -25,6 +25,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.kyant.pdfcore.model.PdfDocument
+import com.chethan616.clearpdf.ui.utils.AppDispatchers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -287,7 +288,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
 
         viewModelScope.launch {
             try {
-                val bitmap = withContext(Dispatchers.IO) {
+                val bitmap = withContext(AppDispatchers.pdf) {
                     openPdfUseCase.renderPage(doc, pageIndex, renderWidth)
                 }
 
