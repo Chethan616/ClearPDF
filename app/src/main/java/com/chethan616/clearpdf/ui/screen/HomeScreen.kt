@@ -489,16 +489,8 @@ fun HomeScreen(
                                     alpha = morphProgress.coerceIn(0f, 1f)
                                     transformOrigin = TransformOrigin(0.5f, 0.85f)
                                     shadowElevation = (18f * morphProgress).dp.toPx()
-                                    shape = RoundedCornerShape(32.dp)
-                                    clip = true
                                 }
-                                .clip(RoundedCornerShape(32.dp))
-                                .background(if (isLight) Color.White.copy(0.88f) else Color(0xFF1C1E26).copy(0.88f))
-                                .border(
-                                    1.5.dp,
-                                    if (isLight) Color.White.copy(0.95f) else Color.White.copy(0.18f),
-                                    RoundedCornerShape(32.dp)
-                                )
+                                .liquidGlassPanel(backdrop, uiSensor)
                                 .clickable { /* Consume inner taps */ }
                                 .padding(horizontal = 18.dp, vertical = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp),

@@ -249,7 +249,7 @@ fun SettingsScreen(
             ) {
                 data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector, val activeColor: Color)
                 val options = listOf(
-                    ThemeOption(0, "System", Icons.Rounded.PhoneAndroid, Color(0xFF0088FF)),
+                    ThemeOption(0, "Auto", Icons.Rounded.PhoneAndroid, Color(0xFF0088FF)),
                     ThemeOption(1, "Light", Icons.Rounded.LightMode, Color(0xFFFFA726)),
                     ThemeOption(2, "Dark", Icons.Rounded.DarkMode, Color(0xFF7C4DFF))
                 )
