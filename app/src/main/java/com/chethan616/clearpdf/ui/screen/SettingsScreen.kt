@@ -13,9 +13,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -545,6 +548,63 @@ fun SettingsScreen(
             }
         }
 
+        // ── Language Selection ──
+        val currentLang = remember { mutableStateOf(com.chethan616.clearpdf.data.repository.OnboardingManager.getSelectedLocale(context)) }
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel4Alpha
+                    translationY = panel4OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                BasicText("🌐", style = TextStyle(fontSize = 20.sp))
+                BasicText("Language / Idioma", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                val languages = listOf(
+                    Pair("en", "🇬🇧 English"),
+                    Pair("pt-BR", "🇧🇷 Português")
+                )
+                languages.forEach { (code, labelText) ->
+                    val isSelected = currentLang.value == code
+                    val activeColor = Color(0xFF0088FF)
+                    val contentColor = if (isSelected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+                    LiquidButton(
+                        onClick = {
+                            currentLang.value = code
+                            com.chethan616.clearpdf.ui.utils.LocaleHelper.applyLocale(context, code, recreate = true)
+                        },
+                        backdrop = backdrop,
+                        tint = if (isSelected) activeColor else Color.Transparent,
+                        surfaceColor = if (isSelected) activeColor.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        BasicText(
+                            labelText,
+                            style = TextStyle(
+                                contentColor,
+                                13.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            ),
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+
         // ── About & Open Source ──
         Column(
             Modifier
@@ -636,7 +696,10 @@ fun SettingsScreen(
             )
         }
 
-        Spacer(Modifier.height(80.dp))
+        // Dynamic bottom spacer: tab bar (64dp) + actual nav bar inset + breathing room
+        Spacer(Modifier.height(
+            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 84.dp
+        ))
     }
 }
 

@@ -1,0 +1,161 @@
+package com.chethan616.clearpdf.utils
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
+import android.net.Uri
+import android.os.Environment
+import androidx.core.content.FileProvider
+import java.io.BufferedReader
+import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStreamReader
+
+object UniversalDocumentConverter {
+
+    fun isPdf(context: Context, uri: Uri): Boolean {
+        val type = context.contentResolver.getType(uri)
+        if (type != null && type.contains("pdf", ignoreCase = true)) return true
+        val name = getFileName(context, uri)
+        return name.endsWith(".pdf", ignoreCase = true)
+    }
+
+    fun convertToPdf(context: Context, sourceUri: Uri): Uri {
+        val mimeType = context.contentResolver.getType(sourceUri) ?: ""
+        val name = getFileName(context, sourceUri).lowercase()
+
+        return when {
+            mimeType.startsWith("image/") || name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".webp") || name.endsWith(".bmp") -> {
+                convertImageToPdf(context, sourceUri)
+            }
+            mimeType.startsWith("text/") || name.endsWith(".txt") || name.endsWith(".csv") || name.endsWith(".log") -> {
+                convertTextToPdf(context, sourceUri)
+            }
+            else -> {
+                // Fallback for docx/xlsx/other formats: extract readable text or convert bitmap snapshot
+                convertGenericToPdf(context, sourceUri)
+            }
+        }
+    }
+
+    private fun convertImageToPdf(context: Context, sourceUri: Uri): Uri {
+        val inputStream = context.contentResolver.openInputStream(sourceUri)
+            ?: throw IllegalStateException("Unable to open image stream")
+        val bitmap = BitmapFactory.decodeStream(inputStream)
+            ?: throw IllegalStateException("Invalid image file")
+
+        val pdfDoc = PdfDocument()
+        val pageInfo = PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height, 1).create()
+        val page = pdfDoc.startPage(pageInfo)
+        page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+        pdfDoc.finishPage(page)
+
+        val outputFile = createTempPdfFile(context, "Image_Converted")
+        FileOutputStream(outputFile).use { pdfDoc.writeTo(it) }
+        pdfDoc.close()
+        bitmap.recycle()
+
+        return Uri.fromFile(outputFile)
+    }
+
+    private fun convertTextToPdf(context: Context, sourceUri: Uri): Uri {
+        val inputStream = context.contentResolver.openInputStream(sourceUri)
+            ?: throw IllegalStateException("Unable to open text file")
+        val reader = BufferedReader(InputStreamReader(inputStream))
+        val lines = reader.readLines()
+
+        val pdfDoc = PdfDocument()
+        val pageWidth = 595 // A4 width
+        val pageHeight = 842 // A4 height
+        val margin = 40f
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 12f
+            color = Color.BLACK
+            typeface = Typeface.MONOSPACE
+        }
+
+        var pageNumber = 1
+        var y = margin + 20f
+        var currentPage = pdfDoc.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+        var canvas = currentPage.canvas
+
+        for (line in lines) {
+            if (y > pageHeight - margin) {
+                pdfDoc.finishPage(currentPage)
+                pageNumber++
+                currentPage = pdfDoc.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+                canvas = currentPage.canvas
+                y = margin + 20f
+            }
+            canvas.drawText(line.take(90), margin, y, paint)
+            y += 18f
+        }
+        pdfDoc.finishPage(currentPage)
+
+        val outputFile = createTempPdfFile(context, "Text_Converted")
+        FileOutputStream(outputFile).use { pdfDoc.writeTo(it) }
+        pdfDoc.close()
+
+        return Uri.fromFile(outputFile)
+    }
+
+    private fun convertGenericToPdf(context: Context, sourceUri: Uri): Uri {
+        val inputStream = context.contentResolver.openInputStream(sourceUri)
+            ?: throw IllegalStateException("Unable to open file")
+        val bytes = inputStream.readBytes()
+        val contentStr = String(bytes, Charsets.UTF_8).filter { it.isISOControl().not() || it == '\n' || it == '\r' || it == '\t' }
+
+        val pdfDoc = PdfDocument()
+        val pageWidth = 595
+        val pageHeight = 842
+        val margin = 40f
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = 11f
+            color = Color.DKGRAY
+            typeface = Typeface.DEFAULT
+        }
+
+        val lines = contentStr.lines().take(500)
+        var pageNumber = 1
+        var y = margin + 20f
+        var currentPage = pdfDoc.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+        var canvas = currentPage.canvas
+
+        for (line in lines) {
+            if (y > pageHeight - margin) {
+                pdfDoc.finishPage(currentPage)
+                pageNumber++
+                currentPage = pdfDoc.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+                canvas = currentPage.canvas
+                y = margin + 20f
+            }
+            canvas.drawText(line.take(85), margin, y, paint)
+            y += 16f
+        }
+        pdfDoc.finishPage(currentPage)
+
+        val outputFile = createTempPdfFile(context, "Document_Converted")
+        FileOutputStream(outputFile).use { pdfDoc.writeTo(it) }
+        pdfDoc.close()
+
+        return Uri.fromFile(outputFile)
+    }
+
+    private fun getFileName(context: Context, uri: Uri): String {
+        return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (nameIndex != -1 && cursor.moveToFirst()) cursor.getString(nameIndex) else null
+        } ?: uri.lastPathSegment ?: "document"
+    }
+
+    private fun createTempPdfFile(context: Context, prefix: String): File {
+        val dir = File(context.cacheDir, "converted_pdfs")
+        if (!dir.exists()) dir.mkdirs()
+        return File(dir, "${prefix}_${System.currentTimeMillis()}.pdf")
+    }
+}

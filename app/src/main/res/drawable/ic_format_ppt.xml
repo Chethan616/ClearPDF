@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Document background -->
+    <path
+        android:fillColor="#FF9500"
+        android:pathData="M12,4h16l12,12v24c0,2.2 -1.8,4 -4,4H12c-2.2,0 -4,-1.8 -4,-4V8c0,-2.2 1.8,-4 4,-4z" />
+    <path
+        android:fillColor="#C27100"
+        android:pathData="M28,4v12h12z" />
+    <!-- PPT Presentation Chart -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M15,22h18v16H15V22zM17,24v12h14V24H17zM20,33h2v-4h-2v4zM24,33h2v-7h-2v7zM28,33h2v-9h-2v9z" />
+</vector>

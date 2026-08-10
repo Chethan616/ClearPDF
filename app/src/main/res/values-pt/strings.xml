@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ClearPDF</string>
+
+    <!-- App Shortcuts -->
+    <string name="shortcut_open_short">Abrir PDF</string>
+    <string name="shortcut_open_long">Abrir um arquivo PDF</string>
+    <string name="shortcut_merge_short">Mesclar PDFs</string>
+    <string name="shortcut_merge_long">Mesclar múltiplos PDFs</string>
+    <string name="shortcut_compress_short">Comprimir</string>
+    <string name="shortcut_compress_long">Comprimir um arquivo PDF</string>
+    <string name="shortcut_create_short">Criar PDF</string>
+    <string name="shortcut_create_long">Criar um novo PDF</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Bem-vindo ao ClearPDF</string>
+    <string name="onboarding_welcome_subtitle">Seu companheiro de documentos totalmente offline</string>
+    <string name="onboarding_language_title">Escolha seu idioma</string>
+    <string name="onboarding_language_subtitle">Personalize sua experiência</string>
+    <string name="onboarding_files_title">Abra qualquer arquivo</string>
+    <string name="onboarding_files_subtitle">PDFs, documentos, planilhas, apresentações, imagens e muito mais</string>
+    <string name="onboarding_features_title">Ferramentas poderosas</string>
+    <string name="onboarding_features_subtitle">Anote, assine, pesquise e organize seus documentos</string>
+    <string name="onboarding_ready_title">Tudo pronto! 🎉</string>
+    <string name="onboarding_ready_subtitle">O ClearPDF está pronto para usar.\nTodos os seus documentos, sempre privados.</string>
+    <string name="onboarding_privacy_badge">100% offline · Sem coleta de dados · Código aberto</string>
+    <string name="onboarding_cta_continue">Continuar</string>
+    <string name="onboarding_cta_get_started">Começar</string>
+
+    <!-- Home Screen -->
+    <string name="home_title">ClearPDF</string>
+    <string name="home_workspace_label">ESPAÇO DE TRABALHO PDF</string>
+    <string name="home_tagline">Trabalho com PDF, simplesmente elegante.</string>
+    <string name="home_subtitle">Abra, digitalize e organize seus arquivos — privativamente no seu dispositivo.</string>
+    <string name="home_open_pdf">Abrir PDF</string>
+    <string name="home_scan">Digitalizar</string>
+    <string name="home_recents">Recentes</string>
+    <string name="home_see_all">Ver todos</string>
+    <string name="home_see_less">Ver menos</string>
+    <string name="home_no_recents">Nenhum arquivo recente</string>
+    <string name="home_no_recents_subtitle">Abra um PDF para começar</string>
+    <string name="home_on_device">NO DISPOSITIVO</string>
+
+    <!-- Tools Screen -->
+    <string name="tools_title">Ferramentas</string>
+    <string name="tools_subtitle">Tudo que você precisa para trabalhar com PDFs.</string>
+    <string name="tool_open_pdf">Abrir PDF</string>
+    <string name="tool_open_pdf_sub">Visualizar e ler</string>
+    <string name="tool_merge">Mesclar PDFs</string>
+    <string name="tool_merge_sub">Combinar arquivos</string>
+    <string name="tool_split">Dividir PDF</string>
+    <string name="tool_split_sub">Extrair páginas</string>
+    <string name="tool_compress">Comprimir</string>
+    <string name="tool_compress_sub">Reduzir tamanho do arquivo</string>
+    <string name="tool_organize">Organizar</string>
+    <string name="tool_organize_sub">Reordenar e girar</string>
+    <string name="tool_images">Imagens para PDF</string>
+    <string name="tool_images_sub">Fotos para PDF</string>
+    <string name="tool_extract">Extrair texto</string>
+    <string name="tool_extract_sub">Copiar texto</string>
+    <string name="tool_create">Criar PDF</string>
+    <string name="tool_create_sub">Em branco, imagens, texto</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Configurações</string>
+    <string name="settings_appearance">Aparência</string>
+    <string name="settings_theme_auto">Auto</string>
+    <string name="settings_theme_light">Claro</string>
+    <string name="settings_theme_dark">Escuro</string>
+    <string name="settings_theme_auto_desc">Segue as configurações do sistema</string>
+    <string name="settings_theme_light_desc">Sempre usar tema claro</string>
+    <string name="settings_theme_dark_desc">Sempre usar tema escuro</string>
+    <string name="settings_save_location">Local de Salvamento</string>
+    <string name="settings_save_downloads">Downloads</string>
+    <string name="settings_save_custom">Pasta Personalizada</string>
+    <string name="settings_file_handling">Gerenciamento de Arquivos</string>
+    <string name="settings_auto_compress">Comprimir Automaticamente</string>
+    <string name="settings_auto_compress_desc">Comprimir PDFs automaticamente ao importar</string>
+    <string name="settings_keep_original">Manter Original</string>
+    <string name="settings_keep_original_desc">Preservar arquivo original após edição</string>
+    <string name="settings_notifications">Notificações</string>
+    <string name="settings_notifications_desc">Mostrar notificação quando tarefas concluírem</string>
+    <string name="settings_compression_quality">Qualidade de Compressão</string>
+    <string name="settings_smaller_size">Menor tamanho</string>
+    <string name="settings_higher_quality">Maior qualidade</string>
+    <string name="settings_language">Idioma</string>
+    <string name="settings_language_desc">Escolha o idioma do aplicativo</string>
+    <string name="settings_about">Sobre</string>
+    <string name="settings_version">Versão 1.1.0</string>
+    <string name="settings_made_by">Feito por Chethan616 com ❤</string>
+    <string name="settings_star_github">Favoritar no GitHub</string>
+    <string name="settings_open_source">ClearPDF é código aberto</string>
+    <string name="settings_licenses">Licenças de Código Aberto</string>
+
+    <!-- PDF Viewer -->
+    <string name="viewer_title">Visualizador de PDF</string>
+    <string name="viewer_open_pdf">Abrir um PDF</string>
+    <string name="viewer_pick_pdf">Escolher um PDF</string>
+    <string name="viewer_select_file">Selecione um arquivo PDF do seu dispositivo para visualizá-lo</string>
+    <string name="viewer_page_of">Página %1$d / %2$d</string>
+    <string name="viewer_draw_tools">Ferramentas de Desenho</string>
+    <string name="viewer_select_text">Selecionar Texto</string>
+    <string name="viewer_add_image">Adicionar Imagem</string>
+    <string name="viewer_eraser">Borracha</string>
+    <string name="viewer_save_edits">Salvar Edições</string>
+    <string name="viewer_sign">Assinar</string>
+    <string name="viewer_find">Buscar</string>
+    <string name="viewer_find_hint">Buscar no documento…</string>
+    <string name="viewer_find_results">%1$d de %2$d resultados</string>
+    <string name="viewer_find_no_results">Sem resultados</string>
+    <string name="viewer_prev">Anterior</string>
+    <string name="viewer_next">Próximo</string>
+    <string name="viewer_open_another">Abrir outro PDF</string>
+    <string name="viewer_pen">Caneta</string>
+    <string name="viewer_highlight">Destaque</string>
+    <string name="viewer_rect">Retângulo</string>
+    <string name="viewer_oval">Óvalo</string>
+    <string name="viewer_line">Linha</string>
+    <string name="viewer_arrow">Seta</string>
+    <string name="viewer_undo">Desfazer</string>
+    <string name="viewer_clear">Limpar</string>
+    <string name="viewer_select_all">Selecionar Tudo</string>
+    <string name="viewer_underline">Sublinhado</string>
+    <string name="viewer_strike">Tachado</string>
+    <string name="viewer_done">Concluído</string>
+    <string name="viewer_new_sign">Nova Assinatura</string>
+    <string name="viewer_replace">Substituir</string>
+    <string name="viewer_saving">Salvando PDF editado…</string>
+    <string name="viewer_size">Tamanho</string>
+    <string name="viewer_jump_to_page">Ir para a página</string>
+
+    <!-- Signature Pad -->
+    <string name="sig_draw_title">Desenhe sua assinatura</string>
+    <string name="sig_saved">Salva</string>
+    <string name="sig_clear">Limpar</string>
+    <string name="sig_use">Usar Assinatura</string>
+    <string name="sig_thin">Fina</string>
+    <string name="sig_medium">Média</string>
+    <string name="sig_thick">Espessa</string>
+    <string name="sig_heavy">Forte</string>
+
+    <!-- Onboarding feature highlights -->
+    <string name="feature_annotate_title">Anotar e Assinar</string>
+    <string name="feature_annotate_desc">Desenhe, destaque e assine seus PDFs</string>
+    <string name="feature_search_title">Buscar e Selecionar</string>
+    <string name="feature_search_desc">Pesquise texto e selecione parágrafos inteiros</string>
+    <string name="feature_tools_title">Ferramentas Completas</string>
+    <string name="feature_tools_desc">Mescle, divida, comprima e converta</string>
+
+    <!-- Common -->
+    <string name="back">Voltar</string>
+    <string name="done">Concluído</string>
+    <string name="cancel">Cancelar</string>
+    <string name="ok">OK</string>
+    <string name="copy">Copiar</string>
+    <string name="share">Compartilhar</string>
+    <string name="delete">Excluir</string>
+    <string name="open">Abrir</string>
+    <string name="save">Salvar</string>
+    <string name="dismiss">Dispensar</string>
+    <string name="not_now">Agora não</string>
+    <string name="dont_ask_again">Não perguntar novamente</string>
+</resources>
