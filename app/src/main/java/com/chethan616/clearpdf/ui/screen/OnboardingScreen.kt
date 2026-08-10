@@ -1,22 +1,23 @@
 package com.chethan616.clearpdf.ui.screen
 
-import androidx.compose.ui.res.stringResource
-import com.chethan616.clearpdf.R
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,30 +32,25 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Draw
-import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.TableChart
-import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,13 +60,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.os.LocaleListCompat
+import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.OnboardingManager
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
@@ -78,193 +76,214 @@ import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
-private data class Language(
-    val name: String,
-    val nativeName: String,
+private data class LanguageOption(
     val code: String,
-    val flag: String
+    val badge: String,
+    val labelRes: Int
 )
 
 private val SUPPORTED_LANGUAGES = listOf(
-    Language("English", "English", "en", "🇬🇧"),
-    Language("Portuguese (Brazil)", "Português (Brasil)", "pt-BR", "🇧🇷")
+    LanguageOption("en", "EN", R.string.language_english),
+    LanguageOption("pt-BR", "BR", R.string.language_portuguese)
 )
 
-private data class FileTypeItem(
-    val label: String,
-    val resId: Int
+private data class FormatOption(
+    val labelRes: Int,
+    val drawableRes: Int
 )
 
-private val FILE_TYPES = listOf(
-    FileTypeItem("PDF", R.drawable.ic_format_pdf),
-    FileTypeItem("Word", R.drawable.ic_format_word),
-    FileTypeItem("Excel", R.drawable.ic_format_excel),
-    FileTypeItem("PowerPoint", R.drawable.ic_format_ppt),
-    FileTypeItem("Images", R.drawable.ic_format_image),
-    FileTypeItem("TXT", R.drawable.ic_format_txt)
+private val FORMAT_OPTIONS = listOf(
+    FormatOption(R.string.file_type_pdf, R.drawable.ic_format_pdf),
+    FormatOption(R.string.file_type_word, R.drawable.ic_format_word),
+    FormatOption(R.string.file_type_excel, R.drawable.ic_format_excel),
+    FormatOption(R.string.file_type_powerpoint, R.drawable.ic_format_ppt),
+    FormatOption(R.string.file_type_images, R.drawable.ic_format_image),
+    FormatOption(R.string.file_type_txt, R.drawable.ic_format_txt)
 )
 
-private data class FeatureItem(
+private data class FeatureOption(
     val icon: ImageVector,
-    val color: Color,
+    val accent: Color,
     val titleRes: Int,
-    val descRes: Int
+    val descriptionRes: Int
 )
 
-private val FEATURES = listOf(
-    FeatureItem(Icons.Rounded.Draw, Color(0xFF7E57C2), com.chethan616.clearpdf.R.string.feature_annotate_title, com.chethan616.clearpdf.R.string.feature_annotate_desc),
-    FeatureItem(Icons.Rounded.Search, Color(0xFF0288D1), com.chethan616.clearpdf.R.string.feature_search_title, com.chethan616.clearpdf.R.string.feature_search_desc),
-    FeatureItem(Icons.Rounded.Tune, Color(0xFF00897B), com.chethan616.clearpdf.R.string.feature_tools_title, com.chethan616.clearpdf.R.string.feature_tools_desc)
+private val FEATURE_OPTIONS = listOf(
+    FeatureOption(Icons.Rounded.Draw, Color(0xFF7D5CFF), R.string.feature_annotate_title, R.string.feature_annotate_desc),
+    FeatureOption(Icons.Rounded.Search, Color(0xFF4F9BFF), R.string.feature_search_title, R.string.feature_search_desc),
+    FeatureOption(Icons.Rounded.Tune, Color(0xFF33C88A), R.string.feature_tools_title, R.string.feature_tools_desc)
 )
 
-/**
- * Apple HIG-inspired, 4-page onboarding experience.
- * Page 0: Language selector
- * Page 1: File compatibility showcase
- * Page 2: Feature highlights
- * Page 3: "Let's Go" CTA
- */
+/** A quiet, editorial onboarding flow for a private document workspace. */
 @Composable
 fun OnboardingScreen(
     backdrop: LayerBackdrop,
-    onComplete: () -> Unit
+    onComplete: () -> Unit,
+    selectedLocale: String = "en",
+    onLanguageChanged: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
-    val isDarkMode = LocalIsDarkMode.current
+    val isDark = LocalIsDarkMode.current
     val uiSensor = rememberUISensor()
-    val scope = rememberCoroutineScope()
-
-    var currentPage by remember { mutableIntStateOf(0) }
-    var selectedLocale by remember {
-        mutableStateOf(OnboardingManager.getSelectedLocale(context))
-    }
-
-    val totalPages = 4
-
-    // Page entry animation
-    var contentVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(currentPage) {
-        contentVisible = false
-        delay(80)
-        contentVisible = true
-    }
-
-    val bgBrush = if (isDarkMode) {
-        Brush.radialGradient(
-            colors = listOf(Color(0xFF0D1117), Color(0xFF0A0A0F)),
-            radius = 2000f
-        )
+    var page by rememberSaveable { mutableIntStateOf(0) }
+    val pageCount = 4
+    val accents = listOf(
+        Color(0xFF4F7CFF),
+        Color(0xFFFF5F6D),
+        Color(0xFF7D5CFF),
+        Color(0xFF33C88A)
+    )
+    val accent = accents[page]
+    val text = if (isDark) Color(0xFFF4F7FF) else Color(0xFF182033)
+    val secondary = if (isDark) Color(0xFFB3BED2) else Color(0xFF62708A)
+    val background = if (isDark) {
+        Brush.linearGradient(listOf(Color(0xFF101728), Color(0xFF080B12)))
     } else {
-        Brush.radialGradient(
-            colors = listOf(Color(0xFFF5F7FF), Color(0xFFECEFF5)),
-            radius = 2000f
-        )
-    }
-
-    val pageColor = when (currentPage) {
-        0 -> Color(0xFF6366F1) // Indigo
-        1 -> Color(0xFF00B0FF) // Bright Cyan
-        2 -> Color(0xFF8B5CF6) // Purple
-        else -> Color(0xFF00C853) // Vivid Emerald
+        Brush.linearGradient(listOf(Color(0xFFF5F8FF), Color(0xFFE9EEFA)))
     }
 
     Box(
         Modifier
             .fillMaxSize()
-            .background(bgBrush)
+            .background(background)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
+        Box(
+            Modifier
+                .size(250.dp)
+                .align(Alignment.TopEnd)
+                .graphicsLayer { alpha = 0.22f }
+                .background(accent.copy(alpha = 0.28f), CircleShape)
+        )
+        Box(
+            Modifier
+                .size(180.dp)
+                .align(Alignment.BottomStart)
+                .graphicsLayer { alpha = 0.18f }
+                .background(LiquidGlassColors.Blue.copy(alpha = 0.28f), CircleShape)
+        )
+
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 20.dp),
+                .padding(horizontal = 22.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Page dots indicator
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(bottom = 32.dp)
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                repeat(totalPages) { page ->
-                    val isActive = page == currentPage
-                    val dotWidth by animateDpAsState(
-                        if (isActive) 28.dp else 8.dp,
-                        spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium),
-                        label = "dotWidth$page"
-                    )
-                    val dotAlpha by animateFloatAsState(
-                        if (isActive) 1f else 0.3f,
-                        tween(200), label = "dotAlpha$page"
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(accent.copy(alpha = 0.16f))
+                            .border(1.dp, accent.copy(alpha = 0.30f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(21.dp), accent)
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        BasicText(
+                            stringResource(R.string.app_name),
+                            style = TextStyle(text, 16.sp, FontWeight.Bold)
+                        )
+                        BasicText(
+                            stringResource(R.string.onboarding_welcome_subtitle),
+                            style = TextStyle(secondary.copy(alpha = 0.72f), 10.sp, FontWeight.Medium)
+                        )
+                    }
+                }
+                BasicText(
+                    stringResource(R.string.onboarding_step, page + 1, pageCount),
+                    style = TextStyle(secondary, 12.sp, FontWeight.SemiBold)
+                )
+            }
+
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 18.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                repeat(pageCount) { index ->
+                    val selected = index == page
+                    val width by animateFloatAsState(
+                        if (selected) 1f else 0.32f,
+                        tween(260, easing = FastOutSlowInEasing),
+                        label = "onboardingProgress$index"
                     )
                     Box(
                         Modifier
-                            .width(dotWidth)
-                            .height(8.dp)
+                            .weight(if (selected) width else 0.32f)
+                            .height(4.dp)
                             .clip(CircleShape)
-                            .graphicsLayer { alpha = dotAlpha }
-                            .background(pageColor)
+                            .background(if (selected) accent else secondary.copy(alpha = 0.18f))
                     )
                 }
             }
 
-            // Animated page content
             AnimatedContent(
-                targetState = currentPage,
+                targetState = page,
                 transitionSpec = {
-                    if (targetState > initialState) {
-                        (slideInHorizontally { it / 2 } + fadeIn(tween(280))).togetherWith(
-                            slideOutHorizontally { -it / 2 } + fadeOut(tween(180))
-                        )
+                    val forward = targetState > initialState
+                    if (forward) {
+                        (slideInHorizontally { it / 3 } + fadeIn(tween(260)) + scaleIn(initialScale = 0.98f)) togetherWith
+                            (slideOutHorizontally { -it / 4 } + fadeOut(tween(170)) + scaleOut(targetScale = 0.98f))
                     } else {
-                        (slideInHorizontally { -it / 2 } + fadeIn(tween(280))).togetherWith(
-                            slideOutHorizontally { it / 2 } + fadeOut(tween(180))
-                        )
+                        (slideInHorizontally { -it / 3 } + fadeIn(tween(260)) + scaleIn(initialScale = 0.98f)) togetherWith
+                            (slideOutHorizontally { it / 4 } + fadeOut(tween(170)) + scaleOut(targetScale = 0.98f))
                     }
                 },
-                modifier = Modifier.weight(1f),
-                label = "pageContent"
-            ) { page ->
-                when (page) {
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                label = "onboardingPage"
+            ) { currentPage ->
+                when (currentPage) {
                     0 -> LanguagePage(
                         backdrop = backdrop,
                         uiSensor = uiSensor,
+                        isDark = isDark,
+                        text = text,
+                        secondary = secondary,
                         selectedLocale = selectedLocale,
-                        isDark = isDarkMode,
-                        onLanguageSelected = { code ->
-                            selectedLocale = code
-                            OnboardingManager.setSelectedLocale(context, code)
-                            com.chethan616.clearpdf.ui.utils.LocaleHelper.applyLocale(context, code, recreate = false)
-                        }
+                        onLanguageSelected = onLanguageChanged
                     )
-                    1 -> FilesPage(isDark = isDarkMode)
-                    2 -> FeaturesPage(backdrop = backdrop, uiSensor = uiSensor, isDark = isDarkMode)
-                    3 -> ReadyPage(isDark = isDarkMode)
+                    1 -> FormatsPage(backdrop, uiSensor, isDark, text, secondary)
+                    2 -> FeaturesPage(backdrop, uiSensor, isDark, text, secondary)
+                    else -> ReadyPage(backdrop, uiSensor, isDark, text, secondary)
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(14.dp))
 
-            // Navigation button
+            // Keep the proven Backdrop button as the only primary action.
             LiquidButton(
                 onClick = {
-                    if (currentPage < totalPages - 1) {
-                        currentPage++
-                    } else {
+                    if (page < pageCount - 1) page++
+                    else {
                         OnboardingManager.setOnboardingComplete(context)
                         onComplete()
                     }
                 },
                 backdrop = backdrop,
-                tint = pageColor,
+                tint = accent,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 BasicText(
-                    if (currentPage == totalPages - 1) stringResource(R.string.onboarding_cta_get_started) else stringResource(R.string.onboarding_cta_continue),
-                    style = TextStyle(Color.White, 17.sp, FontWeight.SemiBold),
+                    stringResource(
+                        if (page == pageCount - 1) R.string.onboarding_cta_get_started
+                        else R.string.onboarding_cta_continue
+                    ),
+                    style = TextStyle(Color.White, 16.sp, FontWeight.SemiBold),
                     modifier = Modifier.padding(vertical = 10.dp)
                 )
             }
@@ -272,86 +291,88 @@ fun OnboardingScreen(
     }
 }
 
-// ─── Page 0: Language Selector ────────────────────────────────────────────────
-
 @Composable
 private fun LanguagePage(
     backdrop: LayerBackdrop,
     uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
-    selectedLocale: String,
     isDark: Boolean,
+    text: Color,
+    secondary: Color,
+    selectedLocale: String,
     onLanguageSelected: (String) -> Unit
 ) {
-    val text = if (isDark) Color(0xFFF0F0F0) else Color(0xFF1A1A2E)
-    val sub = if (isDark) Color(0xFFAAAAAA) else Color(0xFF666699)
-
     Column(
-        Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Hero icon
-        Box(
-            Modifier
-                .size(100.dp)
-                .clip(RoundedCornerShape(30.dp))
-                .background(LiquidGlassColors.Blue.copy(alpha = 0.15f))
-                .border(1.dp, LiquidGlassColors.Blue.copy(alpha = 0.3f), RoundedCornerShape(30.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            BasicText("🌐", style = TextStyle(fontSize = 44.sp))
-        }
-
-        Spacer(Modifier.height(28.dp))
-
+        OnboardingArtworkCard(backdrop, uiSensor, R.drawable.ic_onboarding_language, Color(0xFF4F7CFF), isDark)
+        Spacer(Modifier.height(22.dp))
         BasicText(
-            stringResource(R.string.onboarding_language_title),
-            style = TextStyle(text, 26.sp, FontWeight.Bold, textAlign = TextAlign.Center)
+            stringResource(R.string.onboarding_welcome_title),
+            style = TextStyle(text, 29.sp, FontWeight.Bold, textAlign = TextAlign.Center)
         )
         Spacer(Modifier.height(8.dp))
         BasicText(
-            stringResource(R.string.onboarding_language_subtitle),
-            style = TextStyle(sub, 15.sp, textAlign = TextAlign.Center)
+            stringResource(R.string.onboarding_welcome_subtitle),
+            style = TextStyle(secondary, 15.sp, FontWeight.Medium, textAlign = TextAlign.Center)
         )
-
-        Spacer(Modifier.height(36.dp))
-
+        Spacer(Modifier.height(22.dp))
+        BasicText(
+            stringResource(R.string.onboarding_language_label),
+            style = TextStyle(secondary.copy(alpha = 0.86f), 12.sp, FontWeight.SemiBold)
+        )
+        Spacer(Modifier.height(9.dp))
         Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier
+            Modifier
                 .fillMaxWidth()
                 .liquidGlassPanel(backdrop, uiSensor)
-                .padding(16.dp)
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            SUPPORTED_LANGUAGES.forEach { lang ->
-                val isSelected = selectedLocale == lang.code
-                val borderColor = if (isSelected) LiquidGlassColors.Blue else (if (isDark) Color.White.copy(0.12f) else Color.Black.copy(0.10f))
-                val bgColor = if (isSelected) LiquidGlassColors.Blue.copy(0.18f) else (if (isDark) Color.White.copy(0.06f) else Color.White.copy(0.50f))
-
+            SUPPORTED_LANGUAGES.forEach { language ->
+                val selected = selectedLocale == language.code
+                val rowColor = if (selected) Color(0xFF4F7CFF).copy(alpha = 0.20f) else Color.White.copy(if (isDark) 0.06f else 0.48f)
                 Row(
                     Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(bgColor)
-                        .border(1.5.dp, borderColor, RoundedCornerShape(16.dp))
-                        .clickable(role = Role.RadioButton) { onLanguageSelected(lang.code) }
-                        .padding(16.dp),
+                        .background(rowColor)
+                        .border(
+                            1.dp,
+                            if (selected) Color(0xFF4F7CFF) else secondary.copy(alpha = 0.16f),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .selectable(
+                            selected = selected,
+                            role = Role.RadioButton,
+                            onClick = { onLanguageSelected(language.code) }
+                        )
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    BasicText(lang.flag, style = TextStyle(fontSize = 28.sp))
-                    Column(Modifier.weight(1f)) {
-                        BasicText(lang.nativeName, style = TextStyle(text, 16.sp, FontWeight.SemiBold))
-                        if (lang.nativeName != lang.name) {
-                            BasicText(lang.name, style = TextStyle(sub, 13.sp))
-                        }
+                    Box(
+                        Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(Color(0xFF4F7CFF).copy(alpha = if (selected) 0.28f else 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        BasicText(language.badge, style = TextStyle(Color(0xFF4F7CFF), 12.sp, FontWeight.Bold))
                     }
-                    if (isSelected) {
+                    BasicText(
+                        stringResource(language.labelRes),
+                        style = TextStyle(text, 15.sp, if (selected) FontWeight.Bold else FontWeight.Medium),
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (selected) {
                         Box(
                             Modifier
-                                .size(24.dp)
+                                .size(23.dp)
                                 .clip(CircleShape)
-                                .background(LiquidGlassColors.Blue),
+                                .background(Color(0xFF4F7CFF)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Rounded.Check, null, Modifier.size(14.dp), Color.White)
@@ -363,55 +384,44 @@ private fun LanguagePage(
     }
 }
 
-// ─── Page 1: File Types ───────────────────────────────────────────────────────
-
 @Composable
-private fun FilesPage(isDark: Boolean) {
-    val text = if (isDark) Color(0xFFF0F0F0) else Color(0xFF1A1A2E)
-    val sub = if (isDark) Color(0xFFAAAAAA) else Color(0xFF666699)
-
+private fun FormatsPage(
+    backdrop: LayerBackdrop,
+    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
+    isDark: Boolean,
+    text: Color,
+    secondary: Color
+) {
     Column(
-        Modifier.fillMaxSize(),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            Modifier
-                .size(100.dp)
-                .clip(RoundedCornerShape(30.dp))
-                .background(Color(0xFF2E7D32).copy(0.15f))
-                .border(1.dp, Color(0xFF2E7D32).copy(0.3f), RoundedCornerShape(30.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Rounded.Folder, null, Modifier.size(52.dp), Color(0xFF4CAF50))
-        }
-
-        Spacer(Modifier.height(28.dp))
-
+        OnboardingArtworkCard(backdrop, uiSensor, R.drawable.ic_onboarding_formats, Color(0xFFFF5F6D), isDark)
+        Spacer(Modifier.height(22.dp))
         BasicText(
-            stringResource(com.chethan616.clearpdf.R.string.onboarding_files_title),
-            style = TextStyle(text, 26.sp, FontWeight.Bold, textAlign = TextAlign.Center)
+            stringResource(R.string.onboarding_files_title),
+            style = TextStyle(text, 29.sp, FontWeight.Bold, textAlign = TextAlign.Center)
         )
         Spacer(Modifier.height(8.dp))
         BasicText(
-            stringResource(com.chethan616.clearpdf.R.string.onboarding_files_subtitle),
-            style = TextStyle(sub, 15.sp, textAlign = TextAlign.Center)
+            stringResource(R.string.onboarding_files_subtitle),
+            style = TextStyle(secondary, 15.sp, FontWeight.Medium, textAlign = TextAlign.Center)
         )
-
-        Spacer(Modifier.height(36.dp))
-
-        // File type grid
-        val rows = FILE_TYPES.chunked(3)
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            rows.forEach { row ->
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    row.forEach { item ->
-                        FileTypePill(item, isDark, modifier = Modifier.weight(1f))
+        Spacer(Modifier.height(22.dp))
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .liquidGlassPanel(backdrop, uiSensor)
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            FORMAT_OPTIONS.chunked(3).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    row.forEach { option ->
+                        FormatChip(option, isDark, text, Modifier.weight(1f))
                     }
-                    // Fill empty cells if last row has < 3 items
-                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }
@@ -419,162 +429,202 @@ private fun FilesPage(isDark: Boolean) {
 }
 
 @Composable
-private fun FileTypePill(item: FileTypeItem, isDark: Boolean, modifier: Modifier) {
-    val text = if (isDark) Color(0xFFF0F0F0) else Color(0xFF1A1A2E)
+private fun FormatChip(
+    option: FormatOption,
+    isDark: Boolean,
+    text: Color,
+    modifier: Modifier
+) {
     Column(
         modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(if (isDark) Color.White.copy(0.06f) else Color.Black.copy(0.04f))
-            .border(1.dp, if (isDark) Color.White.copy(0.12f) else Color.Black.copy(0.08f), RoundedCornerShape(20.dp))
-            .padding(vertical = 14.dp, horizontal = 4.dp),
+            .clip(RoundedCornerShape(15.dp))
+            .background(if (isDark) Color.White.copy(alpha = 0.07f) else Color.White.copy(alpha = 0.62f))
+            .border(1.dp, if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.07f), RoundedCornerShape(15.dp))
+            .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        androidx.compose.foundation.Image(
-            painter = androidx.compose.ui.res.painterResource(item.resId),
-            contentDescription = item.label,
-            modifier = Modifier.size(42.dp)
+        Image(
+            painterResource(option.drawableRes),
+            contentDescription = stringResource(option.labelRes),
+            modifier = Modifier.size(35.dp)
         )
-        BasicText(item.label, style = TextStyle(text, 12.sp, FontWeight.SemiBold, textAlign = TextAlign.Center))
+        BasicText(
+            stringResource(option.labelRes),
+            style = TextStyle(text, 11.sp, FontWeight.SemiBold, textAlign = TextAlign.Center)
+        )
     }
 }
-
-// ─── Page 2: Features ─────────────────────────────────────────────────────────
 
 @Composable
 private fun FeaturesPage(
     backdrop: LayerBackdrop,
     uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
-    isDark: Boolean
+    isDark: Boolean,
+    text: Color,
+    secondary: Color
 ) {
-    val text = if (isDark) Color(0xFFF0F0F0) else Color(0xFF1A1A2E)
-    val sub = if (isDark) Color(0xFFAAAAAA) else Color(0xFF666699)
-
     Column(
-        Modifier.fillMaxSize(),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            Modifier
-                .size(100.dp)
-                .clip(RoundedCornerShape(30.dp))
-                .background(Color(0xFF7E57C2).copy(0.15f))
-                .border(1.dp, Color(0xFF7E57C2).copy(0.3f), RoundedCornerShape(30.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Rounded.Draw, null, Modifier.size(52.dp), Color(0xFF7E57C2))
-        }
-
-        Spacer(Modifier.height(28.dp))
-
+        OnboardingArtworkCard(backdrop, uiSensor, R.drawable.ic_onboarding_tools, Color(0xFF7D5CFF), isDark)
+        Spacer(Modifier.height(22.dp))
         BasicText(
-            stringResource(com.chethan616.clearpdf.R.string.onboarding_features_title),
-            style = TextStyle(text, 26.sp, FontWeight.Bold, textAlign = TextAlign.Center)
+            stringResource(R.string.onboarding_features_title),
+            style = TextStyle(text, 29.sp, FontWeight.Bold, textAlign = TextAlign.Center)
         )
         Spacer(Modifier.height(8.dp))
         BasicText(
-            stringResource(com.chethan616.clearpdf.R.string.onboarding_features_subtitle),
-            style = TextStyle(sub, 15.sp, textAlign = TextAlign.Center)
+            stringResource(R.string.onboarding_features_subtitle),
+            style = TextStyle(secondary, 15.sp, FontWeight.Medium, textAlign = TextAlign.Center)
         )
-
-        Spacer(Modifier.height(32.dp))
-
+        Spacer(Modifier.height(22.dp))
         Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth()
+            Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
-            FEATURES.forEach { feature ->
+            FEATURE_OPTIONS.forEach { feature ->
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(feature.color.copy(if (isDark) 0.1f else 0.07f))
-                        .border(1.dp, feature.color.copy(0.22f), RoundedCornerShape(16.dp))
-                        .padding(16.dp),
+                        .clip(RoundedCornerShape(17.dp))
+                        .background(feature.accent.copy(alpha = if (isDark) 0.12f else 0.08f))
+                        .border(1.dp, feature.accent.copy(alpha = 0.22f), RoundedCornerShape(17.dp))
+                        .padding(horizontal = 13.dp, vertical = 11.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Box(
                         Modifier
-                            .size(44.dp)
+                            .size(40.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(feature.color.copy(0.2f)),
+                            .background(feature.accent.copy(alpha = 0.20f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(feature.icon, null, Modifier.size(24.dp), feature.color)
+                        Icon(feature.icon, null, Modifier.size(21.dp), feature.accent)
                     }
-                    Column {
-                        BasicText(stringResource(feature.titleRes), style = TextStyle(text, 15.sp, FontWeight.SemiBold))
-                        BasicText(stringResource(feature.descRes), style = TextStyle(sub, 12.sp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        BasicText(stringResource(feature.titleRes), style = TextStyle(text, 14.sp, FontWeight.Bold))
+                        BasicText(stringResource(feature.descriptionRes), style = TextStyle(secondary, 11.sp, FontWeight.Medium))
                     }
+                    Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), feature.accent)
                 }
             }
         }
     }
 }
 
-// ─── Page 3: Ready CTA ────────────────────────────────────────────────────────
-
 @Composable
-private fun ReadyPage(isDark: Boolean) {
-    val text = if (isDark) Color(0xFFF0F0F0) else Color(0xFF1A1A2E)
-    val sub = if (isDark) Color(0xFFAAAAAA) else Color(0xFF666699)
-
+private fun ReadyPage(
+    backdrop: LayerBackdrop,
+    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
+    isDark: Boolean,
+    text: Color,
+    secondary: Color
+) {
     Column(
-        Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Animated check mark
-        var visible by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { delay(300); visible = true }
-        val iconScale by animateFloatAsState(
-            if (visible) 1f else 0f,
-            spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
-            label = "iconScale"
-        )
-
-        Box(
-            Modifier
-                .size(120.dp)
-                .graphicsLayer { scaleX = iconScale; scaleY = iconScale }
-                .clip(CircleShape)
-                .background(Color(0xFF00C853).copy(0.15f))
-                .border(2.dp, Color(0xFF00C853).copy(0.4f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Rounded.Check, null, Modifier.size(60.dp), Color(0xFF00C853))
-        }
-
-        Spacer(Modifier.height(36.dp))
-
+        OnboardingArtworkCard(backdrop, uiSensor, R.drawable.ic_onboarding_ready, Color(0xFF33C88A), isDark)
+        Spacer(Modifier.height(26.dp))
         BasicText(
-            stringResource(com.chethan616.clearpdf.R.string.onboarding_ready_title),
-            style = TextStyle(text, 28.sp, FontWeight.Bold, textAlign = TextAlign.Center)
+            stringResource(R.string.onboarding_ready_title),
+            style = TextStyle(text, 30.sp, FontWeight.Bold, textAlign = TextAlign.Center)
         )
-
-        Spacer(Modifier.height(12.dp))
-
+        Spacer(Modifier.height(10.dp))
         BasicText(
-            stringResource(com.chethan616.clearpdf.R.string.onboarding_ready_subtitle),
-            style = TextStyle(sub, 16.sp, textAlign = TextAlign.Center)
+            stringResource(R.string.onboarding_ready_subtitle),
+            style = TextStyle(secondary, 15.sp, FontWeight.Medium, textAlign = TextAlign.Center)
         )
-
-        Spacer(Modifier.height(48.dp))
-
-        // Privacy badge
+        Spacer(Modifier.height(28.dp))
         Row(
             Modifier
-                .clip(RoundedCornerShape(50))
-                .background(LiquidGlassColors.Blue.copy(0.1f))
-                .border(1.dp, LiquidGlassColors.Blue.copy(0.25f), RoundedCornerShape(50))
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(Color(0xFF33C88A).copy(alpha = if (isDark) 0.12f else 0.09f))
+                .border(1.dp, Color(0xFF33C88A).copy(alpha = 0.24f), RoundedCornerShape(18.dp))
+                .padding(horizontal = 15.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            BasicText("🔒", style = TextStyle(fontSize = 14.sp))
-            BasicText(stringResource(com.chethan616.clearpdf.R.string.onboarding_privacy_badge),
-                style = TextStyle(sub, 12.sp, FontWeight.Medium))
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF33C88A).copy(alpha = 0.20f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Rounded.Lock, null, Modifier.size(20.dp), Color(0xFF33C88A))
+            }
+            BasicText(
+                stringResource(R.string.onboarding_privacy_badge),
+                style = TextStyle(text, 12.sp, FontWeight.SemiBold)
+            )
         }
+    }
+}
+
+@Composable
+private fun OnboardingArtworkCard(
+    backdrop: LayerBackdrop,
+    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
+    drawableRes: Int,
+    accent: Color,
+    isDark: Boolean
+) {
+    val transition = rememberInfiniteTransition(label = "onboardingArtwork")
+    val drift by transition.animateFloat(
+        initialValue = -3f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "artworkDrift"
+    )
+
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(208.dp)
+            .liquidGlassPanel(backdrop, uiSensor)
+            .clip(RoundedCornerShape(26.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            Modifier
+                .size(165.dp)
+                .align(Alignment.Center)
+                .clip(CircleShape)
+                .background(accent.copy(alpha = if (isDark) 0.16f else 0.10f))
+        )
+        Box(
+            Modifier
+                .size(116.dp)
+                .align(Alignment.Center)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = if (isDark) 0.05f else 0.42f))
+        )
+        Image(
+            painterResource(drawableRes),
+            contentDescription = null,
+            modifier = Modifier
+                .size(230.dp)
+                .graphicsLayer { translationY = drift }
+        )
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(15.dp)
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(accent)
+        )
     }
 }

@@ -34,7 +34,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -67,6 +69,9 @@ import kotlinx.coroutines.flow.collectLatest
 fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = null) {
     val context = LocalContext.current
     var selectedLocale by rememberSaveable { mutableStateOf<String>(OnboardingManager.getSelectedLocale(context)) }
+    val localizedContext = remember(context, selectedLocale) {
+        com.chethan616.clearpdf.ui.utils.LocaleHelper.getLocalizedContext(context, selectedLocale)
+    }
 
     var themeMode by rememberSaveable { mutableIntStateOf(AppSettingsManager.getThemeMode(context)) }
     var showStarPrompt by rememberSaveable { mutableStateOf(false) }
@@ -154,13 +159,8 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
             contentScale = ContentScale.Crop
         )
 
-        LaunchedEffect(selectedLocale) {
-            if (selectedLocale.isNotBlank()) {
-                com.chethan616.clearpdf.ui.utils.LocaleHelper.applyLocale(context, selectedLocale, recreate = false)
-            }
-        }
-
         CompositionLocalProvider(
+            LocalResources provides localizedContext.resources,
             LocalIsDarkMode provides isDarkMode
         ) {
             Box(Modifier.fillMaxSize()) {
@@ -175,6 +175,19 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     onThemeModeChanged = {
                         themeMode = it
                         AppSettingsManager.setThemeMode(context, it)
+                    },
+                    selectedLocale = selectedLocale,
+                    onLocaleChanged = { code ->
+                        val normalized = com.chethan616.clearpdf.ui.utils.LocaleHelper.normalizeForUi(code)
+                        if (normalized != selectedLocale) {
+                            selectedLocale = normalized
+                            com.chethan616.clearpdf.ui.utils.LocaleHelper.applyLocale(
+                                context = context,
+                                languageTag = normalized,
+                                recreate = false,
+                                updateAppCompat = false
+                            )
+                        }
                     },
                     incomingPdfUri = incomingPdfUri
                 )
@@ -247,11 +260,11 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                                 Modifier.size(52.dp), starAccent
                             )
                             BasicText(
-                                "Support ClearPDF",
+                                stringResource(R.string.star_prompt_title),
                                 style = TextStyle(starText, 20.sp, FontWeight.Bold, textAlign = TextAlign.Center)
                             )
                             BasicText(
-                                "ClearPDF is open source on GitHub.\nWould you like to star the project?",
+                                stringResource(R.string.star_prompt_message),
                                 style = TextStyle(starSub, 14.sp, textAlign = TextAlign.Center)
                             )
                             Spacer(Modifier.height(4.dp))
@@ -270,7 +283,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(Icons.Rounded.Star, null, Modifier.size(18.dp), Color.White)
-                                    BasicText("Yes, Star It", style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold))
+                                    BasicText(stringResource(R.string.star_prompt_accept), style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold))
                                 }
                             }
                             Row(
@@ -279,7 +292,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 BasicText(
-                                    "Not Now",
+                                    stringResource(R.string.star_prompt_later),
                                     style = TextStyle(starSub, 13.sp, FontWeight.Medium, textAlign = TextAlign.Center),
                                     modifier = Modifier
                                         .clickable {
@@ -293,7 +306,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                                     style = TextStyle(starSub.copy(0.4f), 13.sp)
                                 )
                                 BasicText(
-                                    "Don't Ask Again",
+                                    stringResource(R.string.star_prompt_never),
                                     style = TextStyle(starSub.copy(0.7f), 13.sp, FontWeight.Medium, textAlign = TextAlign.Center),
                                     modifier = Modifier
                                         .clickable {

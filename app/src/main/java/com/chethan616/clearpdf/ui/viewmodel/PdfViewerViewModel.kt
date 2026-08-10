@@ -19,13 +19,16 @@ import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.domain.usecase.OpenPdfUseCase
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.kyant.pdfcore.model.PdfDocument
+import com.kyant.pdfcore.security.PdfSecurityService
 import com.chethan616.clearpdf.ui.utils.AppDispatchers
+import com.chethan616.clearpdf.utils.UniversalDocumentConverter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +53,9 @@ data class PdfViewerUiState(
     val currentPage: Int = 0,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    val passwordRequired: Boolean = false,
+    val passwordAttemptFailed: Boolean = false,
+    val passwordUri: Uri? = null,
     val pageBitmaps: List<Bitmap?> = emptyList(),
     val document: PdfDocument? = null,
     val sizeBytes: Long = -1,
@@ -139,7 +145,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         private const val CACHE_RADIUS = 2
     }
 
-    fun openPdf(context: Context, uri: Uri) {
+    fun openPdf(context: Context, uri: Uri, password: String? = null) {
         _uiState.value.document?.let { openPdfUseCase.close(it) }
         recycleBitmaps(_uiState.value.pageBitmaps)
         renderingPages.clear()
@@ -148,6 +154,11 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         _uiState.value = _uiState.value.copy(
             isLoading = true,
             errorMessage = null,
+            document = null,
+            pageBitmaps = emptyList(),
+            passwordRequired = false,
+            passwordAttemptFailed = false,
+            passwordUri = null,
             ocrPagesInProgress = emptySet()
         )
         viewModelScope.launch {
@@ -161,8 +172,21 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     // Not all URI sources support persistable grants.
                 }
 
+                val sourceUri = withContext(Dispatchers.IO) {
+                    when {
+                        password != null -> {
+                            val decrypted = PdfSecurityService.decryptToCache(context, uri, password)
+                            FileProvider.getUriForFile(context, "${context.packageName}.provider", decrypted)
+                        }
+                        UniversalDocumentConverter.isPdf(context, uri) &&
+                            PdfSecurityService.isPasswordProtected(context, uri) -> {
+                            throw PdfSecurityService.PasswordRequiredException()
+                        }
+                        else -> uri
+                    }
+                }
                 val (doc, openedUri) = withContext(Dispatchers.IO) {
-                    openDocumentWithFallback(context, uri)
+                    openDocumentWithFallback(context, sourceUri)
                 }
                 val displayName = queryFileName(context, uri) ?: doc.name
                 _uiState.value = _uiState.value.copy(
@@ -170,6 +194,9 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     pageCount = doc.pageCount,
                     currentPage = 0,
                     isLoading = false,
+                    passwordRequired = false,
+                    passwordAttemptFailed = false,
+                    passwordUri = null,
                     document = doc,
                     sizeBytes = doc.sizeBytes,
                     pageBitmaps = List(doc.pageCount) { null },
@@ -196,10 +223,18 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
 
                 // Render first page
                 renderPage(context, 0, DEFAULT_RENDER_WIDTH)
+            } catch (e: PdfSecurityService.PasswordRequiredException) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    passwordRequired = true,
+                    passwordAttemptFailed = password != null,
+                    passwordUri = uri,
+                    errorMessage = null
+                )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = e.message ?: "Failed to open PDF"
+                    errorMessage = context.getString(R.string.viewer_open_failed)
                 )
             }
         }
@@ -584,7 +619,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
 
                 _uiState.value = _uiState.value.copy(
                     isExporting = false,
-                    exportMessage = "Saved edited copy as $outputName",
+                    exportMessage = context.getString(R.string.viewer_save_success, outputName),
                     lastExportedUri = outputUri
                 )
 
@@ -594,7 +629,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isExporting = false,
-                    exportError = e.message ?: "Failed to save edited PDF"
+                    exportError = context.getString(R.string.viewer_save_failed)
                 )
             }
         }

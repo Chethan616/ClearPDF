@@ -13,6 +13,7 @@ import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.kyant.pdfcore.converter.PdfConverter
 import kotlinx.coroutines.Dispatchers
@@ -62,7 +63,7 @@ class ImagesToPdfViewModel(private val converter: PdfConverter) : ViewModel() {
     fun save(context: Context, fileName: String, overrideUri: Uri? = null) {
         val images = _uiState.value.imageUris
         if (images.isEmpty()) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Add at least one image")
+            _uiState.value = _uiState.value.copy(errorMessage = context.getString(R.string.images_min_one))
             return
         }
         _uiState.value = _uiState.value.copy(isSaving = true, errorMessage = null, resultMessage = null, lastOutputUri = null)
@@ -84,11 +85,11 @@ class ImagesToPdfViewModel(private val converter: PdfConverter) : ViewModel() {
                     isSaving = false,
                     lastOutputUri = outUri,
                     saveLocationLabel = saveLabel,
-                    resultMessage = "Created ${images.size}-page PDF\nSaved to $saveLabel"
+                    resultMessage = context.getString(R.string.images_success, images.size, saveLabel)
                 )
                 if (GitHubStarPromptManager.recordPdfInteraction(context)) StarPromptEventBus.requestPrompt()
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = e.message ?: "Conversion failed")
+                _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = context.getString(R.string.conversion_failed))
             }
         }
     }

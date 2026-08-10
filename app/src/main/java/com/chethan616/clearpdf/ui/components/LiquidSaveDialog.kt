@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.kyant.backdrop.Backdrop
@@ -59,7 +61,7 @@ fun LiquidSaveDialog(
                 context.contentResolver.takePersistableUriPermission(uri, flags)
             } catch (_: Exception) {}
             locationUri = uri
-            locationDisplay = uri.lastPathSegment?.replace("primary:", "") ?: "Selected Folder"
+            locationDisplay = uri.lastPathSegment?.replace("primary:", "") ?: context.getString(R.string.selected_folder)
         }
     }
 
@@ -75,13 +77,13 @@ fun LiquidSaveDialog(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             BasicText(
-                "Save Document",
+                stringResource(R.string.save_document),
                 style = TextStyle(color = text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             )
 
             // File Name Input
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                BasicText("File Name", style = TextStyle(color = sub, fontSize = 13.sp, fontWeight = FontWeight.Medium))
+                BasicText(stringResource(R.string.file_name), style = TextStyle(color = sub, fontSize = 13.sp, fontWeight = FontWeight.Medium))
                 BasicTextField(
                     value = fileName,
                     onValueChange = { fileName = it },
@@ -94,7 +96,7 @@ fun LiquidSaveDialog(
                         .padding(14.dp),
                     decorationBox = { inner ->
                         if (fileName.isEmpty()) {
-                            BasicText("Document.pdf", style = TextStyle(color = sub.copy(0.5f), fontSize = 16.sp))
+                            BasicText(stringResource(R.string.document_pdf), style = TextStyle(color = sub.copy(0.5f), fontSize = 16.sp))
                         }
                         inner()
                     }
@@ -103,7 +105,7 @@ fun LiquidSaveDialog(
 
             // Save Location Picker
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                BasicText("Save Location", style = TextStyle(color = sub, fontSize = 13.sp, fontWeight = FontWeight.Medium))
+                BasicText(stringResource(R.string.settings_save_location), style = TextStyle(color = sub, fontSize = 13.sp, fontWeight = FontWeight.Medium))
                 LiquidButton(
                     onClick = { folderPicker.launch(null) },
                     backdrop = backdrop,
@@ -119,7 +121,7 @@ fun LiquidSaveDialog(
                             BasicText(locationDisplay, style = TextStyle(color = text, fontSize = 14.sp), maxLines = 1)
                         }
                         Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Rounded.FolderOpen, "Change Folder", Modifier.size(20.dp), accent)
+                        Icon(Icons.Rounded.FolderOpen, stringResource(R.string.change_folder), Modifier.size(20.dp), accent)
                     }
                 }
             }
@@ -135,7 +137,7 @@ fun LiquidSaveDialog(
                     backdrop = backdrop,
                     surfaceColor = Color.Transparent
                 ) {
-                    BasicText("Cancel", style = TextStyle(color = sub, fontSize = 14.sp, fontWeight = FontWeight.Medium))
+                    BasicText(stringResource(R.string.cancel), style = TextStyle(color = sub, fontSize = 14.sp, fontWeight = FontWeight.Medium))
                 }
                 Spacer(Modifier.width(8.dp))
                 LiquidButton(
@@ -147,8 +149,8 @@ fun LiquidSaveDialog(
                     tint = accent
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Save, "Save", Modifier.size(16.dp), Color.White)
-                        BasicText("Save", style = TextStyle(color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+                        Icon(Icons.Rounded.Save, stringResource(R.string.save), Modifier.size(16.dp), Color.White)
+                        BasicText(stringResource(R.string.save), style = TextStyle(color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
                     }
                 }
             }

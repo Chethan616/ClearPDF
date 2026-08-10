@@ -1,5 +1,8 @@
 package com.chethan616.clearpdf.ui.screen
 
+import androidx.compose.ui.res.stringResource
+import com.chethan616.clearpdf.R
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -139,9 +142,9 @@ fun SplitPdfScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
+                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
             }
-            LiquidGlassTopBar(title = "Split PDF", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
+            LiquidGlassTopBar(title = stringResource(R.string.tool_split), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
         }
 
         Column(
@@ -163,8 +166,8 @@ fun SplitPdfScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Icon(Icons.AutoMirrored.Rounded.CallSplit, null, Modifier.size(52.dp), accent)
-            BasicText("Extract or split pages", style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
-            BasicText("Pick one mode, then run one clear primary action.", style = TextStyle(sub, 13.sp, textAlign = TextAlign.Center))
+            BasicText(stringResource(R.string.tool_split), style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
+            BasicText(stringResource(R.string.tool_split_description), style = TextStyle(sub, 13.sp, textAlign = TextAlign.Center))
 
             LiquidButton(
                 onClick = { filePicker.launch(arrayOf("application/pdf")) },
@@ -173,7 +176,7 @@ fun SplitPdfScreen(
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
-                    BasicText("Select PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+                    BasicText(stringResource(R.string.viewer_pick_pdf), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
                 }
             }
         }
@@ -187,7 +190,7 @@ fun SplitPdfScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 BasicText(state.sourceFileName, style = TextStyle(text, 15.sp, fontWeight = FontWeight.SemiBold))
-                BasicText("${state.pageCount} pages", style = TextStyle(sub, 13.sp))
+                BasicText(stringResource(R.string.create_pages, state.pageCount), style = TextStyle(sub, 13.sp))
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -232,10 +235,10 @@ fun SplitPdfScreen(
                     )
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        QuickSelectChip(label = "All", onClick = { viewModel.onSelectAllPages() }, text = text, accent = accent)
-                        QuickSelectChip(label = "Odd", onClick = { viewModel.onSelectOddPages() }, text = text, accent = accent)
-                        QuickSelectChip(label = "Even", onClick = { viewModel.onSelectEvenPages() }, text = text, accent = accent)
-                        QuickSelectChip(label = "Clear", onClick = { viewModel.onClearSelection() }, text = text, accent = accent)
+                        QuickSelectChip(label = stringResource(R.string.split_quick_all), onClick = { viewModel.onSelectAllPages() }, text = text, accent = accent)
+                        QuickSelectChip(label = stringResource(R.string.split_quick_odd), onClick = { viewModel.onSelectOddPages() }, text = text, accent = accent)
+                        QuickSelectChip(label = stringResource(R.string.split_quick_even), onClick = { viewModel.onSelectEvenPages() }, text = text, accent = accent)
+                        QuickSelectChip(label = stringResource(R.string.viewer_clear), onClick = { viewModel.onClearSelection() }, text = text, accent = accent)
                     }
 
                     FlowRow(
@@ -259,7 +262,7 @@ fun SplitPdfScreen(
                                 if (thumb != null) {
                                     Image(
                                         bitmap = thumb.asImageBitmap(),
-                                        contentDescription = "Page ${i + 1}",
+                                        contentDescription = stringResource(R.string.page_number, i + 1),
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize()
                                     )
@@ -357,7 +360,7 @@ fun SplitPdfScreen(
                 tint = Color(0xFF1976D2),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                BasicText("View PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.SemiBold))
+                BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.SemiBold))
             }
         }
 

@@ -23,6 +23,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import com.chethan616.clearpdf.ui.screen.CompressPdfScreen
 import com.chethan616.clearpdf.ui.screen.CreatePdfScreen
+import com.chethan616.clearpdf.ui.screen.DecryptPdfScreen
+import com.chethan616.clearpdf.ui.screen.EncryptPdfScreen
 import com.chethan616.clearpdf.ui.screen.ExtractTextScreen
 import com.chethan616.clearpdf.ui.screen.ImagesToPdfScreen
 import com.chethan616.clearpdf.ui.screen.HomeScreen
@@ -57,6 +59,8 @@ private const val ROUTE_CREATE = "create_pdf"
 private const val ROUTE_ORGANIZE = "organize_pdf"
 private const val ROUTE_EXTRACT_TEXT = "extract_text"
 private const val ROUTE_IMAGES_TO_PDF = "images_to_pdf"
+private const val ROUTE_DECRYPT_PDF = "decrypt_pdf"
+private const val ROUTE_ENCRYPT_PDF = "encrypt_pdf"
 private const val ROUTE_ONBOARDING = "onboarding"
 private const val ARG_PDF_URI = "uri"
 private const val ROUTE_VIEWER = "$ROUTE_VIEWER_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
@@ -100,6 +104,8 @@ fun DocsNavGraph(
     onDarkModeChanged: (Boolean) -> Unit,
     themeMode: Int,
     onThemeModeChanged: (Int) -> Unit,
+    selectedLocale: String,
+    onLocaleChanged: (String) -> Unit,
     incomingPdfUri: Uri? = null
 ) {
     val context = LocalContext.current
@@ -194,6 +200,8 @@ fun DocsNavGraph(
         composable(ROUTE_ONBOARDING) {
             OnboardingScreen(
                 backdrop = backdrop,
+                selectedLocale = selectedLocale,
+                onLanguageChanged = onLocaleChanged,
                 onComplete = {
                     navController.navigate(ROUTE_HOME) {
                         popUpTo(ROUTE_ONBOARDING) { inclusive = true }
@@ -230,7 +238,9 @@ fun DocsNavGraph(
                 onNavigateToCreatePdf = { navController.navigate(ROUTE_CREATE) { launchSingleTop = true } },
                 onNavigateToOrganizePdf = { navController.navigate(ROUTE_ORGANIZE) { launchSingleTop = true } },
                 onNavigateToExtractText = { navController.navigate(ROUTE_EXTRACT_TEXT) { launchSingleTop = true } },
-                onNavigateToImagesToPdf = { navController.navigate(ROUTE_IMAGES_TO_PDF) { launchSingleTop = true } }
+                onNavigateToImagesToPdf = { navController.navigate(ROUTE_IMAGES_TO_PDF) { launchSingleTop = true } },
+                onNavigateToDecryptPdf = { navController.navigate(ROUTE_DECRYPT_PDF) { launchSingleTop = true } },
+                onNavigateToEncryptPdf = { navController.navigate(ROUTE_ENCRYPT_PDF) { launchSingleTop = true } }
             )
         }
 
@@ -240,7 +250,9 @@ fun DocsNavGraph(
                 isDarkMode = isDarkMode,
                 onDarkModeChanged = onDarkModeChanged,
                 themeMode = themeMode,
-                onThemeModeChanged = onThemeModeChanged
+                onThemeModeChanged = onThemeModeChanged,
+                selectedLocale = selectedLocale,
+                onLocaleChanged = onLocaleChanged
             )
         }
 
@@ -252,6 +264,22 @@ fun DocsNavGraph(
                 backdrop = backdrop,
                 viewModel = vm,
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(ROUTE_DECRYPT_PDF) {
+            DecryptPdfScreen(
+                backdrop = backdrop,
+                onBack = { navController.popBackStack() },
+                onViewOutput = { uri -> navController.navigateToPdfViewer(uri) }
+            )
+        }
+
+        composable(ROUTE_ENCRYPT_PDF) {
+            EncryptPdfScreen(
+                backdrop = backdrop,
+                onBack = { navController.popBackStack() },
+                onViewOutput = { uri -> navController.navigateToPdfViewer(uri) }
             )
         }
 

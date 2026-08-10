@@ -40,7 +40,9 @@ android {
         targetSdk = 36
         versionCode = 2
         versionName = "1.1.0"
-        androidResources.localeFilters += arrayOf("en")
+        // Keep every locale declared by the app. Filtering this to English
+        // removes values-pt-rBR from the packaged APK, so the language picker
+        // can appear to work while the app continues to resolve English.
     }
 
     signingConfigs {
@@ -126,6 +128,10 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(project(":backdrop"))
     implementation(project(":pdf-core"))
+    // Apache POI provides legacy .doc/.xls/.ppt text extraction. It is Apache-2.0
+    // licensed; see THIRD_PARTY_NOTICES.md for redistribution requirements.
+    implementation("org.apache.poi:poi:3.17")
+    implementation("org.apache.poi:poi-scratchpad:3.17")
     
     // ML Kit Document Scanner & Camera
     implementation(libs.play.services.mlkit.scanner)

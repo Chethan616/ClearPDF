@@ -15,6 +15,7 @@ import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.kyant.pdfcore.model.PdfDocument
 import com.kyant.pdfcore.splitter.PdfSplitter
@@ -101,7 +102,7 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                     mode = SplitMode.EXTRACT_SELECTED
                 )
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(errorMessage = e.message)
+                _uiState.value = _uiState.value.copy(errorMessage = context.getString(R.string.open_pdf_failed))
             }
         }
     }
@@ -172,7 +173,7 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                     isSplitting = false,
                     lastOutputUri = firstOutputUri,
                     saveLocationLabel = saveLabel,
-                    resultMessage = "Split into ${results.size} pages\nSaved to $saveLabel"
+                    resultMessage = context.getString(R.string.split_success, results.size, saveLabel)
                 )
 
                 if (GitHubStarPromptManager.recordPdfInteraction(context)) {
@@ -181,7 +182,7 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSplitting = false,
-                    errorMessage = e.message ?: "Split failed"
+                    errorMessage = context.getString(R.string.split_failed)
                 )
             }
         }
@@ -206,7 +207,7 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                     isSplitting = false,
                     lastOutputUri = outUri,
                     saveLocationLabel = saveLabel,
-                    resultMessage = "Extracted ${pages.size} pages\nSaved to $saveLabel"
+                    resultMessage = context.getString(R.string.extract_success, pages.size, saveLabel)
                 )
 
                 if (GitHubStarPromptManager.recordPdfInteraction(context)) {
@@ -215,7 +216,7 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSplitting = false,
-                    errorMessage = e.message ?: "Extract failed"
+                    errorMessage = context.getString(R.string.extract_failed)
                 )
             }
         }
@@ -226,7 +227,7 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
             SplitMode.SPLIT_ALL -> onSplitAll(context)
             SplitMode.EXTRACT_SELECTED -> {
                 if (_uiState.value.selectedPages.isEmpty()) {
-                    _uiState.value = _uiState.value.copy(errorMessage = "Select at least one page to extract")
+                    _uiState.value = _uiState.value.copy(errorMessage = context.getString(R.string.extract_min_page))
                     return
                 }
                 onExtractPages(context, _uiState.value.selectedPages)

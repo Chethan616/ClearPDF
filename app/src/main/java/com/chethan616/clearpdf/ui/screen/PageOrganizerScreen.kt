@@ -1,5 +1,8 @@
 package com.chethan616.clearpdf.ui.screen
 
+import androidx.compose.ui.res.stringResource
+import com.chethan616.clearpdf.R
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -158,9 +161,9 @@ fun PageOrganizerScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
+                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
             }
-            LiquidGlassTopBar("Organize Pages", backdrop, uiSensor, Modifier.weight(1f), titleFontSize = 18.sp)
+            LiquidGlassTopBar(stringResource(R.string.organize_screen_title), backdrop, uiSensor, Modifier.weight(1f), titleFontSize = 18.sp)
         }
 
         Column(
@@ -184,14 +187,14 @@ fun PageOrganizerScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    BasicText("Reorder, rotate & delete pages", style = TextStyle(text, 18.sp, fontWeight = FontWeight.SemiBold))
+                    BasicText(stringResource(R.string.organize_title), style = TextStyle(text, 18.sp, fontWeight = FontWeight.SemiBold))
                     BasicText(
                         "Pick a PDF, drag pages to rearrange, then save a new copy. Original text & quality are preserved.",
                         style = TextStyle(sub, 13.sp)
                     )
                     LiquidButton(onClick = { picker.launch(arrayOf("application/pdf")) }, backdrop = backdrop, tint = accent) {
                         Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
-                        BasicText("Pick a PDF", style = TextStyle(Color.White, 15.sp, FontWeight.Medium))
+                        BasicText(stringResource(R.string.viewer_pick_pdf), style = TextStyle(Color.White, 15.sp, FontWeight.Medium))
                     }
                 }
                 state.errorMessage?.let { BasicText(it, style = TextStyle(Color(0xFFD32F2F), 13.sp)) }
@@ -221,15 +224,15 @@ fun PageOrganizerScreen(
                 LiquidButton(onClick = { viewModel.rotateSelected() }, backdrop = backdrop) {
                     Icon(Icons.Rounded.RotateRight, null, Modifier.size(16.dp), text)
                 }
-                LiquidButton(onClick = { viewModel.deleteSelected() }, backdrop = backdrop, tint = Color(0xFFEF5350)) {
+                LiquidButton(onClick = { viewModel.deleteSelected(context) }, backdrop = backdrop, tint = Color(0xFFEF5350)) {
                     Icon(Icons.Rounded.Delete, null, Modifier.size(16.dp), Color.White)
                 }
                 LiquidButton(onClick = { viewModel.clearSelection() }, backdrop = backdrop) {
-                    BasicText("Clear", style = TextStyle(text, 12.sp, FontWeight.Medium))
+                        BasicText(stringResource(R.string.viewer_clear), style = TextStyle(text, 12.sp, FontWeight.Medium))
                 }
             } else {
                 LiquidButton(onClick = { viewModel.selectAll() }, backdrop = backdrop) {
-                    BasicText("Select all", style = TextStyle(text, 12.sp, FontWeight.Medium))
+                        BasicText(stringResource(R.string.select_all), style = TextStyle(text, 12.sp, FontWeight.Medium))
                 }
             }
         }
@@ -313,26 +316,26 @@ fun PageOrganizerScreen(
                             page.thumbnail?.let { bmp ->
                                 Image(
                                     bitmap = bmp.asImageBitmap(),
-                                    contentDescription = "Page ${index + 1}",
+                                    contentDescription = stringResource(R.string.page_number, index + 1),
                                     contentScale = ContentScale.Fit,
                                     modifier = Modifier.fillMaxSize().rotate(page.rotation.toFloat())
                                 )
                             }
                         }
                         Column(Modifier.weight(1f)) {
-                            BasicText("Page ${index + 1}", style = TextStyle(text, 14.sp, FontWeight.Medium))
+                            BasicText(stringResource(R.string.create_page_label, index + 1), style = TextStyle(text, 14.sp, FontWeight.Medium))
                             BasicText(
                                 "Source #${page.originalIndex + 1}" + if (page.rotation != 0) " · ${page.rotation}°" else "",
                                 style = TextStyle(sub, 11.sp)
                             )
                         }
                         LiquidIconButton(onClick = { viewModel.rotatePage(index) }, backdrop = backdrop, surfaceColor = Color.White.copy(0.10f)) {
-                            Icon(Icons.Rounded.RotateRight, "Rotate", Modifier.size(18.dp), text)
+                            Icon(Icons.Rounded.RotateRight, stringResource(R.string.organize_rotate), Modifier.size(18.dp), text)
                         }
                         LiquidIconButton(onClick = { viewModel.deletePage(index) }, backdrop = backdrop, surfaceColor = Color(0xFFD32F2F).copy(0.18f)) {
-                            Icon(Icons.Rounded.Delete, "Delete", Modifier.size(18.dp), Color(0xFFEF5350))
+                            Icon(Icons.Rounded.Delete, stringResource(R.string.delete), Modifier.size(18.dp), Color(0xFFEF5350))
                         }
-                        Icon(Icons.Rounded.DragIndicator, "Drag", Modifier.size(22.dp), sub)
+                        Icon(Icons.Rounded.DragIndicator, stringResource(R.string.organize_drag), Modifier.size(22.dp), sub)
                     }
                 }
             }
@@ -390,7 +393,7 @@ fun PageOrganizerScreen(
                 BasicText(msg, style = TextStyle(Color(0xFFB9F6CA), 12.sp), modifier = Modifier.weight(1f))
                 state.lastOutputUri?.let { uri ->
                     LiquidButton(onClick = { onViewOutput(uri) }, backdrop = backdrop, tint = accent) {
-                        BasicText("Open", style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
+                        BasicText(stringResource(R.string.open), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
                     }
                 }
             }

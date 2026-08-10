@@ -7,11 +7,13 @@ import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
+import com.chethan616.clearpdf.R
 import com.kyant.backdrop.Backdrop
 
 @Composable
@@ -32,17 +34,17 @@ fun DocsBottomTabs(
         modifier = modifier
     ) {
         LiquidBottomTab(onClick = { onTabSelected(0) }) {
-            Icon(Icons.Rounded.Home, contentDescription = "Home", tint = tint,
+            Icon(Icons.Rounded.Home, contentDescription = stringResource(R.string.nav_home), tint = tint,
                 modifier = Modifier.size(22.dp))
         }
 
         LiquidBottomTab(onClick = { onTabSelected(1) }) {
-            Icon(Icons.Rounded.GridView, contentDescription = "Tools", tint = tint,
+            Icon(Icons.Rounded.GridView, contentDescription = stringResource(R.string.nav_tools), tint = tint,
                 modifier = Modifier.size(22.dp))
         }
 
         LiquidBottomTab(onClick = { onTabSelected(2) }) {
-            Icon(Icons.Rounded.Tune, contentDescription = "Settings", tint = tint,
+            Icon(Icons.Rounded.Tune, contentDescription = stringResource(R.string.nav_settings), tint = tint,
                 modifier = Modifier.size(22.dp))
         }
     }

@@ -25,14 +25,35 @@ object SignatureManager {
             ?.sortedByDescending { it.lastModified() }
             ?: emptyList()
 
-    /** Saves a transparent-background signature bitmap; returns the saved file. */
-    fun saveSignature(context: Context, bitmap: Bitmap): File {
-        val file = File(dir(context), "sig_${System.currentTimeMillis()}.png")
+    /** Saves a transparent-background signature bitmap using a human-readable name. */
+    fun saveSignature(context: Context, bitmap: Bitmap, name: String = "Signature"): File {
+        val safeName = name
+            .trim()
+            .ifBlank { "Signature" }
+            .replace(Regex("[^\\p{L}\\p{N}\\-_ ]"), "")
+            .trim()
+            .replace(Regex("\\s+"), "_")
+            .take(48)
+            .ifBlank { "Signature" }
+        val file = File(dir(context), "${safeName}_${System.currentTimeMillis()}.png")
         FileOutputStream(file).use { out ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
             out.flush()
         }
         return file
+    }
+
+    /** Returns the display name stored in a signature filename. */
+    fun displayName(file: File): String {
+        val base = file.nameWithoutExtension
+        val withoutTimestamp = base.substringBeforeLast('_').takeIf {
+            base.substringAfterLast('_').toLongOrNull() != null
+        } ?: base
+        return withoutTimestamp
+            .removePrefix("sig")
+            .replace('_', ' ')
+            .trim()
+            .ifBlank { "Signature" }
     }
 
     /** Loads a signature from file. Returns null if the file is missing or corrupt. */

@@ -4,7 +4,10 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -59,7 +62,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
@@ -119,48 +121,32 @@ fun HomeScreen(
     var infoRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var b1Visible by remember { mutableStateOf(false) }
-    var b2Visible by remember { mutableStateOf(false) }
-    var b3Visible by remember { mutableStateOf(false) }
-    var b4Visible by remember { mutableStateOf(false) }
-
-    val morphProgress by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (selectedRecent != null) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = 0.68f,
-            stiffness = 180f
-        ),
-        label = "morphProgress"
+    val popupTransition = updateTransition(
+        targetState = selectedRecent != null,
+        label = "recentPopupTransition"
     )
-
-    androidx.compose.runtime.LaunchedEffect(selectedRecent) {
-        if (selectedRecent != null) {
-            b1Visible = false
-            b2Visible = false
-            b3Visible = false
-            b4Visible = false
-            // Wait for pop-up container to morph open gracefully (~220ms)
-            kotlinx.coroutines.delay(220L)
-            b1Visible = true
-            kotlinx.coroutines.delay(65L)
-            b2Visible = true
-            kotlinx.coroutines.delay(65L)
-            b3Visible = true
-            kotlinx.coroutines.delay(65L)
-            b4Visible = true
-        } else {
-            b1Visible = false
-            b2Visible = false
-            b3Visible = false
-            b4Visible = false
-        }
-    }
-
-    val btnSpring = spring<Float>(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium)
-    val b1Scale by androidx.compose.animation.core.animateFloatAsState(if (b1Visible) 1f else 0f, btnSpring, label = "b1")
-    val b2Scale by androidx.compose.animation.core.animateFloatAsState(if (b2Visible) 1f else 0f, btnSpring, label = "b2")
-    val b3Scale by androidx.compose.animation.core.animateFloatAsState(if (b3Visible) 1f else 0f, btnSpring, label = "b3")
-    val b4Scale by androidx.compose.animation.core.animateFloatAsState(if (b4Visible) 1f else 0f, btnSpring, label = "b4")
+    val morphProgress by popupTransition.animateFloat(
+        transitionSpec = { spring(dampingRatio = 0.82f, stiffness = 220f) },
+        label = "morphProgress"
+    ) { if (it) 1f else 0f }
+    // One transition coordinates the buttons with the sheet. This removes four
+    // independent state machines and keeps the glass surface on a single frame clock.
+    val b1Scale by popupTransition.animateFloat(
+        transitionSpec = { tween(240, if (targetState) 110 else 0) },
+        label = "popupOpenScale"
+    ) { if (it) 1f else 0f }
+    val b2Scale by popupTransition.animateFloat(
+        transitionSpec = { tween(240, if (targetState) 145 else 0) },
+        label = "popupShareScale"
+    ) { if (it) 1f else 0f }
+    val b3Scale by popupTransition.animateFloat(
+        transitionSpec = { tween(240, if (targetState) 180 else 0) },
+        label = "popupDetailsScale"
+    ) { if (it) 1f else 0f }
+    val b4Scale by popupTransition.animateFloat(
+        transitionSpec = { tween(240, if (targetState) 215 else 0) },
+        label = "popupRemoveScale"
+    ) { if (it) 1f else 0f }
 
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
@@ -420,7 +406,7 @@ fun HomeScreen(
                                 )
                                 val timeStr = formatTimestamp(recent.timestamp)
                                 val sizeStr = if (recent.sizeBytes > 0) " · ${formatFileSize(recent.sizeBytes)}" else ""
-                                val pageStr = if (recent.pageCount > 0) " · ${recent.pageCount} pg" else ""
+                                val pageStr = if (recent.pageCount > 0) " · ${stringResource(R.string.recents_page_count, recent.pageCount)}" else ""
                                 BasicText("$timeStr$sizeStr$pageStr", style = TextStyle(sub, 11.sp))
                             }
                             
@@ -430,13 +416,13 @@ fun HomeScreen(
                                     .background(accent.copy(0.12f))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
-                                BasicText("PDF", style = TextStyle(accent, 9.sp, FontWeight.Bold))
+                                BasicText(stringResource(R.string.recents_pdf_type), style = TextStyle(accent, 9.sp, FontWeight.Bold))
                             }
                         }
                     }
                     if (recents.size > homeRecentLimit && !showAllRecents) {
                         BasicText(
-                            "Long press for quick actions",
+                            stringResource(R.string.recents_long_press_hint),
                             style = TextStyle(sub.copy(0.6f), 11.sp, textAlign = TextAlign.Center),
                             modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                         )
@@ -480,7 +466,6 @@ fun HomeScreen(
                                 alpha = morphProgress.coerceIn(0f, 1f)
                                 transformOrigin = TransformOrigin(0.5f, 0.85f)
                                 shadowElevation = (16f * morphProgress).dp.toPx()
-                                compositingStrategy = CompositingStrategy.Offscreen
                             }
                             .liquidGlassPanel(backdrop, uiSensor)
                             .clickable(
@@ -559,7 +544,7 @@ fun HomeScreen(
                                 ) {
                                     Icon(Icons.Rounded.FileOpen, null, Modifier.size(22.dp), Color.White)
                                 }
-                                BasicText("Open", style = TextStyle(text, 11.sp, FontWeight.Medium))
+                                BasicText(stringResource(R.string.recents_open), style = TextStyle(text, 11.sp, FontWeight.Medium))
                             }
 
                             // 2. Share Button (Green)
@@ -580,7 +565,7 @@ fun HomeScreen(
                                             putExtra(Intent.EXTRA_STREAM, recent.uri)
                                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                         }
-                                        context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
+                                        context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.recents_share_pdf)))
                                     },
                                     backdrop = backdrop,
                                     tint = Color(0xFF4CAF50),
@@ -588,7 +573,7 @@ fun HomeScreen(
                                 ) {
                                     Icon(Icons.Rounded.Share, null, Modifier.size(22.dp), Color.White)
                                 }
-                                BasicText("Share", style = TextStyle(text, 11.sp, FontWeight.Medium))
+                                BasicText(stringResource(R.string.recents_share), style = TextStyle(text, 11.sp, FontWeight.Medium))
                             }
 
                             // 3. Info Button (Purple)
@@ -612,7 +597,7 @@ fun HomeScreen(
                                 ) {
                                     Icon(Icons.Rounded.Info, null, Modifier.size(22.dp), Color.White)
                                 }
-                                BasicText("Details", style = TextStyle(text, 11.sp, FontWeight.Medium))
+                                BasicText(stringResource(R.string.recents_details), style = TextStyle(text, 11.sp, FontWeight.Medium))
                             }
 
                             // 4. Remove Button (Red)
@@ -637,7 +622,7 @@ fun HomeScreen(
                                 ) {
                                     CloseCrossIcon(Modifier.size(18.dp), Color.White)
                                 }
-                                BasicText("Remove", style = TextStyle(redAccent, 11.sp, FontWeight.Medium))
+                                BasicText(stringResource(R.string.recents_remove), style = TextStyle(redAccent, 11.sp, FontWeight.Medium))
                             }
                         }
                     }
@@ -685,7 +670,7 @@ fun HomeScreen(
                             }
                             Column(Modifier.weight(1f)) {
                                 BasicText(
-                                    "File Info",
+                                    stringResource(R.string.recents_file_info),
                                     style = TextStyle(text, 18.sp, FontWeight.SemiBold)
                                 )
                                 BasicText(
@@ -704,10 +689,10 @@ fun HomeScreen(
                                 .background(if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.08f))
                         )
 
-                        InfoRow("Pages", if (recent.pageCount > 0) recent.pageCount.toString() else "Unknown", text, sub)
-                        InfoRow("Size", if (recent.sizeBytes > 0) formatFileSize(recent.sizeBytes) else "Unknown", text, sub)
-                        InfoRow("Added", formatTimestamp(recent.timestamp), text, sub)
-                        InfoRow("Location", recent.uri.toString(), text, sub, maxLines = 3)
+                        InfoRow(stringResource(R.string.recents_pages), if (recent.pageCount > 0) recent.pageCount.toString() else stringResource(R.string.recents_unknown), text, sub)
+                        InfoRow(stringResource(R.string.recents_size_label), if (recent.sizeBytes > 0) formatFileSize(recent.sizeBytes) else stringResource(R.string.recents_unknown), text, sub)
+                        InfoRow(stringResource(R.string.recents_added), formatTimestamp(recent.timestamp), text, sub)
+                        InfoRow(stringResource(R.string.recents_location), recent.uri.toString(), text, sub, maxLines = 3)
 
                         LiquidButton(
                             onClick = { infoRecent = null },
@@ -715,7 +700,7 @@ fun HomeScreen(
                             tint = accent,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            BasicText("Done", style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
+                            BasicText(stringResource(R.string.done), style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
                         }
                     }
                 }
@@ -765,20 +750,22 @@ private fun ActionSheetItem(
     }
 }
 
+@Composable
 private fun formatTimestamp(ts: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - ts
     return when {
-        diff < 60_000 -> "Just now"
-        diff < 3_600_000 -> "${diff / 60_000} min ago"
-        diff < 86_400_000 -> "${diff / 3_600_000}h ago"
-        diff < 172_800_000 -> "Yesterday"
+        diff < 60_000 -> stringResource(R.string.recents_just_now)
+        diff < 3_600_000 -> stringResource(R.string.recents_minutes_ago, diff / 60_000)
+        diff < 86_400_000 -> stringResource(R.string.recents_hours_ago, diff / 3_600_000)
+        diff < 172_800_000 -> stringResource(R.string.recents_yesterday)
         else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(ts))
     }
 }
 
+@Composable
 private fun formatFileSize(bytes: Long): String = when {
-    bytes < 1024 -> "$bytes B"
-    bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-    else -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MB"
+    bytes < 1024 -> stringResource(R.string.recents_size_bytes, bytes)
+    bytes < 1024 * 1024 -> stringResource(R.string.recents_size_kb, bytes / 1024)
+    else -> stringResource(R.string.recents_size_mb, bytes / (1024.0 * 1024.0))
 }
