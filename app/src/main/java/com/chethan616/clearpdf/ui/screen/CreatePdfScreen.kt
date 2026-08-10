@@ -1,5 +1,8 @@
 package com.chethan616.clearpdf.ui.screen
 
+import androidx.compose.ui.res.stringResource
+import com.chethan616.clearpdf.R
+
 import android.app.Activity
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -122,7 +125,7 @@ fun CreatePdfScreen(
 
     fun launchScanner() {
         if (activity == null) {
-            viewModel.setError("Scanner is unavailable in current context")
+            viewModel.setError(context.getString(R.string.scanner_unavailable))
             return
         }
         val options = GmsDocumentScannerOptions.Builder()
@@ -138,7 +141,7 @@ fun CreatePdfScreen(
                 scannerLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
             }
             .addOnFailureListener { error ->
-                viewModel.setError("Could not start scanner: ${error.message}")
+                viewModel.setError(context.getString(R.string.scanner_start_failed))
             }
     }
 
@@ -193,9 +196,9 @@ fun CreatePdfScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
+                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
             }
-            LiquidGlassTopBar(title = "Create PDF", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
+            LiquidGlassTopBar(title = stringResource(R.string.tool_create), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
         }
 
         Column(
@@ -217,7 +220,7 @@ fun CreatePdfScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(Icons.AutoMirrored.Rounded.NoteAdd, null, Modifier.size(52.dp), accent)
-            BasicText("Create with scans, images, or blank pages", style = TextStyle(text, 19.sp, fontWeight = FontWeight.SemiBold))
+            BasicText(stringResource(R.string.create_pdf_subtitle), style = TextStyle(text, 19.sp, fontWeight = FontWeight.SemiBold))
             BasicText(
                 "Image-first creation is now default. Text is available as an advanced mode.",
                 style = TextStyle(sub, 13.sp, textAlign = TextAlign.Center)
@@ -232,9 +235,9 @@ fun CreatePdfScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             val templates = listOf(
-                Triple(CreateMode.FROM_IMAGES, "Import Images", Icons.Rounded.Image),
-                Triple(CreateMode.BLANK, "Blank Pages", Icons.Rounded.Description),
-                Triple(CreateMode.ADVANCED_TEXT, "Advanced Text", Icons.Rounded.Edit)
+                Triple(CreateMode.FROM_IMAGES, stringResource(R.string.create_mode_images), Icons.Rounded.Image),
+                Triple(CreateMode.BLANK, stringResource(R.string.create_mode_blank), Icons.Rounded.Description),
+                Triple(CreateMode.ADVANCED_TEXT, stringResource(R.string.create_mode_text), Icons.Rounded.Edit)
             )
 
             templates.forEach { (mode, label, icon) ->
@@ -291,7 +294,7 @@ fun CreatePdfScreen(
                                     modifier = Modifier.padding(vertical = 8.dp)
                                 ) {
                                     Icon(Icons.Rounded.CameraAlt, null, Modifier.size(17.dp), Color.White)
-                                    BasicText("Scan", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
+                                    BasicText(stringResource(R.string.home_scan), style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
                                 }
                             }
                             LiquidButton(
@@ -305,7 +308,7 @@ fun CreatePdfScreen(
                                     modifier = Modifier.padding(vertical = 8.dp)
                                 ) {
                                     Icon(Icons.Rounded.UploadFile, null, Modifier.size(17.dp), text)
-                                    BasicText("Add Images", style = TextStyle(text, 14.sp, FontWeight.Medium))
+                                    BasicText(stringResource(R.string.images_add), style = TextStyle(text, 14.sp, FontWeight.Medium))
                                 }
                             }
                         }
@@ -318,7 +321,7 @@ fun CreatePdfScreen(
                                 .liquidGlassPanel(backdrop, uiSensor)
                                 .padding(16.dp)
                         ) {
-                            BasicText("Scan or add images to start your PDF draft.", style = TextStyle(sub, 14.sp))
+                            BasicText(stringResource(R.string.create_scan_or_images_hint), style = TextStyle(sub, 14.sp))
                         }
                     } else {
                         LazyColumn(
@@ -338,7 +341,7 @@ fun CreatePdfScreen(
                                 ) {
                                     Image(
                                         painter = rememberAsyncImagePainter(uri),
-                                        contentDescription = "Page ${index + 1}",
+                                        contentDescription = stringResource(R.string.page_number, index + 1),
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
                                             .size(width = 62.dp, height = 82.dp)
@@ -346,8 +349,8 @@ fun CreatePdfScreen(
                                     )
 
                                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        BasicText("Page ${index + 1}", style = TextStyle(text, 14.sp, FontWeight.SemiBold))
-                                        BasicText("Tap arrows to reorder", style = TextStyle(sub, 12.sp))
+                                        BasicText(stringResource(R.string.create_page_label, index + 1), style = TextStyle(text, 14.sp, FontWeight.SemiBold))
+                                        BasicText(stringResource(R.string.create_reorder_hint), style = TextStyle(sub, 12.sp))
                                     }
 
                                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -401,8 +404,8 @@ fun CreatePdfScreen(
                         .padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    BasicText("Create a clean blank PDF", style = TextStyle(text, 16.sp, FontWeight.SemiBold))
-                    BasicText("Set the number of pages and generate instantly.", style = TextStyle(sub, 13.sp))
+                    BasicText(stringResource(R.string.create_blank_title), style = TextStyle(text, 16.sp, FontWeight.SemiBold))
+                    BasicText(stringResource(R.string.create_blank_subtitle), style = TextStyle(sub, 13.sp))
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -411,7 +414,7 @@ fun CreatePdfScreen(
                         LiquidButton(onClick = { viewModel.onBlankPageCountChanged(state.blankPageCount - 1) }, backdrop = backdrop) {
                             BasicText("-", style = TextStyle(text, 18.sp, FontWeight.Bold))
                         }
-                        BasicText("${state.blankPageCount} pages", style = TextStyle(text, 18.sp, FontWeight.Bold))
+                        BasicText(stringResource(R.string.create_pages, state.blankPageCount), style = TextStyle(text, 18.sp, FontWeight.Bold))
                         LiquidButton(onClick = { viewModel.onBlankPageCountChanged(state.blankPageCount + 1) }, backdrop = backdrop, tint = accent) {
                             BasicText("+", style = TextStyle(Color.White, 18.sp, FontWeight.Bold))
                         }
@@ -428,8 +431,8 @@ fun CreatePdfScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    BasicText("Advanced text to PDF", style = TextStyle(text, 16.sp, FontWeight.SemiBold))
-                    BasicText("Use this for quick notes. For polished docs, prefer scan/image mode.", style = TextStyle(sub, 12.sp))
+                    BasicText(stringResource(R.string.create_text_title), style = TextStyle(text, 16.sp, FontWeight.SemiBold))
+                    BasicText(stringResource(R.string.create_text_subtitle), style = TextStyle(sub, 12.sp))
                     BasicTextField(
                         value = state.textContent,
                         onValueChange = { viewModel.onTextChanged(it) },
@@ -443,20 +446,20 @@ fun CreatePdfScreen(
                             .padding(12.dp),
                         decorationBox = { inner ->
                             if (state.textContent.isEmpty()) {
-                                BasicText("Type text content...", style = TextStyle(sub.copy(alpha = 0.55f), 14.sp))
+                                BasicText(stringResource(R.string.create_text_hint), style = TextStyle(sub.copy(alpha = 0.55f), 14.sp))
                             }
                             inner()
                         }
                     )
-                    BasicText("${state.textContent.length} characters", style = TextStyle(sub, 12.sp))
+                    BasicText(stringResource(R.string.create_character_count, state.textContent.length), style = TextStyle(sub, 12.sp))
                 }
             }
         }
 
         val createLabel = when (state.selectedMode) {
-            CreateMode.FROM_IMAGES -> "Create PDF from Draft"
-            CreateMode.BLANK -> "Create Blank PDF"
-            CreateMode.ADVANCED_TEXT -> "Create Text PDF"
+            CreateMode.FROM_IMAGES -> stringResource(R.string.create_from_draft)
+            CreateMode.BLANK -> stringResource(R.string.create_blank_pdf)
+            CreateMode.ADVANCED_TEXT -> stringResource(R.string.create_text_pdf)
         }
 
         LiquidButton(
@@ -501,7 +504,7 @@ fun CreatePdfScreen(
                 tint = Color(0xFF1976D2),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                BasicText("View PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.SemiBold))
+                BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold))
             }
         }
 

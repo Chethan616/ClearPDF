@@ -15,6 +15,7 @@ import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.kyant.pdfcore.editor.PdfEditor
 import com.kyant.pdfcore.model.PdfDocument
@@ -70,7 +71,7 @@ class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
                     pages = pages.mapIndexed { i, bmp -> OrganizerPage(originalIndex = i, thumbnail = bmp) }
                 )
             } catch (e: Exception) {
-                _uiState.value = PageOrganizerUiState(errorMessage = e.message ?: "Could not open PDF")
+                _uiState.value = PageOrganizerUiState(errorMessage = context.getString(R.string.organize_open_failed))
             }
         }
     }
@@ -119,12 +120,12 @@ class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
         _uiState.value = _uiState.value.copy(pages = pages, resultMessage = null)
     }
 
-    fun deleteSelected() {
+    fun deleteSelected(context: Context) {
         val sel = _uiState.value.selectedIds
         if (sel.isEmpty()) return
         val pages = _uiState.value.pages.filterNot { it.originalIndex in sel }
         if (pages.isEmpty()) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Can't delete every page")
+            _uiState.value = _uiState.value.copy(errorMessage = context.getString(R.string.organize_cannot_delete_all))
             return
         }
         _uiState.value = _uiState.value.copy(pages = pages, selectedIds = emptySet(), resultMessage = null)
@@ -176,12 +177,12 @@ class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
                     isSaving = false,
                     lastOutputUri = outUri,
                     saveLocationLabel = saveLabel,
-                    resultMessage = "Saved ${pages.size} pages\nSaved to $saveLabel"
+                    resultMessage = context.getString(R.string.organize_success, pages.size, saveLabel)
                 )
                 val shouldPrompt = withContext(Dispatchers.IO) { GitHubStarPromptManager.recordPdfInteraction(context) }
                 if (shouldPrompt) StarPromptEventBus.requestPrompt()
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = e.message ?: "Save failed")
+                _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = context.getString(R.string.organize_save_failed))
             }
         }
     }

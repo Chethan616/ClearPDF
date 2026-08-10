@@ -8,11 +8,15 @@ import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
@@ -69,6 +73,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
@@ -118,11 +125,14 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -143,7 +153,6 @@ import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock
 import com.chethan616.clearpdf.ui.viewmodel.PdfViewerViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.TextFieldValue
@@ -185,6 +194,7 @@ fun PdfViewerScreen(
     val uiSensor       = rememberUISensor()
     val context        = LocalContext.current
     val clipboard      = LocalClipboardManager.current
+    val focusManager   = LocalFocusManager.current
     val activity       = context as? Activity
     val view           = LocalView.current
     val scope          = rememberCoroutineScope()
@@ -224,6 +234,8 @@ fun PdfViewerScreen(
     var showFindBar        by rememberSaveable { mutableStateOf(false) }
     var findQuery          by rememberSaveable { mutableStateOf("") }
     val findFocusRequester = remember { FocusRequester() }
+    var passwordText       by rememberSaveable { mutableStateOf("") }
+    val passwordFocusRequester = remember { FocusRequester() }
     var showSignaturePad   by remember { mutableStateOf(false) }
     val haptic             = LocalHapticFeedback.current
 
@@ -345,6 +357,14 @@ fun PdfViewerScreen(
         uri?.let { viewModel.openPdf(context, it) }
     }
 
+    LaunchedEffect(state.passwordUri) {
+        if (state.passwordUri != null) {
+            passwordText = ""
+            delay(120)
+            passwordFocusRequester.requestFocus()
+        }
+    }
+
     if (state.document == null) {
         Column(
             Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
@@ -352,9 +372,14 @@ fun PdfViewerScreen(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                    Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
+                    Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
                 }
-                LiquidGlassTopBar("PDF Viewer", backdrop, uiSensor, Modifier.weight(1f))
+                LiquidGlassTopBar(
+                    stringResource(R.string.viewer_title),
+                    backdrop,
+                    uiSensor,
+                    Modifier.weight(1f)
+                )
             }
             Column(
                 Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
@@ -366,9 +391,12 @@ fun PdfViewerScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(56.dp), accent)
-                    BasicText("Open a PDF", style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
                     BasicText(
-                        "Select a PDF file from your device to view it",
+                        stringResource(R.string.viewer_open_pdf),
+                        style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold)
+                    )
+                    BasicText(
+                        stringResource(R.string.viewer_select_file),
                         style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center)
                     )
                     LiquidButton(
@@ -380,11 +408,81 @@ fun PdfViewerScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
-                            BasicText("Pick a PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+                            BasicText(stringResource(R.string.viewer_pick_pdf), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
                         }
                     }
                 }
                 state.errorMessage?.let { BasicText(it, style = TextStyle(Color(0xFFD32F2F), 14.sp)) }
+            }
+
+            AnimatedVisibility(
+                visible = state.passwordRequired && state.passwordUri != null,
+                enter = fadeIn() + scaleIn(initialScale = 0.96f),
+                exit = fadeOut() + scaleOut(targetScale = 0.98f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
+                    .imePadding()
+            ) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .liquidGlassPanel(backdrop, uiSensor)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    BasicText(
+                        stringResource(R.string.pdf_password_title),
+                        style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold)
+                    )
+                    BasicText(
+                        if (state.passwordAttemptFailed) stringResource(R.string.pdf_password_wrong)
+                        else stringResource(R.string.pdf_password_subtitle),
+                        style = TextStyle(sub, 12.sp)
+                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BasicTextField(
+                            value = passwordText,
+                            onValueChange = { passwordText = it },
+                            singleLine = true,
+                            textStyle = TextStyle(text, 15.sp),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    state.passwordUri?.let { viewModel.openPdf(context, it, passwordText) }
+                                }
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isLight) Color.Black.copy(0.05f) else Color.White.copy(0.08f))
+                                .padding(horizontal = 12.dp, vertical = 11.dp)
+                                .focusRequester(passwordFocusRequester),
+                            decorationBox = { inner ->
+                                if (passwordText.isEmpty()) {
+                                    BasicText(stringResource(R.string.pdf_password_hint), style = TextStyle(sub, 14.sp))
+                                }
+                                inner()
+                            }
+                        )
+                        LiquidButton(
+                            onClick = {
+                                state.passwordUri?.let { viewModel.openPdf(context, it, passwordText) }
+                            },
+                            backdrop = backdrop,
+                            tint = accent
+                        ) {
+                            BasicText(stringResource(R.string.pdf_password_unlock), style = TextStyle(Color.White, 13.sp, FontWeight.SemiBold))
+                        }
+                    }
+                }
             }
         }
         return
@@ -679,7 +777,7 @@ fun PdfViewerScreen(
                   ) {
                     Image(
                         bitmap          = bitmap.asImageBitmap(),
-                        contentDescription = "Page ${page + 1}",
+                        contentDescription = stringResource(R.string.page_number, page + 1),
                         contentScale    = ContentScale.Fit,
                         modifier        = Modifier.fillMaxSize()
                     )
@@ -1160,7 +1258,7 @@ fun PdfViewerScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.Black.copy(0.35f)) {
-                        Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), Color.White)
+                    Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), Color.White)
                     }
                     LiquidGlassTopBar(
                         title         = stringResource(R.string.viewer_page_of, state.currentPage + 1, safePageCount),
@@ -1196,21 +1294,51 @@ fun PdfViewerScreen(
                     val selectedTextCount  = state.selectedOcrBlockIdsByPage[state.currentPage]?.size ?: 0
                     val currentSelectedIds = state.selectedOcrBlockIdsByPage[state.currentPage].orEmpty()
                     val hasEdits           = annotationsByPage.values.any { it.isNotEmpty() }
+                    val toolbarMode = when {
+                        showFindBar -> ViewerToolbarMode.Search
+                        showSignaturePad -> ViewerToolbarMode.Signature
+                        activeImageId != null -> ViewerToolbarMode.Image
+                        drawingToolActive -> ViewerToolbarMode.Drawing
+                        activeTool == PdfEditTool.SelectText || selectedTextCount > 0 -> ViewerToolbarMode.Selection
+                        activeTool == PdfEditTool.Eraser -> ViewerToolbarMode.Eraser
+                        else -> ViewerToolbarMode.Main
+                    }
 
                     AnimatedVisibility(
-                        visible = !showFindBar && activeImageId == null,
-                        enter   = fadeIn(tween(200)) + androidx.compose.animation.slideInVertically { it / 2 },
-                        exit    = fadeOut(tween(150)) + androidx.compose.animation.slideOutVertically { it / 2 }
+                        visible = !showFindBar && !showSignaturePad && activeImageId == null,
+                        enter = fadeIn(tween(220)) + expandVertically(
+                            animationSpec = tween(260),
+                            expandFrom = Alignment.Bottom
+                        ) + scaleIn(initialScale = 0.96f),
+                        exit = fadeOut(tween(150)) + shrinkVertically(
+                            animationSpec = tween(180),
+                            shrinkTowards = Alignment.Bottom
+                        ) + scaleOut(targetScale = 0.96f)
                     ) {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .liquidGlassPanel(backdrop, uiSensor)
-                                .padding(horizontal = 12.dp, vertical = 10.dp)
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment     = Alignment.CenterVertically
-                        ) {
+                        AnimatedContent(
+                            targetState = toolbarMode,
+                            transitionSpec = {
+                                (fadeIn(tween(180)) + expandVertically(
+                                    animationSpec = tween(220),
+                                    expandFrom = Alignment.Bottom
+                                ) + scaleIn(initialScale = 0.97f)).togetherWith(
+                                    fadeOut(tween(120)) + shrinkVertically(
+                                        animationSpec = tween(150),
+                                        shrinkTowards = Alignment.Bottom
+                                    ) + scaleOut(targetScale = 0.97f)
+                                )
+                            },
+                            label = "viewerToolMorph"
+                        ) { _ ->
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .liquidGlassPanel(backdrop, uiSensor)
+                                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                             LiquidButton(
                                 onClick  = { activeTool = if (drawingToolActive) PdfEditTool.None else PdfEditTool.Draw },
                                 backdrop = backdrop,
@@ -1223,7 +1351,7 @@ fun PdfViewerScreen(
                                 tint     = if (activeTool == PdfEditTool.SelectText) Color(0xFFAB47BC) else Color.Transparent
                             ) {
                                 BasicText(
-                                    if (selectedTextCount > 0) "OCR ($selectedTextCount)" else stringResource(R.string.viewer_select_text),
+                                    if (selectedTextCount > 0) stringResource(R.string.viewer_ocr, selectedTextCount) else stringResource(R.string.viewer_select_text),
                                     style = TextStyle(Color.White, 12.sp, FontWeight.Medium)
                                 )
                             }
@@ -1258,7 +1386,11 @@ fun PdfViewerScreen(
                                 onClick = {
                                     showFindBar = !showFindBar
                                     if (showFindBar) viewModel.triggerOcrForAllPages(context)
-                                    else { viewModel.clearSearch(); findQuery = "" }
+                                    else {
+                                        focusManager.clearFocus()
+                                        viewModel.clearSearch()
+                                        findQuery = ""
+                                    }
                                 },
                                 backdrop = backdrop,
                                 tint = if (showFindBar) Color(0xFF0288D1) else Color.Transparent
@@ -1304,7 +1436,10 @@ fun PdfViewerScreen(
                                     backdrop = backdrop
                                 ) {
                                     BasicText(
-                                        "Reset Zoom  ${(zoomScale * 100 + 0.5f).toInt()}%",
+                                        stringResource(
+                                            R.string.viewer_reset_zoom,
+                                            (zoomScale * 100 + 0.5f).toInt()
+                                        ),
                                         style = TextStyle(Color.White, 12.sp, FontWeight.Medium)
                                     )
                                 }
@@ -1317,6 +1452,7 @@ fun PdfViewerScreen(
                                     tint     = Color(0xFF1976D2)
                                 ) { BasicText(stringResource(R.string.viewer_save_edits), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
                             }
+                            }
                         }
                     }
 
@@ -1324,7 +1460,18 @@ fun PdfViewerScreen(
                     val showOcrTools = activeTool == PdfEditTool.SelectText || selectedTextCount > 0
                     val showImageTools = activeTool == PdfEditTool.Image && activeImageId != null
 
-                    AnimatedVisibility(visible = (showDrawTools || showOcrTools || showImageTools) && !showFindBar) {
+                    AnimatedVisibility(
+                        visible = (showDrawTools || showOcrTools || showImageTools) &&
+                            !showFindBar && !showSignaturePad,
+                        enter = fadeIn(tween(220)) + expandVertically(
+                            animationSpec = tween(260),
+                            expandFrom = Alignment.Bottom
+                        ) + scaleIn(initialScale = 0.97f),
+                        exit = fadeOut(tween(150)) + shrinkVertically(
+                            animationSpec = tween(180),
+                            shrinkTowards = Alignment.Bottom
+                        ) + scaleOut(targetScale = 0.97f)
+                    ) {
                         Column(
                             Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -1529,7 +1676,26 @@ fun PdfViewerScreen(
                                             .size(26.dp)
                                             .clip(CircleShape)
                                             .background(Color(cl))
-                                            .clickable { currentColorLong = cl }
+                                            .clickable {
+                                                currentColorLong = cl
+                                                if (showImageTools) {
+                                                    val marks = getPageMarks(state.currentPage)
+                                                    val idx = marks.indexOfLast {
+                                                        it is PdfMarkup.ImageMarkup &&
+                                                            it.id == activeImageId &&
+                                                            it.isSignature
+                                                    }
+                                                    val signature = marks.getOrNull(idx) as? PdfMarkup.ImageMarkup
+                                                    if (signature != null) {
+                                                        marks[idx] = signature.copy(
+                                                            bitmap = recolorSignatureBitmap(
+                                                                signature.bitmap,
+                                                                Color(cl).toArgb()
+                                                            )
+                                                        )
+                                                    }
+                                                }
+                                            }
                                             .border(if (sel) 2.dp else 0.dp,
                                                     if (sel) Color.White else Color.Transparent,
                                                     CircleShape)
@@ -1558,7 +1724,7 @@ fun PdfViewerScreen(
                         ) {
                             when {
                                 state.isExporting -> BasicText(
-                                    "Saving edited PDF…",
+                                    stringResource(R.string.viewer_saving),
                                     style = TextStyle(Color.White.copy(0.82f), 12.sp)
                                 )
                                 state.exportError != null -> {
@@ -1566,7 +1732,12 @@ fun PdfViewerScreen(
                                     LiquidButton(
                                         onClick  = { viewModel.clearExportFeedback() },
                                         backdrop = backdrop
-                                    ) { BasicText("Dismiss", style = TextStyle(Color.White, 11.sp, FontWeight.Medium)) }
+                                    ) {
+                                        BasicText(
+                                            stringResource(R.string.dismiss),
+                                            style = TextStyle(Color.White, 11.sp, FontWeight.Medium)
+                                        )
+                                    }
                                 }
                                 state.exportMessage != null -> {
                                     BasicText(state.exportMessage!!, style = TextStyle(Color(0xFFB9F6CA), 12.sp))
@@ -1575,7 +1746,12 @@ fun PdfViewerScreen(
                                             onClick  = { viewModel.openPdf(context, uri) },
                                             backdrop = backdrop,
                                             tint     = Color(0xFF1976D2)
-                                        ) { BasicText("Open", style = TextStyle(Color.White, 11.sp, FontWeight.Medium)) }
+                                        ) {
+                                            BasicText(
+                                                stringResource(R.string.open),
+                                                style = TextStyle(Color.White, 11.sp, FontWeight.Medium)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1605,8 +1781,14 @@ fun PdfViewerScreen(
 
         AnimatedVisibility(
             visible  = showFindBar,
-            enter    = fadeIn(tween(200)) + androidx.compose.animation.slideInVertically { it },
-            exit     = fadeOut(tween(150)) + androidx.compose.animation.slideOutVertically { it },
+            enter    = fadeIn(tween(220)) + expandVertically(
+                animationSpec = tween(280),
+                expandFrom = Alignment.Bottom
+            ) + scaleIn(initialScale = 0.96f),
+            exit     = fadeOut(tween(150)) + shrinkVertically(
+                animationSpec = tween(180),
+                shrinkTowards = Alignment.Bottom
+            ) + scaleOut(targetScale = 0.96f),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -1693,7 +1875,7 @@ fun PdfViewerScreen(
                     surfaceColor = Color.White.copy(0.1f),
                     modifier = Modifier.size(32.dp)
                 ) {
-                    Icon(Icons.Rounded.KeyboardArrowUp, "Previous", Modifier.size(18.dp), Color.White)
+                    Icon(Icons.Rounded.KeyboardArrowUp, stringResource(R.string.previous), Modifier.size(18.dp), Color.White)
                 }
                 LiquidIconButton(
                     onClick = { viewModel.nextMatch(); lastInteractionAtMs = System.currentTimeMillis() },
@@ -1701,12 +1883,13 @@ fun PdfViewerScreen(
                     surfaceColor = Color.White.copy(0.1f),
                     modifier = Modifier.size(32.dp)
                 ) {
-                    Icon(Icons.Rounded.KeyboardArrowDown, "Next", Modifier.size(18.dp), Color.White)
+                    Icon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.next), Modifier.size(18.dp), Color.White)
                 }
 
                 LiquidIconButton(
                     onClick = {
                         showFindBar = false
+                        focusManager.clearFocus()
                         findQuery = ""
                         viewModel.clearSearch()
                     },
@@ -1809,6 +1992,9 @@ private enum class ScrollOrientation { Vertical, Horizontal }
 
 private enum class PdfEditTool { None, Draw, Highlight, Rect, Ellipse, Line, Arrow, SelectText, Image, Eraser }
 
+/** The large bottom control surface follows the user's current intent. */
+private enum class ViewerToolbarMode { Main, Drawing, Selection, Image, Eraser, Search, Signature }
+
 @Composable
 private fun PageScrubber(
     currentPage: Int,
@@ -1856,7 +2042,7 @@ private fun PageScrubber(
         label = "thumbFraction"
     )
 
-    val scrubberHeightDp = 280.dp
+    val scrubberHeightDp = 182.dp
 
     val trackWidthDp by androidx.compose.animation.core.animateDpAsState(
         targetValue = if (isDragging) 12.dp else 6.dp,
@@ -1865,9 +2051,19 @@ private fun PageScrubber(
     )
 
     Box(
-        modifier = modifier.padding(end = 8.dp),
+        modifier = modifier
+            .padding(end = 4.dp)
+            .width(48.dp)
+            .height(scrubberHeightDp + 36.dp)
+            .liquidGlassPanel(backdrop, uiSensor)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         contentAlignment = Alignment.CenterEnd
     ) {
+        BasicText(
+            text = "${currentPage + 1}",
+            style = TextStyle(color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold),
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
         Box(
             modifier = Modifier
                 .width(40.dp)
@@ -1920,6 +2116,24 @@ private fun PageScrubber(
                 },
             contentAlignment = Alignment.Center
         ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .height(scrubberHeightDp)
+                    .padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.SpaceEvenly,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                repeat(pageCount.coerceAtMost(16)) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(if (isDarkMode) Color.White.copy(0.10f) else Color.Black.copy(0.08f))
+                    )
+                }
+            }
             Box(
                 modifier = Modifier
                     .width(trackWidthDp)
@@ -1951,15 +2165,15 @@ private fun PageScrubber(
                    scaleOut(targetScale = 0.9f)
         ) {
             val previewBitmap = pageBitmaps.getOrNull(dragPage)
-            val yOffsetDp = (scrubberHeightDp * animatedFraction - scrubberHeightDp / 2).coerceIn(-115.dp, 115.dp)
+            val yOffsetDp = (scrubberHeightDp * animatedFraction - scrubberHeightDp / 2).coerceIn(-78.dp, 78.dp)
 
             Column(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .offset(x = (-46).dp, y = yOffsetDp)
-                    .width(145.dp)
+                    .offset(x = (-42).dp, y = yOffsetDp)
+                    .width(124.dp)
                     .liquidGlassPanel(backdrop, uiSensor)
-                    .padding(10.dp),
+                    .padding(8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -1967,24 +2181,24 @@ private fun PageScrubber(
                     Modifier
                         .clip(RoundedCornerShape(50))
                         .background(accent.copy(0.22f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     BasicText(
-                        text = "PAGE",
-                        style = TextStyle(color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        text = stringResource(R.string.viewer_page_label),
+                        style = TextStyle(color = accent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                     )
                     BasicText(
                         text = "${dragPage + 1} / $pageCount",
-                        style = TextStyle(color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                        style = TextStyle(color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
                     )
                 }
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
+                        .height(140.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color.Black.copy(0.45f))
                         .border(1.dp, Color.White.copy(0.15f), RoundedCornerShape(12.dp)),
@@ -1993,7 +2207,7 @@ private fun PageScrubber(
                     if (previewBitmap != null && !previewBitmap.isRecycled) {
                         Image(
                             bitmap = previewBitmap.asImageBitmap(),
-                            contentDescription = "Preview Page ${dragPage + 1}",
+                                contentDescription = stringResource(R.string.preview_page, dragPage + 1),
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize().padding(4.dp)
                         )
@@ -2058,7 +2272,7 @@ private fun LiquidPageJumpDialog(
                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
             ) {
                 LiquidButton(onClick = onDismiss, backdrop = backdrop) {
-                    BasicText("Cancel", style = TextStyle(Color.White, 13.sp))
+                    BasicText(stringResource(R.string.cancel), style = TextStyle(Color.White, 13.sp))
                 }
                 LiquidButton(
                     onClick = {
@@ -2068,11 +2282,26 @@ private fun LiquidPageJumpDialog(
                     backdrop = backdrop,
                     tint = Color(0xFF1976D2)
                 ) {
-                    BasicText("Go", style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.Bold))
+                    BasicText(stringResource(R.string.viewer_go), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
                 }
             }
         }
     }
+}
+
+private fun recolorSignatureBitmap(source: Bitmap, colorArgb: Int): Bitmap {
+    if (source.isRecycled || source.width <= 0 || source.height <= 0) return source
+
+    val result = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+    val pixels = IntArray(source.width * source.height)
+    source.getPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
+    val rgb = colorArgb and 0x00FFFFFF
+    for (index in pixels.indices) {
+        val alpha = android.graphics.Color.alpha(pixels[index])
+        pixels[index] = if (alpha == 0) 0 else (alpha shl 24) or rgb
+    }
+    result.setPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
+    return result
 }
 
 private sealed class PdfMarkup {

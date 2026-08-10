@@ -1,5 +1,8 @@
 package com.chethan616.clearpdf.ui.screen
 
+import androidx.compose.ui.res.stringResource
+import com.chethan616.clearpdf.R
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -131,9 +134,9 @@ fun MergePdfScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
+                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
             }
-            LiquidGlassTopBar(title = "Merge PDFs", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
+            LiquidGlassTopBar(title = stringResource(R.string.tool_merge), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
         }
 
         Column(
@@ -155,8 +158,8 @@ fun MergePdfScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(Icons.AutoMirrored.Rounded.CallMerge, null, Modifier.size(56.dp), accent)
-            BasicText("Combine Multiple PDFs", style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
-            BasicText("Select two or more PDF files to merge into one", style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center))
+            BasicText(stringResource(R.string.tool_merge), style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
+            BasicText(stringResource(R.string.tool_merge_description), style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center))
 
             LiquidButton(
                 onClick = { filePicker.launch(arrayOf("application/pdf")) },
@@ -164,7 +167,7 @@ fun MergePdfScreen(
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.AddCircleOutline, null, Modifier.size(18.dp), Color.White)
-                    BasicText("Add Files", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+                    BasicText(stringResource(R.string.add_files), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
                 }
             }
         }
@@ -177,8 +180,8 @@ fun MergePdfScreen(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                BasicText("${state.selectedFiles.size} files selected", style = TextStyle(text, 15.sp, fontWeight = FontWeight.Medium))
-                BasicText("Reorder files before merging. Top to bottom = output order.", style = TextStyle(sub, 12.sp))
+                BasicText(stringResource(R.string.files_selected, state.selectedFiles.size), style = TextStyle(text, 15.sp, fontWeight = FontWeight.Medium))
+                BasicText(stringResource(R.string.reorder_files_hint), style = TextStyle(sub, 12.sp))
                 state.selectedFiles.forEachIndexed { index, file ->
                     Row(
                         Modifier.fillMaxWidth(),
@@ -215,7 +218,7 @@ fun MergePdfScreen(
 
             if (state.selectedFiles.size < 2) {
                 Column(Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(14.dp)) {
-                    BasicText("Select at least 2 PDFs to continue.", style = TextStyle(Color(0xFFD32F2F), 13.sp))
+                    BasicText(stringResource(R.string.select_two_pdfs), style = TextStyle(Color(0xFFD32F2F), 13.sp))
                 }
             }
 
@@ -257,7 +260,7 @@ fun MergePdfScreen(
                 tint = Color(0xFF1976D2),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                BasicText("View PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.SemiBold))
+                BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold))
             }
         }
 

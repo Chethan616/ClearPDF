@@ -45,7 +45,8 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Handle PDF file opened from other apps (VIEW/SEND)
+        // Handle supported documents opened from other apps (VIEW/SEND).
+        // The viewer converts office/text/image sources into a local PDF preview.
         val incomingPdfUri: Uri? = when (intent?.action) {
             Intent.ACTION_VIEW -> intent.data
             Intent.ACTION_SEND -> {
@@ -57,7 +58,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             else -> null
-        }?.takeIf { intent?.type == "application/pdf" || intent?.data?.toString()?.endsWith(".pdf") == true }
+        }?.takeIf { uri -> isSupportedDocumentIntent(intent?.type, uri.toString()) }
 
         // If a PDF was shared/opened, navigate to viewer with that URI
         val effectiveRoute = if (incomingPdfUri != null) "pdf_viewer" else shortcutRoute
@@ -65,6 +66,23 @@ class MainActivity : ComponentActivity() {
         setContent {
             DocsApp(shortcutRoute = effectiveRoute, incomingPdfUri = incomingPdfUri)
         }
+    }
+
+    private fun isSupportedDocumentIntent(mimeType: String?, uriString: String): Boolean {
+        val lower = uriString.lowercase()
+        val supportedExtension = listOf(
+            ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".csv", ".txt", ".rtf",
+            ".odt", ".ods", ".odp", ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".heic"
+        ).any(lower::contains)
+        return mimeType == null ||
+            mimeType == "application/pdf" ||
+            mimeType?.startsWith("image/") == true ||
+            mimeType?.startsWith("text/") == true ||
+            mimeType?.contains("word", ignoreCase = true) == true ||
+            mimeType?.contains("excel", ignoreCase = true) == true ||
+            mimeType?.contains("spreadsheet", ignoreCase = true) == true ||
+            mimeType?.contains("presentation", ignoreCase = true) == true ||
+            supportedExtension
     }
 
     private fun requestHighRefreshRate() {

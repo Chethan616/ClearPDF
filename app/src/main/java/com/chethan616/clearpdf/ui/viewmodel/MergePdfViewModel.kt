@@ -14,6 +14,7 @@ import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.domain.usecase.MergePdfUseCase
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.kyant.pdfcore.model.PdfDocument
@@ -94,7 +95,7 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
     fun onMerge(context: Context) {
         val uris = _uiState.value.selectedUris
         if (uris.size < 2) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Select at least 2 PDFs")
+            _uiState.value = _uiState.value.copy(errorMessage = context.getString(R.string.merge_min_files))
             return
         }
         _uiState.value = _uiState.value.copy(isMerging = true, errorMessage = null, resultMessage = null, lastOutputUri = null)
@@ -118,7 +119,7 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
                     isMerging = false,
                     lastOutputUri = outputUri,
                     saveLocationLabel = saveLabel,
-                    resultMessage = "Merged ${uris.size} files → $outName\nSaved to $saveLabel"
+                    resultMessage = context.getString(R.string.merge_success, uris.size, outName, saveLabel)
                 )
 
                 if (GitHubStarPromptManager.recordPdfInteraction(context)) {
@@ -127,7 +128,7 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isMerging = false,
-                    errorMessage = e.message ?: "Merge failed"
+                    errorMessage = context.getString(R.string.merge_failed)
                 )
             }
         }

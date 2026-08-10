@@ -70,6 +70,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -77,6 +78,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.model.ScanFilter
 import com.chethan616.clearpdf.ui.components.LiquidButton
@@ -191,7 +193,7 @@ fun ScanDocumentScreen(
                 )
             }
             .addOnFailureListener { e ->
-                viewModel.setError("Scanner not available: ${e.message}")
+                viewModel.setError(context.getString(R.string.scanner_start_failed))
                 viewModel.cancelScanning()
             }
     }
@@ -204,7 +206,7 @@ fun ScanDocumentScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         LiquidGlassTopBar(
-            title = "Scan Document",
+            title = stringResource(R.string.scan_title),
             backdrop = backdrop,
             uiSensor = uiSensor,
             modifier = Modifier
@@ -283,11 +285,11 @@ fun ScanDocumentScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     BasicText(
-                        "Scan Document",
+                        stringResource(R.string.scan_title),
                         style = TextStyle(text, 20.sp, FontWeight.Bold, textAlign = TextAlign.Center)
                     )
                     BasicText(
-                        "Auto-detect edges, crop & enhance\nyour documents like a pro scanner",
+                        stringResource(R.string.scan_description),
                         style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center)
                     )
                     Spacer(Modifier.height(8.dp))
@@ -305,7 +307,7 @@ fun ScanDocumentScreen(
                             modifier = Modifier.padding(vertical = 12.dp)
                         ) {
                             Icon(Icons.Rounded.CameraAlt, null, Modifier.size(20.dp), Color.White)
-                            BasicText("Scan Document", style = TextStyle(Color.White, 16.sp, FontWeight.SemiBold))
+                            BasicText(stringResource(R.string.scan_document), style = TextStyle(Color.White, 16.sp, FontWeight.SemiBold))
                         }
                     }
 
@@ -326,7 +328,7 @@ fun ScanDocumentScreen(
                             modifier = Modifier.padding(vertical = 12.dp)
                         ) {
                             Icon(Icons.Rounded.PhotoLibrary, null, Modifier.size(20.dp), text)
-                            BasicText("Import from Gallery", style = TextStyle(text, 16.sp, FontWeight.SemiBold))
+                            BasicText(stringResource(R.string.import_gallery), style = TextStyle(text, 16.sp, FontWeight.SemiBold))
                         }
                     }
                 }
@@ -339,14 +341,14 @@ fun ScanDocumentScreen(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    BasicText("Features", style = TextStyle(text, 16.sp, FontWeight.Bold))
+                    BasicText(stringResource(R.string.scan_features), style = TextStyle(text, 16.sp, FontWeight.Bold))
 
                     val features = listOf(
-                        Icons.Rounded.CropFree to "Auto edge detection & cropping",
-                        Icons.Rounded.CameraAlt to "Perspective correction",
-                        Icons.Rounded.DocumentScanner to "Multi-page document scanning",
-                        Icons.Rounded.PhotoLibrary to "Import from gallery",
-                        Icons.Rounded.PictureAsPdf to "Export as PDF"
+                        Icons.Rounded.CropFree to stringResource(R.string.scan_feature_edges),
+                        Icons.Rounded.CameraAlt to stringResource(R.string.scan_feature_perspective),
+                        Icons.Rounded.DocumentScanner to stringResource(R.string.scan_feature_multi_page),
+                        Icons.Rounded.PhotoLibrary to stringResource(R.string.scan_feature_gallery),
+                        Icons.Rounded.PictureAsPdf to stringResource(R.string.scan_feature_export_pdf)
                     )
 
                     features.forEach { (icon, feature) ->
@@ -379,13 +381,13 @@ fun ScanDocumentScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     BasicText(
-                        "${state.scannedPages.size} page${if (state.scannedPages.size != 1) "s" else ""} scanned",
+                        if (state.scannedPages.size == 1) stringResource(R.string.scan_page_scanned) else stringResource(R.string.scan_pages_scanned, state.scannedPages.size),
                         style = TextStyle(text, 16.sp, FontWeight.SemiBold)
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         // Scan more pages
                         Icon(
-                            Icons.Rounded.DocumentScanner, "Scan more",
+                            Icons.Rounded.DocumentScanner, stringResource(R.string.scan_more),
                             Modifier
                                 .size(28.dp)
                                 .clip(CircleShape)
@@ -395,7 +397,7 @@ fun ScanDocumentScreen(
                             accent
                         )
                         Icon(
-                            Icons.Rounded.PhotoLibrary, "Add from gallery",
+                            Icons.Rounded.PhotoLibrary, stringResource(R.string.add_from_gallery),
                             Modifier
                                 .size(28.dp)
                                 .clip(CircleShape)
@@ -408,7 +410,7 @@ fun ScanDocumentScreen(
                             accent
                         )
                         Icon(
-                            Icons.Rounded.Delete, "Clear all",
+                            Icons.Rounded.Delete, stringResource(R.string.clear_all),
                             Modifier
                                 .size(28.dp)
                                 .clip(CircleShape)
@@ -441,7 +443,7 @@ fun ScanDocumentScreen(
                         ) {
                             Image(
                                 painter = rememberAsyncImagePainter(page.uri),
-                                contentDescription = "Page ${index + 1}",
+                                contentDescription = stringResource(R.string.page_number, index + 1),
                                 contentScale = ContentScale.Crop,
                                 colorFilter = getComposeColorFilter(page.filter),
                                 modifier = Modifier.fillMaxSize()
@@ -465,7 +467,7 @@ fun ScanDocumentScreen(
 
                             // Delete button
                             Icon(
-                                Icons.Rounded.Close, "Remove page",
+                                Icons.Rounded.Close, stringResource(R.string.remove_page),
                                 Modifier
                                     .align(Alignment.TopEnd)
                                     .padding(6.dp)
@@ -488,7 +490,7 @@ fun ScanDocumentScreen(
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    BasicText("Filter", style = TextStyle(text, 14.sp, FontWeight.SemiBold))
+                    BasicText(stringResource(R.string.filter), style = TextStyle(text, 14.sp, FontWeight.SemiBold))
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -496,11 +498,11 @@ fun ScanDocumentScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         val filters = listOf(
-                            ScanFilter.ORIGINAL to "Original",
-                            ScanFilter.AUTO to "Auto",
-                            ScanFilter.GRAYSCALE to "Grayscale",
-                            ScanFilter.BLACK_WHITE to "B&W",
-                            ScanFilter.COLOR to "Vivid"
+                            ScanFilter.ORIGINAL to stringResource(R.string.scan_original),
+                            ScanFilter.AUTO to stringResource(R.string.scan_auto),
+                            ScanFilter.GRAYSCALE to stringResource(R.string.scan_grayscale),
+                            ScanFilter.BLACK_WHITE to stringResource(R.string.scan_black_white),
+                            ScanFilter.COLOR to stringResource(R.string.scan_vivid)
                         )
                         filters.forEach { (filter, label) ->
                             val currentFilter = state.scannedPages.firstOrNull()?.filter ?: ScanFilter.ORIGINAL
@@ -542,9 +544,9 @@ fun ScanDocumentScreen(
                             if (GitHubStarPromptManager.recordPdfInteraction(context)) {
                                 StarPromptEventBus.requestPrompt()
                             }
-                            Toast.makeText(context, "PDF saved successfully!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.pdf_saved_successfully), Toast.LENGTH_SHORT).show()
                         } else {
-                            viewModel.setError("Failed to save PDF")
+                            viewModel.setError(context.getString(R.string.pdf_save_failed))
                         }
                     }
                 },
@@ -561,7 +563,7 @@ fun ScanDocumentScreen(
                 ) {
                     Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(22.dp), Color.White)
                     BasicText(
-                        if (state.isScanning) "Saving..." else "Save as PDF",
+                        if (state.isScanning) stringResource(R.string.saving) else stringResource(R.string.save_as_pdf),
                         style = TextStyle(Color.White, 16.sp, FontWeight.Bold)
                     )
                 }

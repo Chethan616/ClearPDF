@@ -1,5 +1,8 @@
 package com.chethan616.clearpdf.ui.screen
 
+import androidx.compose.ui.res.stringResource
+import com.chethan616.clearpdf.R
+
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -110,9 +113,9 @@ fun ExtractTextScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
+                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
             }
-            LiquidGlassTopBar("Extract Text", backdrop, uiSensor, Modifier.weight(1f), titleFontSize = 18.sp)
+                LiquidGlassTopBar(stringResource(R.string.tool_extract), backdrop, uiSensor, Modifier.weight(1f), titleFontSize = 18.sp)
         }
 
         Column(
@@ -137,12 +140,12 @@ fun ExtractTextScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
-                    BasicText("Pick a PDF", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
+                    BasicText(stringResource(R.string.viewer_pick_pdf), style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
                 }
                 if (state.text.isNotEmpty()) {
                     LiquidButton(onClick = { clipboard.setText(AnnotatedString(state.text)) }, backdrop = backdrop) {
                         Icon(Icons.Rounded.ContentCopy, null, Modifier.size(16.dp), text)
-                        BasicText("Copy", style = TextStyle(text, 14.sp, FontWeight.Medium))
+                        BasicText(stringResource(R.string.copy), style = TextStyle(text, 14.sp, FontWeight.Medium))
                     }
                     com.chethan616.clearpdf.ui.components.LiquidIconButton(
                         onClick = {
@@ -150,13 +153,13 @@ fun ExtractTextScreen(
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_TEXT, state.text)
                             }
-                            context.startActivity(Intent.createChooser(send, "Share text"))
+                            context.startActivity(Intent.createChooser(send, context.getString(R.string.extract_share_text)))
                         },
                         backdrop = backdrop,
                         tint = Color(0xFF0088FF),
                         modifier = Modifier.size(44.dp)
                     ) {
-                        Icon(Icons.Rounded.Share, "Share", Modifier.size(20.dp), Color.White)
+                        Icon(Icons.Rounded.Share, stringResource(R.string.share), Modifier.size(20.dp), Color.White)
                     }
                 }
             }
@@ -175,10 +178,10 @@ fun ExtractTextScreen(
                         BasicText(state.text, style = TextStyle(text, 14.sp))
                     }
                     state.hasResult -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                        BasicText("No text layer in this PDF.", style = TextStyle(sub, 13.sp))
+                        BasicText(stringResource(R.string.extract_no_text), style = TextStyle(sub, 13.sp))
                     }
                     else -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                        BasicText("Pick a PDF to pull its text.", style = TextStyle(sub, 13.sp))
+                        BasicText(stringResource(R.string.extract_pick_hint), style = TextStyle(sub, 13.sp))
                     }
                 }
             }

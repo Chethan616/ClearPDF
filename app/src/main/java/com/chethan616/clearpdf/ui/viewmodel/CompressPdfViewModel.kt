@@ -14,6 +14,7 @@ import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.domain.usecase.CompressPdfUseCase
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.kyant.pdfcore.model.CompressionQuality
@@ -72,7 +73,7 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
                     estimatedSizeBytes = estimate
                 )
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(errorMessage = e.message)
+                _uiState.value = _uiState.value.copy(errorMessage = context.getString(R.string.open_pdf_failed))
             }
         }
     }
@@ -162,7 +163,7 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
                     compressedSizeBytes = result.sizeBytes,
                     lastOutputUri = outUri,
                     saveLocationLabel = saveLabel,
-                    resultMessage = "Compressed: ${origKb}KB â†’ ${compKb}KB (${reduction}% smaller)\nSaved to $saveLabel"
+                    resultMessage = context.getString(R.string.compression_success, origKb, compKb, reduction, saveLabel)
                 )
 
                 if (GitHubStarPromptManager.recordPdfInteraction(context)) {
@@ -171,7 +172,7 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isCompressing = false,
-                    errorMessage = e.message ?: "Compression failed"
+                    errorMessage = context.getString(R.string.compression_failed)
                 )
             }
         }

@@ -1,5 +1,8 @@
 package com.chethan616.clearpdf.ui.screen
 
+import androidx.compose.ui.res.stringResource
+import com.chethan616.clearpdf.R
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -126,9 +129,9 @@ fun CompressPdfScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
+                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
             }
-            LiquidGlassTopBar(title = "Compress PDF", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f), titleFontSize = 18.sp)
+            LiquidGlassTopBar(title = stringResource(R.string.tool_compress), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f), titleFontSize = 18.sp)
         }
 
         // Scrollable Body Content
@@ -152,8 +155,8 @@ fun CompressPdfScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Icon(Icons.Rounded.Compress, null, Modifier.size(56.dp), accent)
-                BasicText("Reduce File Size", style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
-                BasicText("Compress your PDF while preserving quality", style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center))
+                BasicText(stringResource(R.string.tool_compress), style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
+                BasicText(stringResource(R.string.tool_compress_sub), style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center))
 
                 LiquidButton(
                     onClick = { filePicker.launch(arrayOf("application/pdf")) },
@@ -161,7 +164,7 @@ fun CompressPdfScreen(
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
-                        BasicText("Select PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+                        BasicText(stringResource(R.string.viewer_pick_pdf), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
                     }
                 }
             }
@@ -176,7 +179,7 @@ fun CompressPdfScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     BasicText(state.sourceFileName, style = TextStyle(text, 15.sp, fontWeight = FontWeight.Medium))
-                    BasicText("Size: ${state.originalSizeBytes / 1024} KB", style = TextStyle(sub, 13.sp))
+                    BasicText(stringResource(R.string.size_kb, state.originalSizeBytes / 1024), style = TextStyle(sub, 13.sp))
                 }
 
                 // Un-nested slider control for maximum performance (no glass card lag)
@@ -196,7 +199,7 @@ fun CompressPdfScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), accent)
-                            BasicText("Compression Quality", style = TextStyle(text, 16.sp, fontWeight = FontWeight.SemiBold))
+                            BasicText(stringResource(R.string.settings_compression_quality), style = TextStyle(text, 16.sp, fontWeight = FontWeight.SemiBold))
                         }
                         Box(
                             Modifier
@@ -223,8 +226,8 @@ fun CompressPdfScreen(
                     )
 
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        BasicText("Smaller file", style = TextStyle(sub, 12.sp))
-                        BasicText("Better quality", style = TextStyle(sub, 12.sp))
+                        BasicText(stringResource(R.string.settings_smaller_size), style = TextStyle(sub, 12.sp))
+                        BasicText(stringResource(R.string.settings_higher_quality), style = TextStyle(sub, 12.sp))
                     }
 
                     if (state.estimatedSizeBytes > 0) {
@@ -273,7 +276,7 @@ fun CompressPdfScreen(
                     tint = Color(0xFF1976D2),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    BasicText("View PDF", style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.SemiBold))
+                    BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold))
                 }
             }
 

@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kyant.pdfcore.converter.PdfConverter
+import com.chethan616.clearpdf.R
 import com.kyant.pdfcore.model.PdfDocument
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,11 +43,11 @@ class ExtractTextViewModel(private val converter: PdfConverter) : ViewModel() {
                     text = extracted,
                     hasResult = true,
                     errorMessage = if (extracted.isEmpty())
-                        "No selectable text found. This PDF may be a scan/image — try the scanner's OCR instead."
+                        context.getString(R.string.extract_no_selectable_text)
                     else null
                 )
             } catch (e: Exception) {
-                _uiState.value = ExtractTextUiState(isExtracting = false, errorMessage = e.message ?: "Extraction failed")
+                _uiState.value = ExtractTextUiState(isExtracting = false, errorMessage = context.getString(R.string.text_extraction_failed))
             }
         }
     }

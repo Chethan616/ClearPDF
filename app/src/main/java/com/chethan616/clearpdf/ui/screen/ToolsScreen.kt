@@ -22,6 +22,8 @@ import androidx.compose.material.icons.automirrored.rounded.NoteAdd
 import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.Reorder
 import androidx.compose.material.icons.rounded.TextSnippet
 import androidx.compose.material3.Icon
@@ -69,7 +71,9 @@ fun ToolsScreen(
     onNavigateToCreatePdf: () -> Unit,
     onNavigateToOrganizePdf: () -> Unit = {},
     onNavigateToExtractText: () -> Unit = {},
-    onNavigateToImagesToPdf: () -> Unit = {}
+    onNavigateToImagesToPdf: () -> Unit = {},
+    onNavigateToDecryptPdf: () -> Unit = {},
+    onNavigateToEncryptPdf: () -> Unit = {}
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val uiSensor = rememberUISensor()
@@ -91,6 +95,10 @@ fun ToolsScreen(
     val toolExtractSub = stringResource(R.string.tool_extract_sub)
     val toolCreateTitle = stringResource(R.string.tool_create)
     val toolCreateSub = stringResource(R.string.tool_create_sub)
+    val toolDecryptTitle = stringResource(R.string.tool_decrypt_pdf)
+    val toolDecryptSub = stringResource(R.string.tool_decrypt_pdf_sub)
+    val toolEncryptTitle = stringResource(R.string.tool_encrypt_pdf)
+    val toolEncryptSub = stringResource(R.string.tool_encrypt_pdf_sub)
 
     val toolItems = remember(
         toolOpenPdfTitle, toolOpenPdfSub,
@@ -101,6 +109,8 @@ fun ToolsScreen(
         toolImagesTitle, toolImagesSub,
         toolExtractTitle, toolExtractSub,
         toolCreateTitle, toolCreateSub,
+        toolDecryptTitle, toolDecryptSub,
+        toolEncryptTitle, toolEncryptSub,
         onNavigateToOpenPdf,
         onNavigateToMergePdf,
         onNavigateToSplitPdf,
@@ -108,7 +118,9 @@ fun ToolsScreen(
         onNavigateToOrganizePdf,
         onNavigateToImagesToPdf,
         onNavigateToExtractText,
-        onNavigateToCreatePdf
+        onNavigateToCreatePdf,
+        onNavigateToDecryptPdf,
+        onNavigateToEncryptPdf
     ) {
         listOf(
             ToolSpec("open", toolOpenPdfTitle, toolOpenPdfSub, LiquidGlassColors.Blue, Icons.Rounded.FileOpen, onNavigateToOpenPdf),
@@ -118,7 +130,9 @@ fun ToolsScreen(
             ToolSpec("organize", toolOrganizeTitle, toolOrganizeSub, LiquidGlassColors.Teal, Icons.Rounded.Reorder, onNavigateToOrganizePdf),
             ToolSpec("images", toolImagesTitle, toolImagesSub, LiquidGlassColors.Indigo, Icons.Rounded.Image, onNavigateToImagesToPdf),
             ToolSpec("extract", toolExtractTitle, toolExtractSub, Color(0xFF5AC8FA), Icons.Rounded.TextSnippet, onNavigateToExtractText),
-            ToolSpec("create", toolCreateTitle, toolCreateSub, LiquidGlassColors.Orange, Icons.AutoMirrored.Rounded.NoteAdd, onNavigateToCreatePdf)
+            ToolSpec("create", toolCreateTitle, toolCreateSub, LiquidGlassColors.Orange, Icons.AutoMirrored.Rounded.NoteAdd, onNavigateToCreatePdf),
+            ToolSpec("decrypt", toolDecryptTitle, toolDecryptSub, LiquidGlassColors.Purple, Icons.Rounded.LockOpen, onNavigateToDecryptPdf),
+            ToolSpec("encrypt", toolEncryptTitle, toolEncryptSub, LiquidGlassColors.Indigo, Icons.Rounded.Lock, onNavigateToEncryptPdf)
         )
     }
 

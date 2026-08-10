@@ -34,6 +34,8 @@ import kotlin.math.tanh
 import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.res.stringResource
+import com.chethan616.clearpdf.R
 
 private const val CLOSE_CROSS_SVG_PATH =
     "M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z"
@@ -55,7 +57,7 @@ fun CloseCrossIcon(modifier: Modifier = Modifier, tint: Color = Color.White) {
             fill = androidx.compose.ui.graphics.SolidColor(tint)
         ).build()
     }
-    Icon(vector, contentDescription = "Close", modifier = modifier, tint = tint)
+    Icon(vector, contentDescription = stringResource(R.string.close), modifier = modifier, tint = tint)
 }
 
 /**

@@ -1,5 +1,8 @@
 package com.chethan616.clearpdf.ui.screen
 
+import androidx.compose.ui.res.stringResource
+import com.chethan616.clearpdf.R
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -116,9 +119,9 @@ fun ImagesToPdfScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, "Back", Modifier.size(18.dp), text)
+                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
             }
-            LiquidGlassTopBar("Images → PDF", backdrop, uiSensor, Modifier.weight(1f), titleFontSize = 18.sp)
+            LiquidGlassTopBar(stringResource(R.string.images_to_pdf_title), backdrop, uiSensor, Modifier.weight(1f), titleFontSize = 18.sp)
         }
 
         Column(
@@ -134,11 +137,11 @@ fun ImagesToPdfScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 LiquidButton(onClick = { picker.launch("image/*") }, backdrop = backdrop, tint = accent) {
                     Icon(Icons.Rounded.AddPhotoAlternate, null, Modifier.size(18.dp), Color.White)
-                    BasicText("Add images", style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
+                    BasicText(stringResource(R.string.images_add), style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
                 }
                 if (state.imageUris.isNotEmpty()) {
                     LiquidButton(onClick = { viewModel.clearImages() }, backdrop = backdrop) {
-                        BasicText("Clear", style = TextStyle(text, 14.sp, FontWeight.Medium))
+                        BasicText(stringResource(R.string.viewer_clear), style = TextStyle(text, 14.sp, FontWeight.Medium))
                     }
                 }
             }
@@ -148,17 +151,17 @@ fun ImagesToPdfScreen(
                 LiquidButton(
                     onClick = { viewModel.setFitToA4(true) }, backdrop = backdrop,
                     surfaceColor = if (state.fitToA4) accent.copy(0.30f) else Color.White.copy(0.06f)
-                ) { BasicText("Fit to A4", style = TextStyle(text, 13.sp, FontWeight.Medium)) }
+                ) { BasicText(stringResource(R.string.images_fit_a4), style = TextStyle(text, 13.sp, FontWeight.Medium)) }
                 LiquidButton(
                     onClick = { viewModel.setFitToA4(false) }, backdrop = backdrop,
                     surfaceColor = if (!state.fitToA4) accent.copy(0.30f) else Color.White.copy(0.06f)
-                ) { BasicText("Original size", style = TextStyle(text, 13.sp, FontWeight.Medium)) }
+                ) { BasicText(stringResource(R.string.images_original_size), style = TextStyle(text, 13.sp, FontWeight.Medium)) }
             }
 
             Box(Modifier.fillMaxWidth().weight(1f)) {
                 if (state.imageUris.isEmpty()) {
                     Box(Modifier.fillMaxSize(), Alignment.Center) {
-                        BasicText("Add photos to build a PDF.", style = TextStyle(sub, 13.sp))
+                        BasicText(stringResource(R.string.images_hint), style = TextStyle(sub, 13.sp))
                     }
                 } else {
                     LazyVerticalGrid(
@@ -171,7 +174,7 @@ fun ImagesToPdfScreen(
                             Box(Modifier.aspectRatio(0.75f).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(0.06f))) {
                                 AsyncImage(
                                     model = uri,
-                                    contentDescription = "Image ${index + 1}",
+                                    contentDescription = stringResource(R.string.image_number, index + 1),
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
@@ -181,7 +184,7 @@ fun ImagesToPdfScreen(
                                         .clickable { viewModel.removeImage(index) },
                                     Alignment.Center
                                 ) {
-                                    Icon(Icons.Rounded.Close, "Remove", Modifier.size(14.dp), Color.White)
+                            Icon(Icons.Rounded.Close, stringResource(R.string.delete), Modifier.size(14.dp), Color.White)
                                 }
                             }
                         }
@@ -196,7 +199,7 @@ fun ImagesToPdfScreen(
                     BasicText(msg, style = TextStyle(Color(0xFFB9F6CA), 12.sp), modifier = Modifier.weight(1f))
                     state.lastOutputUri?.let { uri ->
                         LiquidButton(onClick = { onViewOutput(uri) }, backdrop = backdrop, tint = accent) {
-                            BasicText("Open", style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
+                            BasicText(stringResource(R.string.open), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
                         }
                     }
                 }

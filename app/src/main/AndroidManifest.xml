@@ -100,6 +100,13 @@
                 <data android:scheme="content" />
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/vnd.ms-powerpoint" />
+            </intent-filter>
 
             <!-- Open plain text files -->
             <intent-filter>

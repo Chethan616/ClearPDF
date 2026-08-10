@@ -16,6 +16,7 @@ import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.domain.usecase.CreatePdfUseCase
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import kotlinx.coroutines.Dispatchers
@@ -101,19 +102,19 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
         when (state.selectedMode) {
             CreateMode.FROM_IMAGES -> {
                 if (state.selectedImageUris.isEmpty()) {
-                    _uiState.update { it.copy(errorMessage = "Please select at least one image") }
+                    _uiState.update { it.copy(errorMessage = context.getString(R.string.create_min_image)) }
                     return
                 }
             }
             CreateMode.BLANK -> {
                 if (state.blankPageCount < 1) {
-                    _uiState.update { it.copy(errorMessage = "Blank PDF needs at least 1 page") }
+                    _uiState.update { it.copy(errorMessage = context.getString(R.string.create_min_blank)) }
                     return
                 }
             }
             CreateMode.ADVANCED_TEXT -> {
                 if (state.textContent.isBlank()) {
-                    _uiState.update { it.copy(errorMessage = "Please enter some text") }
+                    _uiState.update { it.copy(errorMessage = context.getString(R.string.create_text_required)) }
                     return
                 }
             }
@@ -167,7 +168,7 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
                         isCreating = false,
                         lastOutputUri = outputUri,
                         saveLocationLabel = saveLabel,
-                        resultMessage = "Created $fileName (${doc.pageCount} pages)\nSaved to $saveLabel"
+                        resultMessage = context.getString(R.string.create_success, fileName, doc.pageCount, saveLabel)
                     )
                 }
 
@@ -176,7 +177,7 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(isCreating = false, errorMessage = e.message ?: "Failed to create PDF")
+                    it.copy(isCreating = false, errorMessage = context.getString(R.string.create_failed))
                 }
             }
         }
