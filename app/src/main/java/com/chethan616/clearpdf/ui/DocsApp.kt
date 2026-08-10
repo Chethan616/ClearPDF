@@ -47,6 +47,7 @@ import androidx.navigation.compose.rememberNavController
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
+import com.chethan616.clearpdf.data.repository.OnboardingManager
 import com.chethan616.clearpdf.ui.components.DocsBottomTabs
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
@@ -65,6 +66,8 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = null) {
     val context = LocalContext.current
+    var selectedLocale by rememberSaveable { mutableStateOf<String>(OnboardingManager.getSelectedLocale(context)) }
+
     var themeMode by rememberSaveable { mutableIntStateOf(AppSettingsManager.getThemeMode(context)) }
     var showStarPrompt by rememberSaveable { mutableStateOf(false) }
     val systemDark = isSystemInDarkTheme()
@@ -151,7 +154,15 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
             contentScale = ContentScale.Crop
         )
 
-        CompositionLocalProvider(LocalIsDarkMode provides isDarkMode) {
+        LaunchedEffect(selectedLocale) {
+            if (selectedLocale.isNotBlank()) {
+                com.chethan616.clearpdf.ui.utils.LocaleHelper.applyLocale(context, selectedLocale, recreate = false)
+            }
+        }
+
+        CompositionLocalProvider(
+            LocalIsDarkMode provides isDarkMode
+        ) {
             Box(Modifier.fillMaxSize()) {
                 DocsNavGraph(
                     navController = navController,

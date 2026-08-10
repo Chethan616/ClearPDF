@@ -11,4 +11,153 @@
     <string name="shortcut_compress_long">Compress a PDF file</string>
     <string name="shortcut_create_short">Create PDF</string>
     <string name="shortcut_create_long">Create a new PDF</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Welcome to ClearPDF</string>
+    <string name="onboarding_welcome_subtitle">Your fully offline document companion</string>
+    <string name="onboarding_language_title">Choose your language</string>
+    <string name="onboarding_language_subtitle">Personalize your experience</string>
+    <string name="onboarding_files_title">Open anything</string>
+    <string name="onboarding_files_subtitle">PDFs, docs, sheets, slides, images &amp; more</string>
+    <string name="onboarding_features_title">Powerful tools</string>
+    <string name="onboarding_features_subtitle">Annotate, sign, search, and organize documents</string>
+    <string name="onboarding_cta_continue">Continue</string>
+    <string name="onboarding_cta_get_started">Get Started</string>
+
+    <!-- Home Screen -->
+    <string name="home_title">ClearPDF</string>
+    <string name="home_workspace_label">PDF WORKSPACE</string>
+    <string name="home_tagline">PDF work, simply elegant.</string>
+    <string name="home_subtitle">Open, scan, and organize your files — privately on your device.</string>
+    <string name="home_open_pdf">Open PDF</string>
+    <string name="home_scan">Scan</string>
+    <string name="home_recents">Recents</string>
+    <string name="home_see_all">See all</string>
+    <string name="home_see_less">See less</string>
+    <string name="home_no_recents">No recent files</string>
+    <string name="home_no_recents_subtitle">Open a PDF to get started</string>
+    <string name="home_on_device">ON-DEVICE</string>
+
+    <!-- Tools Screen -->
+    <string name="tools_title">Tools</string>
+    <string name="tools_subtitle">Everything you need to work with PDFs.</string>
+    <string name="tool_open_pdf">Open PDF</string>
+    <string name="tool_open_pdf_sub">View and read</string>
+    <string name="tool_merge">Merge PDFs</string>
+    <string name="tool_merge_sub">Combine files</string>
+    <string name="tool_split">Split PDF</string>
+    <string name="tool_split_sub">Extract pages</string>
+    <string name="tool_compress">Compress</string>
+    <string name="tool_compress_sub">Reduce file size</string>
+    <string name="tool_organize">Organize</string>
+    <string name="tool_organize_sub">Reorder &amp; rotate</string>
+    <string name="tool_images">Images to PDF</string>
+    <string name="tool_images_sub">Photos to PDF</string>
+    <string name="tool_extract">Extract Text</string>
+    <string name="tool_extract_sub">Copy text</string>
+    <string name="tool_create">Create PDF</string>
+    <string name="tool_create_sub">Blank, images, text</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme_auto">Auto</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_auto_desc">Follow system settings</string>
+    <string name="settings_theme_light_desc">Always use light theme</string>
+    <string name="settings_theme_dark_desc">Always use dark theme</string>
+    <string name="settings_save_location">Save Location</string>
+    <string name="settings_save_downloads">Downloads</string>
+    <string name="settings_save_custom">Custom Folder</string>
+    <string name="settings_file_handling">File Handling</string>
+    <string name="settings_auto_compress">Auto-Compress</string>
+    <string name="settings_auto_compress_desc">Automatically compress PDFs on import</string>
+    <string name="settings_keep_original">Keep Original</string>
+    <string name="settings_keep_original_desc">Preserve original file after editing</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_notifications_desc">Show notification when tasks finish</string>
+    <string name="settings_compression_quality">Compression Quality</string>
+    <string name="settings_smaller_size">Smaller size</string>
+    <string name="settings_higher_quality">Higher quality</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_desc">Choose application language</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version">Version 1.1.0</string>
+    <string name="settings_made_by">Made by Chethan616 with ❤</string>
+    <string name="settings_star_github">Star on GitHub</string>
+    <string name="settings_open_source">ClearPDF is open source</string>
+    <string name="settings_licenses">Open Source Licenses</string>
+
+    <!-- PDF Viewer -->
+    <string name="viewer_title">PDF Viewer</string>
+    <string name="viewer_open_pdf">Open a PDF</string>
+    <string name="viewer_pick_pdf">Pick a PDF</string>
+    <string name="viewer_select_file">Select a PDF file from your device to view it</string>
+    <string name="viewer_page_of">Page %1$d / %2$d</string>
+    <string name="viewer_draw_tools">Draw Tools</string>
+    <string name="viewer_select_text">Select Text</string>
+    <string name="viewer_add_image">Add Image</string>
+    <string name="viewer_eraser">Eraser</string>
+    <string name="viewer_save_edits">Save Edits</string>
+    <string name="viewer_sign">Sign</string>
+    <string name="viewer_find">Find</string>
+    <string name="viewer_find_hint">Search in document…</string>
+    <string name="viewer_find_results">%1$d of %2$d results</string>
+    <string name="viewer_find_no_results">No results</string>
+    <string name="viewer_prev">Previous</string>
+    <string name="viewer_next">Next</string>
+    <string name="viewer_open_another">Open Another PDF</string>
+    <string name="viewer_pen">Pen</string>
+    <string name="viewer_highlight">Highlight</string>
+    <string name="viewer_rect">Rect</string>
+    <string name="viewer_oval">Oval</string>
+    <string name="viewer_line">Line</string>
+    <string name="viewer_arrow">Arrow</string>
+    <string name="viewer_undo">Undo</string>
+    <string name="viewer_clear">Clear</string>
+    <string name="viewer_select_all">Select All</string>
+    <string name="viewer_underline">Underline</string>
+    <string name="viewer_strike">Strike</string>
+    <string name="viewer_done">Done</string>
+    <string name="viewer_new_sign">New Sign</string>
+    <string name="viewer_replace">Replace</string>
+    <string name="viewer_saving">Saving edited PDF…</string>
+    <string name="viewer_size">Size</string>
+    <string name="viewer_jump_to_page">Jump to Page</string>
+
+    <!-- Signature Pad -->
+    <string name="sig_draw_title">Draw your signature</string>
+    <string name="sig_saved">Saved</string>
+    <string name="sig_clear">Clear</string>
+    <string name="sig_use">Use Signature</string>
+    <string name="sig_thin">Thin</string>
+    <string name="sig_medium">Medium</string>
+    <string name="sig_thick">Thick</string>
+    <string name="sig_heavy">Heavy</string>
+
+    <!-- Onboarding feature highlights -->
+    <string name="feature_annotate_title">Annotate &amp; Sign</string>
+    <string name="feature_annotate_desc">Draw, highlight, and sign your PDFs</string>
+    <string name="feature_search_title">Search &amp; Select</string>
+    <string name="feature_search_desc">Search text and select entire paragraphs</string>
+    <string name="feature_tools_title">Powerful Tools</string>
+    <string name="feature_tools_desc">Merge, split, compress, and convert</string>
+    <string name="onboarding_ready_title">You\'re all set! 🎉</string>
+    <string name="onboarding_ready_subtitle">ClearPDF is ready to use.\nAll your documents, always private.</string>
+    <string name="onboarding_privacy_badge">100% offline · No data collection · Open source</string>
+
+    <!-- Common -->
+    <string name="back">Back</string>
+    <string name="done">Done</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="copy">Copy</string>
+    <string name="share">Share</string>
+    <string name="delete">Delete</string>
+    <string name="open">Open</string>
+    <string name="save">Save</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="not_now">Not now</string>
+    <string name="dont_ask_again">Don\'t ask again</string>
 </resources>

@@ -3,7 +3,10 @@ package com.chethan616.clearpdf.ui.screen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -44,6 +47,9 @@ import com.kyant.backdrop.backdrops.LayerBackdrop
 
 import androidx.compose.ui.graphics.graphicsLayer
 
+import androidx.compose.ui.res.stringResource
+import com.chethan616.clearpdf.R
+
 private data class ToolSpec(
     val id: String,
     val title: String,
@@ -68,7 +74,33 @@ fun ToolsScreen(
     val isDarkMode = LocalIsDarkMode.current
     val uiSensor = rememberUISensor()
     val secondary = LiquidGlassColors.secondary(isDarkMode)
+
+    val toolOpenPdfTitle = stringResource(R.string.tool_open_pdf)
+    val toolOpenPdfSub = stringResource(R.string.tool_open_pdf_sub)
+    val toolMergeTitle = stringResource(R.string.tool_merge)
+    val toolMergeSub = stringResource(R.string.tool_merge_sub)
+    val toolSplitTitle = stringResource(R.string.tool_split)
+    val toolSplitSub = stringResource(R.string.tool_split_sub)
+    val toolCompressTitle = stringResource(R.string.tool_compress)
+    val toolCompressSub = stringResource(R.string.tool_compress_sub)
+    val toolOrganizeTitle = stringResource(R.string.tool_organize)
+    val toolOrganizeSub = stringResource(R.string.tool_organize_sub)
+    val toolImagesTitle = stringResource(R.string.tool_images)
+    val toolImagesSub = stringResource(R.string.tool_images_sub)
+    val toolExtractTitle = stringResource(R.string.tool_extract)
+    val toolExtractSub = stringResource(R.string.tool_extract_sub)
+    val toolCreateTitle = stringResource(R.string.tool_create)
+    val toolCreateSub = stringResource(R.string.tool_create_sub)
+
     val toolItems = remember(
+        toolOpenPdfTitle, toolOpenPdfSub,
+        toolMergeTitle, toolMergeSub,
+        toolSplitTitle, toolSplitSub,
+        toolCompressTitle, toolCompressSub,
+        toolOrganizeTitle, toolOrganizeSub,
+        toolImagesTitle, toolImagesSub,
+        toolExtractTitle, toolExtractSub,
+        toolCreateTitle, toolCreateSub,
         onNavigateToOpenPdf,
         onNavigateToMergePdf,
         onNavigateToSplitPdf,
@@ -79,14 +111,14 @@ fun ToolsScreen(
         onNavigateToCreatePdf
     ) {
         listOf(
-            ToolSpec("open", "Open PDF", "View and read", LiquidGlassColors.Blue, Icons.Rounded.FileOpen, onNavigateToOpenPdf),
-            ToolSpec("merge", "Merge PDFs", "Combine files", LiquidGlassColors.Red, Icons.AutoMirrored.Rounded.CallMerge, onNavigateToMergePdf),
-            ToolSpec("split", "Split PDF", "Extract pages", LiquidGlassColors.Purple, Icons.AutoMirrored.Rounded.CallSplit, onNavigateToSplitPdf),
-            ToolSpec("compress", "Compress", "Reduce file size", LiquidGlassColors.Green, Icons.Rounded.Compress, onNavigateToCompressPdf),
-            ToolSpec("organize", "Organize", "Reorder and rotate", LiquidGlassColors.Teal, Icons.Rounded.Reorder, onNavigateToOrganizePdf),
-            ToolSpec("images", "Images to PDF", "Photos to PDF", LiquidGlassColors.Indigo, Icons.Rounded.Image, onNavigateToImagesToPdf),
-            ToolSpec("extract", "Extract text", "Copy text out", Color(0xFF5AC8FA), Icons.Rounded.TextSnippet, onNavigateToExtractText),
-            ToolSpec("create", "Create PDF", "Blank, images, text", LiquidGlassColors.Orange, Icons.AutoMirrored.Rounded.NoteAdd, onNavigateToCreatePdf)
+            ToolSpec("open", toolOpenPdfTitle, toolOpenPdfSub, LiquidGlassColors.Blue, Icons.Rounded.FileOpen, onNavigateToOpenPdf),
+            ToolSpec("merge", toolMergeTitle, toolMergeSub, LiquidGlassColors.Red, Icons.AutoMirrored.Rounded.CallMerge, onNavigateToMergePdf),
+            ToolSpec("split", toolSplitTitle, toolSplitSub, LiquidGlassColors.Purple, Icons.AutoMirrored.Rounded.CallSplit, onNavigateToSplitPdf),
+            ToolSpec("compress", toolCompressTitle, toolCompressSub, LiquidGlassColors.Green, Icons.Rounded.Compress, onNavigateToCompressPdf),
+            ToolSpec("organize", toolOrganizeTitle, toolOrganizeSub, LiquidGlassColors.Teal, Icons.Rounded.Reorder, onNavigateToOrganizePdf),
+            ToolSpec("images", toolImagesTitle, toolImagesSub, LiquidGlassColors.Indigo, Icons.Rounded.Image, onNavigateToImagesToPdf),
+            ToolSpec("extract", toolExtractTitle, toolExtractSub, Color(0xFF5AC8FA), Icons.Rounded.TextSnippet, onNavigateToExtractText),
+            ToolSpec("create", toolCreateTitle, toolCreateSub, LiquidGlassColors.Orange, Icons.AutoMirrored.Rounded.NoteAdd, onNavigateToCreatePdf)
         )
     }
 
@@ -124,7 +156,12 @@ fun ToolsScreen(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding(),
-        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 84.dp
+        ),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -135,7 +172,7 @@ fun ToolsScreen(
                     translationY = topBarOffsetY * density
                 }
             ) {
-                LiquidGlassTopBar(title = "Tools", backdrop = backdrop, uiSensor = uiSensor)
+                LiquidGlassTopBar(title = stringResource(R.string.tools_title), backdrop = backdrop, uiSensor = uiSensor)
             }
         }
 
@@ -147,7 +184,7 @@ fun ToolsScreen(
                 }
             ) {
                 BasicText(
-                    "Everything you need to work with PDFs.",
+                    stringResource(R.string.tools_subtitle),
                     style = TextStyle(
                         color = secondary,
                         fontSize = 14.sp,

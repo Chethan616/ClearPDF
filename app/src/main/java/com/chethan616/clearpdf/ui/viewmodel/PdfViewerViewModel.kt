@@ -59,7 +59,11 @@ data class PdfViewerUiState(
     val isExporting: Boolean = false,
     val exportMessage: String? = null,
     val exportError: String? = null,
-    val lastExportedUri: Uri? = null
+    val lastExportedUri: Uri? = null,
+    // ── Find / Search ─────────────────────────────────────────────────────────
+    val findQuery: String = "",
+    val findMatches: List<FindMatch> = emptyList(),
+    val currentMatchIndex: Int = -1
 )
 
 data class OcrTextBlock(
@@ -69,6 +73,11 @@ data class OcrTextBlock(
     val top: Float,
     val right: Float,
     val bottom: Float
+)
+
+data class FindMatch(
+    val pageIndex: Int,
+    val blockId: String
 )
 
 data class NormalizedPoint(
@@ -197,25 +206,31 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
     }
 
     private fun openDocumentWithFallback(context: Context, sourceUri: Uri): Pair<PdfDocument, Uri> {
-        val sourceDescriptorSize = tryReadDescriptorSize(context, sourceUri)
+        val targetUri = if (!com.chethan616.clearpdf.utils.UniversalDocumentConverter.isPdf(context, sourceUri)) {
+            com.chethan616.clearpdf.utils.UniversalDocumentConverter.convertToPdf(context, sourceUri)
+        } else {
+            sourceUri
+        }
+
+        val sourceDescriptorSize = tryReadDescriptorSize(context, targetUri)
         if (sourceDescriptorSize == 0L) {
             throw IllegalStateException("Selected document is empty")
         }
 
         val primaryUri = if (sourceDescriptorSize != null) {
-            sourceUri
+            targetUri
         } else {
-            mirrorPdfToAppStorage(context, sourceUri)
+            mirrorPdfToAppStorage(context, targetUri)
         }
 
         return try {
             openPdfUseCase.open(context, primaryUri) to primaryUri
         } catch (primaryError: Exception) {
-            if (primaryUri != sourceUri) {
+            if (primaryUri != targetUri) {
                 throw primaryError
             }
 
-            val mirroredUri = mirrorPdfToAppStorage(context, sourceUri)
+            val mirroredUri = mirrorPdfToAppStorage(context, targetUri)
             val mirroredSize = tryReadDescriptorSize(context, mirroredUri)
             if (mirroredSize == 0L) {
                 throw IllegalStateException("Selected document is empty")
@@ -376,6 +391,58 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         _uiState.value = current.copy(selectedOcrBlockIdsByPage = selectedByPage)
     }
 
+    /**
+     * Selects all OCR blocks on the same horizontal line as [blockId].
+     * "Same line" = blocks whose vertical centre overlaps the target block's bounding box.
+     */
+    fun selectLine(pageIndex: Int, blockId: String) {
+        val state = _uiState.value
+        val blocks = state.ocrBlocksByPage[pageIndex] ?: return
+        val anchor = blocks.firstOrNull { it.id == blockId } ?: return
+        val anchorCenterY = (anchor.top + anchor.bottom) / 2f
+        val lineBlocks = blocks.filter { b ->
+            val cY = (b.top + b.bottom) / 2f
+            cY >= anchor.top && cY <= anchor.bottom
+        }
+        selectOcrBlocks(pageIndex, lineBlocks.map { it.id }.toSet(), append = false)
+    }
+
+    /**
+     * Selects all OCR blocks in the same paragraph as [blockId].
+     * "Same paragraph" = a vertically contiguous run of lines with gaps < line height.
+     */
+    fun selectParagraph(pageIndex: Int, blockId: String) {
+        val state = _uiState.value
+        val blocks = state.ocrBlocksByPage[pageIndex]?.sortedBy { it.top } ?: return
+        val anchor = blocks.firstOrNull { it.id == blockId } ?: return
+        val avgLineHeight = blocks.map { it.bottom - it.top }.average().toFloat().coerceAtLeast(0.01f)
+        val lineGapThreshold = avgLineHeight * 1.5f
+
+        // Group blocks into lines first, then find contiguous paragraph
+        fun centerY(b: OcrTextBlock) = (b.top + b.bottom) / 2f
+
+        // Walk upward from anchor
+        val paragraphBlocks = mutableListOf<OcrTextBlock>()
+        var lastTop = anchor.top
+        for (b in blocks.sortedByDescending { it.top }) {
+            if (b.top > anchor.bottom + lineGapThreshold) continue
+            if (lastTop - b.bottom > lineGapThreshold) break
+            paragraphBlocks.add(b)
+            lastTop = b.top
+        }
+        // Walk downward from anchor
+        var lastBottom = anchor.bottom
+        for (b in blocks.sortedBy { it.top }) {
+            if (b.bottom < anchor.top - lineGapThreshold) continue
+            if (b.top - lastBottom > lineGapThreshold) break
+            if (!paragraphBlocks.contains(b)) paragraphBlocks.add(b)
+            lastBottom = b.bottom
+        }
+        if (paragraphBlocks.isNotEmpty()) {
+            selectOcrBlocks(pageIndex, paragraphBlocks.map { it.id }.toSet(), append = false)
+        }
+    }
+
     fun getSelectedOcrText(pageIndex: Int): String {
         val state = _uiState.value
         val selected = state.selectedOcrBlockIdsByPage[pageIndex] ?: return ""
@@ -390,6 +457,77 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
     fun clearExportFeedback() {
         val current = _uiState.value
         _uiState.value = current.copy(exportMessage = null, exportError = null)
+    }
+
+    // ── Find / Search ────────────────────────────────────────────────────────
+
+    /**
+     * Searches all OCR-indexed pages for blocks containing [query] (case-insensitive).
+     * Results are sorted by page, then by the block's top-to-bottom position.
+     */
+    fun searchText(query: String) {
+        if (query.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                findQuery = "",
+                findMatches = emptyList(),
+                currentMatchIndex = -1
+            )
+            return
+        }
+        val lower = query.trim().lowercase()
+        val matches = _uiState.value.ocrBlocksByPage
+            .entries
+            .sortedBy { it.key }
+            .flatMap { (page, blocks) ->
+                blocks
+                    .filter { it.text.lowercase().contains(lower) }
+                    .sortedBy { it.top }
+                    .map { FindMatch(page, it.id) }
+            }
+        _uiState.value = _uiState.value.copy(
+            findQuery = query,
+            findMatches = matches,
+            currentMatchIndex = if (matches.isEmpty()) -1 else 0
+        )
+    }
+
+    fun nextMatch() {
+        val state = _uiState.value
+        if (state.findMatches.isEmpty()) return
+        val next = (state.currentMatchIndex + 1) % state.findMatches.size
+        _uiState.value = state.copy(currentMatchIndex = next)
+    }
+
+    fun prevMatch() {
+        val state = _uiState.value
+        if (state.findMatches.isEmpty()) return
+        val prev = (state.currentMatchIndex - 1 + state.findMatches.size) % state.findMatches.size
+        _uiState.value = state.copy(currentMatchIndex = prev)
+    }
+
+    fun clearSearch() {
+        _uiState.value = _uiState.value.copy(
+            findQuery = "",
+            findMatches = emptyList(),
+            currentMatchIndex = -1
+        )
+    }
+
+    /** Expands OCR search to pages not yet processed. Call when find mode is activated. */
+    fun triggerOcrForAllPages(context: Context) {
+        val state = _uiState.value
+        val doc = state.document ?: return
+        val needed = (0 until state.pageCount).filter {
+            !state.ocrBlocksByPage.containsKey(it) && !state.ocrPagesInProgress.contains(it)
+        }
+        needed.forEach { page ->
+            val bitmap = state.pageBitmaps[page]
+            if (bitmap != null && !bitmap.isRecycled) {
+                runOcrForPage(doc.uri, page, bitmap)
+            } else {
+                renderPage(context, page)
+            }
+        }
     }
 
     fun exportEditedPdf(context: Context, overlaysByPage: Map<Int, List<ExportOverlay>>, fileName: String, overrideUri: Uri? = null) {

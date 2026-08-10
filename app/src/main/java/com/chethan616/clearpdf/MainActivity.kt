@@ -17,7 +17,16 @@ import com.chethan616.clearpdf.ui.DocsApp
 
 class MainActivity : ComponentActivity() {
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        val savedLang = com.chethan616.clearpdf.data.repository.OnboardingManager.getSelectedLocale(newBase)
+        val context = com.chethan616.clearpdf.ui.utils.LocaleHelper.getLocalizedContext(newBase, savedLang)
+        super.attachBaseContext(context)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        val savedLang = com.chethan616.clearpdf.data.repository.OnboardingManager.getSelectedLocale(this)
+        com.chethan616.clearpdf.ui.utils.LocaleHelper.applyLocale(this, savedLang, recreate = false)
+
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)

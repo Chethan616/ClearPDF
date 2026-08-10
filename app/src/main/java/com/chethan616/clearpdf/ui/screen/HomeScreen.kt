@@ -20,9 +20,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -51,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import com.chethan616.clearpdf.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -238,7 +242,7 @@ fun HomeScreen(
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             BasicText(
-                                "ON DEVICE",
+                                stringResource(R.string.home_on_device),
                                 style = TextStyle(accent, 10.sp, FontWeight.Bold)
                             )
                         }
@@ -264,12 +268,12 @@ fun HomeScreen(
                 )
                 Spacer(Modifier.height(14.dp))
                 BasicText(
-                    "PDF WORKSPACE",
+                    stringResource(R.string.home_workspace_label),
                     style = TextStyle(accent, 11.sp, FontWeight.Bold, letterSpacing = 1.4.sp)
                 )
                 Spacer(Modifier.height(8.dp))
                 BasicText(
-                    "PDF work, beautifully simple.",
+                    stringResource(R.string.home_tagline),
                     style = TextStyle(
                         color = text,
                         fontSize = 25.sp,
@@ -280,7 +284,7 @@ fun HomeScreen(
                 )
                 Spacer(Modifier.height(8.dp))
                 BasicText(
-                    "Open, scan, and organize your files—privately on your device.",
+                    stringResource(R.string.home_subtitle),
                     style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center)
                 )
                 Spacer(Modifier.height(22.dp))
@@ -300,7 +304,7 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Rounded.FileOpen, null, Modifier.size(18.dp), Color.White)
-                            BasicText("Open PDF", style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
+                            BasicText(stringResource(R.string.home_open_pdf), style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
                         }
                     }
                     LiquidButton(
@@ -314,7 +318,7 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Rounded.Scanner, null, Modifier.size(18.dp), Color.White)
-                            BasicText("Scan", style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
+                            BasicText(stringResource(R.string.home_scan), style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
                         }
                     }
                 }
@@ -337,14 +341,14 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    BasicText("Recent files", style = TextStyle(text, 18.sp, FontWeight.Bold))
+                    BasicText(stringResource(R.string.home_recents), style = TextStyle(text, 18.sp, FontWeight.Bold))
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (recents.isNotEmpty() && recents.size > homeRecentLimit) {
                             BasicText(
-                                if (showAllRecents) "Show less" else "See all (${recents.size})",
+                                if (showAllRecents) stringResource(R.string.home_see_less) else "${stringResource(R.string.home_see_all)} (${recents.size})",
                                 style = TextStyle(accent, 12.sp, FontWeight.SemiBold),
                                 modifier = Modifier.clickable { showAllRecents = !showAllRecents }
                             )
@@ -373,14 +377,14 @@ fun HomeScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(36.dp), sub.copy(0.5f))
-                            BasicText(
-                                "Your workspace is ready.",
-                                style = TextStyle(sub, 14.sp, FontWeight.Medium, textAlign = TextAlign.Center)
-                            )
-                            BasicText(
-                                "Opened and exported PDFs will appear here.",
-                                style = TextStyle(sub.copy(0.7f), 12.sp, textAlign = TextAlign.Center)
-                            )
+                        BasicText(
+                            stringResource(R.string.home_no_recents),
+                            style = TextStyle(sub, 14.sp, FontWeight.Medium, textAlign = TextAlign.Center)
+                        )
+                        BasicText(
+                            stringResource(R.string.home_no_recents_subtitle),
+                            style = TextStyle(sub.copy(0.7f), 12.sp, textAlign = TextAlign.Center)
+                        )
                     }
                 } else {
                     val visibleRecents = if (showAllRecents) recents else recents.take(homeRecentLimit)
@@ -440,7 +444,10 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(Modifier.height(80.dp))
+            // Dynamic bottom spacer: tab bar (64dp) + actual nav bar inset + breathing room (20dp)
+            Spacer(Modifier.height(
+                WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 84.dp
+            ))
         }
 
         // ── Floating Liquid Glass Chat Bubble Reaction Bar ──

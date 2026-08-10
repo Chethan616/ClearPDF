@@ -13,6 +13,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.chethan616.clearpdf.data.repository.PdfServiceLocator
+import com.chethan616.clearpdf.data.repository.OnboardingManager
 import com.chethan616.clearpdf.domain.usecase.CompressPdfUseCase
 import com.chethan616.clearpdf.domain.usecase.CreatePdfUseCase
 import com.chethan616.clearpdf.domain.usecase.MergePdfUseCase
@@ -26,6 +27,7 @@ import com.chethan616.clearpdf.ui.screen.ExtractTextScreen
 import com.chethan616.clearpdf.ui.screen.ImagesToPdfScreen
 import com.chethan616.clearpdf.ui.screen.HomeScreen
 import com.chethan616.clearpdf.ui.screen.MergePdfScreen
+import com.chethan616.clearpdf.ui.screen.OnboardingScreen
 import com.chethan616.clearpdf.ui.screen.PageOrganizerScreen
 import com.chethan616.clearpdf.ui.screen.PdfViewerScreen
 import com.chethan616.clearpdf.ui.screen.SettingsScreen
@@ -55,6 +57,7 @@ private const val ROUTE_CREATE = "create_pdf"
 private const val ROUTE_ORGANIZE = "organize_pdf"
 private const val ROUTE_EXTRACT_TEXT = "extract_text"
 private const val ROUTE_IMAGES_TO_PDF = "images_to_pdf"
+private const val ROUTE_ONBOARDING = "onboarding"
 private const val ARG_PDF_URI = "uri"
 private const val ROUTE_VIEWER = "$ROUTE_VIEWER_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
 
@@ -99,9 +102,11 @@ fun DocsNavGraph(
     onThemeModeChanged: (Int) -> Unit,
     incomingPdfUri: Uri? = null
 ) {
+    val context = LocalContext.current
+    val startDest = if (OnboardingManager.hasCompletedOnboarding(context)) ROUTE_HOME else ROUTE_ONBOARDING
     NavHost(
         navController = navController,
-        startDestination = ROUTE_HOME,
+        startDestination = startDest,
         enterTransition = {
             val isMainTabSwitch = initialState.destination.route in MAIN_TAB_ROUTES && targetState.destination.route in MAIN_TAB_ROUTES
             if (isMainTabSwitch) {
@@ -183,6 +188,20 @@ fun DocsNavGraph(
             }
         }
     ) {
+
+        // ── Onboarding (first launch only) ──
+
+        composable(ROUTE_ONBOARDING) {
+            OnboardingScreen(
+                backdrop = backdrop,
+                onComplete = {
+                    navController.navigate(ROUTE_HOME) {
+                        popUpTo(ROUTE_ONBOARDING) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
 
         // ── Main tabs ──
 

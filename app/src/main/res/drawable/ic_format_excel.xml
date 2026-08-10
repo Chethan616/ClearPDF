@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Document background -->
+    <path
+        android:fillColor="#34C759"
+        android:pathData="M12,4h16l12,12v24c0,2.2 -1.8,4 -4,4H12c-2.2,0 -4,-1.8 -4,-4V8c0,-2.2 1.8,-4 4,-4z" />
+    <path
+        android:fillColor="#248A3D"
+        android:pathData="M28,4v12h12z" />
+    <!-- XLS Spreadsheet grid -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M15,22h18v16H15V22zM17,24v3h6v-3H17zM25,24v3h6v-3H25zM17,29v3h6v-3H17zM25,29v3h6v-3H25zM17,34v2h6v-2H17zM25,34v2h6v-2H25z" />
+</vector>
