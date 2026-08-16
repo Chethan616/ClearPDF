@@ -683,7 +683,18 @@ fun SettingsScreen(
                 license = "Apache License 2.0",
                 url = "https://github.com/Kyant0/AndroidLiquidGlass",
                 labelColor = label,
-                subColor = sub
+                subColor = sub,
+                onOpen = { openExternalLink(context, "https://github.com/Kyant0/AndroidLiquidGlass") }
+            )
+
+            LicenseItem(
+                name = "Pdf_Tools",
+                author = "Karna14314",
+                license = "PDF viewer zoom/pan reference",
+                url = "https://github.com/Karna14314/Pdf_Tools",
+                labelColor = label,
+                subColor = sub,
+                onOpen = { openExternalLink(context, "https://github.com/Karna14314/Pdf_Tools") }
             )
 
             Box(
@@ -768,9 +779,17 @@ private fun LicenseItem(
     license: String,
     url: String,
     labelColor: Color,
-    subColor: Color
+    subColor: Color,
+    onOpen: (() -> Unit)? = null
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .then(if (onOpen != null) Modifier.clickable { onOpen() } else Modifier)
+            .padding(vertical = 4.dp)
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)

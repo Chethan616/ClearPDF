@@ -22,4 +22,10 @@ ClearPDF uses open-source components and keeps their notices with the project. R
 - License: Apache License 2.0 (as attributed in the Settings screen)
 - Use: the app's translucent glass surfaces, backdrop effects, and shared UI components.
 
+## Feature-set inspiration — Pdf_Tools
+
+- Project: `Karna14314/Pdf_Tools` (https://github.com/Karna14314/Pdf_Tools)
+- License: Apache License 2.0
+- Use: informed ClearPDF's on-device tool set (e.g. PDF-to-Images export). ClearPDF's implementations are original code written against the app's own architecture and `backdrop` UI; no source was copied. This acknowledgement is provided in good faith for the shared feature direction.
+
 The app does not add GPL or LGPL components for document rendering. If a future dependency changes that, its license and redistribution obligations must be reviewed before release.

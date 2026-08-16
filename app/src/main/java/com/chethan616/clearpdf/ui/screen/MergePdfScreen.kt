@@ -133,8 +133,8 @@ fun MergePdfScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
+            LiquidIconButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
+                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
             }
             LiquidGlassTopBar(title = stringResource(R.string.tool_merge), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
         }
@@ -223,19 +223,25 @@ fun MergePdfScreen(
             }
 
             LiquidButton(
-                onClick = { viewModel.onMerge(context) },
-                backdrop = backdrop, tint = accent,
-                isInteractive = canMerge
+                onClick = { if (canMerge) viewModel.onMerge(context) },
+                backdrop = backdrop,
+                tint = if (canMerge) accent else accent.copy(0.35f),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                ) {
                     if (state.isMerging) {
                         CircularProgressIndicator(Modifier.size(18.dp), Color.White, strokeWidth = 2.dp)
                     } else {
-                        Icon(Icons.AutoMirrored.Rounded.MergeType, null, Modifier.size(18.dp), Color.White)
+                        Icon(Icons.AutoMirrored.Rounded.MergeType, null, Modifier.size(18.dp), Color.White.copy(if (canMerge) 1f else 0.6f))
                     }
                     BasicText(
-                        if (state.isMerging) "Merging..." else "Merge Now",
-                        style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium)
+                        if (state.isMerging) stringResource(R.string.merging) else stringResource(R.string.merge_now),
+                        style = TextStyle(Color.White.copy(if (canMerge) 1f else 0.6f), 15.sp, fontWeight = FontWeight.SemiBold),
+                        maxLines = 1
                     )
                 }
             }

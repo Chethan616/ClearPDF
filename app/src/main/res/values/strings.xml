@@ -55,6 +55,14 @@
     <string name="tool_organize_sub">Reorder &amp; rotate</string>
     <string name="tool_images">Images to PDF</string>
     <string name="tool_images_sub">Photos to PDF</string>
+    <string name="tool_pdf_to_images">PDF to Images</string>
+    <string name="tool_pdf_to_images_sub">Export pages as JPG/PNG</string>
+    <string name="tool_pdf_to_images_desc">Render each page to a high-quality image you can save or share.</string>
+    <string name="pdf_to_images_format">Image format</string>
+    <string name="pdf_to_images_convert">Convert to images</string>
+    <string name="pdf_to_images_working">Converting… %1$d%%</string>
+    <string name="pdf_to_images_preview">Rendered pages</string>
+    <string name="pdf_to_images_save">Save to gallery</string>
     <string name="tool_extract">Extract Text</string>
     <string name="tool_extract_sub">Copy text</string>
     <string name="tool_create">Create PDF</string>
@@ -110,6 +118,8 @@
     <string name="viewer_prev">Previous</string>
     <string name="viewer_next">Next</string>
     <string name="viewer_open_another">Open Another PDF</string>
+    <string name="viewer_editor_tools">Editor Tools</string>
+    <string name="viewer_open_pdf_short">Open PDF</string>
     <string name="viewer_pen">Pen</string>
     <string name="viewer_highlight">Highlight</string>
     <string name="viewer_rect">Rect</string>
@@ -145,6 +155,9 @@
     <string name="sig_saved_title">Saved Signatures</string>
     <string name="sig_name_hint">Name this signature</string>
     <string name="sig_name_save">Save name</string>
+    <string name="sig_name_title">Name your signature</string>
+    <string name="sig_delete_title">Delete signature?</string>
+    <string name="sig_delete_msg">“%1$s” will be permanently removed.</string>
 
     <!-- Onboarding feature highlights -->
     <string name="feature_annotate_title">Annotate &amp; Sign</string>
@@ -168,6 +181,10 @@
     <string name="open">Open</string>
     <string name="save">Save</string>
     <string name="dismiss">Dismiss</string>
+    <string name="anno_note_title">Sticky note</string>
+    <string name="anno_text_title">Insert text</string>
+    <string name="anno_hint">Type here…</string>
+    <string name="anno_save">Save</string>
     <string name="not_now">Not now</string>
     <string name="dont_ask_again">Don\'t ask again</string>
     <string name="settings_custom_directory">Custom Directory</string>
@@ -237,6 +254,8 @@
     <string name="reorder_files_hint">Reorder files before merging. Top to bottom = output order.</string>
     <string name="select_two_pdfs">Select at least 2 PDFs to continue.</string>
     <string name="add_files">Add Files</string>
+    <string name="merge_now">Merge Now</string>
+    <string name="merging">Merging…</string>
     <string name="split_quick_all">All</string>
     <string name="split_quick_odd">Odd</string>
     <string name="split_quick_even">Even</string>

@@ -133,9 +133,11 @@ dependencies {
     implementation("org.apache.poi:poi:3.17")
     implementation("org.apache.poi:poi-scratchpad:3.17")
     
+    // PdfBox-Android — needed by PdfViewerViewModel for native PDF overlay export
+    implementation(libs.pdfbox.android)
+
     // ML Kit Document Scanner & Camera
     implementation(libs.play.services.mlkit.scanner)
-    implementation(libs.play.services.mlkit.text.recognition)
     implementation(libs.camerax.core)
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)

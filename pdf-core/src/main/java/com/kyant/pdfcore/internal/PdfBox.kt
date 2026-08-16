@@ -10,7 +10,7 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
  * is loaded (it resolves bundled fonts/CMaps through assets). Call [ensureInitialized]
  * at the top of every entry point that touches PdfBox.
  */
-internal object PdfBox {
+object PdfBox {
 
     @Volatile
     private var initialized = false

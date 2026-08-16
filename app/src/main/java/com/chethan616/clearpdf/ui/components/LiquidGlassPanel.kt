@@ -17,14 +17,23 @@ import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.RoundedRectangle
 
+/** Dark, mostly-opaque glass base for PDF-viewer chrome so white text stays readable
+ *  over bright pages, while the lens/blur/highlight refraction is preserved. */
+val ViewerChromeGlass: Color = Color(0xFF12151C).copy(alpha = 0.62f)
+
 @Composable
 fun Modifier.liquidGlassPanel(
     backdrop: Backdrop,
-    uiSensor: UISensor
+    uiSensor: UISensor,
+    // When set, overrides the theme-based tint. Used by the PDF viewer chrome, which
+    // renders white text over a backdrop that may be a bright page — it needs a dark,
+    // mostly-opaque base so text stays readable while the glass refraction is kept.
+    containerColorOverride: Color? = null
 ): Modifier {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
-    val containerColor = if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f) else Color(0xFF1E1E1E).copy(0.4f)
+    val containerColor = containerColorOverride
+        ?: if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f) else Color(0xFF1E1E1E).copy(0.4f)
     return this.drawBackdrop(
         backdrop = backdrop,
         shape = { RoundedRectangle(28f.dp) },

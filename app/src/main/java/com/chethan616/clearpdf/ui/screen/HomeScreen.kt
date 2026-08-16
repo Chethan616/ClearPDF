@@ -20,7 +20,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -65,7 +67,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -118,6 +122,10 @@ fun HomeScreen(
     var recents by remember { mutableStateOf(RecentFilesManager.getRecents(context)) }
     var showAllRecents by remember { mutableStateOf(false) }
     var selectedRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
+    // Root-space vertical center of the long-pressed row, so the popup can rise
+    // from the item instead of floating dead-center.
+    var selectedRecentAnchorY by remember { mutableStateOf(0f) }
+    var recentPopupHeightPx by remember { mutableStateOf(0) }
     var infoRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -375,14 +383,16 @@ fun HomeScreen(
                 } else {
                     val visibleRecents = if (showAllRecents) recents else recents.take(homeRecentLimit)
                     visibleRecents.forEach { recent ->
+                        var rowCenterY by remember { mutableStateOf(0f) }
                         Row(
                             Modifier
                                 .fillMaxWidth()
+                                .onGloballyPositioned { rowCenterY = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero).y + it.size.height / 2f }
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(if (isLight) Color.White.copy(0.18f) else Color.White.copy(0.06f))
                                 .combinedClickable(
                                     onClick = { onRecentFileSelected(recent.uri) },
-                                    onLongClick = { selectedRecent = recent }
+                                    onLongClick = { selectedRecent = recent; selectedRecentAnchorY = rowCenterY }
                                 )
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -442,7 +452,7 @@ fun HomeScreen(
             enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessHigh)),
             exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessHigh))
         ) {
-            Box(
+            BoxWithConstraints(
                 Modifier
                     .fillMaxSize()
                     .background(Color.Transparent)
@@ -450,11 +460,17 @@ fun HomeScreen(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null
                     ) { selectedRecent = null },
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.TopCenter
             ) {
+                val maxH = constraints.maxHeight
+                val padPx = 16f * density
                 selectedRecent?.let { recent ->
+                    val targetY = (selectedRecentAnchorY - recentPopupHeightPx / 2f)
+                        .coerceIn(padPx * 5f, (maxH - recentPopupHeightPx - padPx * 5f).coerceAtLeast(padPx))
                     Column(
                         Modifier
+                            .offset { IntOffset(0, targetY.toInt()) }
+                            .onGloballyPositioned { recentPopupHeightPx = it.size.height }
                             .padding(horizontal = 24.dp)
                             .graphicsLayer {
                                 val scaleXValue = lerp(0.20f, 1.0f, morphProgress)

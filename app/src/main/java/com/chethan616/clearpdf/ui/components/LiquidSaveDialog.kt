@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -72,7 +73,11 @@ fun LiquidSaveDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
-                .liquidGlassPanel(backdrop, uiSensor)
+                .clip(RoundedCornerShape(28.dp))
+                // Solid modal card — a Dialog is a separate window and can't sample the
+                // page, so a themed surface reads far cleaner than the wallpaper PNG.
+                .background(if (isLight) Color(0xFFF5F6F8) else Color(0xFF1B1E25))
+                .border(1.dp, if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.12f), RoundedCornerShape(28.dp))
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {

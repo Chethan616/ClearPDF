@@ -150,21 +150,26 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
             }
         }
 
-        Image(
-            painterResource(if (!isDarkMode) R.drawable.wallpaper_light else R.drawable.wallpaper_dark),
-            contentDescription = null,
-            modifier = Modifier
-                .layerBackdrop(backdrop)
-                .fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
+        val contentBackdrop = rememberLayerBackdrop()
 
         CompositionLocalProvider(
             LocalResources provides localizedContext.resources,
             LocalIsDarkMode provides isDarkMode
         ) {
             Box(Modifier.fillMaxSize()) {
-                DocsNavGraph(
+                // Captured layer = wallpaper + the live screen. The floating tab bar
+                // (below) samples THIS, so it reflects real content scrolling under it
+                // instead of the static wallpaper PNG. Per-screen glass keeps sampling
+                // the wallpaper-only `backdrop`; it lives INSIDE this layer but samples a
+                // different backdrop, so there is no glass-on-glass feedback loop.
+                Box(Modifier.fillMaxSize().layerBackdrop(contentBackdrop)) {
+                    Image(
+                        painterResource(if (!isDarkMode) R.drawable.wallpaper_light else R.drawable.wallpaper_dark),
+                        contentDescription = null,
+                        modifier = Modifier.layerBackdrop(backdrop).fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    DocsNavGraph(
                     navController = navController,
                     backdrop = backdrop,
                     selectedTab = selectedTab,
@@ -191,6 +196,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     },
                     incomingPdfUri = incomingPdfUri
                 )
+                }
 
                 androidx.compose.animation.AnimatedVisibility(
                     visible = showBottomTabs,
@@ -229,7 +235,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     DocsBottomTabs(
                         selectedTab = { selectedTab },
                         onTabSelected = onBottomTabSelected,
-                        backdrop = backdrop,
+                        backdrop = contentBackdrop,
                         modifier = Modifier
                             .padding(horizontal = 24.dp, vertical = 12.dp)
                     )

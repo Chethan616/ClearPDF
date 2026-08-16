@@ -13,7 +13,6 @@ import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.chethan616.clearpdf.data.repository.PdfServiceLocator
-import com.chethan616.clearpdf.data.repository.OnboardingManager
 import com.chethan616.clearpdf.domain.usecase.CompressPdfUseCase
 import com.chethan616.clearpdf.domain.usecase.CreatePdfUseCase
 import com.chethan616.clearpdf.domain.usecase.MergePdfUseCase
@@ -29,8 +28,8 @@ import com.chethan616.clearpdf.ui.screen.ExtractTextScreen
 import com.chethan616.clearpdf.ui.screen.ImagesToPdfScreen
 import com.chethan616.clearpdf.ui.screen.HomeScreen
 import com.chethan616.clearpdf.ui.screen.MergePdfScreen
-import com.chethan616.clearpdf.ui.screen.OnboardingScreen
 import com.chethan616.clearpdf.ui.screen.PageOrganizerScreen
+import com.chethan616.clearpdf.ui.screen.PdfToImagesScreen
 import com.chethan616.clearpdf.ui.screen.PdfViewerScreen
 import com.chethan616.clearpdf.ui.screen.SettingsScreen
 import com.chethan616.clearpdf.ui.screen.SplitPdfScreen
@@ -42,6 +41,7 @@ import com.chethan616.clearpdf.ui.viewmodel.ExtractTextViewModel
 import com.chethan616.clearpdf.ui.viewmodel.ImagesToPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.MergePdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.PageOrganizerViewModel
+import com.chethan616.clearpdf.ui.viewmodel.PdfToImagesViewModel
 import com.chethan616.clearpdf.ui.viewmodel.PdfViewerViewModel
 import com.chethan616.clearpdf.ui.viewmodel.SplitPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.ScanViewModel
@@ -61,7 +61,7 @@ private const val ROUTE_EXTRACT_TEXT = "extract_text"
 private const val ROUTE_IMAGES_TO_PDF = "images_to_pdf"
 private const val ROUTE_DECRYPT_PDF = "decrypt_pdf"
 private const val ROUTE_ENCRYPT_PDF = "encrypt_pdf"
-private const val ROUTE_ONBOARDING = "onboarding"
+private const val ROUTE_PDF_TO_IMAGES = "pdf_to_images"
 private const val ARG_PDF_URI = "uri"
 private const val ROUTE_VIEWER = "$ROUTE_VIEWER_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
 
@@ -108,11 +108,9 @@ fun DocsNavGraph(
     onLocaleChanged: (String) -> Unit,
     incomingPdfUri: Uri? = null
 ) {
-    val context = LocalContext.current
-    val startDest = if (OnboardingManager.hasCompletedOnboarding(context)) ROUTE_HOME else ROUTE_ONBOARDING
     NavHost(
         navController = navController,
-        startDestination = startDest,
+        startDestination = ROUTE_HOME,
         enterTransition = {
             val isMainTabSwitch = initialState.destination.route in MAIN_TAB_ROUTES && targetState.destination.route in MAIN_TAB_ROUTES
             if (isMainTabSwitch) {
@@ -127,9 +125,9 @@ fun DocsNavGraph(
                 ) + androidx.compose.animation.slideInHorizontally(
                     animationSpec = androidx.compose.animation.core.spring(
                         dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
-                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
                     ),
-                    initialOffsetX = { (it * 0.06f).toInt() }
+                    initialOffsetX = { (it * 0.22f).toInt() }
                 )
             }
         },
@@ -147,9 +145,9 @@ fun DocsNavGraph(
                 ) + androidx.compose.animation.slideOutHorizontally(
                     animationSpec = androidx.compose.animation.core.spring(
                         dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
-                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
                     ),
-                    targetOffsetX = { (-it * 0.06f).toInt() }
+                    targetOffsetX = { (-it * 0.10f).toInt() }
                 )
             }
         },
@@ -167,9 +165,9 @@ fun DocsNavGraph(
                 ) + androidx.compose.animation.slideInHorizontally(
                     animationSpec = androidx.compose.animation.core.spring(
                         dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
-                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
                     ),
-                    initialOffsetX = { (-it * 0.06f).toInt() }
+                    initialOffsetX = { (-it * 0.10f).toInt() }
                 )
             }
         },
@@ -187,29 +185,13 @@ fun DocsNavGraph(
                 ) + androidx.compose.animation.slideOutHorizontally(
                     animationSpec = androidx.compose.animation.core.spring(
                         dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
-                        stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
                     ),
-                    targetOffsetX = { (it * 0.06f).toInt() }
+                    targetOffsetX = { (it * 0.22f).toInt() }
                 )
             }
         }
     ) {
-
-        // ── Onboarding (first launch only) ──
-
-        composable(ROUTE_ONBOARDING) {
-            OnboardingScreen(
-                backdrop = backdrop,
-                selectedLocale = selectedLocale,
-                onLanguageChanged = onLocaleChanged,
-                onComplete = {
-                    navController.navigate(ROUTE_HOME) {
-                        popUpTo(ROUTE_ONBOARDING) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                }
-            )
-        }
 
         // ── Main tabs ──
 
@@ -240,7 +222,8 @@ fun DocsNavGraph(
                 onNavigateToExtractText = { navController.navigate(ROUTE_EXTRACT_TEXT) { launchSingleTop = true } },
                 onNavigateToImagesToPdf = { navController.navigate(ROUTE_IMAGES_TO_PDF) { launchSingleTop = true } },
                 onNavigateToDecryptPdf = { navController.navigate(ROUTE_DECRYPT_PDF) { launchSingleTop = true } },
-                onNavigateToEncryptPdf = { navController.navigate(ROUTE_ENCRYPT_PDF) { launchSingleTop = true } }
+                onNavigateToEncryptPdf = { navController.navigate(ROUTE_ENCRYPT_PDF) { launchSingleTop = true } },
+                onNavigateToPdfToImages = { navController.navigate(ROUTE_PDF_TO_IMAGES) { launchSingleTop = true } }
             )
         }
 
@@ -422,6 +405,15 @@ fun DocsNavGraph(
                 viewModel = vm,
                 onBack = { navController.popBackStack() },
                 onViewOutput = { uri -> navController.navigateToPdfViewer(uri) }
+            )
+        }
+
+        composable(ROUTE_PDF_TO_IMAGES) {
+            val vm: PdfToImagesViewModel = viewModel()
+            PdfToImagesScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() }
             )
         }
     }

@@ -113,6 +113,12 @@
     <string name="viewer_prev">Anterior</string>
     <string name="viewer_next">Pr&#243;ximo</string>
     <string name="viewer_open_another">Abrir outro PDF</string>
+    <string name="viewer_editor_tools">Ferramentas</string>
+    <string name="viewer_open_pdf_short">Abrir PDF</string>
+    <string name="merge_now">Mesclar Agora</string>
+    <string name="merging">Mesclando&#8230;</string>
+    <string name="sig_delete_title">Excluir assinatura?</string>
+    <string name="sig_delete_msg">&#8220;%1$s&#8221; ser&#225; removida permanentemente.</string>
     <string name="viewer_pen">Caneta</string>
     <string name="viewer_highlight">Destaque</string>
     <string name="viewer_rect">Ret&#226;ngulo</string>

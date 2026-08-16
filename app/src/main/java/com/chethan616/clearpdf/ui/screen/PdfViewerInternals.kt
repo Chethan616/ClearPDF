@@ -1,0 +1,413 @@
+package com.chethan616.clearpdf.ui.screen
+
+import android.graphics.Bitmap
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
+import com.chethan616.clearpdf.ui.viewmodel.ExportOverlay
+import com.chethan616.clearpdf.ui.viewmodel.FindMatch
+import com.chethan616.clearpdf.ui.viewmodel.NormalizedPoint
+import com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sin
+
+// ── Viewer local enums ────────────────────────────────────────────────────────
+
+internal enum class ScrollOrientation { Vertical, Horizontal }
+
+internal enum class PdfEditTool { None, Draw, Highlight, Rect, Ellipse, Line, Arrow, SelectText, Image, Eraser, Text, Note }
+
+internal enum class ViewerToolbarMode { Main, Drawing, Selection, Image, Eraser, Search, Signature }
+
+// ── PdfMarkup — on-canvas annotation model ────────────────────────────────────
+
+internal sealed class PdfMarkup {
+    data class StrokeMarkup(
+        val points: List<Offset>,
+        val color: Color,
+        val width: Float,
+        val alpha: Float = 1f
+    ) : PdfMarkup()
+
+    data class RectMarkup(
+        val start: Offset,
+        val end: Offset,
+        val color: Color,
+        val alpha: Float = 1f,
+        val filled: Boolean = false
+    ) : PdfMarkup()
+
+    data class OvalMarkup(
+        val start: Offset,
+        val end: Offset,
+        val color: Color,
+        val alpha: Float = 1f,
+        val filled: Boolean = false
+    ) : PdfMarkup()
+
+    data class LineMarkup(
+        val start: Offset,
+        val end: Offset,
+        val color: Color,
+        val width: Float = 3f,
+        val alpha: Float = 1f,
+        val arrowHead: Boolean = false
+    ) : PdfMarkup()
+
+    data class TextBlockHighlightMarkup(
+        val blockId: String,
+        val color: Color,
+        val alpha: Float = 0.30f
+    ) : PdfMarkup()
+
+    data class TextBlockLineMarkup(
+        val blockId: String,
+        val color: Color,
+        val width: Float = 3f,
+        val alpha: Float = 1f,
+        val strikeThrough: Boolean = false
+    ) : PdfMarkup()
+
+    data class ImageMarkup(
+        val id: Long,
+        val bitmap: Bitmap,
+        val start: Offset,
+        val end: Offset,
+        val isSignature: Boolean = false
+    ) : PdfMarkup()
+
+    /** Inserted text box. [position] is content-space top-left; [fontSize] is content px. */
+    data class TextBoxMarkup(
+        val id: Long,
+        val position: Offset,
+        val text: String,
+        val color: Color,
+        val fontSize: Float = 40f
+    ) : PdfMarkup()
+
+    /** Sticky note. [anchor] is the content-space top-left of the icon. */
+    data class NoteMarkup(
+        val id: Long,
+        val anchor: Offset,
+        val text: String,
+        val color: Color
+    ) : PdfMarkup()
+
+    fun hitTest(p: Offset): Boolean = when (this) {
+        is StrokeMarkup -> points.any { (it - p).getDistance() <= width.coerceAtLeast(16f) }
+        is RectMarkup -> {
+            val r = Rect(min(start.x, end.x), min(start.y, end.y), max(start.x, end.x), max(start.y, end.y))
+            r.contains(p)
+        }
+        is OvalMarkup -> {
+            val r = Rect(min(start.x, end.x), min(start.y, end.y), max(start.x, end.x), max(start.y, end.y))
+            r.contains(p)
+        }
+        is LineMarkup -> {
+            val d = distToSegment(p, start, end)
+            d <= width.coerceAtLeast(16f)
+        }
+        is TextBlockHighlightMarkup -> false
+        is TextBlockLineMarkup      -> false
+        is ImageMarkup -> {
+            val r = Rect(min(start.x, end.x), min(start.y, end.y), max(start.x, end.x), max(start.y, end.y))
+            r.contains(p)
+        }
+        is TextBoxMarkup -> {
+            val lines = if (text.isEmpty()) 1 else text.split("\n").size
+            val w = (text.split("\n").maxOfOrNull { it.length } ?: 1).coerceAtLeast(1) * fontSize * 0.6f
+            val r = Rect(position.x - 6f, position.y - 6f, position.x + w + 6f, position.y + fontSize * 1.2f * lines + 6f)
+            r.contains(p)
+        }
+        is NoteMarkup -> {
+            val r = Rect(anchor.x - 8f, anchor.y - 8f, anchor.x + 40f, anchor.y + 40f)
+            r.contains(p)
+        }
+    }
+}
+
+// ── Geometry helpers ──────────────────────────────────────────────────────────
+
+internal fun fitBitmapRect(canvasSize: Size, bitmapW: Float, bitmapH: Float): Rect {
+    if (canvasSize.width <= 0f || canvasSize.height <= 0f || bitmapW <= 0f || bitmapH <= 0f)
+        return Rect(0f, 0f, canvasSize.width, canvasSize.height)
+
+    val canvasRatio = canvasSize.width / canvasSize.height
+    val bitmapRatio = bitmapW / bitmapH
+
+    val (w, h) = if (canvasRatio > bitmapRatio) {
+        val h1 = canvasSize.height
+        val w1 = h1 * bitmapRatio
+        Pair(w1, h1)
+    } else {
+        val w1 = canvasSize.width
+        val h1 = w1 / bitmapRatio
+        Pair(w1, h1)
+    }
+    val left = (canvasSize.width - w) / 2f
+    val top  = (canvasSize.height - h) / 2f
+    return Rect(left, top, left + w, top + h)
+}
+
+internal fun screenToContent(
+    screen: Offset,
+    zoomScale: Float,
+    panOffset: Offset,
+    boxCenter: Offset
+): Offset {
+    val unpanned = screen - panOffset
+    val rel      = unpanned - boxCenter
+    return (rel / zoomScale) + boxCenter
+}
+
+internal fun clampPanOffset(
+    pan: Offset,
+    scale: Float,
+    canvasSize: Size,
+    bitmapSize: Size
+): Offset {
+    if (scale <= 1.01f || canvasSize.width <= 0f || canvasSize.height <= 0f) return Offset.Zero
+    val frame = fitBitmapRect(canvasSize, bitmapSize.width, bitmapSize.height)
+    val maxPanX = (frame.width * (scale - 1f) / 2f).coerceAtLeast(0f)
+    val maxPanY = (frame.height * (scale - 1f) / 2f).coerceAtLeast(0f)
+    return Offset(
+        pan.x.coerceIn(-maxPanX, maxPanX),
+        pan.y.coerceIn(-maxPanY, maxPanY)
+    )
+}
+
+internal fun ocrBlockToRect(block: OcrTextBlock, frame: Rect): Rect = Rect(
+    frame.left + block.left * frame.width,
+    frame.top  + block.top  * frame.height,
+    frame.left + block.right * frame.width,
+    frame.top  + block.bottom * frame.height
+)
+
+internal fun hitTestOcrBlock(blocks: List<OcrTextBlock>, contentPoint: Offset, frame: Rect): OcrTextBlock? {
+    return blocks.firstOrNull { b ->
+        val r = ocrBlockToRect(b, frame)
+        val expanded = Rect(r.left - 4f, r.top - 4f, r.right + 4f, r.bottom + 4f)
+        expanded.contains(contentPoint)
+    }
+}
+
+internal fun intersects(a: Rect, b: Rect): Boolean =
+    a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+
+internal fun distToSegment(p: Offset, a: Offset, b: Offset): Float {
+    val l2 = (b - a).getDistanceSq()
+    if (l2 == 0f) return (p - a).getDistance()
+    val t = (((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2).coerceIn(0f, 1f)
+    val proj = Offset(a.x + t * (b.x - a.x), a.y + t * (b.y - a.y))
+    return (p - proj).getDistance()
+}
+
+internal fun Offset.getDistanceSq(): Float = x * x + y * y
+
+internal fun smoothPath(pts: List<Offset>): Path {
+    val path = Path()
+    if (pts.isEmpty()) return path
+    path.moveTo(pts[0].x, pts[0].y)
+    if (pts.size == 1) return path
+    if (pts.size == 2) {
+        path.lineTo(pts[1].x, pts[1].y)
+        return path
+    }
+    for (i in 1 until pts.size - 1) {
+        val p0 = pts[i]
+        val p1 = pts[i + 1]
+        val midX = (p0.x + p1.x) / 2f
+        val midY = (p0.y + p1.y) / 2f
+        path.quadraticTo(p0.x, p0.y, midX, midY)
+    }
+    path.lineTo(pts.last().x, pts.last().y)
+    return path
+}
+
+internal fun DrawScope.drawArrow(
+    start: Offset, end: Offset, color: Color, width: Float
+) {
+    drawLine(color, start, end, width, cap = StrokeCap.Round)
+    val angle = atan2((end.y - start.y).toDouble(), (end.x - start.x).toDouble())
+    val arrowLen = (width * 3.5f).coerceAtLeast(18f)
+    val angle1 = angle + PI - (PI / 6)
+    val angle2 = angle + PI + (PI / 6)
+    val p1 = Offset((end.x + arrowLen * cos(angle1)).toFloat(), (end.y + arrowLen * sin(angle1)).toFloat())
+    val p2 = Offset((end.x + arrowLen * cos(angle2)).toFloat(), (end.y + arrowLen * sin(angle2)).toFloat())
+    val path = Path().apply {
+        moveTo(end.x, end.y)
+        lineTo(p1.x, p1.y)
+        lineTo(p2.x, p2.y)
+        close()
+    }
+    drawPath(path, color)
+}
+
+internal fun buildExportOverlays(
+    annotationsByPage: Map<Int, List<PdfMarkup>>,
+    ocrBlocksByPage: Map<Int, List<OcrTextBlock>>,
+    pageCanvasSizes: Map<Int, Size>,
+    pageBitmapSizes: Map<Int, Size>
+): Map<Int, List<ExportOverlay>> {
+    val map = mutableMapOf<Int, List<ExportOverlay>>()
+
+    annotationsByPage.forEach { (page, markups) ->
+        if (markups.isEmpty()) return@forEach
+        val cs = pageCanvasSizes[page] ?: return@forEach
+        val bs = pageBitmapSizes[page]  ?: cs
+        if (cs.width <= 0f || cs.height <= 0f || bs.width <= 0f || bs.height <= 0f) return@forEach
+
+        val frame = fitBitmapRect(cs, bs.width, bs.height)
+
+        fun normPoint(p: Offset): NormalizedPoint = NormalizedPoint(
+            x = ((p.x - frame.left) / frame.width).coerceIn(0f, 1f),
+            y = ((p.y - frame.top) / frame.height).coerceIn(0f, 1f)
+        )
+
+        fun normDist(px: Float): Float = px / frame.width.coerceAtLeast(1f)
+
+        val ocrBlocks = ocrBlocksByPage[page].orEmpty()
+        val list = mutableListOf<ExportOverlay>()
+
+        markups.forEach { markup ->
+            when (markup) {
+                is PdfMarkup.StrokeMarkup -> {
+                    if (markup.points.size > 1) {
+                        list.add(
+                            ExportOverlay.Stroke(
+                                points = markup.points.map { normPoint(it) },
+                                colorArgb = markup.color.toArgb(),
+                                widthNorm = normDist(markup.width),
+                                alpha = markup.alpha
+                            )
+                        )
+                    }
+                }
+                is PdfMarkup.RectMarkup -> {
+                    list.add(
+                        ExportOverlay.RectShape(
+                            start = normPoint(markup.start),
+                            end = normPoint(markup.end),
+                            colorArgb = markup.color.toArgb(),
+                            alpha = markup.alpha,
+                            filled = markup.filled
+                        )
+                    )
+                }
+                is PdfMarkup.OvalMarkup -> {
+                    list.add(
+                        ExportOverlay.OvalShape(
+                            start = normPoint(markup.start),
+                            end = normPoint(markup.end),
+                            colorArgb = markup.color.toArgb(),
+                            alpha = markup.alpha,
+                            filled = markup.filled
+                        )
+                    )
+                }
+                is PdfMarkup.LineMarkup -> {
+                    list.add(
+                        ExportOverlay.LineShape(
+                            start = normPoint(markup.start),
+                            end = normPoint(markup.end),
+                            colorArgb = markup.color.toArgb(),
+                            widthNorm = normDist(markup.width),
+                            alpha = markup.alpha,
+                            arrowHead = markup.arrowHead
+                        )
+                    )
+                }
+                is PdfMarkup.TextBlockHighlightMarkup -> {
+                    ocrBlocks.firstOrNull { it.id == markup.blockId }?.let { b ->
+                        list.add(
+                            ExportOverlay.RectShape(
+                                start = NormalizedPoint(b.left, b.top),
+                                end = NormalizedPoint(b.right, b.bottom),
+                                colorArgb = markup.color.toArgb(),
+                                alpha = markup.alpha,
+                                filled = true
+                            )
+                        )
+                    }
+                }
+                is PdfMarkup.TextBlockLineMarkup -> {
+                    ocrBlocks.firstOrNull { it.id == markup.blockId }?.let { b ->
+                        val y = if (markup.strikeThrough) (b.top + b.bottom) / 2f else b.bottom - (b.bottom - b.top) * 0.1f
+                        list.add(
+                            ExportOverlay.LineShape(
+                                start = NormalizedPoint(b.left, y),
+                                end = NormalizedPoint(b.right, y),
+                                colorArgb = markup.color.toArgb(),
+                                widthNorm = normDist(markup.width),
+                                alpha = markup.alpha,
+                                arrowHead = false
+                            )
+                        )
+                    }
+                }
+                is PdfMarkup.ImageMarkup -> {
+                    if (!markup.bitmap.isRecycled) {
+                        list.add(
+                            ExportOverlay.ImageStamp(
+                                bitmap = markup.bitmap,
+                                start = normPoint(markup.start),
+                                end = normPoint(markup.end)
+                            )
+                        )
+                    }
+                }
+                is PdfMarkup.TextBoxMarkup -> {
+                    if (markup.text.isNotBlank()) {
+                        list.add(
+                            ExportOverlay.TextStamp(
+                                position = normPoint(markup.position),
+                                text = markup.text,
+                                colorArgb = markup.color.toArgb(),
+                                fontSizeNorm = (markup.fontSize / frame.height.coerceAtLeast(1f))
+                            )
+                        )
+                    }
+                }
+                is PdfMarkup.NoteMarkup -> {
+                    list.add(
+                        ExportOverlay.NoteStamp(
+                            position = normPoint(markup.anchor),
+                            text = markup.text,
+                            colorArgb = markup.color.toArgb()
+                        )
+                    )
+                }
+            }
+        }
+
+        if (list.isNotEmpty()) map[page] = list
+    }
+
+    return map
+}
+
+internal fun recolorSignatureBitmap(source: Bitmap, colorArgb: Int): Bitmap {
+    if (source.isRecycled || source.width <= 0 || source.height <= 0) return source
+
+    val result = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+    val pixels = IntArray(source.width * source.height)
+    source.getPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
+    val rgb = colorArgb and 0x00FFFFFF
+    for (index in pixels.indices) {
+        val alpha = android.graphics.Color.alpha(pixels[index])
+        pixels[index] = if (alpha == 0) 0 else (alpha shl 24) or rgb
+    }
+    result.setPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
+    return result
+}

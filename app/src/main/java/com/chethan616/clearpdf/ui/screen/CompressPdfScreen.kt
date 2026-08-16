@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.ui.components.LiquidButton
+import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
@@ -128,8 +129,8 @@ fun CompressPdfScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
+            LiquidIconButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
+                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
             }
             LiquidGlassTopBar(title = stringResource(R.string.tool_compress), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f), titleFontSize = 18.sp)
         }
@@ -242,11 +243,11 @@ fun CompressPdfScreen(
 
                 // Compress button
                 LiquidButton(
-                    onClick = { viewModel.onCompress(context) },
+                    onClick = { if (!state.isCompressing) viewModel.onCompress(context) },
                     backdrop = backdrop, tint = accent,
-                    isInteractive = !state.isCompressing
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
                         if (state.isCompressing) {
                             CircularProgressIndicator(Modifier.size(18.dp), Color.White, strokeWidth = 2.dp)
                         } else {
@@ -254,7 +255,8 @@ fun CompressPdfScreen(
                         }
                         BasicText(
                             if (state.isCompressing) "Compressing..." else "Compress Now",
-                            style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium)
+                            style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium),
+                            maxLines = 1
                         )
                     }
                 }
