@@ -379,4 +379,11 @@
     <string name="settings_background_desc">Mostrar a imagem de fundo atrás do app</string>
     <string name="settings_privacy_policy">Política de Privacidade</string>
     <string name="settings_version_label">Versão</string>
+    <string name="tool_extract_pages">Extrair páginas</string>
+    <string name="tool_extract_pages_sub">Extrair páginas p/ novo PDF</string>
+    <string name="extract_pages_label">Páginas a extrair</string>
+    <string name="extract_pages_hint">ex.: 1-3, 5, 8-10</string>
+    <string name="extract_pages_total">de %1$d</string>
+    <string name="extract_pages_action">Extrair páginas</string>
+    <string name="extract_pages_working">Extraindo…</string>
 </resources>

@@ -119,8 +119,13 @@ ITEM 5 — PDF_TOOLS FEATURE-GAP PORTING  [~] WATERMARK DONE (first gap closed t
     - Wired: DocsNavGraph ROUTE_WATERMARK + composable; ToolsScreen param + ToolSpec
       (BrandingWatermark icon, #AD1457); strings tool_watermark(_sub)/watermark_* in en+pt+pt-rBR.
     BUILD SUCCESSFUL. Not device-verified.
-  → STILL MISSING (future passes): image tools, extract-pages-to-new-PDF, HTML->PDF,
-    form fill/flatten, OCR-searchable export.
+  → EXTRACT PAGES DONE (2nd gap): `ExtractPagesViewModel` (self-contained) reuses
+    `PdfSplitterImpl.extractPages` with a 1-based range parser ("1-3, 5, 8-10" → 0-based
+    indices, clamped/deduped/sorted); saves via SaveLocationManager + RecentFilesManager.
+    `ExtractPagesScreen` on ToolScaffold (numeric range field, page-count trailing, apply,
+    open-output). Wired: DocsNavGraph ROUTE_EXTRACT_PAGES, ToolsScreen ToolSpec
+    (ContentCut icon, #00897B), strings en+pt+pt-rBR. assembleDebug OK.
+  → STILL MISSING (future passes): image tools, HTML->PDF, form fill/flatten, OCR export.
 
 ITEM 5 — (original spec below)  [~]
 ---------------------------------------------------------------------
