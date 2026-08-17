@@ -709,7 +709,7 @@ fun PdfViewerScreen(
                         surfaceColor = chromeGlass
                     ) {
                         BasicText(
-                            stringResource(R.string.viewer_page_of, state.currentPage + 1, safePageCount),
+                            stringResource(R.string.viewer_page_of, currentPageIndex + 1, safePageCount),
                             style = TextStyle(chromeFg, 13.sp, FontWeight.SemiBold)
                         )
                     }
@@ -752,11 +752,17 @@ fun PdfViewerScreen(
                     exportError        = state.exportError,
                     exportMessage      = state.exportMessage,
                     lastExportedUri    = state.lastExportedUri,
-                    selectedTextCount  = state.selectedOcrBlockIdsByPage[state.currentPage]?.size ?: 0,
-                    currentSelectedIds = state.selectedOcrBlockIdsByPage[state.currentPage].orEmpty(),
+                    selectedTextCount  = state.selectedOcrBlockIdsByPage[currentPageIndex]?.size ?: 0,
+                    currentSelectedIds = state.selectedOcrBlockIdsByPage[currentPageIndex].orEmpty(),
                     activeIsSignature  = activeItem?.isSignature == true,
-                    currentPageMarks   = getPageMarks(state.currentPage),
-                    onSetActiveTool    = { activeTool = it; if (it == PdfEditTool.None) activeImageId = null; selectedAnnoPage = null; selectedAnnoIndex = -1; viewModel.clearOcrSelection(state.currentPage) },
+                    // Undo + all page-scoped edit actions must target the SYNCHRONOUS visible
+                    // page (currentPageIndex = listState.firstVisibleItemIndex), NOT the async
+                    // state.currentPage mirror updated via snapshotFlow. Drawing/placement inside
+                    // the LazyColumn item uses that same synchronous index, so keying the toolbar
+                    // to state.currentPage caused a transient mismatch right after open/scroll →
+                    // undo removed from the wrong (empty) page list and no-op'd on the first try.
+                    currentPageMarks   = getPageMarks(currentPageIndex),
+                    onSetActiveTool    = { activeTool = it; if (it == PdfEditTool.None) activeImageId = null; selectedAnnoPage = null; selectedAnnoIndex = -1; viewModel.clearOcrSelection(currentPageIndex) },
                     onToggleFindBar    = {
                         showFindBar = !showFindBar
                         if (showFindBar) viewModel.triggerOcrForAllPages(context)
@@ -777,35 +783,35 @@ fun PdfViewerScreen(
                         activeImageId = null; activeTool = PdfEditTool.None
                     },
                     onSelectAllText    = {
-                        val ids = state.ocrBlocksByPage[state.currentPage].orEmpty().map { it.id }.toSet()
-                        if (ids.isNotEmpty()) viewModel.selectOcrBlocks(state.currentPage, ids, false)
+                        val ids = state.ocrBlocksByPage[currentPageIndex].orEmpty().map { it.id }.toSet()
+                        if (ids.isNotEmpty()) viewModel.selectOcrBlocks(currentPageIndex, ids, false)
                     },
                     onCopyText         = {
-                        viewModel.getSelectedOcrText(state.currentPage).takeIf { it.isNotBlank() }
+                        viewModel.getSelectedOcrText(currentPageIndex).takeIf { it.isNotBlank() }
                             ?.let { clipboard.setText(AnnotatedString(it)) }
                     },
                     onHighlightSelected = {
-                        val m = getPageMarks(state.currentPage)
-                        state.selectedOcrBlockIdsByPage[state.currentPage].orEmpty().forEach { id ->
+                        val m = getPageMarks(currentPageIndex)
+                        state.selectedOcrBlockIdsByPage[currentPageIndex].orEmpty().forEach { id ->
                             if (!m.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == id })
                                 m.add(PdfMarkup.TextBlockHighlightMarkup(id, Color(currentColorLong), 0.30f))
                         }
                     },
                     onUnderlineSelected = {
-                        val m = getPageMarks(state.currentPage)
-                        state.selectedOcrBlockIdsByPage[state.currentPage].orEmpty().forEach { id ->
+                        val m = getPageMarks(currentPageIndex)
+                        state.selectedOcrBlockIdsByPage[currentPageIndex].orEmpty().forEach { id ->
                             if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == id && !it.strikeThrough })
                                 m.add(PdfMarkup.TextBlockLineMarkup(id, Color(currentColorLong), 3f, 1f, false))
                         }
                     },
                     onStrikeSelected    = {
-                        val m = getPageMarks(state.currentPage)
-                        state.selectedOcrBlockIdsByPage[state.currentPage].orEmpty().forEach { id ->
+                        val m = getPageMarks(currentPageIndex)
+                        state.selectedOcrBlockIdsByPage[currentPageIndex].orEmpty().forEach { id ->
                             if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == id && it.strikeThrough })
                                 m.add(PdfMarkup.TextBlockLineMarkup(id, Color(currentColorLong), 3f, 1f, true))
                         }
                     },
-                    onClearTextSelection = { viewModel.clearOcrSelection(state.currentPage) },
+                    onClearTextSelection = { viewModel.clearOcrSelection(currentPageIndex) },
                     onSetColorLong   = { currentColorLong = it },
                     onSetStrokeWidth = { currentStrokeWidth = it },
                     onDismissExportFeedback = { viewModel.clearExportFeedback() },

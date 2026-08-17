@@ -73,14 +73,20 @@ ITEM 5 — PDF_TOOLS FEATURE-GAP PORTING  [ ]
 =====================================================================
 BUGS TO FIX (from user) — do alongside the items above  [ ]
 ---------------------------------------------------------------------
-BUG A — UNDO first-attempt failure:
+BUG A — UNDO first-attempt failure  [x] DONE:
   "sometimes on first attempt the undo doesnt work at all for anything any modification unless i
    come back to homescreen and reopen the pdf."
-  → Undo (per-page currentPageMarks.removeAt(lastIndex)) sometimes no-ops until the PDF is
-    reopened. Investigate: annotationsByPage state / getPageMarks keying / whether the first
-    edit's mark list is a different instance than what undo mutates / recomposition not observing
-    the SnapshotStateList. Likely getPageMarks returns a fresh list vs the one the page edited,
-    or mutableStateListOf identity issue across recompositions. Fix so undo works on first try.
+  → ROOT CAUSE: the bottom toolbar's undo + all page-scoped OCR/highlight actions targeted
+    getPageMarks(state.currentPage), where state.currentPage is an ASYNC mirror updated via
+    snapshotFlow{ firstVisibleItemIndex }.collect{ onPageChanged }. Drawing/placement inside the
+    LazyColumn item targets getPageMarks(page) with the SYNCHRONOUS item index. Right after
+    open/scroll (before the flow settles) the two diverge, so undo removed from the wrong (empty)
+    page list = no-op; reopening resynced them.
+  → FIX: switched currentPageMarks + selectedTextCount/currentSelectedIds + onSelectAllText/
+    onCopyText/onHighlight/onUnderline/onStrike/onClearTextSelection + onSetActiveTool's
+    clearOcrSelection + the "Page X / Y" pill from state.currentPage to the synchronous
+    currentPageIndex (= listState.firstVisibleItemIndex, same source the drawing uses).
+    state.currentPage is kept only for the async OCR-extraction trigger. BUILD SUCCESSFUL.
 
 BUG B — Signature resize [x] DONE: PdfContinuousPage image selection redesigned — rounded
   accent frame, 3 passive corner dots, and a large (22px) bottom-right resize handle with a
