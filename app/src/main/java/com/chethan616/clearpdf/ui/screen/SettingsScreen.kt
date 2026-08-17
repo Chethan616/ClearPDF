@@ -56,8 +56,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
@@ -243,64 +246,49 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(Icons.Rounded.Tune, null, Modifier.size(22.dp), label)
-                BasicText("Appearance", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+                BasicText(stringResource(R.string.settings_appearance), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
-            // Navbar-like segmented theme mode bar
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector)
+            // Liquid-glass refracted segmented control
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector, val activeColor: Color)
                 val options = listOf(
-                    ThemeOption(0, "System", Icons.Rounded.PhoneAndroid),
-                    ThemeOption(1, "Light", Icons.Rounded.LightMode),
-                    ThemeOption(2, "Dark", Icons.Rounded.DarkMode)
+                    ThemeOption(0, stringResource(R.string.settings_theme_auto), Icons.Rounded.PhoneAndroid, Color(0xFF0088FF)),
+                    ThemeOption(1, stringResource(R.string.settings_theme_light), Icons.Rounded.LightMode, Color(0xFFFFA726)),
+                    ThemeOption(2, stringResource(R.string.settings_theme_dark), Icons.Rounded.DarkMode, Color(0xFF7C4DFF))
                 )
                 options.forEach { option ->
                     val isSelected = themeMode == option.idx
-                    val activeColor = when (option.idx) {
-                        1 -> Color(0xFFFFA726)
-                        2 -> Color(0xFF7C4DFF)
-                        else -> Color(0xFF0088FF)
-                    }
-                    Row(
-                        Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) activeColor else Color.Transparent)
-                            .clickable { onThemeModeChanged(option.idx) }
-                            .padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                    val cc = if (isSelected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+                    LiquidButton(
+                        onClick = { onThemeModeChanged(option.idx) },
+                        backdrop = backdrop,
+                        tint = if (isSelected) option.activeColor else Color.Transparent,
+                        surfaceColor = if (isSelected) option.activeColor.copy(0.18f) else (if (isLight) Color.White.copy(0.55f) else Color.White.copy(0.08f)),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Icon(
-                            option.icon, null,
-                            Modifier.size(17.dp),
-                            if (isSelected) Color.White else sub
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        BasicText(
-                            option.label,
-                            style = TextStyle(
-                                if (isSelected) Color.White else sub,
-                                13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally)
+                        ) {
+                            Icon(option.icon, null, Modifier.size(16.dp), cc)
+                            BasicText(
+                                option.label,
+                                style = TextStyle(cc, 13.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium),
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
-                        )
+                        }
                     }
                 }
             }
 
             BasicText(
                 when (themeMode) {
-                    1 -> "Always use light theme"
-                    2 -> "Always use dark theme"
-                    else -> "Follows your device's system settings"
+                    1 -> stringResource(R.string.settings_theme_light_desc)
+                    2 -> stringResource(R.string.settings_theme_dark_desc)
+                    else -> stringResource(R.string.settings_theme_auto_desc)
                 },
                 style = TextStyle(sub, 12.sp)
             )
@@ -323,38 +311,31 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(Icons.Rounded.Language, null, Modifier.size(22.dp), label)
-                BasicText("Language", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+                BasicText(stringResource(R.string.settings_language), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 data class LangOption(val code: String, val label: String)
-                val langs = listOf(LangOption("en", "English"), LangOption("pt-BR", "Português"))
+                val langs = listOf(
+                    LangOption("en", stringResource(R.string.language_english)),
+                    LangOption("pt-BR", stringResource(R.string.language_portuguese))
+                )
+                val accent = Color(0xFF0088FF)
                 langs.forEach { opt ->
                     val isSelected = selectedLocale == opt.code
-                    Row(
-                        Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) Color(0xFF0088FF) else Color.Transparent)
-                            .clickable { onLocaleChanged(opt.code) }
-                            .padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                    val cc = if (isSelected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+                    LiquidButton(
+                        onClick = { onLocaleChanged(opt.code) },
+                        backdrop = backdrop,
+                        tint = if (isSelected) accent else Color.Transparent,
+                        surfaceColor = if (isSelected) accent.copy(0.18f) else (if (isLight) Color.White.copy(0.55f) else Color.White.copy(0.08f)),
+                        modifier = Modifier.weight(1f)
                     ) {
                         BasicText(
                             opt.label,
-                            style = TextStyle(
-                                if (isSelected) Color.White else sub,
-                                13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            )
+                            style = TextStyle(cc, 13.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
                 }

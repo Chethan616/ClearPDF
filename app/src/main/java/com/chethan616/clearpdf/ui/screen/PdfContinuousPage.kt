@@ -291,18 +291,20 @@ internal fun PdfContinuousPage(
                         frame.left + match.right * frame.width,
                         frame.top + match.bottom * frame.height
                     )
-                    // The match rect spans the whole LINE box (including ascender/descender
-                    // leading), so trim it hard vertically to hug the glyphs instead of towering
-                    // over them; a hair of horizontal bleed.
-                    val insetY = r.height * 0.24f
+                    // The match rect is the whole LINE box; glyphs sit LOW in it (baseline near
+                    // the bottom, empty descent space below). Trim ASYMMETRICALLY — a little off
+                    // the top, more off the bottom — so the tag sits ON the word (caps→baseline)
+                    // rather than centering in the box (which read as a thin band through the middle).
+                    val insetTop = r.height * 0.12f
+                    val insetBottom = r.height * 0.20f
                     val padX = 1f
-                    val hl = Rect(r.left - padX, r.top + insetY, r.right + padX, r.bottom - insetY)
+                    val hl = Rect(r.left - padX, r.top + insetTop, r.right + padX, r.bottom - insetBottom)
                     // Rounding scaled to the trimmed height — a snug tag, not a big pill.
-                    val cr = (hl.height * 0.30f).coerceIn(3f, 7f)
+                    val cr = (hl.height * 0.28f).coerceIn(3f, 7f)
                     if (match == activeMatch) {
                         // Focused result: a calm blue fill with a crisp thin outline (no halo).
                         val base = Color(0xFF3B82F6)
-                        drawRoundRect(base.copy(0.26f), hl.topLeft, hl.size, CornerRadius(cr, cr))
+                        drawRoundRect(base.copy(0.24f), hl.topLeft, hl.size, CornerRadius(cr, cr))
                         drawRoundRect(base.copy(0.85f), hl.topLeft, hl.size, CornerRadius(cr, cr), style = Stroke(1.25f))
                     } else {
                         // Secondary results: a soft translucent blue, low-emphasis, no border.

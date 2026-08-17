@@ -62,6 +62,13 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.flow.collectLatest
 
+/** Walk the ContextWrapper chain to the hosting Activity (for locale-change recreate). */
+private tailrec fun android.content.Context.findActivity(): android.app.Activity? = when (this) {
+    is android.app.Activity -> this
+    is android.content.ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
 /**
  * Root composable for the Docs app.
  * Provides the wallpaper backdrop, floating bottom tabs, and navigation host.
@@ -204,13 +211,17 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     onLocaleChanged = { code ->
                         val normalized = com.chethan616.clearpdf.ui.utils.LocaleHelper.normalizeForUi(code)
                         if (normalized != selectedLocale) {
-                            selectedLocale = normalized
+                            // Persist the choice, then recreate the Activity so attachBaseContext
+                            // rebuilds every resource in the new locale (the Compose-only path did
+                            // not actually switch strings).
                             com.chethan616.clearpdf.ui.utils.LocaleHelper.applyLocale(
                                 context = context,
                                 languageTag = normalized,
                                 recreate = false,
                                 updateAppCompat = false
                             )
+                            selectedLocale = normalized
+                            context.findActivity()?.recreate()
                         }
                     },
                     incomingPdfUri = incomingPdfUri
