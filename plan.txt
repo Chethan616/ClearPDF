@@ -125,6 +125,12 @@ ITEM 5 — PDF_TOOLS FEATURE-GAP PORTING  [~] WATERMARK DONE (first gap closed t
     `ExtractPagesScreen` on ToolScaffold (numeric range field, page-count trailing, apply,
     open-output). Wired: DocsNavGraph ROUTE_EXTRACT_PAGES, ToolsScreen ToolSpec
     (ContentCut icon, #00897B), strings en+pt+pt-rBR. assembleDebug OK.
+  → PAGE NUMBERS DONE (3rd tool this pass): `pdf-core/pagenumber/PdfPageNumberer.apply(ctx,
+    src, dest, position CENTER/RIGHT, includeTotal, startAt)` stamps a page number in the
+    bottom margin of every page (same PDFBox HELVETICA text-stamp path as watermark).
+    `PageNumbersViewModel` + `PageNumbersScreen` (ToolScaffold, position selector, show-total
+    toggle) + nav ROUTE_PAGE_NUMBERS + ToolsScreen ToolSpec (Icons.Rounded.Numbers, #3949AB)
+    + strings en+pt+pt-rBR. assembleDebug OK.
   → STILL MISSING (future passes): image tools, HTML->PDF, form fill/flatten, OCR export.
 
 ITEM 5 — (original spec below)  [~]

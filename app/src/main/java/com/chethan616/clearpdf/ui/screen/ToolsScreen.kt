@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.BrandingWatermark
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
+import androidx.compose.material.icons.rounded.Numbers
 import androidx.compose.material.icons.rounded.Reorder
 import androidx.compose.material.icons.rounded.TextSnippet
 import androidx.compose.material3.Icon
@@ -79,7 +80,8 @@ fun ToolsScreen(
     onNavigateToEncryptPdf: () -> Unit = {},
     onNavigateToPdfToImages: () -> Unit = {},
     onNavigateToWatermark: () -> Unit = {},
-    onNavigateToExtractPages: () -> Unit = {}
+    onNavigateToExtractPages: () -> Unit = {},
+    onNavigateToPageNumbers: () -> Unit = {}
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val uiSensor = rememberUISensor()
@@ -111,6 +113,8 @@ fun ToolsScreen(
     val toolWatermarkSub = stringResource(R.string.tool_watermark_sub)
     val toolExtractPagesTitle = stringResource(R.string.tool_extract_pages)
     val toolExtractPagesSub = stringResource(R.string.tool_extract_pages_sub)
+    val toolPageNumbersTitle = stringResource(R.string.tool_page_numbers)
+    val toolPageNumbersSub = stringResource(R.string.tool_page_numbers_sub)
 
     val toolItems = remember(
         toolOpenPdfTitle, toolOpenPdfSub,
@@ -138,7 +142,9 @@ fun ToolsScreen(
         toolWatermarkTitle, toolWatermarkSub,
         onNavigateToWatermark,
         toolExtractPagesTitle, toolExtractPagesSub,
-        onNavigateToExtractPages
+        onNavigateToExtractPages,
+        toolPageNumbersTitle, toolPageNumbersSub,
+        onNavigateToPageNumbers
     ) {
         listOf(
             ToolSpec("open", toolOpenPdfTitle, toolOpenPdfSub, LiquidGlassColors.Blue, Icons.Rounded.FileOpen, onNavigateToOpenPdf),
@@ -153,7 +159,8 @@ fun ToolsScreen(
             ToolSpec("decrypt", toolDecryptTitle, toolDecryptSub, LiquidGlassColors.Purple, Icons.Rounded.LockOpen, onNavigateToDecryptPdf),
             ToolSpec("encrypt", toolEncryptTitle, toolEncryptSub, LiquidGlassColors.Indigo, Icons.Rounded.Lock, onNavigateToEncryptPdf),
             ToolSpec("watermark", toolWatermarkTitle, toolWatermarkSub, Color(0xFFAD1457), Icons.Rounded.BrandingWatermark, onNavigateToWatermark),
-            ToolSpec("extract_pages", toolExtractPagesTitle, toolExtractPagesSub, Color(0xFF00897B), Icons.Rounded.ContentCut, onNavigateToExtractPages)
+            ToolSpec("extract_pages", toolExtractPagesTitle, toolExtractPagesSub, Color(0xFF00897B), Icons.Rounded.ContentCut, onNavigateToExtractPages),
+            ToolSpec("page_numbers", toolPageNumbersTitle, toolPageNumbersSub, Color(0xFF3949AB), Icons.Rounded.Numbers, onNavigateToPageNumbers)
         )
     }
 

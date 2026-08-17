@@ -77,6 +77,15 @@
     <string name="extract_pages_total">of %1$d</string>
     <string name="extract_pages_action">Extract Pages</string>
     <string name="extract_pages_working">Extracting…</string>
+    <string name="tool_page_numbers">Page Numbers</string>
+    <string name="tool_page_numbers_sub">Number every page</string>
+    <string name="page_numbers_position">Position</string>
+    <string name="page_numbers_center">Center</string>
+    <string name="page_numbers_right">Right</string>
+    <string name="page_numbers_total">Show total</string>
+    <string name="page_numbers_total_desc">Render as "3 / 12" instead of "3"</string>
+    <string name="page_numbers_action">Add Page Numbers</string>
+    <string name="page_numbers_working">Adding…</string>
     <string name="tool_pdf_to_images_desc">Render each page to a high-quality image you can save or share.</string>
     <string name="pdf_to_images_format">Image format</string>
     <string name="pdf_to_images_convert">Convert to images</string>

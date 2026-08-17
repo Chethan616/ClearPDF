@@ -386,4 +386,13 @@
     <string name="extract_pages_total">de %1$d</string>
     <string name="extract_pages_action">Extrair páginas</string>
     <string name="extract_pages_working">Extraindo…</string>
+    <string name="tool_page_numbers">Numerar páginas</string>
+    <string name="tool_page_numbers_sub">Numerar todas as páginas</string>
+    <string name="page_numbers_position">Posição</string>
+    <string name="page_numbers_center">Centro</string>
+    <string name="page_numbers_right">Direita</string>
+    <string name="page_numbers_total">Mostrar total</string>
+    <string name="page_numbers_total_desc">Exibir como \"3 / 12\" em vez de \"3\"</string>
+    <string name="page_numbers_action">Numerar páginas</string>
+    <string name="page_numbers_working">Numerando…</string>
 </resources>
