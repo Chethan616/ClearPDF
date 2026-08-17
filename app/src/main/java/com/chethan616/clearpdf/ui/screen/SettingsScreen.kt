@@ -5,42 +5,40 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Code
-import androidx.compose.material.icons.rounded.Compress
-import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.FileCopy
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.HighQuality
-import androidx.compose.material.icons.rounded.Shield
-import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Wallpaper
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,45 +51,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.ui.components.LiquidButton
+import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.LiquidToggle
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
-import com.chethan616.clearpdf.ui.utils.UISensor
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
 
-/**
- * Settings — a premium, spacious "inset grouped" layout on real Liquid Glass. Each section is
- * a small uppercase label above a single translucent, backdrop-blurred glass container holding
- * compact native-style rows (colored icon tile · title/description · right-aligned control),
- * separated by inset hairlines. The wallpaper reads through the glass; nothing is a solid slab.
- */
-
-// System accent palette for the icon tiles.
-private val SysBlue   = Color(0xFF0A84FF)
-private val SysGreen  = Color(0xFF32D74B)
-private val SysIndigo = Color(0xFF5E5CE6)
-private val SysOrange = Color(0xFFFF9F0A)
-private val SysPurple = Color(0xFFBF5AF2)
-private val SysTeal   = Color(0xFF64D2FF)
-private val SysYellow = Color(0xFFFFD60A)
-private val SysGray   = Color(0xFF8E8E93)
+import androidx.compose.ui.graphics.graphicsLayer
 
 @Composable
 fun SettingsScreen(
@@ -106,27 +86,39 @@ fun SettingsScreen(
     onLocaleChanged: (String) -> Unit = {}
 ) {
     val isLight = !isDarkMode
-    val label     = if (isLight) Color(0xFF0B0B0F) else Color(0xFFF7F7FA)
-    val secondary = if (isLight) Color(0xFF3C3C43).copy(0.62f) else Color(0xFFEBEBF5).copy(0.62f)
-    val tertiary  = if (isLight) Color(0xFF3C3C43).copy(0.42f) else Color(0xFFEBEBF5).copy(0.40f)
-    val context = LocalContext.current
-    val density = LocalDensity.current.density
+    val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
+    val sub = if (isLight) Color(0xFF888888) else Color(0xFFAAAAAA)
+    val label = if (isLight) Color(0xFF444444) else Color(0xFFCCCCCC)
     val uiSensor = rememberUISensor()
+    val context = LocalContext.current
+    val openRepo = remember(context) {
+        { openExternalLink(context, GitHubStarPromptManager.REPO_URL) }
+    }
 
-    var autoCompress   by remember { mutableStateOf(AppSettingsManager.getAutoCompress(context)) }
-    var keepOriginal   by remember { mutableStateOf(AppSettingsManager.getKeepOriginal(context)) }
+    var autoCompress by remember { mutableStateOf(AppSettingsManager.getAutoCompress(context)) }
+    var keepOriginal by remember { mutableStateOf(AppSettingsManager.getKeepOriginal(context)) }
     var defaultQuality by remember { mutableFloatStateOf(AppSettingsManager.getDefaultQuality(context)) }
+
+    // Debounce quality slider persistence to prevent lag
     LaunchedEffect(defaultQuality) {
-        delay(300L); AppSettingsManager.setDefaultQuality(context, defaultQuality)
+        delay(300L)
+        AppSettingsManager.setDefaultQuality(context, defaultQuality)
     }
 
     var saveUri by remember { mutableStateOf(SaveLocationManager.getSaveUri(context)) }
+
     val folderPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
         if (uri != null) {
-            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-            try { context.contentResolver.takePersistableUriPermission(uri, flags) } catch (_: Exception) {}
+            // Take persistable permission so we can write there later
+            val flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, flags)
+            } catch (_: Exception) {
+                // Some providers may reject persistable flags; fallback still stores chosen URI.
+            }
             val displayPath = uri.lastPathSegment?.replace("primary:", "") ?: uri.toString()
             SaveLocationManager.setSaveLocation(context, uri, displayPath)
             saveUri = uri
@@ -134,370 +126,645 @@ fun SettingsScreen(
     }
 
     var isVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { isVisible = true }
-    val fade by animateFloatAsState(if (isVisible) 1f else 0f, tween(420, easing = FastOutSlowInEasing), label = "settingsFade")
-    val rise by animateFloatAsState(if (isVisible) 0f else 14f, tween(420, easing = FastOutSlowInEasing), label = "settingsRise")
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
+
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+
+    val topBarAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 550, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsTopBarAlpha"
+    )
+    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 18f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 550, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsTopBarOffsetY"
+    )
+
+    val panel1Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 60, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel1Alpha"
+    )
+    val panel1OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 20f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 60, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel1OffsetY"
+    )
+
+    val panel2Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 620, delayMillis = 120, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel2Alpha"
+    )
+    val panel2OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 24f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 620, delayMillis = 120, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel2OffsetY"
+    )
+
+    val panel3Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 640, delayMillis = 180, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel3Alpha"
+    )
+    val panel3OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 28f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 640, delayMillis = 180, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel3OffsetY"
+    )
+
+    val panel4Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 660, delayMillis = 240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel4Alpha"
+    )
+    val panel4OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 32f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 660, delayMillis = 240, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel4OffsetY"
+    )
+
+    val panel5Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 680, delayMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel5Alpha"
+    )
+    val panel5OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 36f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 680, delayMillis = 300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel5OffsetY"
+    )
+
+    val panel6Alpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 360, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel6Alpha"
+    )
+    val panel6OffsetY by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isVisible) 0f else 40f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700, delayMillis = 360, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "settingsPanel6OffsetY"
+    )
 
     Column(
         Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .graphicsLayer { alpha = fade; translationY = rise * density }
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Large navigation title — strong but not space-hungry.
-        BasicText(
-            stringResource(R.string.settings_title),
-            style = TextStyle(label, 32.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 6.dp)
-        )
-
-        // ── Appearance ──────────────────────────────────────────────────────
-        SettingsGroup(stringResource(R.string.settings_appearance), backdrop, uiSensor, secondary, isLight) {
-            listOf<@Composable () -> Unit>({
-                SegmentedRow(
-                    options = listOf(
-                        stringResource(R.string.settings_theme_auto),
-                        stringResource(R.string.settings_theme_light),
-                        stringResource(R.string.settings_theme_dark)
-                    ),
-                    selectedIndex = themeMode, isLight = isLight, label = label, onSelect = onThemeModeChanged
-                )
-            })
+        Box(
+            Modifier.graphicsLayer {
+                alpha = topBarAlpha
+                translationY = topBarOffsetY * density
+            }
+        ) {
+            LiquidGlassTopBar(title = "Settings", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.fillMaxWidth())
         }
 
-        // ── Language ────────────────────────────────────────────────────────
-        SettingsGroup(stringResource(R.string.settings_language), backdrop, uiSensor, secondary, isLight) {
-            val codes = listOf("en", "pt-BR")
-            listOf<@Composable () -> Unit>({
-                SegmentedRow(
-                    options = listOf(stringResource(R.string.language_english), stringResource(R.string.language_portuguese)),
-                    selectedIndex = codes.indexOf(selectedLocale).coerceAtLeast(0),
-                    isLight = isLight, label = label, onSelect = { onLocaleChanged(codes[it]) }
-                )
-            })
-        }
-
-        // ── Storage ─────────────────────────────────────────────────────────
-        val isDefault = saveUri == null
-        val customPath = saveUri?.let { it.lastPathSegment?.replace("primary:", "") ?: it.toString() }
-        SettingsGroup(stringResource(R.string.settings_save_location), backdrop, uiSensor, secondary, isLight) {
-            listOf<@Composable () -> Unit>(
-                {
-                    SettingsRow(
-                        icon = Icons.Rounded.Download, iconTint = SysBlue,
-                        title = stringResource(R.string.settings_save_downloads),
-                        subtitle = stringResource(R.string.settings_default_path),
-                        label = label, secondary = secondary,
-                        trailing = { if (isDefault) SelectedCheck() },
-                        onClick = { if (!isDefault) { SaveLocationManager.clearSaveLocation(context); saveUri = null } }
-                    )
-                },
-                {
-                    SettingsRow(
-                        icon = Icons.Rounded.FolderOpen, iconTint = SysOrange,
-                        title = stringResource(R.string.settings_save_custom),
-                        subtitle = if (!isDefault) customPath else null,
-                        label = label, secondary = secondary,
-                        trailing = { if (!isDefault) SelectedCheck() else Chevron(tertiary) },
-                        onClick = { folderPicker.launch(null) }
-                    )
+        // ── Theme Mode Selector ──
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel1Alpha
+                    translationY = panel1OffsetY * density
                 }
-            )
-        }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Rounded.Tune, null, Modifier.size(22.dp), label)
+                BasicText("Appearance", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+            }
 
-        // ── File Processing ─────────────────────────────────────────────────
-        SettingsGroup(stringResource(R.string.settings_file_handling), backdrop, uiSensor, secondary, isLight) {
-            listOf<@Composable () -> Unit>(
-                {
-                    ToggleRow(
-                        icon = Icons.Rounded.Compress, iconTint = SysGreen,
-                        title = stringResource(R.string.settings_auto_compress),
-                        subtitle = stringResource(R.string.settings_auto_compress_desc),
-                        checked = autoCompress, label = label, secondary = secondary, backdrop = backdrop,
-                        onCheckedChange = { autoCompress = it; AppSettingsManager.setAutoCompress(context, it) }
-                    )
-                },
-                {
-                    ToggleRow(
-                        icon = Icons.Rounded.FileCopy, iconTint = SysTeal,
-                        title = stringResource(R.string.settings_keep_original),
-                        subtitle = stringResource(R.string.settings_keep_original_desc),
-                        checked = keepOriginal, label = label, secondary = secondary, backdrop = backdrop,
-                        onCheckedChange = { keepOriginal = it; AppSettingsManager.setKeepOriginal(context, it) }
-                    )
-                },
-                {
-                    QualityRow(defaultQuality, label, secondary, tertiary, backdrop) {
-                        val snapped = ((it * 100f).toInt() / 100f).coerceIn(0f, 1f)
-                        if (snapped != defaultQuality) defaultQuality = snapped
+            // Navbar-like segmented theme mode bar
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector)
+                val options = listOf(
+                    ThemeOption(0, "System", Icons.Rounded.PhoneAndroid),
+                    ThemeOption(1, "Light", Icons.Rounded.LightMode),
+                    ThemeOption(2, "Dark", Icons.Rounded.DarkMode)
+                )
+                options.forEach { option ->
+                    val isSelected = themeMode == option.idx
+                    val activeColor = when (option.idx) {
+                        1 -> Color(0xFFFFA726)
+                        2 -> Color(0xFF7C4DFF)
+                        else -> Color(0xFF0088FF)
+                    }
+                    Row(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isSelected) activeColor else Color.Transparent)
+                            .clickable { onThemeModeChanged(option.idx) }
+                            .padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            option.icon, null,
+                            Modifier.size(17.dp),
+                            if (isSelected) Color.White else sub
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        BasicText(
+                            option.label,
+                            style = TextStyle(
+                                if (isSelected) Color.White else sub,
+                                13.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        )
                     }
                 }
-            )
-        }
+            }
 
-        // ── Personalization ─────────────────────────────────────────────────
-        SettingsGroup(stringResource(R.string.settings_personalization), backdrop, uiSensor, secondary, isLight) {
-            listOf<@Composable () -> Unit>({
-                ToggleRow(
-                    icon = Icons.Rounded.Wallpaper, iconTint = SysPurple,
-                    title = stringResource(R.string.settings_background),
-                    subtitle = stringResource(R.string.settings_background_desc),
-                    checked = showWallpaper, label = label, secondary = secondary, backdrop = backdrop,
-                    onCheckedChange = onShowWallpaperChanged
-                )
-            })
-        }
-
-        // ── About ───────────────────────────────────────────────────────────
-        SettingsGroup(stringResource(R.string.settings_about), backdrop, uiSensor, secondary, isLight) {
-            listOf<@Composable () -> Unit>(
-                {
-                    SettingsRow(
-                        icon = Icons.Rounded.Star, iconTint = SysYellow,
-                        title = stringResource(R.string.settings_star_github),
-                        label = label, secondary = secondary,
-                        trailing = { Chevron(tertiary) },
-                        onClick = { openExternalLink(context, GitHubStarPromptManager.REPO_URL) }
-                    )
+            BasicText(
+                when (themeMode) {
+                    1 -> "Always use light theme"
+                    2 -> "Always use dark theme"
+                    else -> "Follows your device's system settings"
                 },
-                {
-                    SettingsRow(
-                        icon = Icons.Rounded.Shield, iconTint = SysGreen,
-                        title = stringResource(R.string.settings_privacy_policy),
-                        label = label, secondary = secondary,
-                        trailing = { Chevron(tertiary) },
-                        onClick = { openExternalLink(context, "https://github.com/Chethan616/ClearPDF/blob/main/PRIVACY.md") }
-                    )
-                }
+                style = TextStyle(sub, 12.sp)
             )
         }
 
-        // ── Open Source ─────────────────────────────────────────────────────
-        SettingsGroup(stringResource(R.string.settings_licenses), backdrop, uiSensor, secondary, isLight) {
-            listOf<@Composable () -> Unit>(
-                {
-                    SettingsRow(
-                        icon = Icons.Rounded.Code, iconTint = SysGray,
-                        title = "AndroidLiquidGlass",
-                        subtitle = stringResource(R.string.settings_license_author, "Kyant") + " · Apache 2.0",
-                        label = label, secondary = secondary,
-                        trailing = { Chevron(tertiary) },
-                        onClick = { openExternalLink(context, "https://github.com/Kyant0/AndroidLiquidGlass") }
-                    )
-                },
-                {
-                    SettingsRow(
-                        icon = Icons.Rounded.Code, iconTint = SysGray,
-                        title = "Pdf_Tools",
-                        subtitle = stringResource(R.string.settings_license_author, "Karna14314"),
-                        label = label, secondary = secondary,
-                        trailing = { Chevron(tertiary) },
-                        onClick = { openExternalLink(context, "https://github.com/Karna14314/Pdf_Tools") }
-                    )
-                }
-            )
-        }
-
-        // ── Version footer ──────────────────────────────────────────────────
+        // ── Language ──
         Column(
-            Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel1Alpha
+                    translationY = panel1OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            BasicText("${stringResource(R.string.settings_version_label)} ${appVersion()}", style = TextStyle(secondary, 13.sp, fontWeight = FontWeight.Medium))
-            BasicText(stringResource(R.string.settings_made_by), style = TextStyle(tertiary, 12.sp, textAlign = TextAlign.Center))
-        }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Rounded.Language, null, Modifier.size(22.dp), label)
+                BasicText("Language", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+            }
 
-        Spacer(Modifier.height(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 100.dp))
-    }
-}
-
-// ── Building blocks ──────────────────────────────────────────────────────────
-
-/** A section: a small uppercase label above one real-glass container of compact rows. */
-@Composable
-private fun SettingsGroup(
-    header: String,
-    backdrop: LayerBackdrop,
-    uiSensor: UISensor,
-    secondary: Color,
-    isLight: Boolean,
-    rows: () -> List<@Composable () -> Unit>
-) {
-    val separator = if (isLight) Color(0xFF3C3C43).copy(0.14f) else Color(0xFFFFFFFF).copy(0.10f)
-    val list = rows()
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        BasicText(
-            header.uppercase(),
-            style = TextStyle(secondary, 12.5.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.6.sp),
-            modifier = Modifier.padding(start = 8.dp, top = 18.dp, bottom = 8.dp)
-        )
-        // Outer Box carries the glass + soft shadow (from liquidGlassPanel); the inner Column
-        // clips rows/ripples/separators to the rounded shape without clipping the drop shadow.
-        Box(Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor)) {
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp))) {
-                list.forEachIndexed { i, row ->
-                    if (i > 0) Box(Modifier.padding(start = 54.dp, end = 14.dp).fillMaxWidth().height(0.6.dp).background(separator))
-                    row()
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                data class LangOption(val code: String, val label: String)
+                val langs = listOf(LangOption("en", "English"), LangOption("pt-BR", "Português"))
+                langs.forEach { opt ->
+                    val isSelected = selectedLocale == opt.code
+                    Row(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isSelected) Color(0xFF0088FF) else Color.Transparent)
+                            .clickable { onLocaleChanged(opt.code) }
+                            .padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BasicText(
+                            opt.label,
+                            style = TextStyle(
+                                if (isSelected) Color.White else sub,
+                                13.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        )
+                    }
                 }
             }
         }
-    }
-}
 
-/** Compact native-style row: leading icon tile · title (+ optional description) · trailing control. */
-@Composable
-private fun SettingsRow(
-    icon: ImageVector?,
-    iconTint: Color,
-    title: String,
-    label: Color,
-    secondary: Color,
-    subtitle: String? = null,
-    trailing: (@Composable () -> Unit)? = null,
-    onClick: (() -> Unit)? = null
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-            .heightIn(min = 48.dp)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        if (icon != null) IconTile(icon, iconTint)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            BasicText(title, style = TextStyle(label, 16.sp, fontWeight = FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (subtitle != null) BasicText(subtitle, style = TextStyle(secondary, 12.5.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
-        }
-        trailing?.invoke()
-    }
-}
+        // ── Save Location ──
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel2Alpha
+                    translationY = panel2OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), Color(0xFF1976D2))
+                BasicText("Save Location", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+            }
 
-/** A row whose trailing control is the Liquid Glass switch. */
-@Composable
-private fun ToggleRow(
-    icon: ImageVector,
-    iconTint: Color,
-    title: String,
-    subtitle: String?,
-    checked: Boolean,
-    label: Color,
-    secondary: Color,
-    backdrop: LayerBackdrop,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    SettingsRow(
-        icon = icon, iconTint = iconTint, title = title, subtitle = subtitle,
-        label = label, secondary = secondary,
-        trailing = { LiquidToggle(selected = { checked }, onSelect = onCheckedChange, backdrop = backdrop) },
-        onClick = { onCheckedChange(!checked) }
-    )
-}
-
-/** Compression-quality control cell: icon · title · % on one line, slider + range labels below. */
-@Composable
-private fun QualityRow(
-    quality: Float,
-    label: Color,
-    secondary: Color,
-    tertiary: Color,
-    backdrop: LayerBackdrop,
-    onChange: (Float) -> Unit
-) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            IconTile(Icons.Rounded.HighQuality, SysIndigo)
-            BasicText(stringResource(R.string.settings_compression_quality), style = TextStyle(label, 16.sp, fontWeight = FontWeight.Medium), modifier = Modifier.weight(1f))
-            BasicText("${(quality * 100).toInt()}%", style = TextStyle(label, 15.sp, fontWeight = FontWeight.SemiBold))
-        }
-        LiquidSlider(
-            value = { quality }, onValueChange = onChange,
-            valueRange = 0f..1f, visibilityThreshold = 0.005f,
-            backdrop = backdrop, modifier = Modifier.fillMaxWidth().padding(start = 41.dp)
-        )
-        Row(Modifier.fillMaxWidth().padding(start = 41.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            BasicText(stringResource(R.string.settings_smaller_size), style = TextStyle(tertiary, 11.sp))
-            BasicText(stringResource(R.string.settings_higher_quality), style = TextStyle(tertiary, 11.sp))
-        }
-    }
-}
-
-/** Rounded-square colored icon tile (SF-Symbol style). */
-@Composable
-private fun IconTile(icon: ImageVector, tint: Color) {
-    Box(
-        Modifier.size(28.dp).clip(RoundedCornerShape(7.dp)).background(tint),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(icon, null, Modifier.size(17.dp), Color.White)
-    }
-}
-
-@Composable
-private fun Chevron(color: Color) = Icon(Icons.Rounded.ChevronRight, null, Modifier.size(20.dp), color)
-
-@Composable
-private fun SelectedCheck() = Icon(Icons.Rounded.Check, null, Modifier.size(20.dp), SysBlue)
-
-/** Compact glass segmented control with a refined selected pill. */
-@Composable
-private fun SegmentedRow(
-    options: List<String>,
-    selectedIndex: Int,
-    isLight: Boolean,
-    label: Color,
-    onSelect: (Int) -> Unit
-) {
-    val track = if (isLight) Color(0xFF767680).copy(0.14f) else Color(0xFF767680).copy(0.28f)
-    val pill = if (isLight) Color.White.copy(0.92f) else Color(0xFF6E6E73)
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 9.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(track)
-            .padding(2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        options.forEachIndexed { i, opt ->
-            val selected = i == selectedIndex
-            val fade by animateFloatAsState(if (selected) 1f else 0f, tween(180, easing = FastOutSlowInEasing), label = "seg$i")
-            Box(
+            Row(
                 Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(pill.copy(alpha = pill.alpha * fade))
-                    .clickable { onSelect(i) }
-                    .padding(vertical = 6.dp),
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (isLight) Color.Black.copy(0.03f) else Color.White.copy(0.05f))
+                    .border(1.dp, if (isLight) Color.Black.copy(0.05f) else Color.White.copy(0.08f), RoundedCornerShape(16.dp))
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1976D2).copy(0.14f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.FolderOpen, null, Modifier.size(20.dp), Color(0xFF1976D2))
+                }
+                Column(Modifier.weight(1f)) {
+                    BasicText(
+                        if (saveUri != null) "Custom Output Directory" else "Default Directory",
+                        style = TextStyle(label, 14.sp, fontWeight = FontWeight.SemiBold)
+                    )
+                    val path = if (saveUri != null) {
+                        saveUri!!.lastPathSegment?.replace("primary:", "") ?: saveUri.toString()
+                    } else "Downloads / ClearPDF"
+                    BasicText(path, style = TextStyle(sub, 12.sp))
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                LiquidButton(
+                    onClick = { folderPicker.launch(null) },
+                    backdrop = backdrop,
+                    tint = Color(0xFF1976D2),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    BasicText("Change Folder", style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold))
+                }
+                if (saveUri != null) {
+                    LiquidButton(
+                        onClick = {
+                            SaveLocationManager.clearSaveLocation(context)
+                            saveUri = null
+                        },
+                        backdrop = backdrop,
+                        surfaceColor = Color.White.copy(0.08f)
+                    ) {
+                        BasicText("Reset", style = TextStyle(text, 13.sp, fontWeight = FontWeight.SemiBold))
+                    }
+                }
+            }
+        }
+
+        // ── File Handling ──
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel3Alpha
+                    translationY = panel3OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                Modifier.padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Rounded.AutoFixHigh, null, Modifier.size(22.dp), label)
+                BasicText("File Handling", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+            }
+
+            SettingsToggleRow(
+                icon = Icons.Rounded.AutoFixHigh,
+                title = "Auto-Compress",
+                desc = "Compress PDFs automatically on import",
+                checked = autoCompress,
+                onCheckedChange = { autoCompress = it; AppSettingsManager.setAutoCompress(context, it) },
+                backdrop = backdrop,
+                labelColor = label,
+                subColor = sub
+            )
+
+            // Separator
+            Box(
+                Modifier.fillMaxWidth().padding(vertical = 4.dp).height(1.dp)
+                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
+            )
+
+            SettingsToggleRow(
+                icon = Icons.Rounded.FileCopy,
+                title = "Keep Original",
+                desc = "Preserve original file after editing",
+                checked = keepOriginal,
+                onCheckedChange = { keepOriginal = it; AppSettingsManager.setKeepOriginal(context, it) },
+                backdrop = backdrop,
+                labelColor = label,
+                subColor = sub
+            )
+
+        }
+
+        // ── Default Quality ──
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel4Alpha
+                    translationY = panel4OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), Color(0xFF1976D2))
+                    BasicText("Compression Quality", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+                }
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF1976D2).copy(0.14f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    BasicText(
+                        "${(defaultQuality * 100).toInt()}%",
+                        style = TextStyle(Color(0xFF1976D2), 13.sp, fontWeight = FontWeight.Bold)
+                    )
+                }
+            }
+
+            LiquidSlider(
+                value = { defaultQuality },
+                onValueChange = {
+                    val snapped = ((it * 100f).toInt() / 100f).coerceIn(0f, 1f)
+                    if (snapped != defaultQuality) {
+                        defaultQuality = snapped
+                    }
+                },
+                valueRange = 0f..1f,
+                visibilityThreshold = 0.005f,
+                backdrop = backdrop,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                BasicText("Smaller file size", style = TextStyle(sub.copy(0.7f), 11.sp))
+                BasicText("Higher image clarity", style = TextStyle(sub.copy(0.7f), 11.sp))
+            }
+        }
+
+        // ── Personalization ──
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel4Alpha
+                    translationY = panel4OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                Modifier.padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Rounded.Wallpaper, null, Modifier.size(22.dp), label)
+                BasicText("Personalization", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+            }
+
+            SettingsToggleRow(
+                icon = Icons.Rounded.Wallpaper,
+                title = "Background",
+                desc = "Show the wallpaper image behind the app",
+                checked = showWallpaper,
+                onCheckedChange = onShowWallpaperChanged,
+                backdrop = backdrop,
+                labelColor = label,
+                subColor = sub
+            )
+        }
+
+        // ── About & Open Source ──
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel5Alpha
+                    translationY = panel5OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                Modifier.size(56.dp).clip(CircleShape)
+                    .background(Color(0xFF0088FF).copy(0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                BasicText(
-                    opt,
-                    style = TextStyle(label.copy(alpha = if (selected) 1f else 0.72f), 13.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
+                Icon(Icons.Rounded.Info, null, Modifier.size(28.dp), Color(0xFF0088FF))
             }
+            BasicText("ClearPDF", style = TextStyle(text, 20.sp, fontWeight = FontWeight.Bold))
+            BasicText("Version 1.0.0", style = TextStyle(sub, 13.sp))
+            BasicText(
+                "Made by Chethan616 with ❤",
+                style = TextStyle(sub, 13.sp, textAlign = TextAlign.Center)
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            // Star CTA
+            LiquidButton(
+                onClick = openRepo,
+                backdrop = backdrop,
+                tint = Color(0xFFFFC107),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.Star, null, Modifier.size(18.dp), Color.White)
+                    BasicText("Star on GitHub", style = TextStyle(Color.White, 14.sp, fontWeight = FontWeight.SemiBold))
+                }
+            }
+
+            BasicText(
+                "ClearPDF is open source",
+                style = TextStyle(sub.copy(0.7f), 11.sp, textAlign = TextAlign.Center)
+            )
         }
+
+        // ── Licenses ──
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel6Alpha
+                    translationY = panel6OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Rounded.Code, null, Modifier.size(22.dp), label)
+                BasicText("Open Source Licenses", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+            }
+
+            LicenseItem(
+                name = "AndroidLiquidGlass",
+                author = "Kyant",
+                license = "Apache License 2.0",
+                url = "https://github.com/Kyant0/AndroidLiquidGlass",
+                labelColor = label,
+                subColor = sub
+            )
+
+            Box(
+                Modifier.fillMaxWidth().height(1.dp)
+                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
+            )
+
+            LicenseItem(
+                name = "Pdf_Tools",
+                author = "Karna14314",
+                license = "PDF viewer zoom/pan reference",
+                url = "https://github.com/Karna14314/Pdf_Tools",
+                labelColor = label,
+                subColor = sub
+            )
+
+            Box(
+                Modifier.fillMaxWidth().height(1.dp)
+                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
+            )
+
+            BasicText(
+                "Licensed under the Apache License, Version 2.0.\nYou may obtain a copy at apache.org/licenses/LICENSE-2.0",
+                style = TextStyle(sub.copy(0.7f), 11.sp, lineHeight = 16.sp)
+            )
+        }
+
+        // Clear the floating bottom navigation bar + system nav inset.
+        Spacer(Modifier.height(120.dp))
     }
 }
 
-@Composable
-private fun appVersion(): String {
-    val context = LocalContext.current
-    return remember {
-        runCatching {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
-        }.getOrDefault("1.0")
-    }
+private fun Modifier.liquidGlassSection(isLight: Boolean): Modifier {
+    val containerColor = if (isLight) Color.White.copy(0.68f) else Color(0xFF161820).copy(0.72f)
+    val borderColor = if (isLight) Color.White.copy(0.80f) else Color.White.copy(0.12f)
+    return this
+        .clip(RoundedCornerShape(24.dp))
+        .background(containerColor)
+        .border(1.dp, borderColor, RoundedCornerShape(24.dp))
 }
 
 private fun openExternalLink(context: Context, url: String) {
     runCatching {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        })
+        }
+        context.startActivity(intent)
+    }
+}
+
+@Composable
+private fun SettingsToggleRow(
+    icon: ImageVector,
+    title: String,
+    desc: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    backdrop: LayerBackdrop,
+    labelColor: Color,
+    subColor: Color
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            Modifier.size(34.dp).clip(CircleShape)
+                .background(labelColor.copy(0.08f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, Modifier.size(18.dp), labelColor)
+        }
+        Column(Modifier.weight(1f)) {
+            BasicText(title, style = TextStyle(labelColor, 15.sp, fontWeight = FontWeight.Medium))
+            BasicText(desc, style = TextStyle(subColor, 12.sp))
+        }
+        LiquidToggle(
+            selected = { checked },
+            onSelect = onCheckedChange,
+            backdrop = backdrop
+        )
+    }
+}
+
+@Composable
+private fun LicenseItem(
+    name: String,
+    author: String,
+    license: String,
+    url: String,
+    labelColor: Color,
+    subColor: Color
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            BasicText(name, style = TextStyle(labelColor, 14.sp, fontWeight = FontWeight.Medium))
+            BasicText("by $author", style = TextStyle(subColor, 12.sp))
+        }
+        BasicText(license, style = TextStyle(subColor, 11.sp))
+        BasicText(url, style = TextStyle(Color(0xFF0088FF), 11.sp))
     }
 }

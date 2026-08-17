@@ -292,23 +292,21 @@ internal fun PdfContinuousPage(
                         frame.top + match.bottom * frame.height
                     )
                     // The match rect spans the whole LINE box (including ascender/descender
-                    // leading), so trim it vertically to hug the glyphs instead of towering over
-                    // them; only a hair of horizontal bleed.
-                    val insetY = r.height * 0.16f
-                    val padX = 1.5f
+                    // leading), so trim it hard vertically to hug the glyphs instead of towering
+                    // over them; a hair of horizontal bleed.
+                    val insetY = r.height * 0.24f
+                    val padX = 1f
                     val hl = Rect(r.left - padX, r.top + insetY, r.right + padX, r.bottom - insetY)
-                    // Gentle rounding scaled to the trimmed height — a soft tag, not a big pill.
-                    val cr = (hl.height * 0.26f).coerceIn(3f, 6f)
+                    // Rounding scaled to the trimmed height — a snug tag, not a big pill.
+                    val cr = (hl.height * 0.30f).coerceIn(3f, 7f)
                     if (match == activeMatch) {
-                        // Focused result: a calm blue fill with a soft halo and a crisp thin outline.
+                        // Focused result: a calm blue fill with a crisp thin outline (no halo).
                         val base = Color(0xFF3B82F6)
-                        val glow = hl.inflate(3f)
-                        drawRoundRect(base.copy(0.12f), glow.topLeft, glow.size, CornerRadius(cr + 3f, cr + 3f))
-                        drawRoundRect(base.copy(0.30f), hl.topLeft, hl.size, CornerRadius(cr, cr))
-                        drawRoundRect(base.copy(0.95f), hl.topLeft, hl.size, CornerRadius(cr, cr), style = Stroke(1.5f))
+                        drawRoundRect(base.copy(0.26f), hl.topLeft, hl.size, CornerRadius(cr, cr))
+                        drawRoundRect(base.copy(0.85f), hl.topLeft, hl.size, CornerRadius(cr, cr), style = Stroke(1.25f))
                     } else {
                         // Secondary results: a soft translucent blue, low-emphasis, no border.
-                        drawRoundRect(Color(0xFF60A5FA).copy(0.22f), hl.topLeft, hl.size, CornerRadius(cr, cr))
+                        drawRoundRect(Color(0xFF60A5FA).copy(0.20f), hl.topLeft, hl.size, CornerRadius(cr, cr))
                     }
                 }
             }

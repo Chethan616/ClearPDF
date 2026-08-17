@@ -187,7 +187,9 @@ fun ToolsScreen(
             ToolSpec("page_numbers", toolPageNumbersTitle, toolPageNumbersSub, Color(0xFF3949AB), Icons.Rounded.Numbers, onNavigateToPageNumbers),
             ToolSpec("flatten", toolFlattenTitle, toolFlattenSub, Color(0xFF6D4C41), Icons.Rounded.Layers, onNavigateToFlatten),
             ToolSpec("image_tools", toolImageToolsTitle, toolImageToolsSub, Color(0xFFF4511E), Icons.Rounded.PhotoSizeSelectLarge, onNavigateToImageTools),
-            ToolSpec("html_to_pdf", toolHtmlToPdfTitle, toolHtmlToPdfSub, Color(0xFFE65100), Icons.Rounded.Code, onNavigateToHtmlToPdf),
+            // Web/HTML to PDF is DISABLED for the privacy-focused release (its only feature
+            // that needs the network is URL capture). Code + route are kept; just hidden here.
+            // ToolSpec("html_to_pdf", toolHtmlToPdfTitle, toolHtmlToPdfSub, Color(0xFFE65100), Icons.Rounded.Code, onNavigateToHtmlToPdf),
             ToolSpec("fill_form", toolFillFormTitle, toolFillFormSub, Color(0xFF00695C), Icons.Rounded.EditNote, onNavigateToFillForm)
         )
     }
