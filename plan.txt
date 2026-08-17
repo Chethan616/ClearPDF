@@ -101,7 +101,28 @@ ITEM 4 — (original spec below)  [x]
 - De-duplicate copy-pasted glass styling across screens.
 
 =====================================================================
-ITEM 5 — PDF_TOOLS FEATURE-GAP PORTING  [ ]
+ITEM 5 — PDF_TOOLS FEATURE-GAP PORTING  [~] WATERMARK DONE (first gap closed this pass)
+  → Gap audit (from memory): MISSING = watermark, image tools, extract-pages-to-new-PDF,
+    HTML->PDF, form fill/flatten, OCR. Watermark chosen first: highest value, most
+    self-contained, maps directly onto the existing PDFBox text-stamp export path.
+  → Implemented END-TO-END (original code, no third-party paste):
+    - pdf-core/watermark/PdfWatermarker.apply(ctx, src, dest, text, opacity, diagonal, color):
+      stamps a page-centered text watermark on every page via PDDocument + PDPageContentStream
+      (APPEND) + PDExtendedGraphicsState.nonStrokingAlphaConstant for opacity +
+      PDType1Font.HELVETICA_BOLD; diagonal = 45° via Matrix.getRotateInstance about page centre;
+      font scales to the page short edge; Latin-1 glyph sanitize; source URI never modified.
+    - WatermarkPdfViewModel (self-contained, viewModel(), no usecase): text/opacity/diagonal
+      state + apply() writes via SaveLocationManager createOutputUri (custom folder or Downloads)
+      + RecentFilesManager, same as Compress/PdfToImages.
+    - WatermarkPdfScreen: built on the NEW ToolScaffold primitive (Item 4) — pick card, text
+      field, opacity slider + GlassChip %, diagonal LiquidToggle, Apply, open-output.
+    - Wired: DocsNavGraph ROUTE_WATERMARK + composable; ToolsScreen param + ToolSpec
+      (BrandingWatermark icon, #AD1457); strings tool_watermark(_sub)/watermark_* in en+pt+pt-rBR.
+    BUILD SUCCESSFUL. Not device-verified.
+  → STILL MISSING (future passes): image tools, extract-pages-to-new-PDF, HTML->PDF,
+    form fill/flatten, OCR-searchable export.
+
+ITEM 5 — (original spec below)  [~]
 ---------------------------------------------------------------------
 - Feature-gap analysis first: what exists / missing / portable / conflicts-with-architecture.
 - Implement highest-value MISSING features (candidates: form fill/flatten, watermark,

@@ -366,4 +366,12 @@
     <string name="images_to_pdf_title">Imagens -&gt; PDF</string>
     <string name="scanner_unavailable">O scanner está indisponível neste contexto.</string>
     <string name="scanner_start_failed">Não foi possível iniciar o scanner.</string>
+    <string name="tool_watermark">Marca d\'água</string>
+    <string name="tool_watermark_sub">Carimbe texto nas páginas</string>
+    <string name="watermark_text_label">Texto da marca d\'água</string>
+    <string name="watermark_text_hint">ex.: CONFIDENCIAL</string>
+    <string name="watermark_opacity">Opacidade</string>
+    <string name="watermark_diagonal">Diagonal (45°)</string>
+    <string name="watermark_apply">Aplicar marca d\'água</string>
+    <string name="watermark_applying">Aplicando…</string>
 </resources>

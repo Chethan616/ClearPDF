@@ -30,6 +30,7 @@ import com.chethan616.clearpdf.ui.screen.HomeScreen
 import com.chethan616.clearpdf.ui.screen.MergePdfScreen
 import com.chethan616.clearpdf.ui.screen.PageOrganizerScreen
 import com.chethan616.clearpdf.ui.screen.PdfToImagesScreen
+import com.chethan616.clearpdf.ui.screen.WatermarkPdfScreen
 import com.chethan616.clearpdf.ui.screen.PdfViewerScreen
 import com.chethan616.clearpdf.ui.screen.SettingsScreen
 import com.chethan616.clearpdf.ui.screen.SplitPdfScreen
@@ -42,6 +43,7 @@ import com.chethan616.clearpdf.ui.viewmodel.ImagesToPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.MergePdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.PageOrganizerViewModel
 import com.chethan616.clearpdf.ui.viewmodel.PdfToImagesViewModel
+import com.chethan616.clearpdf.ui.viewmodel.WatermarkPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.PdfViewerViewModel
 import com.chethan616.clearpdf.ui.viewmodel.SplitPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.ScanViewModel
@@ -62,6 +64,7 @@ private const val ROUTE_IMAGES_TO_PDF = "images_to_pdf"
 private const val ROUTE_DECRYPT_PDF = "decrypt_pdf"
 private const val ROUTE_ENCRYPT_PDF = "encrypt_pdf"
 private const val ROUTE_PDF_TO_IMAGES = "pdf_to_images"
+private const val ROUTE_WATERMARK = "watermark_pdf"
 private const val ARG_PDF_URI = "uri"
 private const val ROUTE_VIEWER = "$ROUTE_VIEWER_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
 
@@ -223,7 +226,8 @@ fun DocsNavGraph(
                 onNavigateToImagesToPdf = { navController.navigate(ROUTE_IMAGES_TO_PDF) { launchSingleTop = true } },
                 onNavigateToDecryptPdf = { navController.navigate(ROUTE_DECRYPT_PDF) { launchSingleTop = true } },
                 onNavigateToEncryptPdf = { navController.navigate(ROUTE_ENCRYPT_PDF) { launchSingleTop = true } },
-                onNavigateToPdfToImages = { navController.navigate(ROUTE_PDF_TO_IMAGES) { launchSingleTop = true } }
+                onNavigateToPdfToImages = { navController.navigate(ROUTE_PDF_TO_IMAGES) { launchSingleTop = true } },
+                onNavigateToWatermark = { navController.navigate(ROUTE_WATERMARK) { launchSingleTop = true } }
             )
         }
 
@@ -414,6 +418,16 @@ fun DocsNavGraph(
                 backdrop = backdrop,
                 viewModel = vm,
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(ROUTE_WATERMARK) {
+            val vm: WatermarkPdfViewModel = viewModel()
+            WatermarkPdfScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onViewOutput = { uri -> navController.navigateToPdfViewer(uri) }
             )
         }
     }

@@ -57,6 +57,14 @@
     <string name="tool_images_sub">Photos to PDF</string>
     <string name="tool_pdf_to_images">PDF to Images</string>
     <string name="tool_pdf_to_images_sub">Export pages as JPG/PNG</string>
+    <string name="tool_watermark">Watermark</string>
+    <string name="tool_watermark_sub">Stamp text over pages</string>
+    <string name="watermark_text_label">Watermark text</string>
+    <string name="watermark_text_hint">e.g. CONFIDENTIAL</string>
+    <string name="watermark_opacity">Opacity</string>
+    <string name="watermark_diagonal">Diagonal (45°)</string>
+    <string name="watermark_apply">Apply Watermark</string>
+    <string name="watermark_applying">Applying…</string>
     <string name="tool_pdf_to_images_desc">Render each page to a high-quality image you can save or share.</string>
     <string name="pdf_to_images_format">Image format</string>
     <string name="pdf_to_images_convert">Convert to images</string>
