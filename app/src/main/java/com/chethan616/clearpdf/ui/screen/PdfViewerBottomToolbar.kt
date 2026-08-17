@@ -5,6 +5,13 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -114,6 +121,7 @@ internal fun PdfViewerBottomToolbar(
     onOpenExportedFile: () -> Unit,
     onOpenAnotherPdf: () -> Unit,
     onShareDocument: () -> Unit,
+    onEditorOpenChanged: (Boolean) -> Unit = {},
     onRecolorSignature: (Long) -> Unit,
     backdrop: LayerBackdrop,
     uiSensor: UISensor,
@@ -132,10 +140,8 @@ internal fun PdfViewerBottomToolbar(
     // Collapsed by default (just the "Editor Tools" pill + "Open PDF" circle). Tapping
     // the pill expands the tool set above it. Image selection auto-expands so its tools show.
     var editorOpen by remember { mutableStateOf(false) }
-    // Long-press the "Open another PDF" circle to morph it into a Share action; auto-reverts.
-    var shareMode by remember { mutableStateOf(false) }
-    val haptics = LocalHapticFeedback.current
-    LaunchedEffect(shareMode) { if (shareMode) { delay(3500); shareMode = false } }
+    // Tell the viewer when the Editor Tools panel is open so it won't auto-hide the chrome.
+    LaunchedEffect(editorOpen) { onEditorOpenChanged(editorOpen) }
     // Any active tool implies the editor is open (survives the chrome auto-hiding/returning).
     LaunchedEffect(activeTool, activeImageId) {
         if (activeTool != PdfEditTool.None || activeImageId != null) editorOpen = true
@@ -502,32 +508,86 @@ internal fun PdfViewerBottomToolbar(
                         )
                     }
                 }
-                // Tap = open another PDF. Long-press morphs it into a Share button (icon
-                // cross-fades, surface eases to Apple blue), then a tap shares the doc.
-                val shareBlue = Color(0xFF0A84FF)
-                val morphSurface by animateColorAsState(
-                    if (shareMode) shareBlue else glass, tween(220), label = "shareMorphSurface"
+                // Tap = open another PDF. Press-and-hold morphs the circle into a vertical
+                // capsule; swipe up and release to share the current document.
+                ShareMorphButton(
+                    backdrop = backdrop,
+                    uiSensor = uiSensor,
+                    glass = glass,
+                    fg = fg,
+                    onOpen = onOpenAnotherPdf,
+                    onShare = onShareDocument
                 )
-                LiquidIconButton(
-                    onClick = {
-                        if (shareMode) { onShareDocument(); shareMode = false } else onOpenAnotherPdf()
-                    },
-                    onLongClick = {
-                        shareMode = !shareMode
+            }
+        }
+    }
+}
+
+/**
+ * The "Open another PDF" circle, upgraded with an Apple-style share gesture: tap opens a new PDF;
+ * press-and-hold morphs the circle into a vertical glass capsule, and swiping up past a threshold
+ * (then releasing) shares the current document. Uses press-then-drag in one motion, so the glass
+ * only re-blurs during the brief height/color morph — never per drag frame.
+ */
+@Composable
+private fun ShareMorphButton(
+    backdrop: LayerBackdrop,
+    uiSensor: UISensor,
+    glass: Color,
+    fg: Color,
+    onOpen: () -> Unit,
+    onShare: () -> Unit
+) {
+    var shareMode by remember { mutableStateOf(false) }
+    var dragUp by remember { mutableFloatStateOf(0f) }
+    val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { 44.dp.toPx() }
+    val blue = Color(0xFF0A84FF)
+
+    val height by animateDpAsState(if (shareMode) 104.dp else 52.dp, label = "shareMorphHeight")
+    val surface by animateColorAsState(if (shareMode) blue else glass, tween(200), label = "shareMorphSurface")
+    val progress = (-dragUp / thresholdPx).coerceIn(0f, 1f)
+
+    Box(
+        Modifier
+            .width(52.dp)
+            .height(height)
+            .liquidGlassPanel(backdrop, uiSensor, containerColorOverride = surface)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { if (!shareMode) onOpen() })
+            }
+            .pointerInput(Unit) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = {
+                        shareMode = true; dragUp = 0f
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
-                    backdrop = backdrop,
-                    surfaceColor = morphSurface,
-                    modifier = Modifier.size(52.dp)
-                ) {
-                    Crossfade(targetState = shareMode, animationSpec = tween(200), label = "shareMorphIcon") { sharing ->
-                        if (sharing) {
-                            Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), Color.White)
-                        } else {
-                            Icon(Icons.Rounded.UploadFile, stringResource(R.string.viewer_open_another), Modifier.size(20.dp), fg)
+                    onDrag = { change, amount -> change.consume(); dragUp += amount.y },
+                    onDragEnd = {
+                        if (dragUp < -thresholdPx) {
+                            onShare()
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
-                    }
+                        shareMode = false; dragUp = 0f
+                    },
+                    onDragCancel = { shareMode = false; dragUp = 0f }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Crossfade(targetState = shareMode, animationSpec = tween(180), label = "shareMorphContent") { sharing ->
+            if (sharing) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // The chevron brightens as you drag toward the release threshold.
+                    Icon(Icons.Rounded.KeyboardArrowUp, null, Modifier.size(18.dp), Color.White.copy(alpha = 0.5f + 0.5f * progress))
+                    Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), Color.White)
                 }
+            } else {
+                Icon(Icons.Rounded.UploadFile, stringResource(R.string.viewer_open_another), Modifier.size(20.dp), fg)
             }
         }
     }

@@ -263,8 +263,8 @@ fun SettingsScreen(
                     LiquidButton(
                         onClick = { onThemeModeChanged(option.idx) },
                         backdrop = backdrop,
-                        tint = if (isSelected) option.activeColor else Color.Transparent,
-                        surfaceColor = if (isSelected) option.activeColor.copy(0.18f) else (if (isLight) Color.White.copy(0.16f) else Color.White.copy(0.08f)),
+                        tint = if (isSelected) option.activeColor else Color.Unspecified,
+                        surfaceColor = if (isSelected) Color.Unspecified else (if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f)),
                         modifier = Modifier.weight(1f)
                     ) {
                         Row(
@@ -327,8 +327,8 @@ fun SettingsScreen(
                     LiquidButton(
                         onClick = { onLocaleChanged(opt.code) },
                         backdrop = backdrop,
-                        tint = if (isSelected) accent else Color.Transparent,
-                        surfaceColor = if (isSelected) accent.copy(0.18f) else (if (isLight) Color.White.copy(0.16f) else Color.White.copy(0.08f)),
+                        tint = if (isSelected) accent else Color.Unspecified,
+                        surfaceColor = if (isSelected) Color.Unspecified else (if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f)),
                         modifier = Modifier.weight(1f)
                     ) {
                         BasicText(

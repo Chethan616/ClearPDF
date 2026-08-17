@@ -468,109 +468,66 @@ fun HomeScreen(
                 selectedRecent?.let { recent ->
                     val targetY = (selectedRecentAnchorY - recentPopupHeightPx / 2f)
                         .coerceIn(padPx * 5f, (maxH - recentPopupHeightPx - padPx * 5f).coerceAtLeast(padPx))
-                    Column(
+                    // WhatsApp-style reaction pill: a compact floating capsule of round glass
+                    // action buttons that pops up from the long-pressed row.
+                    Row(
                         Modifier
                             .offset { IntOffset(0, targetY.toInt()) }
                             .onGloballyPositioned { recentPopupHeightPx = it.size.height }
-                            .padding(horizontal = 24.dp)
                             .graphicsLayer {
-                                val scaleXValue = lerp(0.20f, 1.0f, morphProgress)
-                                val scaleYValue = lerp(0.15f, 1.0f, morphProgress)
-                                val translateYValue = lerp(100f, 0f, morphProgress) * density
+                                val scaleXValue = lerp(0.30f, 1.0f, morphProgress)
+                                val scaleYValue = lerp(0.20f, 1.0f, morphProgress)
+                                translationY = lerp(60f, 0f, morphProgress) * density
                                 scaleX = scaleXValue
                                 scaleY = scaleYValue
-                                translationY = translateYValue
                                 alpha = morphProgress.coerceIn(0f, 1f)
-                                transformOrigin = TransformOrigin(0.5f, 0.85f)
-                                shadowElevation = (16f * morphProgress).dp.toPx()
+                                transformOrigin = TransformOrigin(0.5f, 0.9f)
+                                shadowElevation = (14f * morphProgress).dp.toPx()
                             }
                             .liquidGlassPanel(backdrop, uiSensor)
                             .clickable(
                                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                                 indication = null
                             ) { /* Consume inner taps */ }
-                            .padding(horizontal = 10.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                        horizontalAlignment = Alignment.Start
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Header: filename + close
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Box(
-                                    Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFE53935).copy(alpha = if (isLight) 0.14f else 0.25f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(18.dp), Color(0xFFE53935))
-                                }
-                                BasicText(
-                                    recent.name,
-                                    style = TextStyle(text, 14.sp, FontWeight.SemiBold),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-
+                        Box(Modifier.graphicsLayer { scaleX = b1Scale; scaleY = b1Scale; alpha = b1Scale.coerceIn(0f, 1f) }) {
                             LiquidIconButton(
-                                onClick = { selectedRecent = null },
-                                backdrop = backdrop,
-                                surfaceColor = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.1f),
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                CloseCrossIcon(Modifier.size(14.dp), sub)
-                            }
+                                onClick = { selectedRecent = null; onRecentFileSelected(recent.uri) },
+                                backdrop = backdrop, tint = Color(0xFF0088FF), modifier = Modifier.size(46.dp)
+                            ) { Icon(Icons.Rounded.FileOpen, stringResource(R.string.recents_open), Modifier.size(21.dp), Color.White) }
                         }
-
-                        // Thin divider under the header.
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = 6.dp, bottom = 2.dp)
-                                .height(1.dp)
-                                .background(if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.08f))
-                        )
-
-                        // Clean vertical action list (WhatsApp-style), lightly staggered in.
-                        Box(Modifier.graphicsLayer { alpha = b1Scale.coerceIn(0f, 1f) }) {
-                            ActionSheetItem(Icons.Rounded.FileOpen, stringResource(R.string.recents_open), Color(0xFF0088FF), text) {
-                                selectedRecent = null
-                                onRecentFileSelected(recent.uri)
-                            }
+                        Box(Modifier.graphicsLayer { scaleX = b2Scale; scaleY = b2Scale; alpha = b2Scale.coerceIn(0f, 1f) }) {
+                            LiquidIconButton(
+                                onClick = {
+                                    selectedRecent = null
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/pdf"
+                                        putExtra(Intent.EXTRA_STREAM, recent.uri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.recents_share_pdf)))
+                                },
+                                backdrop = backdrop, tint = Color(0xFF34C759), modifier = Modifier.size(46.dp)
+                            ) { Icon(Icons.Rounded.IosShare, stringResource(R.string.recents_share), Modifier.size(20.dp), Color.White) }
                         }
-                        Box(Modifier.graphicsLayer { alpha = b2Scale.coerceIn(0f, 1f) }) {
-                            ActionSheetItem(Icons.Rounded.IosShare, stringResource(R.string.recents_share), Color(0xFF34C759), text) {
-                                selectedRecent = null
-                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "application/pdf"
-                                    putExtra(Intent.EXTRA_STREAM, recent.uri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.recents_share_pdf)))
-                            }
+                        Box(Modifier.graphicsLayer { scaleX = b3Scale; scaleY = b3Scale; alpha = b3Scale.coerceIn(0f, 1f) }) {
+                            LiquidIconButton(
+                                onClick = { selectedRecent = null; infoRecent = recent },
+                                backdrop = backdrop, tint = Color(0xFF8E8E93), modifier = Modifier.size(46.dp)
+                            ) { Icon(Icons.Rounded.Info, stringResource(R.string.recents_details), Modifier.size(21.dp), Color.White) }
                         }
-                        Box(Modifier.graphicsLayer { alpha = b3Scale.coerceIn(0f, 1f) }) {
-                            ActionSheetItem(Icons.Rounded.Info, stringResource(R.string.recents_details), Color(0xFF8E8E93), text) {
-                                selectedRecent = null
-                                infoRecent = recent
-                            }
-                        }
-                        Box(Modifier.graphicsLayer { alpha = b4Scale.coerceIn(0f, 1f) }) {
-                            ActionSheetItem(Icons.Rounded.DeleteOutline, stringResource(R.string.recents_remove), redAccent, redAccent) {
-                                RecentFilesManager.removeRecent(context, recent.uri)
-                                recents = recents.filterNot { it.uriString == recent.uri.toString() }
-                                selectedRecent = null
-                            }
+                        Box(Modifier.graphicsLayer { scaleX = b4Scale; scaleY = b4Scale; alpha = b4Scale.coerceIn(0f, 1f) }) {
+                            LiquidIconButton(
+                                onClick = {
+                                    RecentFilesManager.removeRecent(context, recent.uri)
+                                    recents = recents.filterNot { it.uriString == recent.uri.toString() }
+                                    selectedRecent = null
+                                },
+                                backdrop = backdrop, tint = Color(0xFFE53935), modifier = Modifier.size(46.dp)
+                            ) { Icon(Icons.Rounded.DeleteOutline, stringResource(R.string.recents_remove), Modifier.size(21.dp), Color.White) }
                         }
                     }
                 }

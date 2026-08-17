@@ -147,6 +147,9 @@ fun PdfViewerScreen(
     // ── Local UI state ─────────────────────────────────────────────────────
     var controlsVisible     by rememberSaveable { mutableStateOf(true) }
     var controlsPinned      by rememberSaveable { mutableStateOf(false) }
+    // True while the bottom "Editor Tools" panel is expanded — keeps the chrome from auto-hiding
+    // so the user can browse tools without it disappearing.
+    var editorToolsOpen     by rememberSaveable { mutableStateOf(false) }
     var lastInteractionAtMs by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
     // Adobe-style single-axis reading: the viewer is vertical-only. Horizontal
     // panning is still allowed inside a zoomed page (handled in PdfContinuousPage).
@@ -307,13 +310,14 @@ fun PdfViewerScreen(
         showFindBar = false; findQuery = ""; viewModel.clearSearch()
     }
 
-    LaunchedEffect(state.document, controlsVisible, controlsPinned, activeTool, lastInteractionAtMs) {
-        if (state.document != null && controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None) {
+    LaunchedEffect(state.document, controlsVisible, controlsPinned, activeTool, editorToolsOpen, lastInteractionAtMs) {
+        if (state.document != null && controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && !editorToolsOpen) {
             val snap = lastInteractionAtMs
             // Comfortable auto-hide window; any interaction bumps lastInteractionAtMs and
-            // restarts this, and it never fires while a tool is active (activeTool != None).
+            // restarts this. It never fires while a tool is active (activeTool != None) OR while
+            // the Editor Tools panel is open, so browsing tools won't hide the chrome.
             delay(5000)
-            if (controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && snap == lastInteractionAtMs)
+            if (controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && !editorToolsOpen && snap == lastInteractionAtMs)
                 controlsVisible = false
         }
     }
@@ -817,6 +821,7 @@ fun PdfViewerScreen(
                     onDismissExportFeedback = { viewModel.clearExportFeedback() },
                     onOpenExportedFile = { state.lastExportedUri?.let { viewModel.openPdf(context, it) } },
                     onOpenAnotherPdf   = { pdfPickerLauncher.launch(arrayOf("*/*")) },
+                    onEditorOpenChanged = { editorToolsOpen = it },
                     onShareDocument    = {
                         val uri = state.document?.uri
                         if (uri != null) {
