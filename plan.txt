@@ -41,7 +41,24 @@ ITEM 2 — TEXT SELECTION + FIND OVERHAUL  [x] DONE
 - Feature-rich + quality-rich. Keep our OCR-block model; adapt Pdf_Tools ideas, don't copy code.
 
 =====================================================================
-ITEM 3 — SETTINGS FULL REDESIGN  [ ]
+ITEM 3 — SETTINGS FULL REDESIGN  [x] DONE
+  → SettingsScreen.kt rewritten around 3 reusable primitives + centralized tokens:
+    - SettingsSection(title, icon, iconTint, titleColor, contentSpacing, trailing, content):
+      glass card + M3 rounded-icon TILE header (was a bare icon) + optional trailing slot
+      (used by the quality % badge). Replaces 7 hand-built headers.
+    - SegmentedSelector(options, selectedId, onSelect): one equal-weight glass segmented
+      control shared by Theme / Language / Save-location — replaces 3 copy-pasted blocks,
+      guarantees consistent overflow (maxLines=1 + ellipsis). SegOption carries optional icon.
+    - reveal(index, visible, density): one staggered fade+rise entrance modifier, replaces
+      12 hand-written animateFloatAsState + graphicsLayer blocks AND fixes a real bug where
+      Quality + Language both reused panel4's animation. SettingsDivider extracted too.
+    - Tokens: SectionRadius/InnerRadius/SectionGap/SectionPadding/TitleSize/AccentBlue/Green.
+    - Overflow: section titles + save path now maxLines+ellipsis; dark-mode palette preserved.
+  → Preserved EVERY backing call (AppSettingsManager auto-compress/keep-original/notifications/
+    quality, SaveLocationManager + folder picker, onThemeModeChanged, onLocaleChanged, star CTA,
+    licenses). Function signature unchanged. No fake settings added (no privacy link target). BUILD OK.
+
+ITEM 3 — (original spec below)  [x]
 ---------------------------------------------------------------------
 - Rebuild hierarchy (only real settings, no fake ones):
     Appearance: Theme, (Accent/Dynamic if they exist),
