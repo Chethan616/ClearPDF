@@ -75,10 +75,13 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.ui.components.GlassChip
+import com.chethan616.clearpdf.ui.components.GlassSectionHeader
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.LiquidToggle
+import com.chethan616.clearpdf.ui.components.glassSection
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
@@ -86,11 +89,9 @@ import kotlinx.coroutines.delay
 // ── Shared design tokens (Item 4 spirit, scoped to Settings) ────────────────
 // Centralised so every section shares the same rhythm; no more per-block magic
 // numbers drifting apart.
-private val SectionRadius   = 24.dp
 private val InnerRadius     = 16.dp
 private val SectionGap      = 16.dp
 private val SectionPadding  = 20.dp
-private val TitleSize       = 16.sp
 private val AccentBlue      = Color(0xFF0088FF)
 private val AccentGreen     = Color(0xFF00C853)
 
@@ -325,19 +326,7 @@ fun SettingsScreen(
             isLight = isLight,
             titleColor = text,
             modifier = reveal(5, isVisible, density),
-            trailing = {
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF1976D2).copy(0.14f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    BasicText(
-                        "${(defaultQuality * 100).toInt()}%",
-                        style = TextStyle(Color(0xFF1976D2), 13.sp, fontWeight = FontWeight.Bold)
-                    )
-                }
-            }
+            trailing = { GlassChip("${(defaultQuality * 100).toInt()}%", Color(0xFF1976D2)) }
         ) {
             LiquidSlider(
                 value = { defaultQuality },
@@ -360,7 +349,7 @@ fun SettingsScreen(
         Column(
             reveal(6, isVisible, density)
                 .fillMaxWidth()
-                .liquidGlassSection(isLight)
+                .glassSection(isLight)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -460,30 +449,11 @@ private fun SettingsSection(
     Column(
         modifier
             .fillMaxWidth()
-            .liquidGlassSection(isLight)
+            .glassSection(isLight)
             .padding(SectionPadding),
         verticalArrangement = Arrangement.spacedBy(contentSpacing)
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Box(
-                Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(iconTint.copy(0.14f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, null, Modifier.size(18.dp), iconTint)
-            }
-            BasicText(
-                title,
-                style = TextStyle(titleColor, TitleSize, fontWeight = FontWeight.SemiBold),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            trailing?.invoke()
-        }
+        GlassSectionHeader(title, icon, iconTint, titleColor, trailing = trailing)
         content()
     }
 }
@@ -541,15 +511,6 @@ private fun SettingsDivider(isLight: Boolean) {
         Modifier.fillMaxWidth().padding(vertical = 4.dp).height(1.dp)
             .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
     )
-}
-
-private fun Modifier.liquidGlassSection(isLight: Boolean): Modifier {
-    val containerColor = if (isLight) Color.White.copy(0.68f) else Color(0xFF161820).copy(0.72f)
-    val borderColor = if (isLight) Color.White.copy(0.80f) else Color.White.copy(0.12f)
-    return this
-        .clip(RoundedCornerShape(SectionRadius))
-        .background(containerColor)
-        .border(1.dp, borderColor, RoundedCornerShape(SectionRadius))
 }
 
 private fun openExternalLink(context: Context, url: String) {

@@ -71,7 +71,28 @@ ITEM 3 — (original spec below)  [x]
 - M3 rounded icons, consistent spacing/corner-radii/typography tokens.
 
 =====================================================================
-ITEM 4 — LIQUID GLASS DESIGN SYSTEM EXTRACTION  [ ]
+ITEM 4 — LIQUID GLASS DESIGN SYSTEM EXTRACTION  [x] DONE (core + 2 adopters)
+  → New components/GlassPrimitives.kt centralizes the design system:
+    - GlassDimens tokens (ScreenPadding/SectionGap/SectionRadius/InnerRadius/
+      SectionPadding/TitleSize) — single source of truth for spacing/radii/type.
+    - Modifier.glassSection(isLight, radius): the solid section card (was a private
+      copy in SettingsScreen).
+    - GlassSectionHeader(title, icon, iconTint, titleColor, trailing): M3 rounded
+      icon-tile header, reusable.
+    - GlassChip(text, color): the tinted value pill (e.g. quality %).
+    - ToolScaffold(title, backdrop, onBack, headerTrailing, content): the shared
+      animated back-header + staggered reveal + scroll body that every tool screen
+      hand-rolled (~45 lines each).
+  → Adopted in SettingsScreen (removed its private liquidGlassSection + inlined header
+    + badge → shared primitives) and CompressPdfScreen (now ToolScaffold + GlassChip).
+    Both BUILD OK.
+  → NOT force-migrated: PageOrganizer (reorderable list), ImagesToPdf (grid),
+    Encrypt/Decrypt (no reveal), Scan (no back) — their body structure differs from the
+    simple verticalScroll ToolScaffold assumes; migrating blind (no device eyes) risks
+    layout regressions for zero user-visible gain. They can adopt ToolScaffold incrementally
+    during a device-verified pass. Primitives are ready for them.
+
+ITEM 4 — (original spec below)  [x]
 ---------------------------------------------------------------------
 - One consistent set of reusable primitives (reuse existing LiquidButton/LiquidIconButton/
   liquidGlassPanel; add GlassCard/GlassSection/GlassSheet/GlassChip as thin wrappers).
