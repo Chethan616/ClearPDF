@@ -125,7 +125,8 @@ fun HomeScreen(
     var selectedRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
     // Root-space vertical center of the long-pressed row, so the popup can rise
     // from the item instead of floating dead-center.
-    var selectedRecentAnchorY by remember { mutableStateOf(0f) }
+    var selectedRecentAnchorY by remember { mutableStateOf(0f) }   // root-space TOP of the pressed row
+    var selectedRecentRowHeight by remember { mutableStateOf(0f) }
     var recentPopupHeightPx by remember { mutableStateOf(0) }
     var infoRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -384,16 +385,20 @@ fun HomeScreen(
                 } else {
                     val visibleRecents = if (showAllRecents) recents else recents.take(homeRecentLimit)
                     visibleRecents.forEach { recent ->
-                        var rowCenterY by remember { mutableStateOf(0f) }
+                        var rowTopY by remember { mutableStateOf(0f) }
+                        var rowHeightPx by remember { mutableStateOf(0f) }
                         Row(
                             Modifier
                                 .fillMaxWidth()
-                                .onGloballyPositioned { rowCenterY = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero).y + it.size.height / 2f }
+                                .onGloballyPositioned {
+                                    rowTopY = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero).y
+                                    rowHeightPx = it.size.height.toFloat()
+                                }
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(if (isLight) Color.White.copy(0.18f) else Color.White.copy(0.06f))
                                 .combinedClickable(
                                     onClick = { onRecentFileSelected(recent.uri) },
-                                    onLongClick = { selectedRecent = recent; selectedRecentAnchorY = rowCenterY }
+                                    onLongClick = { selectedRecent = recent; selectedRecentAnchorY = rowTopY; selectedRecentRowHeight = rowHeightPx }
                                 )
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -466,8 +471,14 @@ fun HomeScreen(
                 val maxH = constraints.maxHeight
                 val padPx = 16f * density
                 selectedRecent?.let { recent ->
-                    val targetY = (selectedRecentAnchorY - recentPopupHeightPx / 2f)
-                        .coerceIn(padPx * 5f, (maxH - recentPopupHeightPx - padPx * 5f).coerceAtLeast(padPx))
+                    // Float the pill ABOVE the pressed row (WhatsApp-style); flip below only if
+                    // there isn't enough room above.
+                    val gap = 10f * density
+                    val minY = padPx * 3f
+                    val maxY = (maxH - recentPopupHeightPx - padPx * 3f).coerceAtLeast(minY)
+                    val aboveY = selectedRecentAnchorY - recentPopupHeightPx - gap
+                    val belowY = selectedRecentAnchorY + selectedRecentRowHeight + gap
+                    val targetY = (if (aboveY >= minY) aboveY else belowY).coerceIn(minY, maxY)
                     // WhatsApp-style reaction pill: a compact floating capsule of round glass
                     // action buttons that pops up from the long-pressed row.
                     Row(

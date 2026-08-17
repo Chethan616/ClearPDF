@@ -17,6 +17,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -154,10 +156,10 @@ internal fun PdfViewerBottomToolbar(
         // Only this panel moves, so re-blur is confined to one surface.
         AnimatedVisibility(
             visible = editorOpen && (showDrawTools || showOcrTools || showImageTools) && !showFindBar && !showSignaturePad,
-            enter   = fadeIn(tween(220)) +
-                      slideInVertically(spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow)) { it },
-            exit    = fadeOut(tween(150)) +
-                      slideOutVertically(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)) { it }
+            // Grow UPWARD from the pinned "Editor Tools" bar (expandVertically from Bottom) so the
+            // bar itself never moves — the panel unfolds above it. No slide = no coupled shift.
+            enter   = fadeIn(tween(200)) + expandVertically(tween(240), expandFrom = Alignment.Bottom),
+            exit    = fadeOut(tween(140)) + shrinkVertically(tween(160), shrinkTowards = Alignment.Bottom)
         ) {
             Column(
                 Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor, glass).padding(12.dp),
@@ -362,8 +364,8 @@ internal fun PdfViewerBottomToolbar(
         // screen isn't stacked with panels — the sub-toolbar's ✕ returns here.
         AnimatedVisibility(
             visible = editorOpen && !showDrawTools && !showOcrTools && !showFindBar && !showSignaturePad && activeImageId == null,
-            enter   = fadeIn(tween(200)) +
-                      slideInVertically(spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow)) { it },
+            // Unfold UPWARD from the pinned bar (no slide) so the "Editor Tools" pill stays put.
+            enter   = fadeIn(tween(200)) + expandVertically(tween(240), expandFrom = Alignment.Bottom),
             // Instant exit → releases its layout space immediately so the sub-toolbar
             // below never gets pushed up and then dropped ("stays top, then comes down").
             exit    = ExitTransition.None
@@ -580,11 +582,12 @@ private fun ShareMorphButton(
             if (sharing) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
-                    // The chevron brightens as you drag toward the release threshold.
-                    Icon(Icons.Rounded.KeyboardArrowUp, null, Modifier.size(18.dp), Color.White.copy(alpha = 0.5f + 0.5f * progress))
+                    // Share icon on top (always visible); the up-arrow sits below and brightens
+                    // as you drag toward the release threshold — a "swipe up to share" hint.
                     Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), Color.White)
+                    Icon(Icons.Rounded.KeyboardArrowUp, null, Modifier.size(18.dp), Color.White.copy(alpha = 0.5f + 0.5f * progress))
                 }
             } else {
                 Icon(Icons.Rounded.UploadFile, stringResource(R.string.viewer_open_another), Modifier.size(20.dp), fg)
