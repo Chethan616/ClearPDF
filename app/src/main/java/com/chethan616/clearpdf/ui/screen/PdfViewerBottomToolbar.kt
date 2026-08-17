@@ -6,6 +6,9 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
@@ -143,6 +146,14 @@ internal fun PdfViewerBottomToolbar(
     // Collapsed by default (just the "Editor Tools" pill + "Open PDF" circle). Tapping
     // the pill expands the tool set above it. Image selection auto-expands so its tools show.
     var editorOpen by remember { mutableStateOf(false) }
+    // True while the share capsule is morphed up — the tool panels compress a touch to give it
+    // room (without moving up).
+    var shareActive by remember { mutableStateOf(false) }
+    val toolCompress by animateFloatAsState(
+        if (shareActive) 0.88f else 1f,
+        spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
+        label = "toolCompress"
+    )
     // Tell the viewer when the Editor Tools panel is open so it won't auto-hide the chrome.
     LaunchedEffect(editorOpen) { onEditorOpenChanged(editorOpen) }
     // Any active tool implies the editor is open (survives the chrome auto-hiding/returning).
@@ -158,12 +169,14 @@ internal fun PdfViewerBottomToolbar(
         AnimatedVisibility(
             visible = editorOpen && (showDrawTools || showOcrTools || showImageTools) && !showFindBar && !showSignaturePad,
             // Grow UPWARD from the pinned "Editor Tools" bar (expandVertically from Bottom) so the
-            // bar itself never moves — the panel unfolds above it. No slide = no coupled shift.
-            enter   = fadeIn(tween(200)) + expandVertically(tween(240), expandFrom = Alignment.Bottom),
-            exit    = fadeOut(tween(140)) + shrinkVertically(tween(160), shrinkTowards = Alignment.Bottom)
+            // bar never moves. Spring physics (not a linear tween) give the liquid Apple feel.
+            enter   = fadeIn(tween(200)) + expandVertically(spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessLow), expandFrom = Alignment.Bottom),
+            exit    = fadeOut(tween(140)) + shrinkVertically(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium), shrinkTowards = Alignment.Bottom)
         ) {
             Column(
-                Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor, glass).padding(12.dp),
+                Modifier.fillMaxWidth()
+                    .graphicsLayer { scaleY = toolCompress; transformOrigin = TransformOrigin(0.5f, 0f) }
+                    .liquidGlassPanel(backdrop, uiSensor, glass).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
@@ -366,7 +379,8 @@ internal fun PdfViewerBottomToolbar(
         AnimatedVisibility(
             visible = editorOpen && !showDrawTools && !showOcrTools && !showFindBar && !showSignaturePad && activeImageId == null,
             // Unfold UPWARD from the pinned bar (no slide) so the "Editor Tools" pill stays put.
-            enter   = fadeIn(tween(200)) + expandVertically(tween(240), expandFrom = Alignment.Bottom),
+            // Spring = liquid feel.
+            enter   = fadeIn(tween(200)) + expandVertically(spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessLow), expandFrom = Alignment.Bottom),
             // Instant exit → releases its layout space immediately so the sub-toolbar
             // below never gets pushed up and then dropped ("stays top, then comes down").
             exit    = ExitTransition.None
@@ -374,6 +388,7 @@ internal fun PdfViewerBottomToolbar(
             Row(
                 Modifier
                     .fillMaxWidth()
+                    .graphicsLayer { scaleY = toolCompress; transformOrigin = TransformOrigin(0.5f, 0f) }
                     .liquidGlassPanel(backdrop, uiSensor, glass)
                     .padding(horizontal = 12.dp, vertical = 10.dp)
                     .horizontalScroll(rememberScrollState()),
@@ -519,7 +534,9 @@ internal fun PdfViewerBottomToolbar(
                     glass = glass,
                     fg = fg,
                     onOpen = onOpenAnotherPdf,
-                    onShare = onShareDocument
+                    onShare = onShareDocument,
+                    onShareModeChanged = { shareActive = it },
+                    modifier = Modifier.align(Alignment.Bottom)
                 )
             }
         }
@@ -539,7 +556,9 @@ private fun ShareMorphButton(
     glass: Color,
     fg: Color,
     onOpen: () -> Unit,
-    onShare: () -> Unit
+    onShare: () -> Unit,
+    onShareModeChanged: (Boolean) -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     var shareMode by remember { mutableStateOf(false) }
     var dragUp by remember { mutableFloatStateOf(0f) }
@@ -548,13 +567,18 @@ private fun ShareMorphButton(
     val thresholdPx = with(density) { 44.dp.toPx() }
     val blue = Color(0xFF0A84FF)
 
-    val height by animateDpAsState(if (shareMode) 104.dp else 52.dp, label = "shareMorphHeight")
+    // Springy morph (slight overshoot) = Apple liquid feel.
+    val height by animateDpAsState(
+        if (shareMode) 108.dp else 52.dp,
+        spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+        label = "shareMorphHeight"
+    )
     val surface by animateColorAsState(if (shareMode) blue else glass, tween(200), label = "shareMorphSurface")
     val progress = (-dragUp / thresholdPx).coerceIn(0f, 1f)
 
-    // Fixed 52dp layout footprint so the growing capsule never changes the toolbar row height
-    // (which was pushing the Editor Tools pill up). The capsule overflows UPWARD instead.
-    Box(Modifier.size(52.dp), contentAlignment = Alignment.BottomCenter) {
+    // Fixed 52dp layout footprint (never grows the toolbar row) + bottom-anchored so the capsule
+    // overflows strictly UPWARD from the circle's position, not both directions.
+    Box(modifier.size(52.dp), contentAlignment = Alignment.BottomCenter) {
     Box(
         Modifier
             .width(52.dp)
@@ -566,7 +590,7 @@ private fun ShareMorphButton(
             .pointerInput(Unit) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
-                        shareMode = true; dragUp = 0f
+                        shareMode = true; onShareModeChanged(true); dragUp = 0f
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
                     onDrag = { change, amount -> change.consume(); dragUp += amount.y },
@@ -575,9 +599,9 @@ private fun ShareMorphButton(
                             onShare()
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
-                        shareMode = false; dragUp = 0f
+                        shareMode = false; onShareModeChanged(false); dragUp = 0f
                     },
-                    onDragCancel = { shareMode = false; dragUp = 0f }
+                    onDragCancel = { shareMode = false; onShareModeChanged(false); dragUp = 0f }
                 )
             },
         contentAlignment = Alignment.Center
