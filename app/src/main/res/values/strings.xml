@@ -111,6 +111,13 @@
     <string name="html_to_pdf_hint">&lt;h1&gt;Hello&lt;/h1&gt;&lt;p&gt;Your HTML here…&lt;/p&gt;</string>
     <string name="html_to_pdf_action">Convert to PDF</string>
     <string name="html_to_pdf_working">Rendering…</string>
+    <string name="tool_fill_form">Fill Form</string>
+    <string name="tool_fill_form_sub">Complete PDF form fields</string>
+    <string name="fill_form_fields">Form fields</string>
+    <string name="fill_form_flatten">Flatten when saving</string>
+    <string name="fill_form_flatten_desc">Make the filled values permanent</string>
+    <string name="fill_form_action">Save Filled PDF</string>
+    <string name="fill_form_working">Saving…</string>
     <string name="tool_pdf_to_images_desc">Render each page to a high-quality image you can save or share.</string>
     <string name="pdf_to_images_format">Image format</string>
     <string name="pdf_to_images_convert">Convert to images</string>

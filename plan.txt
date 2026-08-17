@@ -140,8 +140,15 @@ ITEM 5 — PDF_TOOLS FEATURE-GAP PORTING  [~] WATERMARK DONE (first gap closed t
     ImageToolsViewModel + ImageToolsScreen (ToolScaffold: format selector, quality slider [lossy
     only], resize slider, before/after size, Save-to-gallery + Share) + nav ROUTE_IMAGE_TOOLS
     + ToolSpec (PhotoSizeSelectLarge #F4511E) + strings en+pt+pt-rBR. assembleDebug OK.
-  → STILL MISSING: HTML->PDF (WebView pagination + app has no INTERNET perm → local HTML only),
-    Fill Forms (needs per-field editing UI — biggest). Image watermark variant optional.
+  → HTML->PDF DONE: util/HtmlToPdfConverter (offscreen WebView @A4 → PdfDocument page slices,
+    main-thread async; JS off + null base = offline-only local HTML) + HtmlToPdfViewModel
+    (suspendCancellableCoroutine on Dispatchers.Main) + HtmlToPdfScreen + nav + ToolSpec (Code #E65100).
+  → FILL FORMS DONE: pdf-core/form/PdfFormService (readFields → text/checkbox/choice terminal
+    fields; fill(values, flatten) via PDField.setValue/check/unCheck) + FillFormViewModel (editable
+    field list) + FillFormScreen (dynamic typed inputs + flatten toggle) + nav + ToolSpec (EditNote #00695C).
+  → ALL Pdf_Tools feature-list gaps now CLOSED (Flatten, Image Tools, HTML→PDF, Fill Forms this pass;
+    Watermark/Extract-Pages/Page-Numbers earlier). Tools grid = 17 cards. assembleDebug OK.
+    NONE device-verified — WebView HTML→PDF timing + form appearance generation especially want it.
 
 ITEM 5 — (original spec below)  [~]
 ---------------------------------------------------------------------

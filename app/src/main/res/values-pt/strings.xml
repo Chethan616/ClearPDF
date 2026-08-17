@@ -420,4 +420,11 @@
     <string name="html_to_pdf_hint">&lt;h1&gt;Olá&lt;/h1&gt;&lt;p&gt;Seu HTML aqui…&lt;/p&gt;</string>
     <string name="html_to_pdf_action">Converter em PDF</string>
     <string name="html_to_pdf_working">Renderizando…</string>
+    <string name="tool_fill_form">Preencher formulário</string>
+    <string name="tool_fill_form_sub">Preencher campos de formulário</string>
+    <string name="fill_form_fields">Campos do formulário</string>
+    <string name="fill_form_flatten">Achatar ao salvar</string>
+    <string name="fill_form_flatten_desc">Tornar os valores preenchidos permanentes</string>
+    <string name="fill_form_action">Salvar PDF preenchido</string>
+    <string name="fill_form_working">Salvando…</string>
 </resources>
