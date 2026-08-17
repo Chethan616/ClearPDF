@@ -1,12 +1,14 @@
 package com.kyant.pdfcore.watermark
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
 import com.kyant.pdfcore.internal.PdfBox
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
+import com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory
 import com.tom_roush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState
 import com.tom_roush.pdfbox.util.Matrix
 import kotlin.math.min
@@ -77,6 +79,62 @@ object PdfWatermarker {
                             cs.endText()
                             cs.restoreGraphicsState()
                         }
+                    }
+                }
+                context.contentResolver.openOutputStream(destinationUri)?.use { output ->
+                    doc.save(output)
+                } ?: throw IllegalStateException("Unable to write PDF")
+            }
+        } ?: throw IllegalStateException("Unable to read PDF")
+    }
+
+    /**
+     * Stamp an [bitmap] image watermark (e.g. a logo) centered on every page.
+     *
+     * @param opacity  0..1 image alpha.
+     * @param diagonal true = rotate the image 45° about the page centre.
+     * @param widthFraction the watermark width as a fraction of the page width.
+     */
+    fun applyImage(
+        context: Context,
+        sourceUri: Uri,
+        destinationUri: Uri,
+        bitmap: Bitmap,
+        opacity: Float,
+        diagonal: Boolean,
+        widthFraction: Float = 0.45f
+    ) {
+        PdfBox.ensureInitialized(context)
+        val alpha = opacity.coerceIn(0.05f, 1f)
+        val ratio = bitmap.height.toFloat() / bitmap.width.toFloat().coerceAtLeast(1f)
+
+        context.contentResolver.openInputStream(sourceUri)?.use { input ->
+            PDDocument.load(input).use { doc ->
+                val image = LosslessFactory.createFromImage(doc, bitmap)
+                for (i in 0 until doc.numberOfPages) {
+                    val page = doc.getPage(i)
+                    val box = page.cropBox ?: page.mediaBox ?: continue
+                    val w = box.width
+                    val h = box.height
+                    val cx = box.lowerLeftX + w / 2f
+                    val cy = box.lowerLeftY + h / 2f
+                    val drawW = w * widthFraction.coerceIn(0.1f, 1f)
+                    val drawH = drawW * ratio
+
+                    PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true, true).use { cs ->
+                        cs.saveGraphicsState()
+                        val gs = PDExtendedGraphicsState().apply {
+                            nonStrokingAlphaConstant = alpha
+                            strokingAlphaConstant = alpha
+                        }
+                        cs.setGraphicsStateParameters(gs)
+                        if (diagonal) {
+                            cs.transform(Matrix.getRotateInstance(Math.toRadians(45.0), cx, cy))
+                            cs.drawImage(image, -drawW / 2f, -drawH / 2f, drawW, drawH)
+                        } else {
+                            cs.drawImage(image, cx - drawW / 2f, cy - drawH / 2f, drawW, drawH)
+                        }
+                        cs.restoreGraphicsState()
                     }
                 }
                 context.contentResolver.openOutputStream(destinationUri)?.use { output ->

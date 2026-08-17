@@ -59,7 +59,10 @@
     <string name="tool_pdf_to_images_sub">Export pages as JPG/PNG</string>
     <string name="tool_watermark">Watermark</string>
     <string name="tool_watermark_sub">Stamp text over pages</string>
-    <string name="watermark_text_label">Watermark text</string>
+    <string name="watermark_text_label">Watermark</string>
+    <string name="watermark_mode_text">Text</string>
+    <string name="watermark_mode_image">Image</string>
+    <string name="watermark_pick_image">Pick watermark image</string>
     <string name="watermark_text_hint">e.g. CONFIDENTIAL</string>
     <string name="watermark_opacity">Opacity</string>
     <string name="watermark_diagonal">Diagonal (45°)</string>

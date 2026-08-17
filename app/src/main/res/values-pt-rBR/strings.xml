@@ -368,7 +368,10 @@
     <string name="scanner_start_failed">Não foi possível iniciar o scanner.</string>
     <string name="tool_watermark">Marca d\'água</string>
     <string name="tool_watermark_sub">Carimbe texto nas páginas</string>
-    <string name="watermark_text_label">Texto da marca d\'água</string>
+    <string name="watermark_text_label">Marca d\'água</string>
+    <string name="watermark_mode_text">Texto</string>
+    <string name="watermark_mode_image">Imagem</string>
+    <string name="watermark_pick_image">Escolher imagem</string>
     <string name="watermark_text_hint">ex.: CONFIDENCIAL</string>
     <string name="watermark_opacity">Opacidade</string>
     <string name="watermark_diagonal">Diagonal (45°)</string>

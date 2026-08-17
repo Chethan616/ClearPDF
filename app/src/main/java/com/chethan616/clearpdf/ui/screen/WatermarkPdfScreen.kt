@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BrandingWatermark
+import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -46,6 +47,7 @@ import com.chethan616.clearpdf.ui.components.ToolScaffold
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
+import com.chethan616.clearpdf.ui.viewmodel.WatermarkMode
 import com.chethan616.clearpdf.ui.viewmodel.WatermarkPdfViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
@@ -76,6 +78,10 @@ fun WatermarkPdfScreen(
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri -> if (uri != null) viewModel.onSelectFile(context, uri) }
+
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri -> if (uri != null) viewModel.onPickImage(context, uri) }
 
     ToolScaffold(
         title = stringResource(R.string.tool_watermark),
@@ -119,21 +125,38 @@ fun WatermarkPdfScreen(
                     iconTint = WatermarkAccent,
                     titleColor = text
                 )
-                BasicTextField(
-                    value = state.text,
-                    onValueChange = viewModel::onTextChange,
-                    singleLine = true,
-                    textStyle = TextStyle(text, 15.sp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.05f))
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                    decorationBox = { inner ->
-                        if (state.text.isEmpty()) BasicText(stringResource(R.string.watermark_text_hint), style = TextStyle(sub, 14.sp))
-                        inner()
+
+                // Mode: Text / Image
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    WmModeOption(stringResource(R.string.watermark_mode_text), state.mode == WatermarkMode.TEXT, backdrop, isLight, { viewModel.onModeChange(WatermarkMode.TEXT) }, Modifier.weight(1f))
+                    WmModeOption(stringResource(R.string.watermark_mode_image), state.mode == WatermarkMode.IMAGE, backdrop, isLight, { viewModel.onModeChange(WatermarkMode.IMAGE) }, Modifier.weight(1f))
+                }
+
+                if (state.mode == WatermarkMode.TEXT) {
+                    BasicTextField(
+                        value = state.text,
+                        onValueChange = viewModel::onTextChange,
+                        singleLine = true,
+                        textStyle = TextStyle(text, 15.sp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.05f))
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        decorationBox = { inner ->
+                            if (state.text.isEmpty()) BasicText(stringResource(R.string.watermark_text_hint), style = TextStyle(sub, 14.sp))
+                            inner()
+                        }
+                    )
+                } else {
+                    LiquidButton(onClick = { imagePicker.launch("image/*") }, backdrop = backdrop, tint = WatermarkAccent, modifier = Modifier.fillMaxWidth()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                            Icon(Icons.Rounded.Image, null, Modifier.size(18.dp), Color.White)
+                            BasicText(stringResource(R.string.watermark_pick_image), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+                        }
                     }
-                )
+                    if (state.imageName.isNotEmpty()) BasicText(state.imageName, style = TextStyle(sub, 12.sp), maxLines = 1)
+                }
 
                 // Opacity
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -201,5 +224,30 @@ fun WatermarkPdfScreen(
         }
 
         Spacer(Modifier.height(40.dp))
+    }
+}
+
+@Composable
+private fun WmModeOption(
+    label: String,
+    selected: Boolean,
+    backdrop: LayerBackdrop,
+    isLight: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val contentColor = if (selected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+    LiquidButton(
+        onClick = onClick,
+        backdrop = backdrop,
+        tint = if (selected) WatermarkAccent else Color.Transparent,
+        surfaceColor = if (selected) WatermarkAccent.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
+        modifier = modifier
+    ) {
+        BasicText(
+            label,
+            style = TextStyle(contentColor, 14.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium),
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
     }
 }

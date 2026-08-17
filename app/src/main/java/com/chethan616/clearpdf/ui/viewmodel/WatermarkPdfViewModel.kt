@@ -25,10 +25,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+enum class WatermarkMode { TEXT, IMAGE }
+
 data class WatermarkUiState(
     val sourceUri: Uri? = null,
     val sourceName: String = "",
+    val mode: WatermarkMode = WatermarkMode.TEXT,
     val text: String = "CONFIDENTIAL",
+    val imageUri: Uri? = null,
+    val imageName: String = "",
     val opacity: Float = 0.25f,
     val diagonal: Boolean = true,
     val isProcessing: Boolean = false,
@@ -57,15 +62,23 @@ class WatermarkPdfViewModel : ViewModel() {
         }
     }
 
+    fun onModeChange(mode: WatermarkMode) = _uiState.update { it.copy(mode = mode, lastOutputUri = null, resultMessage = null, errorMessage = null) }
     fun onTextChange(value: String) = _uiState.update { it.copy(text = value) }
     fun onOpacityChange(value: Float) = _uiState.update { it.copy(opacity = value.coerceIn(0.05f, 1f)) }
     fun onDiagonalChange(value: Boolean) = _uiState.update { it.copy(diagonal = value) }
+    fun onPickImage(context: Context, uri: Uri) =
+        _uiState.update { it.copy(imageUri = uri, imageName = queryName(context, uri), lastOutputUri = null, resultMessage = null, errorMessage = null) }
 
     fun apply(context: Context) {
         val src = _uiState.value.sourceUri ?: return
         if (_uiState.value.isProcessing) return
-        if (_uiState.value.text.isBlank()) {
+        val s0 = _uiState.value
+        if (s0.mode == WatermarkMode.TEXT && s0.text.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Enter watermark text") }
+            return
+        }
+        if (s0.mode == WatermarkMode.IMAGE && s0.imageUri == null) {
+            _uiState.update { it.copy(errorMessage = "Pick a watermark image") }
             return
         }
         _uiState.update { it.copy(isProcessing = true, errorMessage = null, resultMessage = null, lastOutputUri = null) }
@@ -77,14 +90,20 @@ class WatermarkPdfViewModel : ViewModel() {
                 val outUri = createOutputUri(context, fileName)
                 val s = _uiState.value
                 withContext(Dispatchers.IO) {
-                    PdfWatermarker.apply(
-                        context = context,
-                        sourceUri = src,
-                        destinationUri = outUri,
-                        text = s.text.trim(),
-                        opacity = s.opacity,
-                        diagonal = s.diagonal
-                    )
+                    if (s.mode == WatermarkMode.IMAGE) {
+                        val bmp = s.imageUri?.let { u ->
+                            context.contentResolver.openInputStream(u)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                        } ?: throw IllegalStateException("Couldn't read the watermark image")
+                        PdfWatermarker.applyImage(
+                            context = context, sourceUri = src, destinationUri = outUri,
+                            bitmap = bmp, opacity = s.opacity, diagonal = s.diagonal
+                        )
+                    } else {
+                        PdfWatermarker.apply(
+                            context = context, sourceUri = src, destinationUri = outUri,
+                            text = s.text.trim(), opacity = s.opacity, diagonal = s.diagonal
+                        )
+                    }
                 }
                 RecentFilesManager.addRecent(context, RecentFile(
                     name = fileName, uriString = outUri.toString(),
