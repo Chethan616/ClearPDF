@@ -65,6 +65,11 @@
     <string name="watermark_diagonal">Diagonal (45°)</string>
     <string name="watermark_apply">Apply Watermark</string>
     <string name="watermark_applying">Applying…</string>
+    <string name="settings_personalization">Personalization</string>
+    <string name="settings_background">Background</string>
+    <string name="settings_background_desc">Show the wallpaper image behind the app</string>
+    <string name="settings_privacy_policy">Privacy Policy</string>
+    <string name="settings_version_label">Version</string>
     <string name="tool_pdf_to_images_desc">Render each page to a high-quality image you can save or share.</string>
     <string name="pdf_to_images_format">Image format</string>
     <string name="pdf_to_images_convert">Convert to images</string>

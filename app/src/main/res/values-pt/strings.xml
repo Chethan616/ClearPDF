@@ -374,4 +374,9 @@
     <string name="watermark_diagonal">Diagonal (45°)</string>
     <string name="watermark_apply">Aplicar marca d\'água</string>
     <string name="watermark_applying">Aplicando…</string>
+    <string name="settings_personalization">Personalização</string>
+    <string name="settings_background">Plano de fundo</string>
+    <string name="settings_background_desc">Mostrar a imagem de fundo atrás do app</string>
+    <string name="settings_privacy_policy">Política de Privacidade</string>
+    <string name="settings_version_label">Versão</string>
 </resources>

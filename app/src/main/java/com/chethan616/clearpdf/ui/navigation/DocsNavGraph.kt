@@ -107,6 +107,8 @@ fun DocsNavGraph(
     onDarkModeChanged: (Boolean) -> Unit,
     themeMode: Int,
     onThemeModeChanged: (Int) -> Unit,
+    showWallpaper: Boolean = true,
+    onShowWallpaperChanged: (Boolean) -> Unit = {},
     selectedLocale: String,
     onLocaleChanged: (String) -> Unit,
     incomingPdfUri: Uri? = null
@@ -238,6 +240,8 @@ fun DocsNavGraph(
                 onDarkModeChanged = onDarkModeChanged,
                 themeMode = themeMode,
                 onThemeModeChanged = onThemeModeChanged,
+                showWallpaper = showWallpaper,
+                onShowWallpaperChanged = onShowWallpaperChanged,
                 selectedLocale = selectedLocale,
                 onLocaleChanged = onLocaleChanged
             )

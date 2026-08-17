@@ -113,9 +113,16 @@ object AppSettingsManager {
     private const val KEY_NOTIFICATIONS = "notifications"
     private const val KEY_DEFAULT_QUALITY = "default_quality"
     private const val KEY_THEME_MODE = "theme_mode" // 0: System, 1: Light, 2: Dark
+    private const val KEY_SHOW_WALLPAPER = "show_wallpaper"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    fun getShowWallpaper(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_SHOW_WALLPAPER, true)
+
+    fun setShowWallpaper(context: Context, value: Boolean) =
+        prefs(context).edit().putBoolean(KEY_SHOW_WALLPAPER, value).apply()
 
     fun getAutoCompress(context: Context): Boolean =
         prefs(context).getBoolean(KEY_AUTO_COMPRESS, true)

@@ -3,6 +3,7 @@ package com.chethan616.clearpdf.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -74,6 +75,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
     }
 
     var themeMode by rememberSaveable { mutableIntStateOf(AppSettingsManager.getThemeMode(context)) }
+    var showWallpaper by rememberSaveable { mutableStateOf(AppSettingsManager.getShowWallpaper(context)) }
     var showStarPrompt by rememberSaveable { mutableStateOf(false) }
     val systemDark = isSystemInDarkTheme()
     val isDarkMode = when (themeMode) {
@@ -163,12 +165,24 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                 // the wallpaper-only `backdrop`; it lives INSIDE this layer but samples a
                 // different backdrop, so there is no glass-on-glass feedback loop.
                 Box(Modifier.fillMaxSize().layerBackdrop(contentBackdrop)) {
-                    Image(
-                        painterResource(if (!isDarkMode) R.drawable.wallpaper_light else R.drawable.wallpaper_dark),
-                        contentDescription = null,
-                        modifier = Modifier.layerBackdrop(backdrop).fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+                    if (showWallpaper) {
+                        Image(
+                            painterResource(if (!isDarkMode) R.drawable.wallpaper_light else R.drawable.wallpaper_dark),
+                            contentDescription = null,
+                            modifier = Modifier.layerBackdrop(backdrop).fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        // Wallpaper off (user experiment): fall back to a flat iOS
+                        // system-grouped-background so the glass surfaces still have a
+                        // base to sample and the app reads as a clean Apple settings look.
+                        Box(
+                            Modifier
+                                .layerBackdrop(backdrop)
+                                .fillMaxSize()
+                                .background(if (!isDarkMode) Color(0xFFF2F2F7) else Color(0xFF000000))
+                        )
+                    }
                     DocsNavGraph(
                     navController = navController,
                     backdrop = backdrop,
@@ -180,6 +194,11 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     onThemeModeChanged = {
                         themeMode = it
                         AppSettingsManager.setThemeMode(context, it)
+                    },
+                    showWallpaper = showWallpaper,
+                    onShowWallpaperChanged = {
+                        showWallpaper = it
+                        AppSettingsManager.setShowWallpaper(context, it)
                     },
                     selectedLocale = selectedLocale,
                     onLocaleChanged = { code ->
