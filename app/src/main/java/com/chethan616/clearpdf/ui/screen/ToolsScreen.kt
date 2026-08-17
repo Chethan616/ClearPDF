@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.Collections
 import androidx.compose.material.icons.rounded.BrandingWatermark
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.Numbers
@@ -81,7 +82,8 @@ fun ToolsScreen(
     onNavigateToPdfToImages: () -> Unit = {},
     onNavigateToWatermark: () -> Unit = {},
     onNavigateToExtractPages: () -> Unit = {},
-    onNavigateToPageNumbers: () -> Unit = {}
+    onNavigateToPageNumbers: () -> Unit = {},
+    onNavigateToFlatten: () -> Unit = {}
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val uiSensor = rememberUISensor()
@@ -115,6 +117,8 @@ fun ToolsScreen(
     val toolExtractPagesSub = stringResource(R.string.tool_extract_pages_sub)
     val toolPageNumbersTitle = stringResource(R.string.tool_page_numbers)
     val toolPageNumbersSub = stringResource(R.string.tool_page_numbers_sub)
+    val toolFlattenTitle = stringResource(R.string.tool_flatten)
+    val toolFlattenSub = stringResource(R.string.tool_flatten_sub)
 
     val toolItems = remember(
         toolOpenPdfTitle, toolOpenPdfSub,
@@ -144,7 +148,9 @@ fun ToolsScreen(
         toolExtractPagesTitle, toolExtractPagesSub,
         onNavigateToExtractPages,
         toolPageNumbersTitle, toolPageNumbersSub,
-        onNavigateToPageNumbers
+        onNavigateToPageNumbers,
+        toolFlattenTitle, toolFlattenSub,
+        onNavigateToFlatten
     ) {
         listOf(
             ToolSpec("open", toolOpenPdfTitle, toolOpenPdfSub, LiquidGlassColors.Blue, Icons.Rounded.FileOpen, onNavigateToOpenPdf),
@@ -160,7 +166,8 @@ fun ToolsScreen(
             ToolSpec("encrypt", toolEncryptTitle, toolEncryptSub, LiquidGlassColors.Indigo, Icons.Rounded.Lock, onNavigateToEncryptPdf),
             ToolSpec("watermark", toolWatermarkTitle, toolWatermarkSub, Color(0xFFAD1457), Icons.Rounded.BrandingWatermark, onNavigateToWatermark),
             ToolSpec("extract_pages", toolExtractPagesTitle, toolExtractPagesSub, Color(0xFF00897B), Icons.Rounded.ContentCut, onNavigateToExtractPages),
-            ToolSpec("page_numbers", toolPageNumbersTitle, toolPageNumbersSub, Color(0xFF3949AB), Icons.Rounded.Numbers, onNavigateToPageNumbers)
+            ToolSpec("page_numbers", toolPageNumbersTitle, toolPageNumbersSub, Color(0xFF3949AB), Icons.Rounded.Numbers, onNavigateToPageNumbers),
+            ToolSpec("flatten", toolFlattenTitle, toolFlattenSub, Color(0xFF6D4C41), Icons.Rounded.Layers, onNavigateToFlatten)
         )
     }
 

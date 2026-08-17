@@ -86,6 +86,12 @@
     <string name="page_numbers_total_desc">Render as "3 / 12" instead of "3"</string>
     <string name="page_numbers_action">Add Page Numbers</string>
     <string name="page_numbers_working">Adding…</string>
+    <string name="tool_flatten">Flatten PDF</string>
+    <string name="tool_flatten_sub">Make forms permanent</string>
+    <string name="flatten_desc">Bake interactive form fields into static content so they can no longer be edited.</string>
+    <string name="flatten_hint">Form values become permanent page content.</string>
+    <string name="flatten_action">Flatten PDF</string>
+    <string name="flatten_working">Flattening…</string>
     <string name="tool_pdf_to_images_desc">Render each page to a high-quality image you can save or share.</string>
     <string name="pdf_to_images_format">Image format</string>
     <string name="pdf_to_images_convert">Convert to images</string>

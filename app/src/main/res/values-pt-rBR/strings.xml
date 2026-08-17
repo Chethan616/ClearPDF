@@ -395,4 +395,10 @@
     <string name="page_numbers_total_desc">Exibir como \"3 / 12\" em vez de \"3\"</string>
     <string name="page_numbers_action">Numerar páginas</string>
     <string name="page_numbers_working">Numerando…</string>
+    <string name="tool_flatten">Achatar PDF</string>
+    <string name="tool_flatten_sub">Tornar formulários fixos</string>
+    <string name="flatten_desc">Fixa os campos de formulário no conteúdo da página para que não possam mais ser editados.</string>
+    <string name="flatten_hint">Os valores do formulário viram conteúdo permanente.</string>
+    <string name="flatten_action">Achatar PDF</string>
+    <string name="flatten_working">Achatando…</string>
 </resources>
