@@ -570,8 +570,8 @@ fun HomeScreen(
             Box(
                 Modifier
                     .fillMaxSize()
-                    // Softer dim + NO ripple, so tapping outside doesn't flash a big grey ripple.
-                    .background(Color.Black.copy(alpha = 0.28f))
+                    // Very light dim + NO ripple, so the screen stays in focus (not greyed out).
+                    .background(Color.Black.copy(alpha = 0.14f))
                     .clickable(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null

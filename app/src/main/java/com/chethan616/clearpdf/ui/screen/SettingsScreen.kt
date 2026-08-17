@@ -28,6 +28,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.Compress
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.PhotoLibrary
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.FileCopy
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -65,6 +69,7 @@ import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.ui.components.LiquidButton
+import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.LiquidToggle
@@ -85,6 +90,8 @@ fun SettingsScreen(
     onThemeModeChanged: (Int) -> Unit = {},
     showWallpaper: Boolean = true,
     onShowWallpaperChanged: (Boolean) -> Unit = {},
+    hasCustomWallpaper: Boolean = false,
+    onCustomWallpaperChanged: (String?) -> Unit = {},
     selectedLocale: String = "en",
     onLocaleChanged: (String) -> Unit = {}
 ) {
@@ -125,6 +132,19 @@ fun SettingsScreen(
             val displayPath = uri.lastPathSegment?.replace("primary:", "") ?: uri.toString()
             SaveLocationManager.setSaveLocation(context, uri, displayPath)
             saveUri = uri
+        }
+    }
+
+    // Pick a custom background image from the gallery (persistable so it survives restarts).
+    val wallpaperPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Exception) {}
+            AppSettingsManager.setCustomWallpaper(context, uri.toString())
+            onCustomWallpaperChanged(uri.toString())
         }
     }
 
@@ -437,12 +457,12 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Rounded.AutoFixHigh, null, Modifier.size(22.dp), label)
+                Icon(Icons.Rounded.Description, null, Modifier.size(22.dp), label)
                 BasicText(stringResource(R.string.settings_file_handling), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
             SettingsToggleRow(
-                icon = Icons.Rounded.AutoFixHigh,
+                icon = Icons.Rounded.Compress,
                 title = stringResource(R.string.settings_auto_compress),
                 desc = stringResource(R.string.settings_auto_compress_desc),
                 checked = autoCompress,
@@ -559,6 +579,39 @@ fun SettingsScreen(
                 labelColor = label,
                 subColor = sub
             )
+
+            // When the background is on, let the user pick a custom image + reset to default.
+            if (showWallpaper) {
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp, start = 46.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LiquidButton(
+                        onClick = { wallpaperPicker.launch(arrayOf("image/*")) },
+                        backdrop = backdrop,
+                        tint = Color(0xFF0088FF),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                        ) {
+                            Icon(Icons.Rounded.PhotoLibrary, null, Modifier.size(16.dp), Color.White)
+                            BasicText(stringResource(R.string.settings_bg_gallery), style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
+                        }
+                    }
+                    LiquidIconButton(
+                        onClick = { AppSettingsManager.clearCustomWallpaper(context); onCustomWallpaperChanged(null) },
+                        backdrop = backdrop,
+                        surfaceColor = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f),
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(Icons.Rounded.Refresh, stringResource(R.string.settings_reset), Modifier.size(18.dp), if (hasCustomWallpaper) label else label.copy(0.4f))
+                    }
+                }
+            }
         }
 
         // ── About & Open Source ──

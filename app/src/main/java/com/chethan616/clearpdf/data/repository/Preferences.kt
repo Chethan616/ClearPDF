@@ -123,6 +123,16 @@ object AppSettingsManager {
     fun setShowWallpaper(context: Context, value: Boolean) =
         prefs(context).edit().putBoolean(KEY_SHOW_WALLPAPER, value).apply()
 
+    // Optional user-picked background image (content URI). Null = use the built-in wallpaper.
+    fun getCustomWallpaper(context: Context): String? =
+        prefs(context).getString("custom_wallpaper_uri", null)
+
+    fun setCustomWallpaper(context: Context, uri: String) =
+        prefs(context).edit().putString("custom_wallpaper_uri", uri).apply()
+
+    fun clearCustomWallpaper(context: Context) =
+        prefs(context).edit().remove("custom_wallpaper_uri").apply()
+
     fun getAutoCompress(context: Context): Boolean =
         prefs(context).getBoolean(KEY_AUTO_COMPRESS, true)
 

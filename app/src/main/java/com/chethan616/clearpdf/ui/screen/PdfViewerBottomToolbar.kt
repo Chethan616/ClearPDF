@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -551,10 +552,13 @@ private fun ShareMorphButton(
     val surface by animateColorAsState(if (shareMode) blue else glass, tween(200), label = "shareMorphSurface")
     val progress = (-dragUp / thresholdPx).coerceIn(0f, 1f)
 
+    // Fixed 52dp layout footprint so the growing capsule never changes the toolbar row height
+    // (which was pushing the Editor Tools pill up). The capsule overflows UPWARD instead.
+    Box(Modifier.size(52.dp), contentAlignment = Alignment.BottomCenter) {
     Box(
         Modifier
             .width(52.dp)
-            .height(height)
+            .requiredHeight(height)
             .liquidGlassPanel(backdrop, uiSensor, containerColorOverride = surface)
             .pointerInput(Unit) {
                 detectTapGestures(onTap = { if (!shareMode) onOpen() })
@@ -593,5 +597,6 @@ private fun ShareMorphButton(
                 Icon(Icons.Rounded.UploadFile, stringResource(R.string.viewer_open_another), Modifier.size(20.dp), fg)
             }
         }
+    }
     }
 }

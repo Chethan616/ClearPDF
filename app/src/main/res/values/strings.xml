@@ -261,6 +261,7 @@
     <string name="settings_default_path">Downloads / ClearPDF</string>
     <string name="settings_change_folder">Change Folder</string>
     <string name="settings_reset">Reset</string>
+    <string name="settings_bg_gallery">Gallery</string>
     <string name="settings_license_notice">Licensed under the Apache License, Version 2.0.\nYou may obtain a copy at apache.org/licenses/LICENSE-2.0</string>
     <string name="settings_license_author">by %1$s</string>
     <string name="language_english">English</string>

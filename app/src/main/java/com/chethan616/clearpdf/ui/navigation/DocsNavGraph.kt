@@ -127,6 +127,8 @@ fun DocsNavGraph(
     onThemeModeChanged: (Int) -> Unit,
     showWallpaper: Boolean = true,
     onShowWallpaperChanged: (Boolean) -> Unit = {},
+    hasCustomWallpaper: Boolean = false,
+    onCustomWallpaperChanged: (String?) -> Unit = {},
     selectedLocale: String,
     onLocaleChanged: (String) -> Unit,
     incomingPdfUri: Uri? = null
@@ -266,6 +268,8 @@ fun DocsNavGraph(
                 onThemeModeChanged = onThemeModeChanged,
                 showWallpaper = showWallpaper,
                 onShowWallpaperChanged = onShowWallpaperChanged,
+                hasCustomWallpaper = hasCustomWallpaper,
+                onCustomWallpaperChanged = onCustomWallpaperChanged,
                 selectedLocale = selectedLocale,
                 onLocaleChanged = onLocaleChanged
             )
@@ -306,7 +310,19 @@ fun DocsNavGraph(
                     nullable = true
                     defaultValue = null
                 }
-            )
+            ),
+            // Smooth "document opens" transition (fade + gentle zoom) instead of a horizontal
+            // slide — reads cleaner and doesn't stutter while the first page renders.
+            enterTransition = {
+                androidx.compose.animation.fadeIn(tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
+                    androidx.compose.animation.scaleIn(initialScale = 0.92f, animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+            },
+            exitTransition = { androidx.compose.animation.fadeOut(tween(160)) },
+            popEnterTransition = { androidx.compose.animation.fadeIn(tween(200)) },
+            popExitTransition = {
+                androidx.compose.animation.fadeOut(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
+                    androidx.compose.animation.scaleOut(targetScale = 0.94f, animationSpec = tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+            }
         ) { backStackEntry ->
             val context = LocalContext.current
             val vm: PdfViewerViewModel = viewModel(

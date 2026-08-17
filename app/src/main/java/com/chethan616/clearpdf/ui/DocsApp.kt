@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -86,6 +87,21 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
 
     var themeMode by rememberSaveable { mutableIntStateOf(AppSettingsManager.getThemeMode(context)) }
     var showWallpaper by rememberSaveable { mutableStateOf(AppSettingsManager.getShowWallpaper(context)) }
+    var customWallpaper by rememberSaveable { mutableStateOf(AppSettingsManager.getCustomWallpaper(context)) }
+    // Decode the user's chosen background off the main thread (downsampled to the screen).
+    var customWallpaperBitmap by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(customWallpaper) {
+        customWallpaperBitmap = customWallpaper?.let { uriStr ->
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching {
+                    val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = 2 }
+                    context.contentResolver.openInputStream(android.net.Uri.parse(uriStr))?.use {
+                        android.graphics.BitmapFactory.decodeStream(it, null, opts)
+                    }?.asImageBitmap()
+                }.getOrNull()
+            }
+        }
+    }
     var showStarPrompt by rememberSaveable { mutableStateOf(false) }
     val systemDark = isSystemInDarkTheme()
     val isDarkMode = when (themeMode) {
@@ -176,12 +192,22 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                 // different backdrop, so there is no glass-on-glass feedback loop.
                 Box(Modifier.fillMaxSize().layerBackdrop(contentBackdrop)) {
                     if (showWallpaper) {
-                        Image(
-                            painterResource(if (!isDarkMode) R.drawable.wallpaper_light else R.drawable.wallpaper_dark),
-                            contentDescription = null,
-                            modifier = Modifier.layerBackdrop(backdrop).fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
+                        val customBmp = customWallpaperBitmap
+                        if (customBmp != null) {
+                            Image(
+                                bitmap = customBmp,
+                                contentDescription = null,
+                                modifier = Modifier.layerBackdrop(backdrop).fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Image(
+                                painterResource(if (!isDarkMode) R.drawable.wallpaper_light else R.drawable.wallpaper_dark),
+                                contentDescription = null,
+                                modifier = Modifier.layerBackdrop(backdrop).fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                     } else {
                         // Wallpaper off: fall back to a NEUTRAL GREY base (not pure white/black).
                         // Apple never puts glass on pure #FFF or #000 — the translucent surfaces
@@ -211,6 +237,8 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                         showWallpaper = it
                         AppSettingsManager.setShowWallpaper(context, it)
                     },
+                    hasCustomWallpaper = customWallpaper != null,
+                    onCustomWallpaperChanged = { customWallpaper = it },
                     selectedLocale = selectedLocale,
                     onLocaleChanged = { code ->
                         val normalized = com.chethan616.clearpdf.ui.utils.LocaleHelper.normalizeForUi(code)
