@@ -35,6 +35,7 @@ import com.chethan616.clearpdf.ui.screen.ExtractPagesScreen
 import com.chethan616.clearpdf.ui.screen.PageNumbersScreen
 import com.chethan616.clearpdf.ui.screen.FlattenPdfScreen
 import com.chethan616.clearpdf.ui.screen.ImageToolsScreen
+import com.chethan616.clearpdf.ui.screen.HtmlToPdfScreen
 import com.chethan616.clearpdf.ui.screen.PdfViewerScreen
 import com.chethan616.clearpdf.ui.screen.SettingsScreen
 import com.chethan616.clearpdf.ui.screen.SplitPdfScreen
@@ -52,6 +53,7 @@ import com.chethan616.clearpdf.ui.viewmodel.ExtractPagesViewModel
 import com.chethan616.clearpdf.ui.viewmodel.PageNumbersViewModel
 import com.chethan616.clearpdf.ui.viewmodel.FlattenPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.ImageToolsViewModel
+import com.chethan616.clearpdf.ui.viewmodel.HtmlToPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.PdfViewerViewModel
 import com.chethan616.clearpdf.ui.viewmodel.SplitPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.ScanViewModel
@@ -77,6 +79,7 @@ private const val ROUTE_EXTRACT_PAGES = "extract_pages"
 private const val ROUTE_PAGE_NUMBERS = "page_numbers"
 private const val ROUTE_FLATTEN = "flatten_pdf"
 private const val ROUTE_IMAGE_TOOLS = "image_tools"
+private const val ROUTE_HTML_TO_PDF = "html_to_pdf"
 private const val ARG_PDF_URI = "uri"
 private const val ROUTE_VIEWER = "$ROUTE_VIEWER_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
 
@@ -245,7 +248,8 @@ fun DocsNavGraph(
                 onNavigateToExtractPages = { navController.navigate(ROUTE_EXTRACT_PAGES) { launchSingleTop = true } },
                 onNavigateToPageNumbers = { navController.navigate(ROUTE_PAGE_NUMBERS) { launchSingleTop = true } },
                 onNavigateToFlatten = { navController.navigate(ROUTE_FLATTEN) { launchSingleTop = true } },
-                onNavigateToImageTools = { navController.navigate(ROUTE_IMAGE_TOOLS) { launchSingleTop = true } }
+                onNavigateToImageTools = { navController.navigate(ROUTE_IMAGE_TOOLS) { launchSingleTop = true } },
+                onNavigateToHtmlToPdf = { navController.navigate(ROUTE_HTML_TO_PDF) { launchSingleTop = true } }
             )
         }
 
@@ -487,6 +491,16 @@ fun DocsNavGraph(
                 backdrop = backdrop,
                 viewModel = vm,
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(ROUTE_HTML_TO_PDF) {
+            val vm: HtmlToPdfViewModel = viewModel()
+            HtmlToPdfScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onViewOutput = { uri -> navController.navigateToPdfViewer(uri) }
             )
         }
     }

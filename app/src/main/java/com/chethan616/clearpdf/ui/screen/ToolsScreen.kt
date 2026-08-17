@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.rounded.CallSplit
 import androidx.compose.material.icons.automirrored.rounded.NoteAdd
 import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.FileOpen
+import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Collections
 import androidx.compose.material.icons.rounded.BrandingWatermark
 import androidx.compose.material.icons.rounded.Image
@@ -85,7 +86,8 @@ fun ToolsScreen(
     onNavigateToExtractPages: () -> Unit = {},
     onNavigateToPageNumbers: () -> Unit = {},
     onNavigateToFlatten: () -> Unit = {},
-    onNavigateToImageTools: () -> Unit = {}
+    onNavigateToImageTools: () -> Unit = {},
+    onNavigateToHtmlToPdf: () -> Unit = {}
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val uiSensor = rememberUISensor()
@@ -123,6 +125,8 @@ fun ToolsScreen(
     val toolFlattenSub = stringResource(R.string.tool_flatten_sub)
     val toolImageToolsTitle = stringResource(R.string.tool_image_tools)
     val toolImageToolsSub = stringResource(R.string.tool_image_tools_sub)
+    val toolHtmlToPdfTitle = stringResource(R.string.tool_html_to_pdf)
+    val toolHtmlToPdfSub = stringResource(R.string.tool_html_to_pdf_sub)
 
     val toolItems = remember(
         toolOpenPdfTitle, toolOpenPdfSub,
@@ -156,7 +160,9 @@ fun ToolsScreen(
         toolFlattenTitle, toolFlattenSub,
         onNavigateToFlatten,
         toolImageToolsTitle, toolImageToolsSub,
-        onNavigateToImageTools
+        onNavigateToImageTools,
+        toolHtmlToPdfTitle, toolHtmlToPdfSub,
+        onNavigateToHtmlToPdf
     ) {
         listOf(
             ToolSpec("open", toolOpenPdfTitle, toolOpenPdfSub, LiquidGlassColors.Blue, Icons.Rounded.FileOpen, onNavigateToOpenPdf),
@@ -174,7 +180,8 @@ fun ToolsScreen(
             ToolSpec("extract_pages", toolExtractPagesTitle, toolExtractPagesSub, Color(0xFF00897B), Icons.Rounded.ContentCut, onNavigateToExtractPages),
             ToolSpec("page_numbers", toolPageNumbersTitle, toolPageNumbersSub, Color(0xFF3949AB), Icons.Rounded.Numbers, onNavigateToPageNumbers),
             ToolSpec("flatten", toolFlattenTitle, toolFlattenSub, Color(0xFF6D4C41), Icons.Rounded.Layers, onNavigateToFlatten),
-            ToolSpec("image_tools", toolImageToolsTitle, toolImageToolsSub, Color(0xFFF4511E), Icons.Rounded.PhotoSizeSelectLarge, onNavigateToImageTools)
+            ToolSpec("image_tools", toolImageToolsTitle, toolImageToolsSub, Color(0xFFF4511E), Icons.Rounded.PhotoSizeSelectLarge, onNavigateToImageTools),
+            ToolSpec("html_to_pdf", toolHtmlToPdfTitle, toolHtmlToPdfSub, Color(0xFFE65100), Icons.Rounded.Code, onNavigateToHtmlToPdf)
         )
     }
 
