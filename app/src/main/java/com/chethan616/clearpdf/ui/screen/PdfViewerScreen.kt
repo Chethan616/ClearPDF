@@ -149,7 +149,7 @@ fun PdfViewerScreen(
     var controlsPinned      by rememberSaveable { mutableStateOf(false) }
     var lastInteractionAtMs by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
     // Adobe-style single-axis reading: the viewer is vertical-only. Horizontal
-    // panning is still allowed inside a zoomed page (handled in PdfPageCanvas).
+    // panning is still allowed inside a zoomed page (handled in PdfContinuousPage).
     val scrollOrientation = ScrollOrientation.Vertical
     var showPageJumpDialog  by rememberSaveable { mutableStateOf(false) }
     var activeTool          by rememberSaveable { mutableStateOf(PdfEditTool.None) }
