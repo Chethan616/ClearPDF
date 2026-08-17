@@ -131,7 +131,17 @@ ITEM 5 — PDF_TOOLS FEATURE-GAP PORTING  [~] WATERMARK DONE (first gap closed t
     `PageNumbersViewModel` + `PageNumbersScreen` (ToolScaffold, position selector, show-total
     toggle) + nav ROUTE_PAGE_NUMBERS + ToolsScreen ToolSpec (Icons.Rounded.Numbers, #3949AB)
     + strings en+pt+pt-rBR. assembleDebug OK.
-  → STILL MISSING (future passes): image tools, HTML->PDF, form fill/flatten, OCR export.
+  → FLATTEN DONE: pdf-core/flatten/PdfFlattener (PDAcroForm.flatten(), returns field count)
+    + FlattenPdfViewModel + FlattenPdfScreen (ToolScaffold) + nav ROUTE_FLATTEN + ToolSpec
+    (Layers #6D4C41) + strings.
+  → IMAGE TOOLS DONE: pdf-core/image/ImageProcessor (inspect/process/saveToGallery) — decode
+    (inSampleSize downscale) → scale by % → re-encode JPG/PNG/WebP at quality; re-encode strips
+    EXIF/GPS by construction; JPEG flattens alpha onto white. Reuses PdfRasterizer.ImageFormat.
+    ImageToolsViewModel + ImageToolsScreen (ToolScaffold: format selector, quality slider [lossy
+    only], resize slider, before/after size, Save-to-gallery + Share) + nav ROUTE_IMAGE_TOOLS
+    + ToolSpec (PhotoSizeSelectLarge #F4511E) + strings en+pt+pt-rBR. assembleDebug OK.
+  → STILL MISSING: HTML->PDF (WebView pagination + app has no INTERNET perm → local HTML only),
+    Fill Forms (needs per-field editing UI — biggest). Image watermark variant optional.
 
 ITEM 5 — (original spec below)  [~]
 ---------------------------------------------------------------------

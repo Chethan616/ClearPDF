@@ -401,4 +401,16 @@
     <string name="flatten_hint">Os valores do formulário viram conteúdo permanente.</string>
     <string name="flatten_action">Achatar PDF</string>
     <string name="flatten_working">Achatando…</string>
+    <string name="tool_image_tools">Ferramentas de imagem</string>
+    <string name="tool_image_tools_sub">Comprimir, redimensionar</string>
+    <string name="image_tools_pick">Escolher imagem</string>
+    <string name="image_tools_options">Opções</string>
+    <string name="image_tools_format">Formato</string>
+    <string name="image_tools_quality">Qualidade</string>
+    <string name="image_tools_resize">Redimensionar</string>
+    <string name="image_tools_note">Os metadados (EXIF/GPS) são removidos na exportação.</string>
+    <string name="image_tools_process">Processar imagem</string>
+    <string name="image_tools_processing">Processando…</string>
+    <string name="image_tools_save">Salvar</string>
+    <string name="image_tools_share">Compartilhar</string>
 </resources>
