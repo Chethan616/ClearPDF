@@ -1,0 +1,104 @@
+# ClearPDF — UI/UX + Feature Completion Plan (temporary)
+# Work through these ONE BY ONE, patiently, verifying each compiles + doesn't break existing flows.
+# Mark [x] when done. Keep the PDF/document content readable and dominant. Liquid-glass ONLY for floating UI.
+
+=====================================================================
+ITEM 1 — SAVE DOCUMENT → REAL IN-WINDOW GLASS  [x] DONE (viewer). Tool screens keep solid Dialog.
+---------------------------------------------------------------------
+- LiquidSaveDialog is currently a SOLID themed card in a Dialog window (can't sample the page).
+- Convert to an IN-WINDOW overlay (like LiquidPageJumpPopup) rendered inside the viewer's
+  BoxWithConstraints so liquidGlassPanel samples the real content backdrop (contentBackdrop).
+- Real glass: translucent + blur + subtle border/highlight/shadow. NO png, NO solid slab.
+- Keep: filename field, folder picker launcher, save location display. imePadding for keyboard.
+- Redesign the save-location section: current location obvious, compact rows, rounded cards,
+  M3 rounded icons (Downloads / Documents / custom folder / create-new-folder).
+- Also used by the tool screens (Merge/Split/etc.) → those stay as-is (over wallpaper) OR
+  give a solid card fallback when no contentBackdrop. Decide cleanly, don't break them.
+
+=====================================================================
+ITEM 2 — TEXT SELECTION + FIND OVERHAUL  [x] DONE
+  [x] FIND now highlights the exact matched WORD (not the whole sentence/line). Studied Pdf_Tools
+      (PDFTextStripper per-char TextPosition). We already captured char TextPositions in
+      PdfTextService but collapsed to line blocks; now carry per-char normalized x-bounds
+      (charLefts/charRights) up: PdfTextBlock + OcrTextBlock, and FindMatch is now a normalized
+      WORD rect (was blockId). Search (searchText + searchTextInDocument + PdfTextService.searchAll)
+      computes tight per-occurrence rects; PdfContinuousPage/PdfPageCanvas draw the word rect
+      (rounded, padded). Multiple matches per line supported.
+  [x] Contextual selection bubble added in PdfContinuousPage: when text is selected (SelectText),
+      a compact glass bubble (Copy | Highlight) appears just above the selection's bounding rect,
+      flipping BELOW when near the page top and clamped to page bounds. Wired onCopySelection /
+      onHighlightSelection callbacks from PdfViewerScreen (copy selected OCR text to clipboard;
+      add TextBlockHighlightMarkup for selected ids). NOTE: bubble lives inside the page's zoom
+      layer so it scales with zoom — fine for text-selection (done at ~1x); could counter-scale later.
+      (Kept Search/Share/Annotate out for now to stay compact; can add if wanted.)
+---------------------------------------------------------------------
+- Study Pdf_Tools text selection/search approach (char-position based selection, handles).
+- Selection: clear handles, subtle highlight, contextual action bubble near selection
+  (Copy / Select All / Search / Share / Highlight / Annotate), smart-positioned so it never
+  goes off-screen (flip above/below near edges).
+- Find: compact floating search toolbar, "n / total", prev/next, scroll-to-match, smooth
+  transitions between matches, clean close, never obscures a large part of the doc.
+- Feature-rich + quality-rich. Keep our OCR-block model; adapt Pdf_Tools ideas, don't copy code.
+
+=====================================================================
+ITEM 3 — SETTINGS FULL REDESIGN  [ ]
+---------------------------------------------------------------------
+- Rebuild hierarchy (only real settings, no fake ones):
+    Appearance: Theme, (Accent/Dynamic if they exist),
+    Files: Default save location, File naming (if exists), Recent files (if exists)
+    Editor: selection/drawing/highlight defaults (only if they exist)
+    About: Version, Licenses (AndroidLiquidGlass + Pdf_Tools credit), Open source, Privacy
+- Preserve ALL existing functionality/toggles/pickers.
+- Fix every typography/overflow/dark-mode issue (audit each row: long text, pt, small screens,
+  font scaling, multiline, icon collisions). Use constraints, not hardcoded widths.
+- M3 rounded icons, consistent spacing/corner-radii/typography tokens.
+
+=====================================================================
+ITEM 4 — LIQUID GLASS DESIGN SYSTEM EXTRACTION  [ ]
+---------------------------------------------------------------------
+- One consistent set of reusable primitives (reuse existing LiquidButton/LiquidIconButton/
+  liquidGlassPanel; add GlassCard/GlassSection/GlassSheet/GlassChip as thin wrappers).
+- Centralize spacing / corner radii / typography / glass tint tokens.
+- Do NOT make everything glass. Document/page stays solid + readable.
+- De-duplicate copy-pasted glass styling across screens.
+
+=====================================================================
+ITEM 5 — PDF_TOOLS FEATURE-GAP PORTING  [ ]
+---------------------------------------------------------------------
+- Feature-gap analysis first: what exists / missing / portable / conflicts-with-architecture.
+- Implement highest-value MISSING features (candidates: form fill/flatten, watermark,
+  page extract-to-new-pdf, image tools, HTML->PDF, better OCR) — adapt to our PDFBox/PdfRenderer
+  + PdfMarkup/ExportOverlay model. No unnecessary deps. No blind code copy. Credit already given.
+
+=====================================================================
+BUGS TO FIX (from user) — do alongside the items above  [ ]
+---------------------------------------------------------------------
+BUG A — UNDO first-attempt failure:
+  "sometimes on first attempt the undo doesnt work at all for anything any modification unless i
+   come back to homescreen and reopen the pdf."
+  → Undo (per-page currentPageMarks.removeAt(lastIndex)) sometimes no-ops until the PDF is
+    reopened. Investigate: annotationsByPage state / getPageMarks keying / whether the first
+    edit's mark list is a different instance than what undo mutates / recomposition not observing
+    the SnapshotStateList. Likely getPageMarks returns a fresh list vs the one the page edited,
+    or mutableStateListOf identity issue across recompositions. Fix so undo works on first try.
+
+BUG B — Signature resize [x] DONE: PdfContinuousPage image selection redesigned — rounded
+  accent frame, 3 passive corner dots, and a large (22px) bottom-right resize handle with a
+  diagonal glyph; grab radius 40f→64f. (Apple-style: touch target >> visual handle.)
+
+BUG B (original text) — Signature resize is fiddly:
+  "difficult to resize the signature by dragging that small thing/line — improve it, follow Apple HIG,
+   unique sweet UI, best approach."
+  → The image/signature resize handle is a tiny corner dot with a 36-40px hit slop. Redesign:
+    larger, clearer Apple-style corner handles (visible rounded handles at corners), bigger touch
+    target (44dp+), maybe a bounding frame with grab handles, smooth. Keep aspect for signatures.
+    Consider a dedicated resize affordance + move handle. Touch target >= visual size.
+
+=====================================================================
+GLOBAL RULES
+---------------------------------------------------------------------
+- Compile (:app:compileDebugKotlin) after each item; don't break opening/render/nav/zoom/scroll/
+  select/search/annotate/draw/highlight/sign/saved-sigs/save/export/file-picker/settings/darkmode.
+- Apple-quality: hierarchy, spacing, typography, restraint, depth, contextual controls, subtle motion.
+- pt labels ~1.3x longer than EN → width-constrained buttons need maxLines=1.
+- Keep memory (session-work-status.md) updated per item.

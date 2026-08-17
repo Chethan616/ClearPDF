@@ -137,6 +137,99 @@ internal sealed class PdfMarkup {
     }
 }
 
+/** Recolourable free-form shapes (as opposed to images / OCR-anchored / text markups). */
+internal fun PdfMarkup.isShape(): Boolean = this is PdfMarkup.StrokeMarkup ||
+    this is PdfMarkup.RectMarkup || this is PdfMarkup.OvalMarkup || this is PdfMarkup.LineMarkup
+
+/** Markups that support the generic select → move / resize transform (everything the user
+ *  places freely, except images which have their own dedicated toolbar path). */
+internal fun PdfMarkup.isTransformable(): Boolean = this is PdfMarkup.StrokeMarkup ||
+    this is PdfMarkup.RectMarkup || this is PdfMarkup.OvalMarkup || this is PdfMarkup.LineMarkup ||
+    this is PdfMarkup.TextBoxMarkup || this is PdfMarkup.NoteMarkup
+
+/** Whether a bottom-right resize handle applies (notes are a fixed-size icon → move only). */
+internal fun PdfMarkup.isResizable(): Boolean = isTransformable() && this !is PdfMarkup.NoteMarkup
+
+/** Content-space bounding box used for the selection frame + hit-testing during transform. */
+internal fun PdfMarkup.movableBounds(): Rect? = when (this) {
+    is PdfMarkup.StrokeMarkup -> {
+        if (points.isEmpty()) null else {
+            var l = points[0].x; var t = points[0].y; var r = l; var b = t
+            points.forEach { l = min(l, it.x); t = min(t, it.y); r = max(r, it.x); b = max(b, it.y) }
+            Rect(l, t, max(r, l + 1f), max(b, t + 1f))
+        }
+    }
+    is PdfMarkup.RectMarkup -> Rect(min(start.x, end.x), min(start.y, end.y), max(start.x, end.x), max(start.y, end.y))
+    is PdfMarkup.OvalMarkup -> Rect(min(start.x, end.x), min(start.y, end.y), max(start.x, end.x), max(start.y, end.y))
+    is PdfMarkup.LineMarkup -> Rect(min(start.x, end.x), min(start.y, end.y), max(start.x, end.x) + 1f, max(start.y, end.y) + 1f)
+    is PdfMarkup.ImageMarkup -> Rect(min(start.x, end.x), min(start.y, end.y), max(start.x, end.x), max(start.y, end.y))
+    is PdfMarkup.TextBoxMarkup -> {
+        val lines = if (text.isEmpty()) 1 else text.split("\n").size
+        val w = ((text.split("\n").maxOfOrNull { it.length } ?: 1).coerceAtLeast(3)) * fontSize * 0.6f
+        Rect(position.x, position.y, position.x + w, position.y + fontSize * 1.2f * lines)
+    }
+    is PdfMarkup.NoteMarkup -> Rect(anchor.x, anchor.y, anchor.x + 30f, anchor.y + 30f)
+    else -> null
+}
+
+/** Translate a markup by [d] (move). */
+internal fun PdfMarkup.translated(d: Offset): PdfMarkup = when (this) {
+    is PdfMarkup.StrokeMarkup  -> copy(points = points.map { it + d })
+    is PdfMarkup.RectMarkup    -> copy(start = start + d, end = end + d)
+    is PdfMarkup.OvalMarkup    -> copy(start = start + d, end = end + d)
+    is PdfMarkup.LineMarkup    -> copy(start = start + d, end = end + d)
+    is PdfMarkup.ImageMarkup   -> copy(start = start + d, end = end + d)
+    is PdfMarkup.TextBoxMarkup -> copy(position = position + d)
+    is PdfMarkup.NoteMarkup    -> copy(anchor = anchor + d)
+    else -> this
+}
+
+/** Resize a markup by dragging its bottom-right handle [drag], given its current [bounds]. */
+internal fun PdfMarkup.resizedBy(drag: Offset, bounds: Rect): PdfMarkup = when (this) {
+    is PdfMarkup.RectMarkup -> copy(
+        start = bounds.topLeft,
+        end = Offset((bounds.right + drag.x).coerceAtLeast(bounds.left + 8f), (bounds.bottom + drag.y).coerceAtLeast(bounds.top + 8f))
+    )
+    is PdfMarkup.OvalMarkup -> copy(
+        start = bounds.topLeft,
+        end = Offset((bounds.right + drag.x).coerceAtLeast(bounds.left + 8f), (bounds.bottom + drag.y).coerceAtLeast(bounds.top + 8f))
+    )
+    is PdfMarkup.LineMarkup -> {
+        // Move whichever endpoint sits nearer the bottom-right handle.
+        val br = bounds.bottomRight
+        if ((end - br).getDistance() <= (start - br).getDistance()) copy(end = end + drag) else copy(start = start + drag)
+    }
+    is PdfMarkup.StrokeMarkup -> {
+        // Uniform scale about the top-left so the stroke keeps its shape.
+        val pivot = bounds.topLeft
+        val fx = ((bounds.width + drag.x) / bounds.width.coerceAtLeast(1f)).coerceIn(0.2f, 8f)
+        val fy = ((bounds.height + drag.y) / bounds.height.coerceAtLeast(1f)).coerceIn(0.2f, 8f)
+        val f = (fx + fy) / 2f
+        copy(points = points.map { pivot + (it - pivot) * f })
+    }
+    is PdfMarkup.TextBoxMarkup -> {
+        val factor = ((bounds.height + drag.y) / bounds.height.coerceAtLeast(1f)).coerceIn(0.3f, 6f)
+        copy(fontSize = (fontSize * factor).coerceIn(10f, 400f))
+    }
+    else -> this
+}
+
+internal fun PdfMarkup.shapeColor(): Color = when (this) {
+    is PdfMarkup.StrokeMarkup -> color
+    is PdfMarkup.RectMarkup   -> color
+    is PdfMarkup.OvalMarkup   -> color
+    is PdfMarkup.LineMarkup   -> color
+    else -> Color(0xFF1976D2)
+}
+
+internal fun PdfMarkup.recolored(c: Color): PdfMarkup = when (this) {
+    is PdfMarkup.StrokeMarkup -> copy(color = c)
+    is PdfMarkup.RectMarkup   -> copy(color = c)
+    is PdfMarkup.OvalMarkup   -> copy(color = c)
+    is PdfMarkup.LineMarkup   -> copy(color = c)
+    else -> this
+}
+
 // ── Geometry helpers ──────────────────────────────────────────────────────────
 
 internal fun fitBitmapRect(canvasSize: Size, bitmapW: Float, bitmapH: Float): Rect {

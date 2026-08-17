@@ -535,22 +535,23 @@ internal fun PdfPageCanvas(
                         if (cs != Size.Zero && bs != Size.Zero && ocrBlocks.isNotEmpty()) {
                             val frame = fitBitmapRect(cs, bs.width, bs.height)
                             pageMatches.forEach { match ->
-                                val block = ocrBlocks.firstOrNull { it.id == match.blockId }
-                                if (block != null) {
-                                    val r = Rect(
-                                        frame.left + block.left * frame.width,
-                                        frame.top + block.top * frame.height,
-                                        frame.left + block.right * frame.width,
-                                        frame.top + block.bottom * frame.height
-                                    )
-                                    val isCurrent = (findMatches.getOrNull(currentMatchIndex) == match)
-                                    if (isCurrent) {
-                                        drawRect(Color(0xFFFF9800).copy(0.60f), r.topLeft, r.size)
-                                        drawRect(Color(0xFFE65100), r.topLeft, r.size, style = Stroke(3.5f))
-                                    } else {
-                                        drawRect(Color(0xFFFFEB3B).copy(0.40f), r.topLeft, r.size)
-                                        drawRect(Color(0xFFFBC02D), r.topLeft, r.size, style = Stroke(1.5f))
-                                    }
+                                val r = Rect(
+                                    frame.left + match.left * frame.width,
+                                    frame.top + match.top * frame.height,
+                                    frame.left + match.right * frame.width,
+                                    frame.top + match.bottom * frame.height
+                                )
+                                val isCurrent = (findMatches.getOrNull(currentMatchIndex) == match)
+                                val hl = Rect(r.left - 1.5f, r.top - 1f, r.right + 1.5f, r.bottom + 1f)
+                                val cr = (hl.height * 0.28f).coerceIn(3f, 7f)
+                                if (isCurrent) {
+                                    val glow = hl.inflate(4f)
+                                    drawRoundRect(Color(0xFFFF6D00).copy(0.22f), glow.topLeft, glow.size, CornerRadius(cr + 3f, cr + 3f))
+                                    drawRoundRect(Color(0xFFFFA726).copy(0.55f), hl.topLeft, hl.size, CornerRadius(cr, cr))
+                                    drawRoundRect(Color(0xFFE65100), hl.topLeft, hl.size, CornerRadius(cr, cr), style = Stroke(1.75f))
+                                } else {
+                                    drawRoundRect(Color(0xFFFFC107).copy(0.26f), hl.topLeft, hl.size, CornerRadius(cr, cr))
+                                    drawRoundRect(Color(0xFFFFA000).copy(0.5f), hl.topLeft, hl.size, CornerRadius(cr, cr), style = Stroke(1f))
                                 }
                             }
                         }

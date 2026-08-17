@@ -74,7 +74,7 @@
     <string name="settings_theme_dark_desc">Sempre usar tema escuro</string>
     <string name="settings_save_location">Local de Salvamento</string>
     <string name="settings_save_downloads">Downloads</string>
-    <string name="settings_save_custom">Pasta Personalizada</string>
+    <string name="settings_save_custom">Personalizada</string>
     <string name="settings_file_handling">Gerenciamento de Arquivos</string>
     <string name="settings_auto_compress">Comprimir Automaticamente</string>
     <string name="settings_auto_compress_desc">Comprimir PDFs automaticamente ao importar</string>
@@ -131,6 +131,8 @@
     <string name="viewer_underline">Sublinhado</string>
     <string name="viewer_strike">Tachado</string>
     <string name="viewer_done">Conclu&#237;do</string>
+    <string name="viewer_color">Cor</string>
+    <string name="viewer_edit_shape">Editar forma</string>
     <string name="viewer_new_sign">Nova Assinatura</string>
     <string name="viewer_replace">Substituir</string>
     <string name="viewer_saving">Salvando PDF editado&#8230;</string>

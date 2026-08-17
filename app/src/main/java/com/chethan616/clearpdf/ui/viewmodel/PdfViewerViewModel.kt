@@ -52,12 +52,18 @@ data class OcrTextBlock(
     val left: Float,
     val top: Float,
     val right: Float,
-    val bottom: Float
+    val bottom: Float,
+    val charLefts: FloatArray = FloatArray(0),
+    val charRights: FloatArray = FloatArray(0)
 )
 
+/** A search hit as a normalized rect around the EXACT matched word(s), not the whole line. */
 data class FindMatch(
     val pageIndex: Int,
-    val blockId: String
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float
 )
 
 data class NormalizedPoint(val x: Float, val y: Float)
@@ -486,14 +492,12 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
             return
         }
         val lower = query.trim().lowercase()
-        // Fast path: search already-extracted blocks in memory
+        // Fast path: search already-extracted blocks in memory, highlighting the exact word.
         val inMemoryMatches = _uiState.value.ocrBlocksByPage
             .entries
             .sortedBy { it.key }
             .flatMap { (page, blocks) ->
-                blocks.filter { it.text.lowercase().contains(lower) }
-                    .sortedBy { it.top }
-                    .map { FindMatch(page, it.id) }
+                blocks.sortedBy { it.top }.flatMap { it.findMatches(lower, page) }
             }
 
         _uiState.value = _uiState.value.copy(
@@ -532,13 +536,11 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
             val matches = withContext(Dispatchers.IO) {
                 runCatching {
                     textService.searchAll(context, doc.uri, query, doc.pageCount)
-                        .map { FindMatch(it.pageIndex, it.blockId) }
+                        .map { FindMatch(it.pageIndex, it.left, it.top, it.right, it.bottom) }
                 }.getOrElse {
-                    // Fallback: search in-memory extracted blocks
+                    // Fallback: search in-memory extracted blocks (word-precise).
                     _uiState.value.ocrBlocksByPage.entries.sortedBy { it.key }.flatMap { (page, blocks) ->
-                        blocks.filter { it.text.lowercase().contains(lower) }
-                            .sortedBy { it.top }
-                            .map { FindMatch(page, it.id) }
+                        blocks.sortedBy { it.top }.flatMap { it.findMatches(lower, page) }
                     }
                 }
             }
@@ -892,5 +894,26 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
 }
 
 private fun PdfTextBlock.toOcrBlock() = OcrTextBlock(
-    id = id, text = text, left = left, top = top, right = right, bottom = bottom
+    id = id, text = text, left = left, top = top, right = right, bottom = bottom,
+    charLefts = charLefts, charRights = charRights
 )
+
+/** All occurrences of [lower] in this block as tight normalized word rects (fallback: block rect). */
+private fun OcrTextBlock.findMatches(lower: String, page: Int): List<FindMatch> {
+    if (lower.isEmpty()) return emptyList()
+    val bt = text.lowercase()
+    val out = ArrayList<FindMatch>()
+    var from = 0
+    while (true) {
+        val idx = bt.indexOf(lower, from)
+        if (idx < 0) break
+        val endC = idx + lower.length - 1
+        if (charLefts.isNotEmpty() && idx < charLefts.size && endC < charRights.size) {
+            out.add(FindMatch(page, charLefts[idx], top, charRights[endC], bottom))
+        } else {
+            out.add(FindMatch(page, left, top, right, bottom))
+        }
+        from = idx + lower.length
+    }
+    return out
+}

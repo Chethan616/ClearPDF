@@ -10,6 +10,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,9 +20,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
@@ -173,6 +176,7 @@ internal fun LiquidPageJumpPopup(
 internal fun AnnotationEditorDialog(
     isNote: Boolean,
     initialText: String,
+    initialColor: Color,
     backdrop: LayerBackdrop,
     uiSensor: UISensor,
     fg: Color,
@@ -181,9 +185,10 @@ internal fun AnnotationEditorDialog(
     field: Color,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
-    onSave: (String) -> Unit
+    onSave: (String, Color) -> Unit
 ) {
     var text by remember { mutableStateOf(initialText) }
+    var color by remember { mutableStateOf(initialColor) }
     val focus = remember { FocusRequester() }
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true; delay(160); runCatching { focus.requestFocus() } }
@@ -246,6 +251,9 @@ internal fun AnnotationEditorDialog(
                         )
                     }
 
+                    // Colour picker — recolour the text / sticky note.
+                    AnnotationColorRow(selected = color, fgSoft = fgSoft, onPick = { color = it })
+
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
@@ -257,8 +265,127 @@ internal fun AnnotationEditorDialog(
                         LiquidButton(onClick = onDismiss, backdrop = backdrop, surfaceColor = field) {
                             BasicText(stringResource(R.string.cancel), style = TextStyle(fg, 13.sp))
                         }
-                        LiquidButton(onClick = { onSave(text) }, backdrop = backdrop, tint = Color(0xFF1976D2)) {
+                        LiquidButton(onClick = { onSave(text, color) }, backdrop = backdrop, tint = Color(0xFF1976D2)) {
                             BasicText(stringResource(R.string.anno_save), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Shared annotation / shape colour palette (dark inks read well on white pages; a few
+// vivid accents for shapes and notes).
+internal val editorPalette: List<Color> = listOf(
+    Color(0xFF1A1A1A), // near-black ink
+    Color(0xFF1976D2), // blue
+    Color(0xFFE53935), // red
+    Color(0xFF43A047), // green
+    Color(0xFFFB8C00), // orange
+    Color(0xFF8E24AA), // purple
+    Color(0xFF00ACC1), // teal
+    Color(0xFFFFC107)  // amber (notes)
+)
+
+/** A horizontal row of tappable colour beads; the selected one gets a ring. */
+@Composable
+internal fun AnnotationColorRow(
+    selected: Color,
+    fgSoft: Color,
+    onPick: (Color) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        BasicText(stringResource(R.string.viewer_color), style = TextStyle(fgSoft, 12.sp, FontWeight.Medium))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            editorPalette.forEach { c ->
+                val isSel = c.value == selected.value
+                Box(
+                    Modifier
+                        .size(if (isSel) 30.dp else 26.dp)
+                        .clip(CircleShape)
+                        .background(c)
+                        .border(
+                            width = if (isSel) 2.5.dp else 1.dp,
+                            color = if (isSel) Color.White else Color.White.copy(0.25f),
+                            shape = CircleShape
+                        )
+                        .clickable { onPick(c) }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Contextual editor for a placed shape (rect / oval / line / arrow / stroke). Rendered
+ * IN-WINDOW so its glass panel samples the real page. Recolours live as the user taps a
+ * bead, and offers Delete / Done. Same visual family as [AnnotationEditorDialog].
+ */
+@Composable
+internal fun ShapeEditorPopup(
+    initialColor: Color,
+    backdrop: LayerBackdrop,
+    uiSensor: UISensor,
+    fg: Color,
+    fgSoft: Color,
+    surface: Color,
+    field: Color,
+    onColorChange: (Color) -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var color by remember { mutableStateOf(initialColor) }
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+
+    Box(Modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = shown,
+            enter = fadeIn(tween(180)),
+            exit = fadeOut(tween(140)),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(0.45f))
+                    .pointerInput(Unit) { detectTapGestures { onDismiss() } }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = shown,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(140)),
+            modifier = Modifier.align(Alignment.Center).fillMaxWidth().imePadding()
+        ) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Column(
+                    Modifier
+                        .fillMaxWidth(0.9f)
+                        .widthIn(max = 440.dp)
+                        .liquidGlassPanel(backdrop, uiSensor, surface)
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    BasicText(
+                        stringResource(R.string.viewer_edit_shape),
+                        style = TextStyle(fg, 16.sp, fontWeight = FontWeight.Bold)
+                    )
+
+                    AnnotationColorRow(selected = color, fgSoft = fgSoft, onPick = { color = it; onColorChange(it) })
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LiquidButton(onClick = onDelete, backdrop = backdrop, surfaceColor = Color(0xFFEF5350).copy(0.22f)) {
+                            BasicText(stringResource(R.string.delete), style = TextStyle(Color.White, 13.sp))
+                        }
+                        LiquidButton(onClick = onDismiss, backdrop = backdrop, tint = Color(0xFF1976D2)) {
+                            BasicText(stringResource(R.string.viewer_done), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
                         }
                     }
                 }

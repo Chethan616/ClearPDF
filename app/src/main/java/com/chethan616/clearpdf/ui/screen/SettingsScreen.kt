@@ -61,6 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
@@ -274,12 +275,13 @@ fun SettingsScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Row(
+                            Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally)
                         ) {
                             Icon(
                                 option.icon, null,
-                                Modifier.size(17.dp),
+                                Modifier.size(16.dp),
                                 itemContentColor
                             )
                             BasicText(
@@ -288,7 +290,10 @@ fun SettingsScreen(
                                     itemContentColor,
                                     13.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                )
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                         }
                     }
@@ -349,17 +354,21 @@ fun SettingsScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     Row(
+                        Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally)
                     ) {
-                        Icon(Icons.Rounded.Download, null, Modifier.size(17.dp), defContentColor)
+                        Icon(Icons.Rounded.Download, null, Modifier.size(16.dp), defContentColor)
                         BasicText(
                             stringResource(R.string.settings_save_downloads),
                             style = TextStyle(
                                 defContentColor,
                                 13.sp,
                                 fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Medium
-                            )
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                     }
                 }
@@ -375,17 +384,21 @@ fun SettingsScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     Row(
+                        Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally)
                     ) {
-                        Icon(Icons.Rounded.FolderSpecial, null, Modifier.size(17.dp), customContentColor)
+                        Icon(Icons.Rounded.FolderSpecial, null, Modifier.size(16.dp), customContentColor)
                         BasicText(
                             stringResource(R.string.settings_save_custom),
                             style = TextStyle(
                                 customContentColor,
                                 13.sp,
                                 fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Medium
-                            )
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                     }
                 }

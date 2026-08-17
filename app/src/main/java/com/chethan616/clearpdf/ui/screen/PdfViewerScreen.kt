@@ -111,7 +111,7 @@ import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.ViewerChromeGlass
-import com.chethan616.clearpdf.ui.components.LiquidSaveDialog
+import com.chethan616.clearpdf.ui.components.LiquidSaveSheet
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -170,6 +170,14 @@ fun PdfViewerScreen(
     var editingAnnoPage     by remember { mutableStateOf(0) }
     var editingAnnoIsNote   by remember { mutableStateOf(false) }
     var annotationDraft     by remember { mutableStateOf("") }
+    var editingAnnoColor    by remember { mutableStateOf(Color(0xFF1976D2)) }
+    // Shape (rect / oval / line / arrow / stroke) editing — identified by page + list index.
+    var editingShapePage    by remember { mutableStateOf<Int?>(null) }
+    var editingShapeIndex   by remember { mutableStateOf(-1) }
+    // Generic markup selection (move + resize of shapes / text / notes).
+    var selectedAnnoPage    by remember { mutableStateOf<Int?>(null) }
+    var selectedAnnoIndex   by remember { mutableStateOf(-1) }
+    val density              = LocalDensity.current
 
     // ── Zoom / pan state ───────────────────────────────────────────────────
     // Ported from Pdf_Tools (Karna14314): document-level zoom/pan is plain float
@@ -192,6 +200,64 @@ fun PdfViewerScreen(
     fun getPageMarks(page: Int): MutableList<PdfMarkup> =
         annotationsByPage.getOrPut(page) { mutableStateListOf() }
 
+    // Declared here (rather than lower) so the image/signature launchers below can place
+    // annotations onto whichever page is under the viewport centre.
+    val listState = rememberLazyListState()
+
+    // The page + on-screen position where a newly placed image/signature should land: the
+    // page occupying the vertical centre of the viewport, at the point the user is looking
+    // at (so a sign never silently lands off-screen on page 1). Returns a null offset when
+    // the page isn't measured yet → callers fall back to that page's frame centre.
+    fun viewportPlacementTarget(): Pair<Int, Offset?> {
+        val info = listState.layoutInfo
+        val visible = info.visibleItemsInfo
+        if (visible.isEmpty()) return state.currentPage to null
+        val centerY = (info.viewportStartOffset + info.viewportEndOffset) / 2
+        val item = visible.firstOrNull { centerY >= it.offset && centerY < it.offset + it.size }
+            ?: visible.minByOrNull { kotlin.math.abs((it.offset + it.size / 2) - centerY) }!!
+        val page = item.index
+        val cs = pageCanvasSizes[page] ?: return page to null
+        if (cs.width < 50f || cs.height < 50f) return page to null
+        val topPadPx = with(density) { 6.dp.toPx() }
+        val localY = (centerY - item.offset - topPadPx).coerceIn(0f, cs.height)
+        val bs = pageBitmapSizes[page] ?: cs
+        val frame = fitBitmapRect(cs, bs.width, bs.height)
+        return page to Offset(frame.center.x, localY)
+    }
+
+    // Add a new image/signature centred at the viewport-target on the correct page, sized
+    // to the page and clamped fully on-page. Shared by the image picker and signature pad.
+    fun placeImageMarkup(bmp: Bitmap, isSignature: Boolean) {
+        val (page, target) = viewportPlacementTarget()
+        val marks = getPageMarks(page)
+        val rawCs = pageCanvasSizes[page]
+        val cs = if (rawCs != null && rawCs.width > 50f && rawCs.height > 50f) rawCs else Size(1000f, 1400f)
+        val bs = pageBitmapSizes[page] ?: cs
+        val frame = fitBitmapRect(cs, bs.width, bs.height)
+        val maxW = (if (frame.width > 50f) frame.width else cs.width) * (if (isSignature) 0.45f else 0.5f)
+        val ratio = bmp.height.toFloat() / bmp.width.toFloat().coerceAtLeast(1f)
+        val w = maxW.coerceAtLeast(100f)
+        val h = w * ratio
+        val fallbackCenter = if (frame.width > 50f) frame.center else Offset(cs.width / 2f, cs.height / 2f)
+        val center = target ?: fallbackCenter
+        val cx = center.x.coerceIn(w / 2f, (cs.width - w / 2f).coerceAtLeast(w / 2f))
+        val cy = center.y.coerceIn(h / 2f, (cs.height - h / 2f).coerceAtLeast(h / 2f))
+        val id = System.nanoTime()
+        marks.add(PdfMarkup.ImageMarkup(id, bmp, Offset(cx - w / 2f, cy - h / 2f), Offset(cx + w / 2f, cy + h / 2f), isSignature))
+        activeImageId = id; activeTool = PdfEditTool.Image; controlsVisible = true
+    }
+
+    // Locate the currently selected image across ALL pages (it may live on a page other
+    // than firstVisibleItemIndex, since placement targets the viewport-centre page).
+    fun activeImageLoc(): Triple<Int, Int, PdfMarkup.ImageMarkup>? {
+        val id = activeImageId ?: return null
+        annotationsByPage.forEach { (pg, m) ->
+            val i = m.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == id }
+            if (i >= 0) return Triple(pg, i, m[i] as PdfMarkup.ImageMarkup)
+        }
+        return null
+    }
+
     // ── Launchers ─────────────────────────────────────────────────────────
     val pdfPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { viewModel.openPdf(context, it) }
@@ -204,25 +270,18 @@ fun PdfViewerScreen(
                 android.graphics.BitmapFactory.decodeStream(it)
             }
         }.getOrNull() ?: return@rememberLauncherForActivityResult
-        val page = state.currentPage
-        val marks = getPageMarks(page)
-        val existingIdx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
-        if (existingIdx >= 0) {
+        // If an image is currently selected, replace its bitmap in place; otherwise place a
+        // new one on the page under the viewport (never silently on page 1).
+        val existingPage = annotationsByPage.entries.firstOrNull { (_, m) -> m.any { it is PdfMarkup.ImageMarkup && it.id == activeImageId } }?.key
+        val existingIdx = existingPage?.let { getPageMarks(it).indexOfLast { m -> m is PdfMarkup.ImageMarkup && m.id == activeImageId } } ?: -1
+        if (existingPage != null && existingIdx >= 0) {
+            val marks = getPageMarks(existingPage)
             val existing = marks[existingIdx] as PdfMarkup.ImageMarkup
             val ratio = bmp.height.toFloat() / bmp.width.toFloat().coerceAtLeast(1f)
             val currentW = kotlin.math.abs(existing.end.x - existing.start.x).coerceAtLeast(20f)
             marks[existingIdx] = existing.copy(bitmap = bmp, end = Offset(existing.end.x, existing.start.y + currentW * ratio), isSignature = false)
         } else {
-            val cs = pageCanvasSizes[page] ?: Size(bmp.width.toFloat(), bmp.height.toFloat())
-            val frame = fitBitmapRect(cs, (pageBitmapSizes[page]?.width ?: cs.width), (pageBitmapSizes[page]?.height ?: cs.height))
-            val maxW = (if (frame.width > 0f) frame.width else cs.width) * 0.5f
-            val ratio = bmp.height.toFloat() / bmp.width.toFloat().coerceAtLeast(1f)
-            val w = maxW.coerceAtLeast(1f)
-            val center = if (frame.width > 0f) frame.center else Offset(cs.width / 2f, cs.height / 2f)
-            val id = System.nanoTime()
-            marks.add(PdfMarkup.ImageMarkup(id, bmp, Offset(center.x - w / 2f, center.y - w * ratio / 2f), Offset(center.x + w / 2f, center.y + w * ratio / 2f), false))
-            activeImageId = id
-            activeTool = PdfEditTool.Image
+            placeImageMarkup(bmp, isSignature = false)
         }
     }
 
@@ -242,6 +301,7 @@ fun PdfViewerScreen(
         lastInteractionAtMs = System.currentTimeMillis()
         scale = 1f; offsetX = 0f
         activeTool = PdfEditTool.None
+        selectedAnnoPage = null; selectedAnnoIndex = -1
         annotationsByPage.clear(); pageCanvasSizes.clear(); pageBitmapSizes.clear()
         viewModel.clearOcrSelection(state.currentPage); viewModel.clearExportFeedback()
         showFindBar = false; findQuery = ""; viewModel.clearSearch()
@@ -250,7 +310,9 @@ fun PdfViewerScreen(
     LaunchedEffect(state.document, controlsVisible, controlsPinned, activeTool, lastInteractionAtMs) {
         if (state.document != null && controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None) {
             val snap = lastInteractionAtMs
-            delay(3500)
+            // Comfortable auto-hide window; any interaction bumps lastInteractionAtMs and
+            // restarts this, and it never fires while a tool is active (activeTool != None).
+            delay(5000)
             if (controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && snap == lastInteractionAtMs)
                 controlsVisible = false
         }
@@ -271,8 +333,8 @@ fun PdfViewerScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                    Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
+                LiquidIconButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
+                    Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
                 }
                 LiquidGlassTopBar(stringResource(R.string.viewer_title), backdrop, uiSensor, Modifier.weight(1f))
             }
@@ -340,7 +402,6 @@ fun PdfViewerScreen(
 
     // ── PDF viewer (continuous vertical scroll, Adobe-style) ─────────────────
     val safePageCount = state.pageCount.coerceAtLeast(1)
-    val listState     = rememberLazyListState()
     val viewerScope   = rememberCoroutineScope()
     val currentPageIndex = listState.firstVisibleItemIndex.coerceIn(0, safePageCount - 1)
 
@@ -560,7 +621,37 @@ fun PdfViewerScreen(
                                         is PdfMarkup.NoteMarkup    -> m.text
                                         else -> ""
                                     }
+                                    editingAnnoColor = when (m) {
+                                        is PdfMarkup.TextBoxMarkup -> m.color
+                                        is PdfMarkup.NoteMarkup    -> m.color
+                                        else -> Color(0xFF1976D2)
+                                    }
                                     controlsVisible = true
+                                },
+                                onEditShape             = { idx ->
+                                    editingShapePage = page; editingShapeIndex = idx; controlsVisible = true
+                                },
+                                selectedMarkupIndex     = if (page == selectedAnnoPage) selectedAnnoIndex else -1,
+                                onSelectMarkup          = { idx ->
+                                    if (idx < 0) { selectedAnnoPage = null; selectedAnnoIndex = -1 }
+                                    else { selectedAnnoPage = page; selectedAnnoIndex = idx }
+                                },
+                                onDeleteMarkup          = { idx ->
+                                    val m = getPageMarks(page); if (idx in m.indices) m.removeAt(idx)
+                                    selectedAnnoPage = null; selectedAnnoIndex = -1
+                                },
+                                onCopySelection = {
+                                    viewModel.getSelectedOcrText(page).takeIf { it.isNotBlank() }
+                                        ?.let { clipboard.setText(AnnotatedString(it)) }
+                                    lastInteractionAtMs = System.currentTimeMillis()
+                                },
+                                onHighlightSelection = {
+                                    val m = getPageMarks(page)
+                                    state.selectedOcrBlockIdsByPage[page].orEmpty().forEach { id ->
+                                        if (!m.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == id })
+                                            m.add(PdfMarkup.TextBlockHighlightMarkup(id, Color(currentColorLong), 0.30f))
+                                    }
+                                    viewModel.clearOcrSelection(page)
                                 }
                             )
                         }
@@ -644,8 +735,7 @@ fun PdfViewerScreen(
                 exit     = fadeOut(tween(150)) + slideOutVertically { it / 2 },
                 modifier = Modifier.align(Alignment.BottomCenter)
             ) {
-                val activeItem = getPageMarks(state.currentPage)
-                    .firstOrNull { it is PdfMarkup.ImageMarkup && it.id == activeImageId } as? PdfMarkup.ImageMarkup
+                val activeItem = activeImageLoc()?.third
 
                 PdfViewerBottomToolbar(
                     activeTool         = activeTool,
@@ -666,14 +756,14 @@ fun PdfViewerScreen(
                     currentSelectedIds = state.selectedOcrBlockIdsByPage[state.currentPage].orEmpty(),
                     activeIsSignature  = activeItem?.isSignature == true,
                     currentPageMarks   = getPageMarks(state.currentPage),
-                    onSetActiveTool    = { activeTool = it; if (it == PdfEditTool.None) activeImageId = null; viewModel.clearOcrSelection(state.currentPage) },
+                    onSetActiveTool    = { activeTool = it; if (it == PdfEditTool.None) activeImageId = null; selectedAnnoPage = null; selectedAnnoIndex = -1; viewModel.clearOcrSelection(state.currentPage) },
                     onToggleFindBar    = {
                         showFindBar = !showFindBar
                         if (showFindBar) viewModel.triggerOcrForAllPages(context)
                         else { focusManager.clearFocus(); viewModel.clearSearch(); findQuery = "" }
                     },
                     onShowSignaturePad = { showSignaturePad = true },
-                    onPickImage        = { imagePickerLauncher.launch("image/*") },
+                    onPickImage        = { activeImageId = null; imagePickerLauncher.launch("image/*") },
                     onResetZoom        = { scope.launch { animateZoomPan(1f, Offset.Zero) }
                                           lastInteractionAtMs = System.currentTimeMillis() },
                     onShowSaveDialog   = { showSaveDialog = true },
@@ -683,9 +773,7 @@ fun PdfViewerScreen(
                         else imagePickerLauncher.launch("image/*")
                     },
                     onDeleteImage      = {
-                        val m = getPageMarks(state.currentPage)
-                        val idx = m.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
-                        if (idx >= 0) m.removeAt(idx)
+                        activeImageLoc()?.let { (pg, idx, _) -> getPageMarks(pg).removeAt(idx) }
                         activeImageId = null; activeTool = PdfEditTool.None
                     },
                     onSelectAllText    = {
@@ -724,10 +812,9 @@ fun PdfViewerScreen(
                     onOpenExportedFile = { state.lastExportedUri?.let { viewModel.openPdf(context, it) } },
                     onOpenAnotherPdf   = { pdfPickerLauncher.launch(arrayOf("*/*")) },
                     onRecolorSignature = { cl ->
-                        val m = getPageMarks(state.currentPage)
-                        val idx = m.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId && it.isSignature }
-                        val sig = m.getOrNull(idx) as? PdfMarkup.ImageMarkup
-                        if (sig != null) m[idx] = sig.copy(bitmap = recolorSignatureBitmap(sig.bitmap, Color(cl).toArgb()))
+                        activeImageLoc()?.let { (pg, idx, sig) ->
+                            if (sig.isSignature) getPageMarks(pg)[idx] = sig.copy(bitmap = recolorSignatureBitmap(sig.bitmap, Color(cl).toArgb()))
+                        }
                     },
                     backdrop = contentBackdrop,
                     uiSensor = uiSensor,
@@ -790,6 +877,7 @@ fun PdfViewerScreen(
             AnnotationEditorDialog(
                 isNote = editingAnnoIsNote,
                 initialText = annotationDraft,
+                initialColor = editingAnnoColor,
                 backdrop = contentBackdrop,
                 uiSensor = uiSensor,
                 fg = chromeFg,
@@ -805,14 +893,14 @@ fun PdfViewerScreen(
                     getPageMarks(editingAnnoPage).removeAll { matches(it) }
                     editingAnnoId = null
                 },
-                onSave = { newText ->
+                onSave = { newText, newColor ->
                     val list = getPageMarks(editingAnnoPage)
                     val idx = list.indexOfFirst { matches(it) }
                     if (idx >= 0) {
-                        if (newText.isBlank()) list.removeAt(idx)
+                        if (newText.isBlank() && list[idx] is PdfMarkup.TextBoxMarkup) list.removeAt(idx)
                         else list[idx] = when (val m = list[idx]) {
-                            is PdfMarkup.TextBoxMarkup -> m.copy(text = newText)
-                            is PdfMarkup.NoteMarkup    -> m.copy(text = newText)
+                            is PdfMarkup.TextBoxMarkup -> m.copy(text = newText, color = newColor)
+                            is PdfMarkup.NoteMarkup    -> m.copy(text = newText, color = newColor)
                             else -> m
                         }
                     }
@@ -820,14 +908,46 @@ fun PdfViewerScreen(
                 }
             )
         }
-    }
 
-    // ── Dialogs ───────────────────────────────────────────────────────────
-    if (showSaveDialog) {
-        LiquidSaveDialog(
+        // ── Shape editor (recolour / delete a placed rect / oval / line / arrow / stroke) ──
+        editingShapePage?.let { shapePage ->
+            val list = getPageMarks(shapePage)
+            val shape = list.getOrNull(editingShapeIndex)
+            if (shape != null && shape.isShape()) {
+                ShapeEditorPopup(
+                    initialColor = shape.shapeColor(),
+                    backdrop = contentBackdrop,
+                    uiSensor = uiSensor,
+                    fg = chromeFg,
+                    fgSoft = chromeFgSoft,
+                    surface = chromeGlass,
+                    field = chromeField,
+                    onColorChange = { c ->
+                        val cur = list.getOrNull(editingShapeIndex)
+                        if (cur != null && cur.isShape()) list[editingShapeIndex] = cur.recolored(c)
+                        lastInteractionAtMs = System.currentTimeMillis()
+                    },
+                    onDelete = {
+                        if (editingShapeIndex in list.indices) list.removeAt(editingShapeIndex)
+                        editingShapePage = null; editingShapeIndex = -1
+                    },
+                    onDismiss = { editingShapePage = null; editingShapeIndex = -1 }
+                )
+            } else {
+                editingShapePage = null; editingShapeIndex = -1
+            }
+        }
+
+        // ── Save Document — REAL in-window glass (samples the live page) ──
+        LiquidSaveSheet(
+            visible         = showSaveDialog,
             initialFileName = state.document?.name?.substringBeforeLast('.')?.let { "${it}_Edited" } ?: "Document",
-            backdrop        = backdrop,
+            backdrop        = contentBackdrop,
             uiSensor        = uiSensor,
+            fg              = chromeFg,
+            fgSoft          = chromeFgSoft,
+            surface         = chromeGlass,
+            field           = chromeField,
             onDismiss       = { showSaveDialog = false },
             onSave          = { fileName, overrideUri ->
                 showSaveDialog = false
@@ -836,6 +956,8 @@ fun PdfViewerScreen(
             }
         )
     }
+
+    // ── Dialogs ───────────────────────────────────────────────────────────
 
     if (showSignaturePad) {
         SignaturePadDialog(
@@ -850,27 +972,7 @@ fun PdfViewerScreen(
                         else -> bmp
                     }
                     if (safeBmp != null && safeBmp.width > 0 && safeBmp.height > 0) {
-                        val page  = state.currentPage
-                        val marks = getPageMarks(page)
-                        val existingIdx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
-                        if (existingIdx >= 0 && (marks[existingIdx] as PdfMarkup.ImageMarkup).isSignature) {
-                            val existing = marks[existingIdx] as PdfMarkup.ImageMarkup
-                            val ratio = safeBmp.height.toFloat() / safeBmp.width.toFloat().coerceAtLeast(1f)
-                            val currentW = kotlin.math.abs(existing.end.x - existing.start.x).coerceAtLeast(20f)
-                            marks[existingIdx] = existing.copy(bitmap = safeBmp, end = Offset(existing.end.x, existing.start.y + currentW * ratio), isSignature = true)
-                        } else {
-                            val rawCs = pageCanvasSizes[page]
-                            val cs = if (rawCs != null && rawCs.width > 50f && rawCs.height > 50f) rawCs else Size(1000f, 1400f)
-                            val bs = pageBitmapSizes[page] ?: cs
-                            val frame = fitBitmapRect(cs, bs.width, bs.height)
-                            val maxW = (if (frame.width > 50f) frame.width else cs.width) * 0.45f
-                            val ratio = safeBmp.height.toFloat() / safeBmp.width.toFloat().coerceAtLeast(1f)
-                            val w = maxW.coerceAtLeast(100f)
-                            val center = if (frame.width > 50f) frame.center else Offset(cs.width / 2f, cs.height / 2f)
-                            val id = System.nanoTime()
-                            marks.add(PdfMarkup.ImageMarkup(id, safeBmp, Offset(center.x - w / 2f, center.y - w * ratio / 2f), Offset(center.x + w / 2f, center.y + w * ratio / 2f), true))
-                            activeImageId = id; activeTool = PdfEditTool.Image
-                        }
+                        placeImageMarkup(safeBmp, isSignature = true)
                     }
                 }
             }

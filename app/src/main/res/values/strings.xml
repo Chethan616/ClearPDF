@@ -132,6 +132,8 @@
     <string name="viewer_underline">Underline</string>
     <string name="viewer_strike">Strike</string>
     <string name="viewer_done">Done</string>
+    <string name="viewer_color">Color</string>
+    <string name="viewer_edit_shape">Edit Shape</string>
     <string name="viewer_new_sign">New Sign</string>
     <string name="viewer_replace">Replace</string>
     <string name="viewer_saving">Saving edited PDF&#8230;</string>

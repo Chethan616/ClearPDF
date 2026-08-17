@@ -15,12 +15,20 @@ data class PdfTextBlock(
     val left: Float,
     val top: Float,
     val right: Float,
-    val bottom: Float
+    val bottom: Float,
+    // Per-text-character normalized x bounds, parallel to [text]. Enable word-precise
+    // highlighting of a matched substring instead of the whole line.
+    val charLefts: FloatArray = FloatArray(0),
+    val charRights: FloatArray = FloatArray(0)
 )
 
+/** A search hit as a normalized rect around the exact matched word(s), not the whole line. */
 data class PdfSearchMatch(
     val pageIndex: Int,
-    val blockId: String
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float
 )
 
 interface PdfTextService {
@@ -57,9 +65,7 @@ class PdfTextServiceImpl : PdfTextService {
                     buildList {
                         for (pageIdx in 0 until min(doc.numberOfPages, pageCount)) {
                             extractPageBlocks(doc, pageIdx).forEach { block ->
-                                if (block.text.lowercase().contains(lower)) {
-                                    add(PdfSearchMatch(pageIdx, block.id))
-                                }
+                                addAll(block.matchRects(lower, pageIdx))
                             }
                         }
                     }
@@ -117,17 +123,33 @@ class PdfTextServiceImpl : PdfTextService {
 
         return lines.mapIndexedNotNull { lineIdx, linePositions ->
             val byX = linePositions.sortedBy { it.x }
-            val text = buildString {
-                var lastRight = -Float.MAX_VALUE
-                byX.forEach { tp ->
-                    val gap = tp.x - lastRight
-                    if (lastRight > -Float.MAX_VALUE && gap > tp.width * 0.4f) append(' ')
-                    append(tp.unicode ?: "")
-                    lastRight = tp.x + tp.width
+            // Build the line text AND per-character x bounds together so indices stay aligned.
+            val sb = StringBuilder()
+            val cl = ArrayList<Float>()
+            val cr = ArrayList<Float>()
+            var lastRight = -Float.MAX_VALUE
+            byX.forEach { tp ->
+                val u = tp.unicode ?: ""
+                if (u.isEmpty()) return@forEach
+                val gap = tp.x - lastRight
+                if (lastRight > -Float.MAX_VALUE && gap > tp.width * 0.4f) {
+                    sb.append(' '); cl.add(lastRight); cr.add(tp.x)
                 }
-            }.trim()
-
-            if (text.isBlank()) return@mapIndexedNotNull null
+                val x0 = tp.x; val x1 = tp.x + tp.width; val n = u.length
+                for (i in u.indices) {
+                    sb.append(u[i])
+                    cl.add(x0 + (x1 - x0) * i / n)
+                    cr.add(x0 + (x1 - x0) * (i + 1) / n)
+                }
+                lastRight = x1
+            }
+            val raw = sb.toString()
+            val startI = raw.indexOfFirst { !it.isWhitespace() }
+            val endI = raw.indexOfLast { !it.isWhitespace() }
+            if (startI < 0) return@mapIndexedNotNull null
+            val text = raw.substring(startI, endI + 1)
+            val charLefts = FloatArray(endI - startI + 1) { (cl[startI + it] / pageWidth).coerceIn(0f, 1f) }
+            val charRights = FloatArray(endI - startI + 1) { (cr[startI + it] / pageWidth).coerceIn(0f, 1f) }
 
             val minX = byX.minOf { it.x }
             val maxX = byX.maxOf { it.x + it.width }
@@ -140,10 +162,32 @@ class PdfTextServiceImpl : PdfTextService {
                 left   = (minX / pageWidth).coerceIn(0f, 1f),
                 top    = (minY / pageHeight).coerceIn(0f, 1f),
                 right  = (maxX / pageWidth).coerceIn(0f, 1f),
-                bottom = (maxY / pageHeight).coerceIn(0f, 1f)
+                bottom = (maxY / pageHeight).coerceIn(0f, 1f),
+                charLefts  = charLefts,
+                charRights = charRights
             )
         }
     }
+}
+
+/** All occurrences of [lower] (already lower-cased) in this line, as tight word rects. */
+fun PdfTextBlock.matchRects(lower: String, pageIndex: Int): List<PdfSearchMatch> {
+    if (lower.isEmpty() || charLefts.isEmpty()) return emptyList()
+    val bt = text.lowercase()
+    val out = ArrayList<PdfSearchMatch>()
+    var from = 0
+    while (true) {
+        val idx = bt.indexOf(lower, from)
+        if (idx < 0) break
+        val endC = idx + lower.length - 1
+        if (idx < charLefts.size && endC < charRights.size) {
+            out.add(PdfSearchMatch(pageIndex, charLefts[idx], top, charRights[endC], bottom))
+        } else {
+            out.add(PdfSearchMatch(pageIndex, left, top, right, bottom))
+        }
+        from = idx + lower.length
+    }
+    return out
 }
 
 private class PositionCapturingStripper : PDFTextStripper() {
