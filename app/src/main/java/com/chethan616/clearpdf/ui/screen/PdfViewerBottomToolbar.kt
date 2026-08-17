@@ -3,6 +3,7 @@ package com.chethan616.clearpdf.ui.screen
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -39,9 +40,13 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Undo
+import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -108,6 +113,7 @@ internal fun PdfViewerBottomToolbar(
     onDismissExportFeedback: () -> Unit,
     onOpenExportedFile: () -> Unit,
     onOpenAnotherPdf: () -> Unit,
+    onShareDocument: () -> Unit,
     onRecolorSignature: (Long) -> Unit,
     backdrop: LayerBackdrop,
     uiSensor: UISensor,
@@ -126,6 +132,10 @@ internal fun PdfViewerBottomToolbar(
     // Collapsed by default (just the "Editor Tools" pill + "Open PDF" circle). Tapping
     // the pill expands the tool set above it. Image selection auto-expands so its tools show.
     var editorOpen by remember { mutableStateOf(false) }
+    // Long-press the "Open another PDF" circle to morph it into a Share action; auto-reverts.
+    var shareMode by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+    LaunchedEffect(shareMode) { if (shareMode) { delay(3500); shareMode = false } }
     // Any active tool implies the editor is open (survives the chrome auto-hiding/returning).
     LaunchedEffect(activeTool, activeImageId) {
         if (activeTool != PdfEditTool.None || activeImageId != null) editorOpen = true
@@ -492,13 +502,31 @@ internal fun PdfViewerBottomToolbar(
                         )
                     }
                 }
+                // Tap = open another PDF. Long-press morphs it into a Share button (icon
+                // cross-fades, surface eases to the share-green), then a tap shares the doc.
+                val shareGreen = Color(0xFF34C759)
+                val morphSurface by animateColorAsState(
+                    if (shareMode) shareGreen else glass, tween(220), label = "shareMorphSurface"
+                )
                 LiquidIconButton(
-                    onClick = onOpenAnotherPdf,
+                    onClick = {
+                        if (shareMode) { onShareDocument(); shareMode = false } else onOpenAnotherPdf()
+                    },
+                    onLongClick = {
+                        shareMode = !shareMode
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
                     backdrop = backdrop,
-                    surfaceColor = glass,
+                    surfaceColor = morphSurface,
                     modifier = Modifier.size(52.dp)
                 ) {
-                    Icon(Icons.Rounded.UploadFile, stringResource(R.string.viewer_open_another), Modifier.size(20.dp), fg)
+                    Crossfade(targetState = shareMode, animationSpec = tween(200), label = "shareMorphIcon") { sharing ->
+                        if (sharing) {
+                            Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), Color.White)
+                        } else {
+                            Icon(Icons.Rounded.UploadFile, stringResource(R.string.viewer_open_another), Modifier.size(20.dp), fg)
+                        }
+                    }
                 }
             }
         }

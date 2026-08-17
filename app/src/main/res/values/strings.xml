@@ -184,6 +184,7 @@
     <string name="viewer_prev">Previous</string>
     <string name="viewer_next">Next</string>
     <string name="viewer_open_another">Open Another PDF</string>
+    <string name="viewer_share_document">Share Document</string>
     <string name="viewer_editor_tools">Editor Tools</string>
     <string name="viewer_open_pdf_short">Open PDF</string>
     <string name="viewer_pen">Pen</string>
@@ -258,6 +259,8 @@
     <string name="settings_custom_directory">Custom Directory</string>
     <string name="settings_default_directory">Default Directory</string>
     <string name="settings_default_path">Downloads / ClearPDF</string>
+    <string name="settings_change_folder">Change Folder</string>
+    <string name="settings_reset">Reset</string>
     <string name="settings_license_notice">Licensed under the Apache License, Version 2.0.\nYou may obtain a copy at apache.org/licenses/LICENSE-2.0</string>
     <string name="settings_license_author">by %1$s</string>
     <string name="language_english">English</string>

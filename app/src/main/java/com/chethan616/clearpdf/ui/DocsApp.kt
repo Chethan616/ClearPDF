@@ -4,7 +4,10 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -180,14 +183,15 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        // Wallpaper off (user experiment): fall back to a flat iOS
-                        // system-grouped-background so the glass surfaces still have a
-                        // base to sample and the app reads as a clean Apple settings look.
+                        // Wallpaper off: fall back to a NEUTRAL GREY base (not pure white/black).
+                        // Apple never puts glass on pure #FFF or #000 — the translucent surfaces
+                        // would vanish. A light grey (#E9E9EE) / elevated dark grey (#1C1C1E) keeps
+                        // the liquid-glass panels and buttons legible with real depth.
                         Box(
                             Modifier
                                 .layerBackdrop(backdrop)
                                 .fillMaxSize()
-                                .background(if (!isDarkMode) Color(0xFFF2F2F7) else Color(0xFF000000))
+                                .background(if (!isDarkMode) Color(0xFFE9E9EE) else Color(0xFF1C1C1E))
                         )
                     }
                     DocsNavGraph(
@@ -284,9 +288,15 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                         properties = DialogProperties(usePlatformDefaultWidth = false)
                     ) {
                         Column(
+                            // A Dialog is a separate window and cannot sample the in-window
+                            // backdrop layer — liquidGlassPanel here rendered the raw wallpaper
+                            // PNG. Use a solid themed card instead (same fix as the save/signature
+                            // dialogs).
                             Modifier
                                 .fillMaxWidth(0.88f)
-                                .liquidGlassPanel(backdrop, uiSensor)
+                                .clip(RoundedCornerShape(28.dp))
+                                .background(if (isDarkMode) Color(0xFF1B1E25) else Color(0xFFF5F6F8))
+                                .border(1.dp, if (isDarkMode) Color.White.copy(0.10f) else Color.Black.copy(0.06f), RoundedCornerShape(28.dp))
                                 .padding(28.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(16.dp)

@@ -226,7 +226,7 @@ fun SettingsScreen(
                 translationY = topBarOffsetY * density
             }
         ) {
-            LiquidGlassTopBar(title = "Settings", backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.fillMaxWidth())
+            LiquidGlassTopBar(title = stringResource(R.string.settings_title), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.fillMaxWidth())
         }
 
         // ── Theme Mode Selector ──
@@ -359,7 +359,7 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), Color(0xFF1976D2))
-                BasicText("Save Location", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+                BasicText(stringResource(R.string.settings_save_location), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
             Row(
@@ -383,12 +383,12 @@ fun SettingsScreen(
                 }
                 Column(Modifier.weight(1f)) {
                     BasicText(
-                        if (saveUri != null) "Custom Output Directory" else "Default Directory",
+                        if (saveUri != null) stringResource(R.string.settings_custom_directory) else stringResource(R.string.settings_default_directory),
                         style = TextStyle(label, 14.sp, fontWeight = FontWeight.SemiBold)
                     )
                     val path = if (saveUri != null) {
                         saveUri!!.lastPathSegment?.replace("primary:", "") ?: saveUri.toString()
-                    } else "Downloads / ClearPDF"
+                    } else stringResource(R.string.settings_default_path)
                     BasicText(path, style = TextStyle(sub, 12.sp))
                 }
             }
@@ -403,7 +403,7 @@ fun SettingsScreen(
                     tint = Color(0xFF1976D2),
                     modifier = Modifier.weight(1f)
                 ) {
-                    BasicText("Change Folder", style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold))
+                    BasicText(stringResource(R.string.settings_change_folder), style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold))
                 }
                 if (saveUri != null) {
                     LiquidButton(
@@ -414,7 +414,7 @@ fun SettingsScreen(
                         backdrop = backdrop,
                         surfaceColor = Color.White.copy(0.08f)
                     ) {
-                        BasicText("Reset", style = TextStyle(text, 13.sp, fontWeight = FontWeight.SemiBold))
+                        BasicText(stringResource(R.string.settings_reset), style = TextStyle(text, 13.sp, fontWeight = FontWeight.SemiBold))
                     }
                 }
             }
@@ -438,13 +438,13 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(Icons.Rounded.AutoFixHigh, null, Modifier.size(22.dp), label)
-                BasicText("File Handling", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+                BasicText(stringResource(R.string.settings_file_handling), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
             SettingsToggleRow(
                 icon = Icons.Rounded.AutoFixHigh,
-                title = "Auto-Compress",
-                desc = "Compress PDFs automatically on import",
+                title = stringResource(R.string.settings_auto_compress),
+                desc = stringResource(R.string.settings_auto_compress_desc),
                 checked = autoCompress,
                 onCheckedChange = { autoCompress = it; AppSettingsManager.setAutoCompress(context, it) },
                 backdrop = backdrop,
@@ -460,8 +460,8 @@ fun SettingsScreen(
 
             SettingsToggleRow(
                 icon = Icons.Rounded.FileCopy,
-                title = "Keep Original",
-                desc = "Preserve original file after editing",
+                title = stringResource(R.string.settings_keep_original),
+                desc = stringResource(R.string.settings_keep_original_desc),
                 checked = keepOriginal,
                 onCheckedChange = { keepOriginal = it; AppSettingsManager.setKeepOriginal(context, it) },
                 backdrop = backdrop,
@@ -493,7 +493,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), Color(0xFF1976D2))
-                    BasicText("Compression Quality", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+                    BasicText(stringResource(R.string.settings_compression_quality), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
                 }
                 Box(
                     Modifier
@@ -523,8 +523,8 @@ fun SettingsScreen(
             )
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                BasicText("Smaller file size", style = TextStyle(sub.copy(0.7f), 11.sp))
-                BasicText("Higher image clarity", style = TextStyle(sub.copy(0.7f), 11.sp))
+                BasicText(stringResource(R.string.settings_smaller_size), style = TextStyle(sub.copy(0.7f), 11.sp))
+                BasicText(stringResource(R.string.settings_higher_quality), style = TextStyle(sub.copy(0.7f), 11.sp))
             }
         }
 
@@ -546,13 +546,13 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(Icons.Rounded.Wallpaper, null, Modifier.size(22.dp), label)
-                BasicText("Personalization", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+                BasicText(stringResource(R.string.settings_personalization), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
             SettingsToggleRow(
                 icon = Icons.Rounded.Wallpaper,
-                title = "Background",
-                desc = "Show the wallpaper image behind the app",
+                title = stringResource(R.string.settings_background),
+                desc = stringResource(R.string.settings_background_desc),
                 checked = showWallpaper,
                 onCheckedChange = onShowWallpaperChanged,
                 backdrop = backdrop,
@@ -582,9 +582,9 @@ fun SettingsScreen(
                 Icon(Icons.Rounded.Info, null, Modifier.size(28.dp), Color(0xFF0088FF))
             }
             BasicText("ClearPDF", style = TextStyle(text, 20.sp, fontWeight = FontWeight.Bold))
-            BasicText("Version 1.0.0", style = TextStyle(sub, 13.sp))
+            BasicText(stringResource(R.string.settings_version), style = TextStyle(sub, 13.sp))
             BasicText(
-                "Made by Chethan616 with ❤",
+                stringResource(R.string.settings_made_by),
                 style = TextStyle(sub, 13.sp, textAlign = TextAlign.Center)
             )
 
@@ -602,12 +602,12 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Rounded.Star, null, Modifier.size(18.dp), Color.White)
-                    BasicText("Star on GitHub", style = TextStyle(Color.White, 14.sp, fontWeight = FontWeight.SemiBold))
+                    BasicText(stringResource(R.string.settings_star_github), style = TextStyle(Color.White, 14.sp, fontWeight = FontWeight.SemiBold))
                 }
             }
 
             BasicText(
-                "ClearPDF is open source",
+                stringResource(R.string.settings_open_source),
                 style = TextStyle(sub.copy(0.7f), 11.sp, textAlign = TextAlign.Center)
             )
         }
@@ -629,7 +629,7 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(Icons.Rounded.Code, null, Modifier.size(22.dp), label)
-                BasicText("Open Source Licenses", style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+                BasicText(stringResource(R.string.settings_licenses), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
             LicenseItem(
@@ -661,7 +661,7 @@ fun SettingsScreen(
             )
 
             BasicText(
-                "Licensed under the Apache License, Version 2.0.\nYou may obtain a copy at apache.org/licenses/LICENSE-2.0",
+                stringResource(R.string.settings_license_notice),
                 style = TextStyle(sub.copy(0.7f), 11.sp, lineHeight = 16.sp)
             )
         }
@@ -743,7 +743,7 @@ private fun LicenseItem(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             BasicText(name, style = TextStyle(labelColor, 14.sp, fontWeight = FontWeight.Medium))
-            BasicText("by $author", style = TextStyle(subColor, 12.sp))
+            BasicText(stringResource(R.string.settings_license_author, author), style = TextStyle(subColor, 12.sp))
         }
         BasicText(license, style = TextStyle(subColor, 11.sp))
         BasicText(url, style = TextStyle(Color(0xFF0088FF), 11.sp))

@@ -817,6 +817,31 @@ fun PdfViewerScreen(
                     onDismissExportFeedback = { viewModel.clearExportFeedback() },
                     onOpenExportedFile = { state.lastExportedUri?.let { viewModel.openPdf(context, it) } },
                     onOpenAnotherPdf   = { pdfPickerLauncher.launch(arrayOf("*/*")) },
+                    onShareDocument    = {
+                        val uri = state.document?.uri
+                        if (uri != null) {
+                            // A file:// uri can't be handed to other apps directly; wrap it via
+                            // the app FileProvider. content:// uris share as-is.
+                            val shareUri = if (uri.scheme == "file") {
+                                runCatching {
+                                    androidx.core.content.FileProvider.getUriForFile(
+                                        context, "${context.packageName}.provider", java.io.File(uri.path!!)
+                                    )
+                                }.getOrNull() ?: uri
+                            } else uri
+                            val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "application/pdf"
+                                putExtra(android.content.Intent.EXTRA_STREAM, shareUri)
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent.createChooser(send, null)
+                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
+                        }
+                    },
                     onRecolorSignature = { cl ->
                         activeImageLoc()?.let { (pg, idx, sig) ->
                             if (sig.isSignature) getPageMarks(pg)[idx] = sig.copy(bitmap = recolorSignatureBitmap(sig.bitmap, Color(cl).toArgb()))

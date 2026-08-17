@@ -1,6 +1,8 @@
 package com.chethan616.clearpdf.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -31,6 +33,7 @@ import kotlin.math.tanh
 /**
  * Circular variant of LiquidButton, optimized for icons.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LiquidIconButton(
     onClick: () -> Unit,
@@ -39,6 +42,7 @@ fun LiquidIconButton(
     isInteractive: Boolean = true,
     tint: Color = Color.Unspecified,
     surfaceColor: Color = Color.Unspecified,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     val animationScope = rememberCoroutineScope()
@@ -95,11 +99,22 @@ fun LiquidIconButton(
                     }
                 }
             )
-            .clickable(
-                interactionSource = null,
-                indication = null,
-                role = Role.Button,
-                onClick = onClick
+            .then(
+                if (onLongClick != null)
+                    Modifier.combinedClickable(
+                        interactionSource = null,
+                        indication = null,
+                        role = Role.Button,
+                        onClick = onClick,
+                        onLongClick = onLongClick
+                    )
+                else
+                    Modifier.clickable(
+                        interactionSource = null,
+                        indication = null,
+                        role = Role.Button,
+                        onClick = onClick
+                    )
             )
             .then(
                 if (isInteractive) {

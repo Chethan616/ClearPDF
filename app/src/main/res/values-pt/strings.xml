@@ -111,6 +111,7 @@
     <string name="viewer_prev">Anterior</string>
     <string name="viewer_next">Pr&#243;ximo</string>
     <string name="viewer_open_another">Abrir outro PDF</string>
+    <string name="viewer_share_document">Compartilhar documento</string>
     <string name="viewer_editor_tools">Ferramentas</string>
     <string name="viewer_open_pdf_short">Abrir PDF</string>
     <string name="merge_now">Mesclar Agora</string>
@@ -176,6 +177,8 @@
     <string name="settings_custom_directory">Diret&#243;rio personalizado</string>
     <string name="settings_default_directory">Diret&#243;rio padr&#227;o</string>
     <string name="settings_default_path">Downloads / ClearPDF</string>
+    <string name="settings_change_folder">Alterar pasta</string>
+    <string name="settings_reset">Redefinir</string>
     <string name="settings_license_notice">Licenciado sob a Apache License, Vers&#227;o 2.0.\nVoc&#234; pode obter uma c&#243;pia em apache.org/licenses/LICENSE-2.0</string>
     <string name="settings_license_author">por %1$s</string>
     <string name="language_english">Ingl&#234;s</string>
