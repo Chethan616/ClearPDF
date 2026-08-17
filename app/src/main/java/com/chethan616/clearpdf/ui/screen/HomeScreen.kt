@@ -4,6 +4,9 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -387,6 +390,15 @@ fun HomeScreen(
                     visibleRecents.forEach { recent ->
                         var rowTopY by remember { mutableStateOf(0f) }
                         var rowHeightPx by remember { mutableStateOf(0f) }
+                        // Liquid-glass press: no grey ripple; the row eases down with a soft spring
+                        // while held (like an Apple button), then springs back on release.
+                        val rowInteraction = remember { MutableInteractionSource() }
+                        val rowPressed by rowInteraction.collectIsPressedAsState()
+                        val rowScale by animateFloatAsState(
+                            if (rowPressed) 0.965f else 1f,
+                            spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMediumLow),
+                            label = "recentPress"
+                        )
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -394,9 +406,12 @@ fun HomeScreen(
                                     rowTopY = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero).y
                                     rowHeightPx = it.size.height.toFloat()
                                 }
+                                .graphicsLayer { scaleX = rowScale; scaleY = rowScale }
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(if (isLight) Color.White.copy(0.18f) else Color.White.copy(0.06f))
                                 .combinedClickable(
+                                    interactionSource = rowInteraction,
+                                    indication = null,
                                     onClick = { onRecentFileSelected(recent.uri) },
                                     onLongClick = { selectedRecent = recent; selectedRecentAnchorY = rowTopY; selectedRecentRowHeight = rowHeightPx }
                                 )
@@ -555,8 +570,12 @@ fun HomeScreen(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.45f))
-                    .clickable { infoRecent = null },
+                    // Softer dim + NO ripple, so tapping outside doesn't flash a big grey ripple.
+                    .background(Color.Black.copy(alpha = 0.28f))
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) { infoRecent = null },
                 contentAlignment = Alignment.Center
             ) {
                 infoRecent?.let { recent ->
@@ -565,7 +584,10 @@ fun HomeScreen(
                             .fillMaxWidth()
                             .padding(20.dp)
                             .liquidGlassPanel(backdrop, uiSensor)
-                            .clickable { /* Consume inner taps */ }
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null
+                            ) { /* Consume inner taps */ }
                             .padding(22.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
