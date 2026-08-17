@@ -44,6 +44,7 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.RemoveCircleOutline
@@ -488,13 +489,13 @@ fun HomeScreen(
                                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                                 indication = null
                             ) { /* Consume inner taps */ }
-                            .padding(horizontal = 18.dp, vertical = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .padding(horizontal = 10.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        horizontalAlignment = Alignment.Start
                     ) {
-                        // Chat bubble reaction header (filename & close)
+                        // Header: filename + close
                         Row(
-                            Modifier.fillMaxWidth(),
+                            Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -531,114 +532,44 @@ fun HomeScreen(
                             }
                         }
 
-                        // Horizontal Staggered Reaction Buttons
-                        Row(
+                        // Thin divider under the header.
+                        Box(
                             Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // 1. Open Button (Blue)
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier
-                                    .graphicsLayer {
-                                        scaleX = b1Scale; scaleY = b1Scale
-                                        alpha = b1Scale.coerceIn(0f, 1f)
-                                    }
-                            ) {
-                                LiquidIconButton(
-                                    onClick = {
-                                        selectedRecent = null
-                                        onRecentFileSelected(recent.uri)
-                                    },
-                                    backdrop = backdrop,
-                                    tint = Color(0xFF0088FF),
-                                    modifier = Modifier.size(50.dp)
-                                ) {
-                                    Icon(Icons.Rounded.FileOpen, null, Modifier.size(22.dp), Color.White)
-                                }
-                                BasicText(stringResource(R.string.recents_open), style = TextStyle(text, 11.sp, FontWeight.Medium))
-                            }
+                                .padding(top = 6.dp, bottom = 2.dp)
+                                .height(1.dp)
+                                .background(if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.08f))
+                        )
 
-                            // 2. Share Button (Green)
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier
-                                    .graphicsLayer {
-                                        scaleX = b2Scale; scaleY = b2Scale
-                                        alpha = b2Scale.coerceIn(0f, 1f)
-                                    }
-                            ) {
-                                LiquidIconButton(
-                                    onClick = {
-                                        selectedRecent = null
-                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                            type = "application/pdf"
-                                            putExtra(Intent.EXTRA_STREAM, recent.uri)
-                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        }
-                                        context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.recents_share_pdf)))
-                                    },
-                                    backdrop = backdrop,
-                                    tint = Color(0xFF4CAF50),
-                                    modifier = Modifier.size(50.dp)
-                                ) {
-                                    Icon(Icons.Rounded.Share, null, Modifier.size(22.dp), Color.White)
-                                }
-                                BasicText(stringResource(R.string.recents_share), style = TextStyle(text, 11.sp, FontWeight.Medium))
+                        // Clean vertical action list (WhatsApp-style), lightly staggered in.
+                        Box(Modifier.graphicsLayer { alpha = b1Scale.coerceIn(0f, 1f) }) {
+                            ActionSheetItem(Icons.Rounded.FileOpen, stringResource(R.string.recents_open), Color(0xFF0088FF), text) {
+                                selectedRecent = null
+                                onRecentFileSelected(recent.uri)
                             }
-
-                            // 3. Info Button (Purple)
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier
-                                    .graphicsLayer {
-                                        scaleX = b3Scale; scaleY = b3Scale
-                                        alpha = b3Scale.coerceIn(0f, 1f)
-                                    }
-                            ) {
-                                LiquidIconButton(
-                                    onClick = {
-                                        selectedRecent = null
-                                        infoRecent = recent
-                                    },
-                                    backdrop = backdrop,
-                                    tint = Color(0xFF9C27B0),
-                                    modifier = Modifier.size(50.dp)
-                                ) {
-                                    Icon(Icons.Rounded.Info, null, Modifier.size(22.dp), Color.White)
+                        }
+                        Box(Modifier.graphicsLayer { alpha = b2Scale.coerceIn(0f, 1f) }) {
+                            ActionSheetItem(Icons.Rounded.IosShare, stringResource(R.string.recents_share), Color(0xFF34C759), text) {
+                                selectedRecent = null
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "application/pdf"
+                                    putExtra(Intent.EXTRA_STREAM, recent.uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
-                                BasicText(stringResource(R.string.recents_details), style = TextStyle(text, 11.sp, FontWeight.Medium))
+                                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.recents_share_pdf)))
                             }
-
-                            // 4. Remove Button (Red)
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier
-                                    .graphicsLayer {
-                                        scaleX = b4Scale; scaleY = b4Scale
-                                        alpha = b4Scale.coerceIn(0f, 1f)
-                                    }
-                            ) {
-                                LiquidIconButton(
-                                    onClick = {
-                                        RecentFilesManager.removeRecent(context, recent.uri)
-                                        recents = recents.filterNot { it.uriString == recent.uri.toString() }
-                                        selectedRecent = null
-                                    },
-                                    backdrop = backdrop,
-                                    tint = Color(0xFFE53935),
-                                    modifier = Modifier.size(50.dp)
-                                ) {
-                                    CloseCrossIcon(Modifier.size(18.dp), Color.White)
-                                }
-                                BasicText(stringResource(R.string.recents_remove), style = TextStyle(redAccent, 11.sp, FontWeight.Medium))
+                        }
+                        Box(Modifier.graphicsLayer { alpha = b3Scale.coerceIn(0f, 1f) }) {
+                            ActionSheetItem(Icons.Rounded.Info, stringResource(R.string.recents_details), Color(0xFF8E8E93), text) {
+                                selectedRecent = null
+                                infoRecent = recent
+                            }
+                        }
+                        Box(Modifier.graphicsLayer { alpha = b4Scale.coerceIn(0f, 1f) }) {
+                            ActionSheetItem(Icons.Rounded.DeleteOutline, stringResource(R.string.recents_remove), redAccent, redAccent) {
+                                RecentFilesManager.removeRecent(context, recent.uri)
+                                recents = recents.filterNot { it.uriString == recent.uri.toString() }
+                                selectedRecent = null
                             }
                         }
                     }

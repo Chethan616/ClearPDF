@@ -503,10 +503,10 @@ internal fun PdfViewerBottomToolbar(
                     }
                 }
                 // Tap = open another PDF. Long-press morphs it into a Share button (icon
-                // cross-fades, surface eases to the share-green), then a tap shares the doc.
-                val shareGreen = Color(0xFF34C759)
+                // cross-fades, surface eases to Apple blue), then a tap shares the doc.
+                val shareBlue = Color(0xFF0A84FF)
                 val morphSurface by animateColorAsState(
-                    if (shareMode) shareGreen else glass, tween(220), label = "shareMorphSurface"
+                    if (shareMode) shareBlue else glass, tween(220), label = "shareMorphSurface"
                 )
                 LiquidIconButton(
                     onClick = {

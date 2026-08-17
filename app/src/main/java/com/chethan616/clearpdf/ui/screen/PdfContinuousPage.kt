@@ -295,8 +295,8 @@ internal fun PdfContinuousPage(
                     // the bottom, empty descent space below). Trim ASYMMETRICALLY — a little off
                     // the top, more off the bottom — so the tag sits ON the word (caps→baseline)
                     // rather than centering in the box (which read as a thin band through the middle).
-                    val insetTop = r.height * 0.12f
-                    val insetBottom = r.height * 0.20f
+                    val insetTop = r.height * 0.06f
+                    val insetBottom = r.height * 0.13f
                     val padX = 1f
                     val hl = Rect(r.left - padX, r.top + insetTop, r.right + padX, r.bottom - insetBottom)
                     // Rounding scaled to the trimmed height — a snug tag, not a big pill.

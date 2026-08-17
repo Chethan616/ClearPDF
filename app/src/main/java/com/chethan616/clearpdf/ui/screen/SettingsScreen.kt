@@ -264,7 +264,7 @@ fun SettingsScreen(
                         onClick = { onThemeModeChanged(option.idx) },
                         backdrop = backdrop,
                         tint = if (isSelected) option.activeColor else Color.Transparent,
-                        surfaceColor = if (isSelected) option.activeColor.copy(0.18f) else (if (isLight) Color.White.copy(0.55f) else Color.White.copy(0.08f)),
+                        surfaceColor = if (isSelected) option.activeColor.copy(0.18f) else (if (isLight) Color.White.copy(0.16f) else Color.White.copy(0.08f)),
                         modifier = Modifier.weight(1f)
                     ) {
                         Row(
@@ -328,7 +328,7 @@ fun SettingsScreen(
                         onClick = { onLocaleChanged(opt.code) },
                         backdrop = backdrop,
                         tint = if (isSelected) accent else Color.Transparent,
-                        surfaceColor = if (isSelected) accent.copy(0.18f) else (if (isLight) Color.White.copy(0.55f) else Color.White.copy(0.08f)),
+                        surfaceColor = if (isSelected) accent.copy(0.18f) else (if (isLight) Color.White.copy(0.16f) else Color.White.copy(0.08f)),
                         modifier = Modifier.weight(1f)
                     ) {
                         BasicText(
