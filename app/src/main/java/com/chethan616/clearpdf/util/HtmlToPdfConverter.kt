@@ -6,13 +6,15 @@ import android.net.Uri
 import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import kotlin.math.min
 
 /**
- * Converts a local HTML string to a paginated PDF entirely on-device: an offscreen [WebView]
- * lays the HTML out at A4 width, then each page-height slice is drawn onto a [PdfDocument] page.
- * No network is used (the app holds no INTERNET permission) — JavaScript is disabled and the
- * base URL is null, so only self-contained HTML/CSS renders.
+ * Converts a web page (URL) or a local HTML string to a paginated PDF on-device: an offscreen
+ * [WebView] lays the content out at A4 width, then each page-height slice is drawn onto a
+ * [PdfDocument] page.
+ *
+ * - [convertUrl] fetches a user-entered URL (JavaScript enabled) — the only place the app uses
+ *   the network.
+ * - [convertHtml] renders self-contained HTML with JS disabled and no base URL (fully offline).
  *
  * MUST be called on the main thread (WebView requirement). [onDone] is invoked on the main
  * thread with true on success.
@@ -23,22 +25,40 @@ object HtmlToPdfConverter {
     private const val PAGE_W = 794
     private const val PAGE_H = 1123
 
-    fun convert(context: Context, html: String, outputUri: Uri, onDone: (Boolean) -> Unit) {
+    fun convertHtml(context: Context, html: String, outputUri: Uri, onDone: (Boolean) -> Unit) {
         val webView = WebView(context)
         webView.settings.javaScriptEnabled = false
-        @Suppress("DEPRECATION")
-        webView.setInitialScale(100)
+        finishOnLoad(webView, context, outputUri, settleMs = 250, onDone)
+        webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+    }
+
+    fun convertUrl(context: Context, url: String, outputUri: Uri, onDone: (Boolean) -> Unit) {
+        val webView = WebView(context)
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            loadWithOverviewMode = true
+            useWideViewPort = true
+        }
+        // JS-heavy pages need a longer settle before the layout is stable enough to snapshot.
+        finishOnLoad(webView, context, outputUri, settleMs = 900, onDone)
+        webView.loadUrl(url)
+    }
+
+    private fun finishOnLoad(webView: WebView, context: Context, outputUri: Uri, settleMs: Long, onDone: (Boolean) -> Unit) {
+        var handled = false
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String?) {
-                // Give layout a beat to settle before measuring.
+                if (handled) return
                 view.postDelayed({
+                    if (handled) return@postDelayed
+                    handled = true
                     val ok = runCatching { render(view, context, outputUri) }.getOrDefault(false)
                     runCatching { view.destroy() }
                     onDone(ok)
-                }, 250)
+                }, settleMs)
             }
         }
-        webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
     }
 
     private fun render(view: WebView, context: Context, outputUri: Uri): Boolean {

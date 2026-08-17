@@ -26,7 +26,11 @@ import java.util.Date
 import java.util.Locale
 import kotlin.coroutines.resume
 
+enum class WebToPdfMode { URL, HTML }
+
 data class HtmlToPdfUiState(
+    val mode: WebToPdfMode = WebToPdfMode.URL,
+    val url: String = "",
     val html: String = "",
     val sourceName: String = "",
     val isProcessing: Boolean = false,
@@ -40,6 +44,8 @@ class HtmlToPdfViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(HtmlToPdfUiState())
     val uiState: StateFlow<HtmlToPdfUiState> = _uiState.asStateFlow()
 
+    fun onModeChange(mode: WebToPdfMode) = _uiState.update { it.copy(mode = mode, lastOutputUri = null, resultMessage = null, errorMessage = null) }
+    fun onUrlChange(value: String) = _uiState.update { it.copy(url = value) }
     fun onHtmlChange(value: String) = _uiState.update { it.copy(html = value) }
 
     fun onLoadFile(context: Context, uri: Uri) {
@@ -58,24 +64,32 @@ class HtmlToPdfViewModel : ViewModel() {
 
     fun convert(context: Context) {
         if (_uiState.value.isProcessing) return
-        if (_uiState.value.html.isBlank()) {
+        val mode = _uiState.value.mode
+        val rawUrl = _uiState.value.url.trim()
+        if (mode == WebToPdfMode.URL && rawUrl.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Enter a web address") }
+            return
+        }
+        if (mode == WebToPdfMode.HTML && _uiState.value.html.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Enter or load some HTML") }
             return
         }
+        // Default the scheme so "example.com" works.
+        val url = if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) rawUrl else "https://$rawUrl"
         _uiState.update { it.copy(isProcessing = true, errorMessage = null, resultMessage = null, lastOutputUri = null) }
         viewModelScope.launch {
             try {
                 val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                val fileName = "ClearPDF_HTML_$ts.pdf"
+                val fileName = "ClearPDF_Web_$ts.pdf"
                 val saveLabel = SaveLocationManager.getSavePathDisplay(context)
                 val outUri = withContext(Dispatchers.IO) { createOutputUri(context, fileName) }
                 val html = _uiState.value.html
                 // WebView work must run on the main thread.
                 val ok = withContext(Dispatchers.Main) {
                     suspendCancellableCoroutine<Boolean> { cont ->
-                        HtmlToPdfConverter.convert(context, html, outUri) { success ->
-                            if (cont.isActive) cont.resume(success)
-                        }
+                        val cb: (Boolean) -> Unit = { success -> if (cont.isActive) cont.resume(success) }
+                        if (mode == WebToPdfMode.URL) HtmlToPdfConverter.convertUrl(context, url, outUri, cb)
+                        else HtmlToPdfConverter.convertHtml(context, html, outUri, cb)
                     }
                 }
                 if (ok) {
@@ -85,7 +99,7 @@ class HtmlToPdfViewModel : ViewModel() {
                     ))
                     _uiState.update { it.copy(isProcessing = false, lastOutputUri = outUri, resultMessage = "PDF created · saved to $saveLabel") }
                 } else {
-                    _uiState.update { it.copy(isProcessing = false, errorMessage = "Couldn't render this HTML") }
+                    _uiState.update { it.copy(isProcessing = false, errorMessage = "Couldn't create the PDF") }
                 }
             } catch (t: Throwable) {
                 _uiState.update { it.copy(isProcessing = false, errorMessage = t.message ?: "Couldn't convert HTML") }

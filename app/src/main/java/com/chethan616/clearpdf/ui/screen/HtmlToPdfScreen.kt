@@ -16,9 +16,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.FileOpen
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -34,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,6 +49,7 @@ import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.HtmlToPdfViewModel
+import com.chethan616.clearpdf.ui.viewmodel.WebToPdfMode
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
 
@@ -84,33 +88,60 @@ fun HtmlToPdfScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             GlassSectionHeader(title = stringResource(R.string.tool_html_to_pdf), icon = Icons.Rounded.Code, iconTint = HtmlAccent, titleColor = text)
-            BasicText(stringResource(R.string.html_to_pdf_desc), style = TextStyle(sub, 13.sp, textAlign = TextAlign.Start))
 
-            LiquidButton(onClick = { filePicker.launch("text/html") }, backdrop = backdrop, tint = HtmlAccent, modifier = Modifier.fillMaxWidth()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
-                    Icon(Icons.Rounded.FileOpen, null, Modifier.size(18.dp), Color.White)
-                    BasicText(stringResource(R.string.html_to_pdf_load_file), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
-                }
-            }
-            if (state.sourceName.isNotEmpty()) {
-                BasicText(state.sourceName, style = TextStyle(sub, 12.sp), maxLines = 1)
+            // Mode: Web URL / HTML
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ModeOption(stringResource(R.string.html_to_pdf_mode_web), state.mode == WebToPdfMode.URL, backdrop, isLight, { viewModel.onModeChange(WebToPdfMode.URL) }, Modifier.weight(1f))
+                ModeOption(stringResource(R.string.html_to_pdf_mode_html), state.mode == WebToPdfMode.HTML, backdrop, isLight, { viewModel.onModeChange(WebToPdfMode.HTML) }, Modifier.weight(1f))
             }
 
-            BasicTextField(
-                value = state.html,
-                onValueChange = viewModel::onHtmlChange,
-                textStyle = TextStyle(text, 13.sp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 160.dp, max = 320.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.05f))
-                    .padding(12.dp),
-                decorationBox = { inner ->
-                    if (state.html.isEmpty()) BasicText(stringResource(R.string.html_to_pdf_hint), style = TextStyle(sub, 13.sp))
-                    inner()
+            if (state.mode == WebToPdfMode.URL) {
+                BasicText(stringResource(R.string.html_to_pdf_url_desc), style = TextStyle(sub, 13.sp, textAlign = TextAlign.Start))
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                        .background(if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.05f))
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Rounded.Language, null, Modifier.size(18.dp), sub)
+                    BasicTextField(
+                        value = state.url,
+                        onValueChange = viewModel::onUrlChange,
+                        singleLine = true,
+                        textStyle = TextStyle(text, 15.sp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                        modifier = Modifier.weight(1f),
+                        decorationBox = { inner ->
+                            if (state.url.isEmpty()) BasicText(stringResource(R.string.html_to_pdf_url_hint), style = TextStyle(sub, 15.sp))
+                            inner()
+                        }
+                    )
                 }
-            )
+            } else {
+                BasicText(stringResource(R.string.html_to_pdf_desc), style = TextStyle(sub, 13.sp, textAlign = TextAlign.Start))
+                LiquidButton(onClick = { filePicker.launch("text/html") }, backdrop = backdrop, tint = HtmlAccent, modifier = Modifier.fillMaxWidth()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                        Icon(Icons.Rounded.FileOpen, null, Modifier.size(18.dp), Color.White)
+                        BasicText(stringResource(R.string.html_to_pdf_load_file), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+                    }
+                }
+                if (state.sourceName.isNotEmpty()) BasicText(state.sourceName, style = TextStyle(sub, 12.sp), maxLines = 1)
+                BasicTextField(
+                    value = state.html,
+                    onValueChange = viewModel::onHtmlChange,
+                    textStyle = TextStyle(text, 13.sp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 160.dp, max = 320.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.05f))
+                        .padding(12.dp),
+                    decorationBox = { inner ->
+                        if (state.html.isEmpty()) BasicText(stringResource(R.string.html_to_pdf_hint), style = TextStyle(sub, 13.sp))
+                        inner()
+                    }
+                )
+            }
         }
 
         LiquidButton(
@@ -138,5 +169,30 @@ fun HtmlToPdfScreen(
         }
 
         Spacer(Modifier.height(40.dp))
+    }
+}
+
+@Composable
+private fun ModeOption(
+    label: String,
+    selected: Boolean,
+    backdrop: LayerBackdrop,
+    isLight: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val contentColor = if (selected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+    LiquidButton(
+        onClick = onClick,
+        backdrop = backdrop,
+        tint = if (selected) HtmlAccent else Color.Transparent,
+        surfaceColor = if (selected) HtmlAccent.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
+        modifier = modifier
+    ) {
+        BasicText(
+            label,
+            style = TextStyle(contentColor, 14.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium),
+            modifier = Modifier.padding(vertical = 4.dp)
+        )
     }
 }

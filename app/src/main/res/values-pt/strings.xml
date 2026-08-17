@@ -413,9 +413,13 @@
     <string name="image_tools_processing">Processando…</string>
     <string name="image_tools_save">Salvar</string>
     <string name="image_tools_share">Compartilhar</string>
-    <string name="tool_html_to_pdf">HTML para PDF</string>
-    <string name="tool_html_to_pdf_sub">Converter HTML em PDF</string>
-    <string name="html_to_pdf_desc">Cole HTML ou carregue um arquivo .html — renderizado no dispositivo, sem internet.</string>
+    <string name="tool_html_to_pdf">Web para PDF</string>
+    <string name="tool_html_to_pdf_sub">URL ou HTML em PDF</string>
+    <string name="html_to_pdf_mode_web">URL da web</string>
+    <string name="html_to_pdf_mode_html">HTML</string>
+    <string name="html_to_pdf_url_desc">Informe um endereço da web para capturar a página como PDF.</string>
+    <string name="html_to_pdf_url_hint">https://exemplo.com</string>
+    <string name="html_to_pdf_desc">Cole HTML ou carregue um arquivo .html — renderizado no dispositivo.</string>
     <string name="html_to_pdf_load_file">Carregar arquivo .html</string>
     <string name="html_to_pdf_hint">&lt;h1&gt;Olá&lt;/h1&gt;&lt;p&gt;Seu HTML aqui…&lt;/p&gt;</string>
     <string name="html_to_pdf_action">Converter em PDF</string>

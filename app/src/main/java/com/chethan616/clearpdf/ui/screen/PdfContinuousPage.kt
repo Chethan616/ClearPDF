@@ -291,24 +291,24 @@ internal fun PdfContinuousPage(
                         frame.left + match.right * frame.width,
                         frame.top + match.bottom * frame.height
                     )
-                    // Hug the glyphs tightly: minimal horizontal bleed, corners scaled to the
-                    // match height so the pill matches the text size (never a fixed slab).
-                    val padX = 2f
-                    val padY = 1.5f
-                    val hl = Rect(r.left - padX, r.top - padY, r.right + padX, r.bottom + padY)
-                    // Fully rounded "pill" — corner radius near half the height for a soft, modern look.
-                    val cr = (hl.height * 0.42f).coerceIn(4f, 10f)
+                    // The match rect spans the whole LINE box (including ascender/descender
+                    // leading), so trim it vertically to hug the glyphs instead of towering over
+                    // them; only a hair of horizontal bleed.
+                    val insetY = r.height * 0.16f
+                    val padX = 1.5f
+                    val hl = Rect(r.left - padX, r.top + insetY, r.right + padX, r.bottom - insetY)
+                    // Gentle rounding scaled to the trimmed height — a soft tag, not a big pill.
+                    val cr = (hl.height * 0.26f).coerceIn(3f, 6f)
                     if (match == activeMatch) {
-                        // Current result: a warm outer glow, a rich translucent fill, and a crisp
-                        // accent outline so it reads clearly as the focused match.
-                        val glow = hl.inflate(5f)
-                        drawRoundRect(Color(0xFFFF7A00).copy(0.16f), glow.topLeft, glow.size, CornerRadius(cr + 4f, cr + 4f))
-                        drawRoundRect(Color(0xFFFF9500).copy(0.42f), hl.topLeft, hl.size, CornerRadius(cr, cr))
-                        drawRoundRect(Color(0xFFFF7A00), hl.topLeft, hl.size, CornerRadius(cr, cr), style = Stroke(1.75f))
+                        // Focused result: a calm blue fill with a soft halo and a crisp thin outline.
+                        val base = Color(0xFF3B82F6)
+                        val glow = hl.inflate(3f)
+                        drawRoundRect(base.copy(0.12f), glow.topLeft, glow.size, CornerRadius(cr + 3f, cr + 3f))
+                        drawRoundRect(base.copy(0.30f), hl.topLeft, hl.size, CornerRadius(cr, cr))
+                        drawRoundRect(base.copy(0.95f), hl.topLeft, hl.size, CornerRadius(cr, cr), style = Stroke(1.5f))
                     } else {
-                        // Secondary results: a single soft translucent amber pill — discoverable,
-                        // low-emphasis, no harsh border.
-                        drawRoundRect(Color(0xFFFFC24D).copy(0.30f), hl.topLeft, hl.size, CornerRadius(cr, cr))
+                        // Secondary results: a soft translucent blue, low-emphasis, no border.
+                        drawRoundRect(Color(0xFF60A5FA).copy(0.22f), hl.topLeft, hl.size, CornerRadius(cr, cr))
                     }
                 }
             }

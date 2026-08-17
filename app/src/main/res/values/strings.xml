@@ -104,9 +104,13 @@
     <string name="image_tools_processing">Processing…</string>
     <string name="image_tools_save">Save</string>
     <string name="image_tools_share">Share</string>
-    <string name="tool_html_to_pdf">HTML to PDF</string>
-    <string name="tool_html_to_pdf_sub">Render HTML to a PDF</string>
-    <string name="html_to_pdf_desc">Paste HTML or load an .html file — rendered on-device, no internet.</string>
+    <string name="tool_html_to_pdf">Web to PDF</string>
+    <string name="tool_html_to_pdf_sub">URL or HTML to PDF</string>
+    <string name="html_to_pdf_mode_web">Web URL</string>
+    <string name="html_to_pdf_mode_html">HTML</string>
+    <string name="html_to_pdf_url_desc">Enter a web address to capture the page as a PDF.</string>
+    <string name="html_to_pdf_url_hint">https://example.com</string>
+    <string name="html_to_pdf_desc">Paste HTML or load an .html file — rendered on-device.</string>
     <string name="html_to_pdf_load_file">Load .html file</string>
     <string name="html_to_pdf_hint">&lt;h1&gt;Hello&lt;/h1&gt;&lt;p&gt;Your HTML here…&lt;/p&gt;</string>
     <string name="html_to_pdf_action">Convert to PDF</string>
