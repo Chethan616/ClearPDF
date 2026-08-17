@@ -80,8 +80,6 @@
     <string name="settings_auto_compress_desc">Comprimir PDFs automaticamente ao importar</string>
     <string name="settings_keep_original">Manter Original</string>
     <string name="settings_keep_original_desc">Preservar arquivo original ap&#243;s a edi&#231;&#227;o</string>
-    <string name="settings_notifications">Notifica&#231;&#245;es</string>
-    <string name="settings_notifications_desc">Mostrar notifica&#231;&#227;o quando tarefas conclu&#237;rem</string>
     <string name="settings_compression_quality">Qualidade de compress&#227;o</string>
     <string name="settings_smaller_size">Menor tamanho</string>
     <string name="settings_higher_quality">Maior qualidade</string>

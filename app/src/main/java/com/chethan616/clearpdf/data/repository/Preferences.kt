@@ -110,7 +110,6 @@ object AppSettingsManager {
     private const val PREFS_NAME = "clearpdf_settings"
     private const val KEY_AUTO_COMPRESS = "auto_compress"
     private const val KEY_KEEP_ORIGINAL = "keep_original"
-    private const val KEY_NOTIFICATIONS = "notifications"
     private const val KEY_DEFAULT_QUALITY = "default_quality"
     private const val KEY_THEME_MODE = "theme_mode" // 0: System, 1: Light, 2: Dark
     private const val KEY_SHOW_WALLPAPER = "show_wallpaper"
@@ -135,12 +134,6 @@ object AppSettingsManager {
 
     fun setKeepOriginal(context: Context, value: Boolean) =
         prefs(context).edit().putBoolean(KEY_KEEP_ORIGINAL, value).apply()
-
-    fun getNotifications(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_NOTIFICATIONS, false)
-
-    fun setNotifications(context: Context, value: Boolean) =
-        prefs(context).edit().putBoolean(KEY_NOTIFICATIONS, value).apply()
 
     fun getDefaultQuality(context: Context): Float =
         prefs(context).getFloat(KEY_DEFAULT_QUALITY, 0.7f)

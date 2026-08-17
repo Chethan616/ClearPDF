@@ -34,13 +34,10 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Compress
-import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.FileCopy
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.HighQuality
-import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Wallpaper
@@ -63,6 +60,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,28 +70,27 @@ import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.LiquidToggle
-import com.chethan616.clearpdf.ui.components.glassSection
+import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.utils.UISensor
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
 
 /**
- * Settings — rebuilt from scratch in the iOS-Settings "inset grouped" idiom (Apple HIG):
- * a large navigation title, grouped rounded cards with uppercase section headers and gray
- * footnotes, colored SF-Symbol-style icon tiles, inset hairline separators, and native-feeling
- * segmented controls / switches. The card surface uses the app's shared glass so it reads well
- * over both the wallpaper and the flat background (see the Background toggle at the bottom).
+ * Settings — a premium, spacious "inset grouped" layout on real Liquid Glass. Each section is
+ * a small uppercase label above a single translucent, backdrop-blurred glass container holding
+ * compact native-style rows (colored icon tile · title/description · right-aligned control),
+ * separated by inset hairlines. The wallpaper reads through the glass; nothing is a solid slab.
  */
 
-// iOS system accent palette for the icon tiles.
-private val SysBlue   = Color(0xFF007AFF)
-private val SysGreen  = Color(0xFF34C759)
-private val SysIndigo = Color(0xFF5856D6)
-private val SysOrange = Color(0xFFFF9500)
-private val SysPurple = Color(0xFFAF52DE)
-private val SysRed    = Color(0xFFFF3B30)
-private val SysTeal   = Color(0xFF5AC8FA)
-private val SysYellow = Color(0xFFFFCC00)
+// System accent palette for the icon tiles.
+private val SysBlue   = Color(0xFF0A84FF)
+private val SysGreen  = Color(0xFF32D74B)
+private val SysIndigo = Color(0xFF5E5CE6)
+private val SysOrange = Color(0xFFFF9F0A)
+private val SysPurple = Color(0xFFBF5AF2)
+private val SysTeal   = Color(0xFF64D2FF)
+private val SysYellow = Color(0xFFFFD60A)
 private val SysGray   = Color(0xFF8E8E93)
 
 @Composable
@@ -109,16 +106,15 @@ fun SettingsScreen(
     onLocaleChanged: (String) -> Unit = {}
 ) {
     val isLight = !isDarkMode
-    // Apple label colors.
-    val label       = if (isLight) Color(0xFF000000) else Color(0xFFFFFFFF)
-    val secondary   = if (isLight) Color(0xFF3C3C43).copy(0.60f) else Color(0xFFEBEBF5).copy(0.60f)
-    val tertiary    = if (isLight) Color(0xFF3C3C43).copy(0.45f) else Color(0xFFEBEBF5).copy(0.45f)
+    val label     = if (isLight) Color(0xFF0B0B0F) else Color(0xFFF7F7FA)
+    val secondary = if (isLight) Color(0xFF3C3C43).copy(0.62f) else Color(0xFFEBEBF5).copy(0.62f)
+    val tertiary  = if (isLight) Color(0xFF3C3C43).copy(0.42f) else Color(0xFFEBEBF5).copy(0.40f)
     val context = LocalContext.current
     val density = LocalDensity.current.density
+    val uiSensor = rememberUISensor()
 
     var autoCompress   by remember { mutableStateOf(AppSettingsManager.getAutoCompress(context)) }
     var keepOriginal   by remember { mutableStateOf(AppSettingsManager.getKeepOriginal(context)) }
-    var notifications  by remember { mutableStateOf(AppSettingsManager.getNotifications(context)) }
     var defaultQuality by remember { mutableFloatStateOf(AppSettingsManager.getDefaultQuality(context)) }
     LaunchedEffect(defaultQuality) {
         delay(300L); AppSettingsManager.setDefaultQuality(context, defaultQuality)
@@ -139,16 +135,8 @@ fun SettingsScreen(
 
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { isVisible = true }
-    val fade by animateFloatAsState(
-        if (isVisible) 1f else 0f,
-        tween(durationMillis = 420, easing = FastOutSlowInEasing),
-        label = "settingsFade"
-    )
-    val rise by animateFloatAsState(
-        if (isVisible) 0f else 14f,
-        tween(durationMillis = 420, easing = FastOutSlowInEasing),
-        label = "settingsRise"
-    )
+    val fade by animateFloatAsState(if (isVisible) 1f else 0f, tween(420, easing = FastOutSlowInEasing), label = "settingsFade")
+    val rise by animateFloatAsState(if (isVisible) 0f else 14f, tween(420, easing = FastOutSlowInEasing), label = "settingsRise")
 
     Column(
         Modifier
@@ -157,82 +145,69 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState())
             .graphicsLayer { alpha = fade; translationY = rise * density }
     ) {
-        // Large navigation title.
+        // Large navigation title — strong but not space-hungry.
         BasicText(
             stringResource(R.string.settings_title),
-            style = TextStyle(label, 34.sp, fontWeight = FontWeight.Bold),
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 10.dp)
+            style = TextStyle(label, 32.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 6.dp)
         )
 
         // ── Appearance ──────────────────────────────────────────────────────
-        SettingsGroup(header = stringResource(R.string.settings_appearance), isLight = isLight, secondary = secondary) {
-            listOf<@Composable () -> Unit>(
-                {
-                    SegmentedRow(
-                        options = listOf(
-                            stringResource(R.string.settings_theme_auto),
-                            stringResource(R.string.settings_theme_light),
-                            stringResource(R.string.settings_theme_dark)
-                        ),
-                        selectedIndex = themeMode,
-                        isLight = isLight,
-                        label = label,
-                        onSelect = onThemeModeChanged
-                    )
-                }
-            )
+        SettingsGroup(stringResource(R.string.settings_appearance), backdrop, uiSensor, secondary, isLight) {
+            listOf<@Composable () -> Unit>({
+                SegmentedRow(
+                    options = listOf(
+                        stringResource(R.string.settings_theme_auto),
+                        stringResource(R.string.settings_theme_light),
+                        stringResource(R.string.settings_theme_dark)
+                    ),
+                    selectedIndex = themeMode, isLight = isLight, label = label, onSelect = onThemeModeChanged
+                )
+            })
         }
 
         // ── Language ────────────────────────────────────────────────────────
-        SettingsGroup(header = stringResource(R.string.settings_language), isLight = isLight, secondary = secondary) {
-            listOf<@Composable () -> Unit>(
-                {
-                    val codes = listOf("en", "pt-BR")
-                    SegmentedRow(
-                        options = listOf(
-                            stringResource(R.string.language_english),
-                            stringResource(R.string.language_portuguese)
-                        ),
-                        selectedIndex = codes.indexOf(selectedLocale).coerceAtLeast(0),
-                        isLight = isLight,
-                        label = label,
-                        onSelect = { onLocaleChanged(codes[it]) }
-                    )
-                }
-            )
+        SettingsGroup(stringResource(R.string.settings_language), backdrop, uiSensor, secondary, isLight) {
+            val codes = listOf("en", "pt-BR")
+            listOf<@Composable () -> Unit>({
+                SegmentedRow(
+                    options = listOf(stringResource(R.string.language_english), stringResource(R.string.language_portuguese)),
+                    selectedIndex = codes.indexOf(selectedLocale).coerceAtLeast(0),
+                    isLight = isLight, label = label, onSelect = { onLocaleChanged(codes[it]) }
+                )
+            })
         }
 
-        // ── Files ───────────────────────────────────────────────────────────
-        SettingsGroup(
-            header = stringResource(R.string.settings_save_location),
-            isLight = isLight, secondary = secondary,
-            footer = if (saveUri != null)
-                (saveUri!!.lastPathSegment?.replace("primary:", "") ?: saveUri.toString())
-            else stringResource(R.string.settings_default_path)
-        ) {
+        // ── Storage ─────────────────────────────────────────────────────────
+        val isDefault = saveUri == null
+        val customPath = saveUri?.let { it.lastPathSegment?.replace("primary:", "") ?: it.toString() }
+        SettingsGroup(stringResource(R.string.settings_save_location), backdrop, uiSensor, secondary, isLight) {
             listOf<@Composable () -> Unit>(
                 {
                     SettingsRow(
                         icon = Icons.Rounded.Download, iconTint = SysBlue,
                         title = stringResource(R.string.settings_save_downloads),
+                        subtitle = stringResource(R.string.settings_default_path),
                         label = label, secondary = secondary,
-                        trailing = { if (saveUri == null) SelectedCheck() },
-                        onClick = { if (saveUri != null) { SaveLocationManager.clearSaveLocation(context); saveUri = null } }
+                        trailing = { if (isDefault) SelectedCheck() },
+                        onClick = { if (!isDefault) { SaveLocationManager.clearSaveLocation(context); saveUri = null } }
                     )
                 },
                 {
                     SettingsRow(
                         icon = Icons.Rounded.FolderOpen, iconTint = SysOrange,
                         title = stringResource(R.string.settings_save_custom),
+                        subtitle = if (!isDefault) customPath else null,
                         label = label, secondary = secondary,
-                        trailing = { if (saveUri != null) SelectedCheck() else Chevron(tertiary) },
+                        trailing = { if (!isDefault) SelectedCheck() else Chevron(tertiary) },
                         onClick = { folderPicker.launch(null) }
                     )
                 }
             )
         }
 
-        SettingsGroup(header = stringResource(R.string.settings_file_handling), isLight = isLight, secondary = secondary) {
+        // ── File Processing ─────────────────────────────────────────────────
+        SettingsGroup(stringResource(R.string.settings_file_handling), backdrop, uiSensor, secondary, isLight) {
             listOf<@Composable () -> Unit>(
                 {
                     ToggleRow(
@@ -253,60 +228,29 @@ fun SettingsScreen(
                     )
                 },
                 {
-                    ToggleRow(
-                        icon = Icons.Rounded.Notifications, iconTint = SysRed,
-                        title = stringResource(R.string.settings_notifications),
-                        subtitle = stringResource(R.string.settings_notifications_desc),
-                        checked = notifications, label = label, secondary = secondary, backdrop = backdrop,
-                        onCheckedChange = { notifications = it; AppSettingsManager.setNotifications(context, it) }
-                    )
-                },
-                {
-                    // Quality slider cell (label + value on top, slider below — iOS control-cell style).
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            IconTile(Icons.Rounded.HighQuality, SysIndigo)
-                            BasicText(stringResource(R.string.settings_compression_quality), style = TextStyle(label, 17.sp), modifier = Modifier.weight(1f))
-                            BasicText("${(defaultQuality * 100).toInt()}%", style = TextStyle(secondary, 16.sp))
-                        }
-                        LiquidSlider(
-                            value = { defaultQuality },
-                            onValueChange = {
-                                val snapped = ((it * 100f).toInt() / 100f).coerceIn(0f, 1f)
-                                if (snapped != defaultQuality) defaultQuality = snapped
-                            },
-                            valueRange = 0f..1f, visibilityThreshold = 0.005f,
-                            backdrop = backdrop, modifier = Modifier.fillMaxWidth()
-                        )
+                    QualityRow(defaultQuality, label, secondary, tertiary, backdrop) {
+                        val snapped = ((it * 100f).toInt() / 100f).coerceIn(0f, 1f)
+                        if (snapped != defaultQuality) defaultQuality = snapped
                     }
                 }
             )
         }
 
-        // ── Personalization (Background toggle — user experiment) ────────────
-        SettingsGroup(
-            header = stringResource(R.string.settings_personalization),
-            isLight = isLight, secondary = secondary
-        ) {
-            listOf<@Composable () -> Unit>(
-                {
-                    ToggleRow(
-                        icon = Icons.Rounded.Wallpaper, iconTint = SysPurple,
-                        title = stringResource(R.string.settings_background),
-                        subtitle = stringResource(R.string.settings_background_desc),
-                        checked = showWallpaper, label = label, secondary = secondary, backdrop = backdrop,
-                        onCheckedChange = onShowWallpaperChanged
-                    )
-                }
-            )
+        // ── Personalization ─────────────────────────────────────────────────
+        SettingsGroup(stringResource(R.string.settings_personalization), backdrop, uiSensor, secondary, isLight) {
+            listOf<@Composable () -> Unit>({
+                ToggleRow(
+                    icon = Icons.Rounded.Wallpaper, iconTint = SysPurple,
+                    title = stringResource(R.string.settings_background),
+                    subtitle = stringResource(R.string.settings_background_desc),
+                    checked = showWallpaper, label = label, secondary = secondary, backdrop = backdrop,
+                    onCheckedChange = onShowWallpaperChanged
+                )
+            })
         }
 
         // ── About ───────────────────────────────────────────────────────────
-        SettingsGroup(
-            header = stringResource(R.string.settings_about),
-            isLight = isLight, secondary = secondary,
-            footer = stringResource(R.string.settings_made_by)
-        ) {
+        SettingsGroup(stringResource(R.string.settings_about), backdrop, uiSensor, secondary, isLight) {
             listOf<@Composable () -> Unit>(
                 {
                     SettingsRow(
@@ -325,24 +269,12 @@ fun SettingsScreen(
                         trailing = { Chevron(tertiary) },
                         onClick = { openExternalLink(context, "https://github.com/Chethan616/ClearPDF/blob/main/PRIVACY.md") }
                     )
-                },
-                {
-                    SettingsRow(
-                        icon = null, iconTint = SysGray,
-                        title = stringResource(R.string.settings_version_label),
-                        label = label, secondary = secondary,
-                        trailing = { BasicText(appVersion(), style = TextStyle(secondary, 16.sp)) }
-                    )
                 }
             )
         }
 
-        // ── Licenses ────────────────────────────────────────────────────────
-        SettingsGroup(
-            header = stringResource(R.string.settings_licenses),
-            isLight = isLight, secondary = secondary,
-            footer = stringResource(R.string.settings_license_notice)
-        ) {
+        // ── Open Source ─────────────────────────────────────────────────────
+        SettingsGroup(stringResource(R.string.settings_licenses), backdrop, uiSensor, secondary, isLight) {
             listOf<@Composable () -> Unit>(
                 {
                     SettingsRow(
@@ -367,50 +299,54 @@ fun SettingsScreen(
             )
         }
 
-        Spacer(Modifier.height(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp))
+        // ── Version footer ──────────────────────────────────────────────────
+        Column(
+            Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            BasicText("${stringResource(R.string.settings_version_label)} ${appVersion()}", style = TextStyle(secondary, 13.sp, fontWeight = FontWeight.Medium))
+            BasicText(stringResource(R.string.settings_made_by), style = TextStyle(tertiary, 12.sp, textAlign = TextAlign.Center))
+        }
+
+        Spacer(Modifier.height(WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 100.dp))
     }
 }
 
-// ── Apple-HIG building blocks ────────────────────────────────────────────────
+// ── Building blocks ──────────────────────────────────────────────────────────
 
-/** A grouped, inset card with an uppercase header and optional gray footnote. */
+/** A section: a small uppercase label above one real-glass container of compact rows. */
 @Composable
 private fun SettingsGroup(
-    header: String?,
-    isLight: Boolean,
+    header: String,
+    backdrop: LayerBackdrop,
+    uiSensor: UISensor,
     secondary: Color,
-    footer: String? = null,
+    isLight: Boolean,
     rows: () -> List<@Composable () -> Unit>
 ) {
-    val separator = if (isLight) Color(0xFF3C3C43).copy(0.18f) else Color(0xFF545458).copy(0.40f)
+    val separator = if (isLight) Color(0xFF3C3C43).copy(0.14f) else Color(0xFFFFFFFF).copy(0.10f)
     val list = rows()
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        if (header != null) {
-            BasicText(
-                header.uppercase(),
-                style = TextStyle(secondary, 13.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.4.sp),
-                modifier = Modifier.padding(start = 4.dp, top = 18.dp, bottom = 7.dp)
-            )
-        } else {
-            Spacer(Modifier.height(18.dp))
-        }
-        Column(Modifier.fillMaxWidth().glassSection(isLight, radius = 16.dp)) {
-            list.forEachIndexed { i, row ->
-                if (i > 0) Box(Modifier.padding(start = 60.dp).fillMaxWidth().height(0.7.dp).background(separator))
-                row()
+        BasicText(
+            header.uppercase(),
+            style = TextStyle(secondary, 12.5.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.6.sp),
+            modifier = Modifier.padding(start = 8.dp, top = 18.dp, bottom = 8.dp)
+        )
+        // Outer Box carries the glass + soft shadow (from liquidGlassPanel); the inner Column
+        // clips rows/ripples/separators to the rounded shape without clipping the drop shadow.
+        Box(Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor)) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp))) {
+                list.forEachIndexed { i, row ->
+                    if (i > 0) Box(Modifier.padding(start = 54.dp, end = 14.dp).fillMaxWidth().height(0.6.dp).background(separator))
+                    row()
+                }
             }
-        }
-        if (footer != null) {
-            BasicText(
-                footer,
-                style = TextStyle(secondary, 12.sp, lineHeight = 16.sp),
-                modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 7.dp)
-            )
         }
     }
 }
 
-/** Standard tappable row: leading icon tile, title (+ optional subtitle), trailing control. */
+/** Compact native-style row: leading icon tile · title (+ optional description) · trailing control. */
 @Composable
 private fun SettingsRow(
     icon: ImageVector?,
@@ -426,21 +362,21 @@ private fun SettingsRow(
         Modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-            .heightIn(min = 52.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .heightIn(min = 48.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (icon != null) IconTile(icon, iconTint)
-        Column(Modifier.weight(1f)) {
-            BasicText(title, style = TextStyle(label, 17.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (subtitle != null) BasicText(subtitle, style = TextStyle(secondary, 13.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            BasicText(title, style = TextStyle(label, 16.sp, fontWeight = FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (subtitle != null) BasicText(subtitle, style = TextStyle(secondary, 12.5.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         trailing?.invoke()
     }
 }
 
-/** A row whose trailing control is an iOS switch. */
+/** A row whose trailing control is the Liquid Glass switch. */
 @Composable
 private fun ToggleRow(
     icon: ImageVector,
@@ -461,28 +397,52 @@ private fun ToggleRow(
     )
 }
 
-/** The iconic iOS Settings rounded-square colored icon tile. */
+/** Compression-quality control cell: icon · title · % on one line, slider + range labels below. */
+@Composable
+private fun QualityRow(
+    quality: Float,
+    label: Color,
+    secondary: Color,
+    tertiary: Color,
+    backdrop: LayerBackdrop,
+    onChange: (Float) -> Unit
+) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconTile(Icons.Rounded.HighQuality, SysIndigo)
+            BasicText(stringResource(R.string.settings_compression_quality), style = TextStyle(label, 16.sp, fontWeight = FontWeight.Medium), modifier = Modifier.weight(1f))
+            BasicText("${(quality * 100).toInt()}%", style = TextStyle(label, 15.sp, fontWeight = FontWeight.SemiBold))
+        }
+        LiquidSlider(
+            value = { quality }, onValueChange = onChange,
+            valueRange = 0f..1f, visibilityThreshold = 0.005f,
+            backdrop = backdrop, modifier = Modifier.fillMaxWidth().padding(start = 41.dp)
+        )
+        Row(Modifier.fillMaxWidth().padding(start = 41.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            BasicText(stringResource(R.string.settings_smaller_size), style = TextStyle(tertiary, 11.sp))
+            BasicText(stringResource(R.string.settings_higher_quality), style = TextStyle(tertiary, 11.sp))
+        }
+    }
+}
+
+/** Rounded-square colored icon tile (SF-Symbol style). */
 @Composable
 private fun IconTile(icon: ImageVector, tint: Color) {
     Box(
-        Modifier.size(29.dp).clip(RoundedCornerShape(7.dp)).background(tint),
+        Modifier.size(28.dp).clip(RoundedCornerShape(7.dp)).background(tint),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, null, Modifier.size(18.dp), Color.White)
+        Icon(icon, null, Modifier.size(17.dp), Color.White)
     }
 }
 
 @Composable
-private fun Chevron(color: Color) {
-    Icon(Icons.Rounded.ChevronRight, null, Modifier.size(20.dp), color)
-}
+private fun Chevron(color: Color) = Icon(Icons.Rounded.ChevronRight, null, Modifier.size(20.dp), color)
 
 @Composable
-private fun SelectedCheck() {
-    Icon(Icons.Rounded.Check, null, Modifier.size(20.dp), SysBlue)
-}
+private fun SelectedCheck() = Icon(Icons.Rounded.Check, null, Modifier.size(20.dp), SysBlue)
 
-/** iOS UISegmentedControl-style control, sized as a full-width grouped cell. */
+/** Compact glass segmented control with a refined selected pill. */
 @Composable
 private fun SegmentedRow(
     options: List<String>,
@@ -491,34 +451,32 @@ private fun SegmentedRow(
     label: Color,
     onSelect: (Int) -> Unit
 ) {
-    val trackColor = if (isLight) Color(0xFF767680).copy(0.12f) else Color(0xFF767680).copy(0.24f)
-    val selectedPill = if (isLight) Color.White else Color(0xFF636366)
+    val track = if (isLight) Color(0xFF767680).copy(0.14f) else Color(0xFF767680).copy(0.28f)
+    val pill = if (isLight) Color.White.copy(0.92f) else Color(0xFF6E6E73)
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(16.dp)
-            .clip(RoundedCornerShape(9.dp))
-            .background(trackColor)
+            .padding(horizontal = 10.dp, vertical = 9.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(track)
             .padding(2.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         options.forEachIndexed { i, opt ->
             val selected = i == selectedIndex
+            val fade by animateFloatAsState(if (selected) 1f else 0f, tween(180, easing = FastOutSlowInEasing), label = "seg$i")
             Box(
                 Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(if (selected) selectedPill else Color.Transparent)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(pill.copy(alpha = pill.alpha * fade))
                     .clickable { onSelect(i) }
-                    .padding(vertical = 7.dp),
+                    .padding(vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 BasicText(
                     opt,
-                    style = TextStyle(
-                        label, 13.sp,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
-                    ),
+                    style = TextStyle(label.copy(alpha = if (selected) 1f else 0.72f), 13.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium),
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
             }
@@ -531,8 +489,7 @@ private fun appVersion(): String {
     val context = LocalContext.current
     return remember {
         runCatching {
-            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            pInfo.versionName ?: "1.0"
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
         }.getOrDefault("1.0")
     }
 }

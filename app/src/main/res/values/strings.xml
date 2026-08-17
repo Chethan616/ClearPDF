@@ -153,8 +153,6 @@
     <string name="settings_auto_compress_desc">Automatically compress PDFs on import</string>
     <string name="settings_keep_original">Keep Original</string>
     <string name="settings_keep_original_desc">Preserve original file after editing</string>
-    <string name="settings_notifications">Notifications</string>
-    <string name="settings_notifications_desc">Show notification when tasks finish</string>
     <string name="settings_compression_quality">Compression Quality</string>
     <string name="settings_smaller_size">Smaller size</string>
     <string name="settings_higher_quality">Higher quality</string>
