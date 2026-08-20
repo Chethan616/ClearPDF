@@ -7,11 +7,14 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
+import android.text.Layout
 import android.text.SpannableStringBuilder
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.style.AbsoluteSizeSpan
+import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
+import android.text.style.UnderlineSpan
 import android.util.Xml
 import org.apache.poi.hssf.usermodel.HSSFWorkbook
 import org.apache.poi.hwpf.extractor.WordExtractor
@@ -107,21 +110,22 @@ object UniversalDocumentConverter {
     // ── DOCX ───────────────────────────────────────────────────────────────────
 
     private fun parseDocx(bytes: ByteArray): List<DocBlock> {
-        var blocks: List<DocBlock> = emptyList()
+        // Read the whole package so we can resolve inline images (drawing → r:embed → rels → media).
+        val entries = HashMap<String, ByteArray>()
         ZipInputStream(bytes.inputStream()).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
-                if (entry.name == "word/document.xml") {
-                    blocks = parseWordXml(zip)
-                    break
-                }
-                zip.closeEntry()
+                entries[entry.name] = zip.readBytes()
             }
         }
+        val docXml = entries["word/document.xml"]
+            ?: return listOf(DocBlock.Para(SpannableStringBuilder("(empty document)")))
+        val rels = parseRels(entries["word/_rels/document.xml.rels"])   // rId → "media/imageN.png"
+        val blocks = parseWordXml(docXml.inputStream(), rels, entries)
         return blocks.ifEmpty { listOf(DocBlock.Para(SpannableStringBuilder("(empty document)"))) }
     }
 
-    private fun parseWordXml(stream: InputStream): List<DocBlock> {
+    private fun parseWordXml(stream: InputStream, rels: Map<String, String>, entries: Map<String, ByteArray>): List<DocBlock> {
         val result = mutableListOf<DocBlock>()
         val parser = Xml.newPullParser().apply {
             setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
@@ -140,8 +144,12 @@ object UniversalDocumentConverter {
         var inTblCell  = false
 
         var headingLevel = 0
+        var align = Layout.Alignment.ALIGN_NORMAL
         var bold = false
         var italic = false
+        var underline = false
+        var runColor = 0            // 0 = "no explicit colour" sentinel (a real colour is 0xFF…)
+        var fontHalfPt = 0          // w:sz is in half-points; 0 = default
         var paraBuf  = StringBuilder()
         data class Span(val start: Int, val end: Int, val span: Any)
         var spans    = mutableListOf<Span>()
@@ -153,10 +161,23 @@ object UniversalDocumentConverter {
                 if (headingLevel > 0) ssb.setSpan(StyleSpan(Typeface.BOLD), 0, ssb.length, 0)
                 spans.forEach { s -> ssb.setSpan(s.span, s.start.coerceAtMost(ssb.length), s.end.coerceAtMost(ssb.length), 0) }
                 val spaceAfter = if (headingLevel > 0) 10f else 6f
-                result.add(DocBlock.Para(ssb, headingLevel = headingLevel, spaceAfter = spaceAfter))
+                result.add(DocBlock.Para(ssb, headingLevel = headingLevel, spaceAfter = spaceAfter, alignment = align))
             }
-            paraBuf.clear(); spans.clear(); headingLevel = 0; bold = false; italic = false
+            paraBuf.clear(); spans.clear(); headingLevel = 0; align = Layout.Alignment.ALIGN_NORMAL
+            bold = false; italic = false; underline = false; runColor = 0; fontHalfPt = 0
         }
+
+        fun addImage(embedId: String?) {
+            val target = rels[embedId ?: return] ?: return
+            val path = if (target.startsWith("/")) target.drop(1) else "word/${target.removePrefix("/")}"
+            val imgBytes = entries[path] ?: return
+            val bmp = runCatching { BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.size) }.getOrNull() ?: return
+            flushPara()
+            result.add(DocBlock.ImageBlock(bmp))
+        }
+
+        // A boolean toggle prop (w:b / w:i / w:u) is ON unless it carries w:val="false"/"0"/"none".
+        fun toggleOn(): Boolean = parser.getAttributeValue(null, "w:val").let { it == null || it !in setOf("false", "0", "none") }
 
         var event = parser.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
@@ -175,11 +196,25 @@ object UniversalDocumentConverter {
                             else                               -> 0
                         }
                     }
-                    "w:r"     -> if (inPara) { inRun = true; bold = false; italic = false }
+                    // Paragraph alignment (left / center / right / justify→normal).
+                    "w:jc"    -> if (inParaProps) align = when (parser.getAttributeValue(null, "w:val")?.lowercase()) {
+                        "center"       -> Layout.Alignment.ALIGN_CENTER
+                        "right", "end" -> Layout.Alignment.ALIGN_OPPOSITE
+                        else           -> Layout.Alignment.ALIGN_NORMAL
+                    }
+                    "w:r"     -> if (inPara) { inRun = true; bold = false; italic = false; underline = false; runColor = 0; fontHalfPt = 0 }
                     "w:rPr"   -> if (inRun) inRunProps = true
-                    "w:b"     -> if (inRunProps) bold = true
-                    "w:i"     -> if (inRunProps) italic = true
+                    "w:b"     -> if (inRunProps) bold = toggleOn()
+                    "w:i"     -> if (inRunProps) italic = toggleOn()
+                    "w:u"     -> if (inRunProps) underline = toggleOn()
+                    "w:sz"    -> if (inRunProps) fontHalfPt = parser.getAttributeValue(null, "w:val")?.toIntOrNull() ?: 0
+                    "w:color" -> if (inRunProps) runColor = parseHexColor(parser.getAttributeValue(null, "w:val"))
                     "w:t"     -> if (inRun && inPara) { /* text event follows */ }
+                    // Preserve tabs and in-paragraph line breaks so words don't run together.
+                    "w:tab"   -> if (inPara && !inTbl) paraBuf.append("    ")
+                    "w:br", "w:cr" -> if (inPara && !inTbl) paraBuf.append("\n")
+                    // Inline image: <a:blip r:embed="rIdN"/> → resolve via rels → word/media/… bytes.
+                    "a:blip"  -> if (inPara && !inTbl) addImage(parser.getAttributeValue(null, "r:embed") ?: parser.getAttributeValue(null, "r:link"))
                     "w:tbl"   -> if (inBody) { inTbl = true; tblRows = mutableListOf() }
                     "w:tr"    -> if (inTbl) { tblRow = mutableListOf() }
                     "w:tc"    -> if (inTbl) { inTblCell = true; tblCell.clear() }
@@ -207,6 +242,9 @@ object UniversalDocumentConverter {
                         val end = paraBuf.length
                         if (bold) spans.add(Span(start, end, StyleSpan(Typeface.BOLD)))
                         if (italic) spans.add(Span(start, end, StyleSpan(Typeface.ITALIC)))
+                        if (underline) spans.add(Span(start, end, UnderlineSpan()))
+                        if (runColor != 0) spans.add(Span(start, end, ForegroundColorSpan(runColor)))
+                        if (fontHalfPt > 0) spans.add(Span(start, end, AbsoluteSizeSpan((fontHalfPt / 2f).toInt().coerceIn(6, 96))))
                     }
                     if (inTblCell && text.isNotEmpty()) tblCell.append(text)
                 }
@@ -219,30 +257,92 @@ object UniversalDocumentConverter {
     // ── XLSX ───────────────────────────────────────────────────────────────────
 
     private fun parseXlsx(bytes: ByteArray): List<DocBlock> {
-        val sharedStrings = mutableListOf<String>()
-        val result = mutableListOf<DocBlock>()
-
+        // Read the whole package once so we can resolve workbook order + real sheet names via the
+        // rels — instead of guessing from the zip's arbitrary entry order.
+        val entries = HashMap<String, ByteArray>()
         ZipInputStream(bytes.inputStream()).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
-                if (entry.name == "xl/sharedStrings.xml") {
-                    sharedStrings.addAll(parseSharedStrings(zip))
-                }
-                zip.closeEntry()
+                entries[entry.name] = zip.readBytes()
             }
         }
-        ZipInputStream(bytes.inputStream()).use { zip ->
-            while (true) {
-                val entry = zip.nextEntry ?: break
-                if (entry.name.startsWith("xl/worksheets/sheet") && entry.name.endsWith(".xml")) {
-                    val rows = parseWorksheetRows(zip, sharedStrings)
-                    if (rows.isNotEmpty()) result.add(DocBlock.Table(rows))
-                    if (result.size >= 3) { zip.closeEntry(); break }
-                }
-                zip.closeEntry()
+        val sharedStrings = entries["xl/sharedStrings.xml"]?.let { parseSharedStrings(it.inputStream()) } ?: emptyList()
+
+        // Workbook defines sheets in TAB order with their names + an r:id → the rels map that r:id
+        // to the actual sheetN.xml file. This gives correct order AND the human sheet name.
+        val workbookSheets = parseWorkbookSheets(entries["xl/workbook.xml"])          // (name, rId) in tab order
+        val rels = parseRels(entries["xl/_rels/workbook.xml.rels"])                   // rId → "worksheets/sheetN.xml"
+        val ordered: List<Pair<String, ByteArray>> = if (workbookSheets.isNotEmpty()) {
+            workbookSheets.mapNotNull { (name, rId) ->
+                val target = rels[rId] ?: return@mapNotNull null
+                val path = if (target.startsWith("/")) target.drop(1) else "xl/${target.removePrefix("/")}"
+                entries[path]?.let { name to it }
             }
+        } else {
+            // Fallback: every worksheet by numeric index, generic "Sheet N" names.
+            entries.keys.filter { it.startsWith("xl/worksheets/sheet") && it.endsWith(".xml") }
+                .sortedBy { Regex("sheet(\\d+)\\.xml").find(it)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: Int.MAX_VALUE }
+                .map { (Regex("sheet(\\d+)").find(it)?.groupValues?.getOrNull(1)?.let { n -> "Sheet $n" } ?: "Sheet") to entries[it]!! }
+        }
+
+        val result = mutableListOf<DocBlock>()
+        for ((name, xml) in ordered) {
+            val rows = parseWorksheetRows(xml.inputStream(), sharedStrings)
+            if (rows.isEmpty()) continue
+            // A labelled header for each sheet so a multi-sheet workbook reads as clearly separated
+            // sections instead of one anonymous run of tables.
+            val header = SpannableStringBuilder(name)
+            header.setSpan(StyleSpan(Typeface.BOLD), 0, header.length, 0)
+            result.add(DocBlock.Para(header, headingLevel = 1, spaceAfter = 6f))
+            result.add(DocBlock.Table(rows))
         }
         return result.ifEmpty { listOf(DocBlock.Para(SpannableStringBuilder("(empty spreadsheet)"))) }
+    }
+
+    /** Sheets in workbook (tab) order as (name, relationshipId). */
+    private fun parseWorkbookSheets(bytes: ByteArray?): List<Pair<String, String>> {
+        if (bytes == null) return emptyList()
+        val out = mutableListOf<Pair<String, String>>()
+        val parser = Xml.newPullParser().apply {
+            setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
+            setInput(bytes.inputStream(), "UTF-8")
+        }
+        var event = parser.eventType
+        while (event != XmlPullParser.END_DOCUMENT) {
+            if (event == XmlPullParser.START_TAG && parser.name == "sheet") {
+                val name = parser.getAttributeValue(null, "name") ?: "Sheet"
+                val rId = parser.getAttributeValue(null, "r:id") ?: parser.getAttributeValue(null, "id") ?: ""
+                out.add(name to rId)
+            }
+            event = parser.next()
+        }
+        return out
+    }
+
+    /** "#RRGGBB" / "RRGGBB" / "auto" → ARGB int, or 0 (sentinel = none) when absent/invalid. */
+    private fun parseHexColor(hex: String?): Int {
+        if (hex.isNullOrBlank() || hex.equals("auto", ignoreCase = true)) return 0
+        return runCatching { Color.parseColor(if (hex.startsWith("#")) hex else "#$hex") }.getOrDefault(0)
+    }
+
+    /** Relationship id → target path from a .rels part. */
+    private fun parseRels(bytes: ByteArray?): Map<String, String> {
+        if (bytes == null) return emptyMap()
+        val out = HashMap<String, String>()
+        val parser = Xml.newPullParser().apply {
+            setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
+            setInput(bytes.inputStream(), "UTF-8")
+        }
+        var event = parser.eventType
+        while (event != XmlPullParser.END_DOCUMENT) {
+            if (event == XmlPullParser.START_TAG && parser.name == "Relationship") {
+                val id = parser.getAttributeValue(null, "Id") ?: ""
+                val target = parser.getAttributeValue(null, "Target") ?: ""
+                if (id.isNotEmpty()) out[id] = target
+            }
+            event = parser.next()
+        }
+        return out
     }
 
     private fun parseSharedStrings(stream: InputStream): List<String> {
@@ -267,58 +367,90 @@ object UniversalDocumentConverter {
         return strings
     }
 
+    /** Converts a spreadsheet column reference ("A", "B", … "AA") from a cell ref like "AB12" to a
+     *  0-based column index. Returns -1 if there are no leading letters. */
+    private fun colIndexFromRef(ref: String?): Int {
+        if (ref.isNullOrEmpty()) return -1
+        var idx = 0
+        var sawLetter = false
+        for (ch in ref) {
+            val up = ch.uppercaseChar()
+            if (up in 'A'..'Z') { idx = idx * 26 + (up - 'A' + 1); sawLetter = true } else break
+        }
+        return if (sawLetter) idx - 1 else -1
+    }
+
     private fun parseWorksheetRows(stream: InputStream, sharedStrings: List<String>): List<List<String>> {
         val rows = mutableListOf<List<String>>()
         val parser = Xml.newPullParser().apply {
             setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
             setInput(stream, "UTF-8")
         }
-        var currentRow = mutableListOf<String>()
+        // Place every cell at its REAL column index (from the r="C5" ref) so omitted/empty cells —
+        // which OOXML simply leaves out — don't shift the rest of the row left. That left-shift was
+        // the main reason spreadsheet values looked "missing" or landed under the wrong header here.
+        var rowCells = sortedMapOf<Int, String>()
         var cellType = ""
-        var inV = false
+        var cellCol = 0
+        var nextAutoCol = 0
+        var inVal = false           // inside <v> (value) or inline <t> (inline string text)
         val cellBuf = StringBuilder()
 
         var event = parser.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
             when (event) {
                 XmlPullParser.START_TAG -> when (parser.name) {
-                    "row" -> currentRow = mutableListOf()
-                    "c"   -> { cellType = parser.getAttributeValue(null, "t") ?: ""; inV = false; cellBuf.clear() }
-                    "v", "t" -> inV = true
+                    "row" -> { rowCells = sortedMapOf(); nextAutoCol = 0 }
+                    "c"   -> {
+                        cellType = parser.getAttributeValue(null, "t") ?: ""
+                        cellCol = colIndexFromRef(parser.getAttributeValue(null, "r")).let { if (it >= 0) it else nextAutoCol }
+                        inVal = false; cellBuf.clear()
+                    }
+                    "v", "t" -> inVal = true    // <t> here = an inline-string cell (<is><t>…)
                 }
                 XmlPullParser.END_TAG -> when (parser.name) {
-                    "row" -> if (currentRow.isNotEmpty()) rows.add(currentRow.toList())
+                    "row" -> if (rowCells.isNotEmpty()) {
+                        val maxC = rowCells.lastKey()
+                        rows.add((0..maxC).map { rowCells[it] ?: "" })
+                    }
                     "c"   -> {
                         val raw = cellBuf.toString()
-                        val value = if (cellType == "s") sharedStrings.getOrElse(raw.toIntOrNull() ?: -1) { raw } else raw
-                        currentRow.add(value)
-                        inV = false
+                        val value = if (cellType == "s") sharedStrings.getOrElse(raw.trim().toIntOrNull() ?: -1) { raw } else raw
+                        if (value.isNotEmpty()) rowCells[cellCol] = value
+                        nextAutoCol = cellCol + 1
+                        inVal = false
                     }
-                    "v", "t" -> inV = false
+                    "v", "t" -> inVal = false
                 }
-                XmlPullParser.TEXT -> if (inV) cellBuf.append(parser.text)
+                XmlPullParser.TEXT -> if (inVal) cellBuf.append(parser.text)
             }
             event = parser.next()
-            if (rows.size > 500) break
+            if (rows.size > 5000) break
         }
-        return rows.take(500)
+        return rows
     }
 
     // ── PPTX ───────────────────────────────────────────────────────────────────
 
     private fun parsePptx(bytes: ByteArray): List<DocBlock> {
         val result = mutableListOf<DocBlock>()
-        var slideNum = 0
+        // Collect slides keyed by their numeric index so they render in order — ZipInputStream
+        // yields entries in arbitrary order, which previously jumbled the slide sequence.
+        val slideXml = sortedMapOf<Int, ByteArray>()
         ZipInputStream(bytes.inputStream()).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
-                if (entry.name.startsWith("ppt/slides/slide") && entry.name.endsWith(".xml")) {
-                    slideNum++
-                    val slide = parseSlideXml(zip, slideNum)
-                    result.addAll(slide)
+                val n = entry.name
+                if (n.startsWith("ppt/slides/slide") && n.endsWith(".xml")) {
+                    val num = Regex("slide(\\d+)\\.xml").find(n)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: Int.MAX_VALUE
+                    slideXml[num] = zip.readBytes()
                 }
-                zip.closeEntry()
             }
+        }
+        var slideNum = 0
+        for ((_, xml) in slideXml) {
+            slideNum++
+            result.addAll(parseSlideXml(xml.inputStream(), slideNum))
         }
         return result.ifEmpty { listOf(DocBlock.Para(SpannableStringBuilder("(empty presentation)"))) }
     }
@@ -417,18 +549,30 @@ object UniversalDocumentConverter {
     }
 
     private fun convertLegacyXlsToPdf(context: Context, uri: Uri): Uri {
-        val rows = context.contentResolver.openInputStream(uri)?.use { stream ->
+        val blocks = context.contentResolver.openInputStream(uri)?.use { stream ->
             runCatching {
                 HSSFWorkbook(stream).use { wb ->
-                    wb.getSheetAt(0).map { row ->
-                        row.map { cell -> cell.toString() }
+                    // Every sheet, and address cells by COLUMN INDEX (getCell) so blank cells keep
+                    // the columns aligned instead of collapsing (row.map skips missing cells).
+                    (0 until wb.numberOfSheets).flatMap { si ->
+                        val sheet = wb.getSheetAt(si)
+                        val rows = sheet.mapNotNull { row ->
+                            val lastCol = row.lastCellNum.toInt()
+                            if (lastCol <= 0) null
+                            else (0 until lastCol).map { c -> row.getCell(c)?.toString()?.trim() ?: "" }
+                        }
+                        if (rows.isEmpty()) emptyList()
+                        else {
+                            val header = SpannableStringBuilder(wb.getSheetName(si) ?: "Sheet ${si + 1}")
+                            header.setSpan(StyleSpan(Typeface.BOLD), 0, header.length, 0)
+                            listOf(DocBlock.Para(header, headingLevel = 1, spaceAfter = 6f), DocBlock.Table(rows))
+                        }
                     }
                 }
             }.getOrDefault(emptyList())
         } ?: emptyList()
         val paint = bodyPaint()
-        val blocks = if (rows.isNotEmpty()) listOf(DocBlock.Table(rows)) else listOf(DocBlock.Para(SpannableStringBuilder("(empty)")))
-        return writePdf(context, renderBlocks(blocks, paint), "Xls")
+        return writePdf(context, renderBlocks(blocks.ifEmpty { listOf(DocBlock.Para(SpannableStringBuilder("(empty)"))) }, paint), "Xls")
     }
 
     private fun convertLegacyPptToPdf(context: Context, uri: Uri): Uri {
@@ -455,9 +599,11 @@ object UniversalDocumentConverter {
             val text: SpannableStringBuilder,
             val headingLevel: Int = 0,
             val spaceAfter: Float = 8f,
-            val lineSpacingMult: Float = 1.25f
+            val lineSpacingMult: Float = 1.25f,
+            val alignment: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL
         ) : DocBlock()
         data class Table(val rows: List<List<String>>) : DocBlock()
+        data class ImageBlock(val bitmap: android.graphics.Bitmap) : DocBlock()
     }
 
     private fun renderBlocks(blocks: List<DocBlock>, defaultPaint: TextPaint): PdfDocument {
@@ -486,6 +632,7 @@ object UniversalDocumentConverter {
                     val paint = if (block.headingLevel > 0) headingPaint(block.headingLevel) else defaultPaint
                     val layout = StaticLayout.Builder
                         .obtain(block.text, 0, block.text.length, paint, TEXT_W)
+                        .setAlignment(block.alignment)
                         .setLineSpacing(2f, block.lineSpacingMult)
                         .setIncludePad(false)
                         .build()
@@ -493,23 +640,46 @@ object UniversalDocumentConverter {
                     canvas.save(); canvas.translate(MARGIN, y); layout.draw(canvas); canvas.restore()
                     y += layout.height + block.spaceAfter
                 }
+                is DocBlock.ImageBlock -> {
+                    val bmp = block.bitmap
+                    if (bmp.isRecycled || bmp.width <= 0 || bmp.height <= 0) continue
+                    // Fit to the text column width (never upscaled), and cap to the page height.
+                    var drawW = TEXT_W.toFloat().coerceAtMost(bmp.width.toFloat())
+                    var drawH = drawW * bmp.height / bmp.width
+                    val maxH = PAGE_H - 2 * MARGIN
+                    if (drawH > maxH) { drawH = maxH; drawW = drawH * bmp.width / bmp.height }
+                    ensureRoom(drawH)
+                    val left = MARGIN + (TEXT_W - drawW) / 2f   // centre images like Word usually does
+                    val dst = android.graphics.RectF(left, y, left + drawW, y + drawH)
+                    canvas.drawBitmap(bmp, null, dst, Paint(Paint.FILTER_BITMAP_FLAG))
+                    y += drawH + 10f
+                    bmp.recycle()
+                }
                 is DocBlock.Table -> {
                     if (block.rows.isEmpty()) continue
-                    val maxCols = block.rows.maxOf { it.size }.coerceAtLeast(1).coerceAtMost(8)
-                    val colW = TEXT_W / maxCols
-                    val cellPaint = cellPaint()
+                    // Up to 16 columns (was 8, which silently dropped wider sheets). Font size and
+                    // the per-cell character budget scale to the actual column width, so text no
+                    // longer overflows into the next column and long values are trimmed to fit — not
+                    // to a fixed 24 chars that spilled over narrow columns.
+                    val maxCols = block.rows.maxOf { it.size }.coerceIn(1, 16)
+                    val colW = TEXT_W.toFloat() / maxCols
+                    val cellPaint = cellPaint().apply {
+                        textSize = when { maxCols > 10 -> 7f; maxCols > 6 -> 8f; else -> 9f }
+                    }
+                    val charW = cellPaint.measureText("0").coerceAtLeast(1f)
+                    val maxChars = ((colW - 6f) / charW).toInt().coerceAtLeast(2)
                     val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                         color = Color.argb(80, 0, 0, 0); strokeWidth = 0.5f
                     }
-                    val rowH = 18f
+                    val rowH = 16f
 
-                    for (row in block.rows.take(300)) {
+                    for (row in block.rows.take(2000)) {
                         ensureRoom(rowH + 2f)
                         // horizontal top rule
                         canvas.drawLine(MARGIN, y, MARGIN + TEXT_W, y, linePaint)
                         row.take(maxCols).forEachIndexed { colIdx, cell ->
                             val x = MARGIN + colIdx * colW
-                            val clipped = if (cell.length > 24) cell.take(22) + "…" else cell
+                            val clipped = if (cell.length > maxChars) cell.take((maxChars - 1).coerceAtLeast(1)) + "…" else cell
                             canvas.drawText(clipped, x + 3f, y + rowH - 5f, cellPaint)
                             // vertical divider
                             if (colIdx > 0) canvas.drawLine(x, y, x, y + rowH, linePaint)

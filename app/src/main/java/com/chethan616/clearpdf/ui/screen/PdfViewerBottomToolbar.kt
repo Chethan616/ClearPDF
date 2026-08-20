@@ -30,9 +30,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,6 +51,7 @@ import androidx.compose.material.icons.rounded.Gesture
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Slideshow
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Undo
@@ -79,8 +81,10 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
+import com.chethan616.clearpdf.ui.components.ShareMorphButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.utils.UISensor
+import com.chethan616.clearpdf.utils.DocKind
 import com.kyant.backdrop.backdrops.LayerBackdrop
 
 @Composable
@@ -135,7 +139,10 @@ internal fun PdfViewerBottomToolbar(
     fg: Color,
     fgSoft: Color,
     glass: Color,
-    chip: Color
+    chip: Color,
+    // Original document family (derived from the file name) so tools can adapt — e.g. PPT shows a
+    // "coming soon" placeholder instead of the annotation tools.
+    docKind: DocKind = DocKind.Pdf
 ) {
     val accent = Color(0xFF1976D2)
 
@@ -146,12 +153,13 @@ internal fun PdfViewerBottomToolbar(
     // Collapsed by default (just the "Editor Tools" pill + "Open PDF" circle). Tapping
     // the pill expands the tool set above it. Image selection auto-expands so its tools show.
     var editorOpen by remember { mutableStateOf(false) }
-    // True while the share capsule is morphed up — the tool panels compress a touch to give it
-    // room (without moving up).
+    // Idle: the tool panels cover the FULL width (scale 1). While the share capsule is morphed up,
+    // the panels above the Editor-Tools pill COMPRESS horizontally toward the left (scaleX), freeing
+    // room for the cylinder — the whole pill + its buttons shrink together, so nothing is cut.
     var shareActive by remember { mutableStateOf(false) }
     val toolCompress by animateFloatAsState(
-        if (shareActive) 0.88f else 1f,
-        spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
+        if (shareActive) 0.84f else 1f,
+        spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow),
         label = "toolCompress"
     )
     // Tell the viewer when the Editor Tools panel is open so it won't auto-hide the chrome.
@@ -161,7 +169,16 @@ internal fun PdfViewerBottomToolbar(
         if (activeTool != PdfEditTool.None || activeImageId != null) editorOpen = true
     }
 
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // The share capsule lives as an OVERLAY sibling of the toolbar column inside this wrapper Box.
+    // Both are bottom-anchored: when the capsule morphs taller than the column, the WRAPPER grows
+    // (real layout height = strictly upward, no overflow/clip), while the column stays pinned to the
+    // bottom — so the tool panels and the "Editor Tools" pill never move.
+    val shareRowVisible = !showDrawTools && !showOcrTools && !showImageTools && !showFindBar && !showSignaturePad
+    Box(Modifier.fillMaxWidth()) {
+    Column(
+        Modifier.fillMaxWidth().align(Alignment.BottomCenter),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
 
         // ── Draw / OCR / Image sub-toolbar ────────────────────────────────
         // Rises ABOVE the pinned main row with an Apple-style spring slide + fade.
@@ -175,7 +192,7 @@ internal fun PdfViewerBottomToolbar(
         ) {
             Column(
                 Modifier.fillMaxWidth()
-                    .graphicsLayer { scaleY = toolCompress; transformOrigin = TransformOrigin(0.5f, 0f) }
+                    .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
                     .liquidGlassPanel(backdrop, uiSensor, glass).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -201,7 +218,11 @@ internal fun PdfViewerBottomToolbar(
                             showDrawTools -> {
                                 // Icon toolbar; the active tool fills with the current ink
                                 // colour via a smooth colour cross-fade.
-                                val drawTools = listOf(
+                                // Word docs only get the Highlight tool here (no pen/shapes) — a
+                                // curated markup experience; other doc kinds get the full shape set.
+                                val drawTools = if (docKind == DocKind.Word) listOf(
+                                    Triple(PdfEditTool.Highlight, Icons.Rounded.Brush, R.string.viewer_highlight)
+                                ) else listOf(
                                     Triple(PdfEditTool.Draw,      Icons.Rounded.Edit,                 R.string.viewer_pen),
                                     Triple(PdfEditTool.Highlight, Icons.Rounded.Brush,                R.string.viewer_highlight),
                                     Triple(PdfEditTool.Rect,      Icons.Rounded.CropSquare,           R.string.viewer_rect),
@@ -385,10 +406,61 @@ internal fun PdfViewerBottomToolbar(
             // below never gets pushed up and then dropped ("stays top, then comes down").
             exit    = ExitTransition.None
         ) {
+            if (docKind == DocKind.Ppt) {
+                // PowerPoint editing isn't available yet — a friendly placeholder instead of the
+                // annotation tools (which don't map cleanly onto slides).
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
+                        .liquidGlassPanel(backdrop, uiSensor, glass)
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.Slideshow, null, Modifier.size(20.dp), fg)
+                    BasicText(stringResource(R.string.viewer_tools_coming_soon), style = TextStyle(fg, 14.sp, FontWeight.SemiBold))
+                }
+            } else if (docKind == DocKind.Word) {
+                // Curated Word reading/markup set — Select Text, Highlight, Find. No PDF-centric
+                // shapes / add-image / text-box / note / eraser / sign.
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
+                        .liquidGlassPanel(backdrop, uiSensor, glass)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    fun wSurface(color: Color, active: Boolean) = color.copy(if (active) 0.96f else 0.80f)
+                    val selOn = activeTool == PdfEditTool.SelectText
+                    LiquidButton(onClick = { onSetActiveTool(if (selOn) PdfEditTool.None else PdfEditTool.SelectText) }, backdrop = backdrop, surfaceColor = wSurface(Color(0xFF7B1FA2), selOn)) {
+                        BasicText(
+                            if (selectedTextCount > 0) stringResource(R.string.viewer_ocr, selectedTextCount) else stringResource(R.string.viewer_select_text),
+                            style = TextStyle(Color.White, 12.sp, FontWeight.Medium)
+                        )
+                    }
+                    val hlOn = activeTool == PdfEditTool.Highlight
+                    LiquidButton(onClick = { onSetActiveTool(if (hlOn) PdfEditTool.None else PdfEditTool.Highlight) }, backdrop = backdrop, surfaceColor = wSurface(Color(0xFFF9A825), hlOn)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Brush, null, Modifier.size(14.dp), Color.White)
+                            BasicText(stringResource(R.string.viewer_highlight), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
+                        }
+                    }
+                    LiquidButton(onClick = onToggleFindBar, backdrop = backdrop, surfaceColor = wSurface(Color(0xFF0277BD), showFindBar)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Search, null, Modifier.size(14.dp), Color.White)
+                            BasicText(stringResource(R.string.viewer_find), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
+                        }
+                    }
+                }
+            } else {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .graphicsLayer { scaleY = toolCompress; transformOrigin = TransformOrigin(0.5f, 0f) }
+                    .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
                     .liquidGlassPanel(backdrop, uiSensor, glass)
                     .padding(horizontal = 12.dp, vertical = 10.dp)
                     .horizontalScroll(rememberScrollState()),
@@ -488,6 +560,7 @@ internal fun PdfViewerBottomToolbar(
                     }
                 }
             }
+            }
         }
 
         // ── Collapsed home bar: one "Editor Tools" pill (expands the tools above it)
@@ -501,7 +574,10 @@ internal fun PdfViewerBottomToolbar(
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                // Bottom-align so the "Editor Tools" pill stays pinned to the toolbar's base while
+                // the share capsule (whose real layout height grows) extends UPWARD only — the
+                // toolbar column is bottom-anchored on screen, so added height goes up.
+                verticalAlignment = Alignment.Bottom
             ) {
                 LiquidButton(
                     onClick = {
@@ -526,101 +602,34 @@ internal fun PdfViewerBottomToolbar(
                         )
                     }
                 }
-                // Tap = open another PDF. Press-and-hold morphs the circle into a vertical
-                // capsule; swipe up and release to share the current document.
-                ShareMorphButton(
-                    backdrop = backdrop,
-                    uiSensor = uiSensor,
-                    glass = glass,
-                    fg = fg,
-                    onOpen = onOpenAnotherPdf,
-                    onShare = onShareDocument,
-                    onShareModeChanged = { shareActive = it },
-                    modifier = Modifier.align(Alignment.Bottom)
-                )
+                // Reserve the circle's slot at the home-bar level so the pill never sits under the
+                // share button. (The tool panels above cover full width and only FADE on morph.)
+                Spacer(Modifier.size(52.dp))
             }
+        }
+        }
+
+        // ── Share capsule OVERLAY ──────────────────────────────────────────
+        // Sits over the reserved slot at the bottom-right. Because it's a sibling of the column
+        // (not inside it) and bottom-anchored, morphing it taller grows only this wrapper Box
+        // upward — the column (tool panels + pill) stays pinned to the base and never moves.
+        AnimatedVisibility(
+            visible = shareRowVisible,
+            enter = fadeIn(tween(180)),
+            exit = ExitTransition.None,
+            modifier = Modifier.align(Alignment.BottomEnd)
+        ) {
+            ShareMorphButton(
+                backdrop = backdrop,
+                uiSensor = uiSensor,
+                glass = glass,
+                fg = fg,
+                onOpen = onOpenAnotherPdf,
+                onShare = onShareDocument,
+                onShareModeChanged = { shareActive = it }
+            )
         }
     }
 }
 
-/**
- * The "Open another PDF" circle, upgraded with an Apple-style share gesture: tap opens a new PDF;
- * press-and-hold morphs the circle into a vertical glass capsule, and swiping up past a threshold
- * (then releasing) shares the current document. Uses press-then-drag in one motion, so the glass
- * only re-blurs during the brief height/color morph — never per drag frame.
- */
-@Composable
-private fun ShareMorphButton(
-    backdrop: LayerBackdrop,
-    uiSensor: UISensor,
-    glass: Color,
-    fg: Color,
-    onOpen: () -> Unit,
-    onShare: () -> Unit,
-    onShareModeChanged: (Boolean) -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    var shareMode by remember { mutableStateOf(false) }
-    var dragUp by remember { mutableFloatStateOf(0f) }
-    val haptics = LocalHapticFeedback.current
-    val density = LocalDensity.current
-    val thresholdPx = with(density) { 44.dp.toPx() }
-    val blue = Color(0xFF0A84FF)
 
-    // Springy morph (slight overshoot) = Apple liquid feel.
-    val height by animateDpAsState(
-        if (shareMode) 108.dp else 52.dp,
-        spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
-        label = "shareMorphHeight"
-    )
-    val surface by animateColorAsState(if (shareMode) blue else glass, tween(200), label = "shareMorphSurface")
-    val progress = (-dragUp / thresholdPx).coerceIn(0f, 1f)
-
-    // Fixed 52dp layout footprint (never grows the toolbar row) + bottom-anchored so the capsule
-    // overflows strictly UPWARD from the circle's position, not both directions.
-    Box(modifier.size(52.dp), contentAlignment = Alignment.BottomCenter) {
-    Box(
-        Modifier
-            .width(52.dp)
-            .requiredHeight(height)
-            .liquidGlassPanel(backdrop, uiSensor, containerColorOverride = surface)
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = { if (!shareMode) onOpen() })
-            }
-            .pointerInput(Unit) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = {
-                        shareMode = true; onShareModeChanged(true); dragUp = 0f
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    },
-                    onDrag = { change, amount -> change.consume(); dragUp += amount.y },
-                    onDragEnd = {
-                        if (dragUp < -thresholdPx) {
-                            onShare()
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }
-                        shareMode = false; onShareModeChanged(false); dragUp = 0f
-                    },
-                    onDragCancel = { shareMode = false; onShareModeChanged(false); dragUp = 0f }
-                )
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Crossfade(targetState = shareMode, animationSpec = tween(180), label = "shareMorphContent") { sharing ->
-            if (sharing) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    // Share icon on top (always visible); the up-arrow sits below and brightens
-                    // as you drag toward the release threshold — a "swipe up to share" hint.
-                    Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), Color.White)
-                    Icon(Icons.Rounded.KeyboardArrowUp, null, Modifier.size(18.dp), Color.White.copy(alpha = 0.5f + 0.5f * progress))
-                }
-            } else {
-                Icon(Icons.Rounded.UploadFile, stringResource(R.string.viewer_open_another), Modifier.size(20.dp), fg)
-            }
-        }
-    }
-    }
-}

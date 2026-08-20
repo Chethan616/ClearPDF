@@ -1,5 +1,7 @@
 package com.chethan616.clearpdf.ui.navigation
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.EaseInOut
@@ -28,6 +30,12 @@ import com.chethan616.clearpdf.ui.screen.ExtractTextScreen
 import com.chethan616.clearpdf.ui.screen.ImagesToPdfScreen
 import com.chethan616.clearpdf.ui.screen.HomeScreen
 import com.chethan616.clearpdf.ui.screen.MergePdfScreen
+import com.chethan616.clearpdf.ui.screen.SpreadsheetViewerScreen
+import com.chethan616.clearpdf.ui.screen.ImageEditorScreen
+import com.chethan616.clearpdf.ui.viewmodel.SpreadsheetViewModel
+import com.chethan616.clearpdf.ui.viewmodel.ImageEditorViewModel
+import com.chethan616.clearpdf.utils.DocKind
+import com.chethan616.clearpdf.utils.docKindOf
 import com.chethan616.clearpdf.ui.screen.PageOrganizerScreen
 import com.chethan616.clearpdf.ui.screen.PdfToImagesScreen
 import com.chethan616.clearpdf.ui.screen.WatermarkPdfScreen
@@ -83,8 +91,24 @@ private const val ROUTE_FLATTEN = "flatten_pdf"
 private const val ROUTE_IMAGE_TOOLS = "image_tools"
 private const val ROUTE_HTML_TO_PDF = "html_to_pdf"
 private const val ROUTE_FILL_FORM = "fill_form"
+private const val ROUTE_SPREADSHEET_BASE = "spreadsheet"
+private const val ROUTE_IMAGE_EDITOR_BASE = "image_editor"
 private const val ARG_PDF_URI = "uri"
 private const val ROUTE_VIEWER = "$ROUTE_VIEWER_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
+private const val ROUTE_SPREADSHEET = "$ROUTE_SPREADSHEET_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
+private const val ROUTE_IMAGE_EDITOR = "$ROUTE_IMAGE_EDITOR_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
+
+private val OPEN_DOC_MIMES = arrayOf(
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",       // xlsx
+    "application/vnd.ms-excel",                                                 // xls
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  // docx
+    "application/msword",                                                       // doc
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",// pptx
+    "application/vnd.ms-powerpoint",                                            // ppt
+    "text/*",
+    "image/*"
+)
 
 private fun parseViewerUriArg(rawArg: String?): Uri? {
     if (rawArg.isNullOrBlank()) return null
@@ -104,6 +128,22 @@ private fun NavHostController.navigateToPdfViewer(uri: Uri? = null) {
         "$ROUTE_VIEWER_BASE?$ARG_PDF_URI=${Uri.encode(uri.toString())}"
     }
     navigate(route) { launchSingleTop = true }
+}
+
+/** Open a document by its kind: spreadsheets (.xlsx/.xls) go to the interactive grid viewer, all
+ *  other kinds to the PDF viewer (which converts non-PDFs to a PDF as before). */
+private fun NavHostController.navigateToDocument(context: android.content.Context, uri: Uri) {
+    val name = runCatching {
+        context.contentResolver.query(uri, null, null, null, null)?.use { c ->
+            val i = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (i != -1 && c.moveToFirst()) c.getString(i) else null
+        }
+    }.getOrNull() ?: uri.lastPathSegment
+    when (docKindOf(name)) {
+        DocKind.Excel -> navigate("$ROUTE_SPREADSHEET_BASE?$ARG_PDF_URI=${Uri.encode(uri.toString())}") { launchSingleTop = true }
+        DocKind.Image -> navigate("$ROUTE_IMAGE_EDITOR_BASE?$ARG_PDF_URI=${Uri.encode(uri.toString())}") { launchSingleTop = true }
+        else -> navigateToPdfViewer(uri)
+    }
 }
 
 private val MAIN_TAB_ROUTES = setOf(ROUTE_HOME, ROUTE_TOOLS, ROUTE_SETTINGS)
@@ -221,16 +261,29 @@ fun DocsNavGraph(
         // ── Main tabs ──
 
         composable(ROUTE_HOME) {
+            val homeContext = LocalContext.current
+            // Open picker that routes by document kind (spreadsheets → grid viewer, else PDF viewer).
+            val openDocLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri != null) {
+                    runCatching {
+                        homeContext.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    navController.navigateToDocument(homeContext, uri)
+                }
+            }
             HomeScreen(
                 backdrop = backdrop,
                 onNavigateToOpenPdf = {
-                    navController.navigateToPdfViewer()
+                    runCatching { openDocLauncher.launch(OPEN_DOC_MIMES) }
+                        .onFailure { navController.navigateToPdfViewer() }
                 },
                 onNavigateToScan = {
                     navController.navigate(ROUTE_SCAN) { launchSingleTop = true }
                 },
                 onRecentFileSelected = { uri ->
-                    navController.navigateToPdfViewer(uri)
+                    // Route by document kind: spreadsheets open in the interactive grid viewer,
+                    // everything else in the PDF viewer.
+                    navController.navigateToDocument(homeContext, uri)
                 }
             )
         }
@@ -311,17 +364,30 @@ fun DocsNavGraph(
                     defaultValue = null
                 }
             ),
-            // Smooth "document opens" transition (fade + gentle zoom) instead of a horizontal
-            // slide — reads cleaner and doesn't stutter while the first page renders.
+            // "Document lifts open" transition: a quick fade + a soft-spring zoom-up from slightly
+            // smaller, with a subtle rise from below — like the tapped card opening into the reader.
+            // (Springs settle instead of stopping flat, which reads more premium than a linear zoom.)
             enterTransition = {
-                androidx.compose.animation.fadeIn(tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
-                    androidx.compose.animation.scaleIn(initialScale = 0.92f, animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                androidx.compose.animation.fadeIn(tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
+                    androidx.compose.animation.scaleIn(
+                        initialScale = 0.90f,
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = 0.82f,
+                            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                        )
+                    ) +
+                    androidx.compose.animation.slideInVertically(
+                        animationSpec = androidx.compose.animation.core.spring(
+                            dampingRatio = 0.9f,
+                            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                        )
+                    ) { it / 14 }
             },
             exitTransition = { androidx.compose.animation.fadeOut(tween(160)) },
             popEnterTransition = { androidx.compose.animation.fadeIn(tween(200)) },
             popExitTransition = {
-                androidx.compose.animation.fadeOut(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
-                    androidx.compose.animation.scaleOut(targetScale = 0.94f, animationSpec = tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                androidx.compose.animation.fadeOut(tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
+                    androidx.compose.animation.scaleOut(targetScale = 0.93f, animationSpec = tween(240, easing = androidx.compose.animation.core.FastOutSlowInEasing))
             }
         ) { backStackEntry ->
             val context = LocalContext.current
@@ -343,6 +409,60 @@ fun DocsNavGraph(
                 }
             }
             PdfViewerScreen(backdrop = backdrop, viewModel = vm, onBack = { navController.popBackStack() })
+        }
+
+        composable(
+            route = ROUTE_SPREADSHEET,
+            arguments = listOf(navArgument(ARG_PDF_URI) { type = NavType.StringType; nullable = true; defaultValue = null }),
+            enterTransition = {
+                androidx.compose.animation.fadeIn(tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
+                    androidx.compose.animation.scaleIn(initialScale = 0.94f, animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+            },
+            popExitTransition = {
+                androidx.compose.animation.fadeOut(tween(200)) +
+                    androidx.compose.animation.scaleOut(targetScale = 0.94f, animationSpec = tween(220))
+            }
+        ) { backStackEntry ->
+            val context = LocalContext.current
+            val vm: SpreadsheetViewModel = viewModel()
+            val routeUri = backStackEntry.arguments?.getString(ARG_PDF_URI)?.let { parseViewerUriArg(it) }
+            LaunchedEffect(routeUri, incomingPdfUri) {
+                val target = routeUri ?: incomingPdfUri
+                if (target != null) vm.load(context, target)
+            }
+            SpreadsheetViewerScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onOpenPdf = { pdfUri -> navController.navigateToPdfViewer(pdfUri) }
+            )
+        }
+
+        composable(
+            route = ROUTE_IMAGE_EDITOR,
+            arguments = listOf(navArgument(ARG_PDF_URI) { type = NavType.StringType; nullable = true; defaultValue = null }),
+            enterTransition = {
+                androidx.compose.animation.fadeIn(tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
+                    androidx.compose.animation.scaleIn(initialScale = 0.94f, animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+            },
+            popExitTransition = {
+                androidx.compose.animation.fadeOut(tween(200)) +
+                    androidx.compose.animation.scaleOut(targetScale = 0.94f, animationSpec = tween(220))
+            }
+        ) { backStackEntry ->
+            val context = LocalContext.current
+            val vm: ImageEditorViewModel = viewModel()
+            val routeUri = backStackEntry.arguments?.getString(ARG_PDF_URI)?.let { parseViewerUriArg(it) }
+            LaunchedEffect(routeUri, incomingPdfUri) {
+                val target = routeUri ?: incomingPdfUri
+                if (target != null) vm.load(context, target)
+            }
+            ImageEditorScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onOpenPdf = { pdfUri -> navController.navigateToPdfViewer(pdfUri) }
+            )
         }
 
         composable(ROUTE_MERGE) {

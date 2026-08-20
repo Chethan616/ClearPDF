@@ -43,9 +43,19 @@
     <string name="home_no_recents_subtitle">Abra um PDF para come&#231;ar</string>
     <string name="home_on_device">NO DISPOSITIVO</string>
 
+    <!-- Search (shared header) -->
+    <string name="search_action">Pesquisar</string>
+    <string name="search_clear">Limpar pesquisa</string>
+
     <!-- Tools Screen -->
     <string name="tools_title">Ferramentas</string>
     <string name="tools_subtitle">Tudo que voc&#234; precisa para trabalhar com PDFs.</string>
+    <string name="tools_search_hint">Pesquisar ferramentas</string>
+    <string name="tools_no_matches">Nenhuma ferramenta encontrada</string>
+    <string name="tools_section_organize">Organizar</string>
+    <string name="tools_section_convert">Converter</string>
+    <string name="tools_section_edit">Editar</string>
+    <string name="tools_section_optimize">Otimizar e proteger</string>
     <string name="tool_open_pdf">Abrir PDF</string>
     <string name="tool_open_pdf_sub">Visualizar e ler</string>
     <string name="tool_merge">Mesclar PDFs</string>
@@ -113,6 +123,7 @@
     <string name="viewer_open_another">Abrir outro PDF</string>
     <string name="viewer_share_document">Compartilhar documento</string>
     <string name="viewer_editor_tools">Ferramentas</string>
+    <string name="viewer_tools_coming_soon">Ferramentas de edi&#231;&#227;o em breve</string>
     <string name="viewer_open_pdf_short">Abrir PDF</string>
     <string name="merge_now">Mesclar Agora</string>
     <string name="merging">Mesclando&#8230;</string>
@@ -167,6 +178,7 @@
     <string name="cancel">Cancelar</string>
     <string name="ok">OK</string>
     <string name="copy">Copiar</string>
+    <string name="edit">Editar</string>
     <string name="share">Compartilhar</string>
     <string name="delete">Excluir</string>
     <string name="open">Abrir</string>
@@ -191,6 +203,33 @@
     <string name="recents_share_pdf">Compartilhar PDF</string>
     <string name="recents_pdf_type">PDF</string>
     <string name="recents_long_press_hint">Pressione e segure para a&#231;&#245;es r&#225;pidas</string>
+    <string name="recents_search_hint">Pesquisar recentes</string>
+    <string name="recents_no_matches">Nenhum arquivo correspondente</string>
+    <string name="sheet_prev">Planilha anterior</string>
+    <string name="sheet_next">Pr&#243;xima planilha</string>
+    <string name="sheet_index_of">%1$d de %2$d</string>
+    <string name="sheet_cell_value">Valor da c&#233;lula</string>
+    <string name="sheet_cell_empty">C&#233;lula vazia</string>
+    <string name="sheet_title_index">Planilha %1$d de %2$d</string>
+    <string name="viewer_sheet_of">Planilha %1$d / %2$d</string>
+    <string name="sheet_picker_title">PLANILHAS</string>
+    <string name="sheet_export_pdf">Exportar PDF</string>
+    <string name="sheet_zoom_in">Ampliar</string>
+    <string name="sheet_zoom_out">Reduzir</string>
+    <string name="image_editor_title">Editar imagem</string>
+    <string name="image_rotate_left">Girar &#224; esquerda</string>
+    <string name="image_rotate_right">Girar &#224; direita</string>
+    <string name="image_reset_edits">Redefinir</string>
+    <string name="image_brightness">Brilho</string>
+    <string name="image_contrast">Contraste</string>
+    <string name="image_save_gallery">Salvar na galeria</string>
+    <string name="image_export_pdf">Exportar PDF</string>
+    <string name="image_filter_none">Original</string>
+    <string name="image_filter_mono">Mono</string>
+    <string name="image_filter_sepia">S&#233;pia</string>
+    <string name="image_filter_vivid">Vívido</string>
+    <string name="image_filter_cool">Frio</string>
+    <string name="image_filter_warm">Quente</string>
     <string name="recents_file_info">Informa&#231;&#245;es do arquivo</string>
     <string name="recents_pages">P&#225;ginas</string>
     <string name="recents_added">Adicionado</string>
@@ -205,6 +244,18 @@
     <string name="recents_size_bytes">%1$d B</string>
     <string name="recents_page_count">%1$d p&#225;ginas</string>
     <string name="recents_size_label">Tamanho</string>
+    <string name="recents_sheet_count">%1$d planilhas</string>
+    <string name="recents_sheets">Planilhas</string>
+    <string name="recents_pin">Fixar</string>
+    <string name="recents_unpin">Desafixar</string>
+    <string name="recents_filter">Filtrar por tipo</string>
+    <string name="recents_filter_all">Tudo</string>
+    <string name="recents_filter_pdf">PDF</string>
+    <string name="recents_filter_word">Word</string>
+    <string name="recents_filter_excel">Excel</string>
+    <string name="recents_filter_ppt">Slides</string>
+    <string name="recents_filter_image">Imagens</string>
+    <string name="recents_swipe_delete">Deslize para remover</string>
     <string name="tool_decrypt_pdf">Descriptografar PDF</string>
     <string name="tool_decrypt_pdf_sub">Remover a senha de um PDF</string>
     <string name="tool_encrypt_pdf">Criptografar PDF</string>

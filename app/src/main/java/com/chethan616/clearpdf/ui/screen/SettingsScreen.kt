@@ -70,7 +70,8 @@ import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
+import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.LiquidToggle
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
@@ -232,23 +233,26 @@ fun SettingsScreen(
         label = "settingsPanel6OffsetY"
     )
 
+    GlassScreenScaffold(
+        backdrop = backdrop,
+        header = { headerBackdrop ->
+            // No back button here, so the pill centres against the full width. Fade only — the pill
+            // is glass, and translating glass re-runs its blur+lens.
+            GlassScreenHeaderRow(
+                title = stringResource(R.string.settings_title),
+                backdrop = headerBackdrop,
+                onBack = null,
+                modifier = Modifier.graphicsLayer { alpha = topBarAlpha }
+            )
+        }
+    ) { contentPadding ->
     Column(
         Modifier
             .fillMaxSize()
-            .statusBarsPadding()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Box(
-            Modifier.graphicsLayer {
-                alpha = topBarAlpha
-                translationY = topBarOffsetY * density
-            }
-        ) {
-            LiquidGlassTopBar(title = stringResource(R.string.settings_title), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.fillMaxWidth())
-        }
-
         // ── Theme Mode Selector ──
         Column(
             Modifier
@@ -721,6 +725,7 @@ fun SettingsScreen(
 
         // Clear the floating bottom navigation bar + system nav inset.
         Spacer(Modifier.height(120.dp))
+    }
     }
 }
 

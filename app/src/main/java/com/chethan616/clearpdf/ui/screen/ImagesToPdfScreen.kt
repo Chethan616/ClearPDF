@@ -47,9 +47,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.chethan616.clearpdf.ui.components.DestructiveGlassButton
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
+import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -90,11 +92,6 @@ fun ImagesToPdfScreen(
         animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "imagesTopBarAlpha"
     )
-    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isVisible) 0f else 16f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-        label = "imagesTopBarOffsetY"
-    )
 
     val contentAlpha by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
@@ -107,28 +104,23 @@ fun ImagesToPdfScreen(
         label = "imagesContentOffsetY"
     )
 
-    Column(
-        Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Row(
-            Modifier.graphicsLayer {
-                alpha = topBarAlpha
-                translationY = topBarOffsetY * density
-            },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            LiquidIconButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
-            }
-            LiquidGlassTopBar(stringResource(R.string.images_to_pdf_title), backdrop, uiSensor, Modifier.weight(1f), titleFontSize = 18.sp)
+    GlassScreenScaffold(
+        backdrop = backdrop,
+        contentBottomPadding = 16.dp,
+        header = { headerBackdrop ->
+            // Fade only — the header is glass, and translating glass re-runs its blur+lens.
+            GlassScreenHeaderRow(
+                title = stringResource(R.string.images_to_pdf_title),
+                backdrop = headerBackdrop,
+                onBack = onBack,
+                modifier = Modifier.graphicsLayer { alpha = topBarAlpha }
+            )
         }
-
+    ) { contentPadding ->
         Column(
             Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .fillMaxSize()
+                .padding(contentPadding)
                 .graphicsLayer {
                     alpha = contentAlpha
                     translationY = contentOffsetY * density
@@ -141,9 +133,7 @@ fun ImagesToPdfScreen(
                     BasicText(stringResource(R.string.images_add), style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
                 }
                 if (state.imageUris.isNotEmpty()) {
-                    LiquidButton(onClick = { viewModel.clearImages() }, backdrop = backdrop) {
-                        BasicText(stringResource(R.string.viewer_clear), style = TextStyle(text, 14.sp, FontWeight.Medium))
-                    }
+                    DestructiveGlassButton(stringResource(R.string.viewer_clear), { viewModel.clearImages() }, backdrop)
                 }
             }
 

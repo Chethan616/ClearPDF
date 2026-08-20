@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -21,8 +22,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -108,7 +111,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.ui.components.LiquidButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.GlassTitlePill
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.ViewerChromeGlass
 import com.chethan616.clearpdf.ui.components.LiquidSaveSheet
@@ -206,6 +209,31 @@ fun PdfViewerScreen(
     // Declared here (rather than lower) so the image/signature launchers below can place
     // annotations onto whichever page is under the viewport centre.
     val listState = rememberLazyListState()
+
+    // iOS-style momentum for the continuous page scroll: a lower-friction exponential decay
+    // glides longer and settles smoothly (vs the stiffer platform spline), so even 2–3 page
+    // docs feel continuous instead of stopping abruptly. Only the fling curve changes — the
+    // scroll mechanics and the default stretch overscroll (rubber-band at the edges) are intact.
+    val iosPageDecay = remember { androidx.compose.animation.core.exponentialDecay<Float>(frictionMultiplier = 0.55f) }
+    val pageFling = remember(iosPageDecay) {
+        object : androidx.compose.foundation.gestures.FlingBehavior {
+            override suspend fun androidx.compose.foundation.gestures.ScrollScope.performFling(initialVelocity: Float): Float {
+                if (kotlin.math.abs(initialVelocity) <= 1f) return initialVelocity
+                var lastValue = 0f
+                var velocityLeft = initialVelocity
+                androidx.compose.animation.core.AnimationState(initialValue = 0f, initialVelocity = initialVelocity)
+                    .animateDecay(iosPageDecay) {
+                        val delta = value - lastValue
+                        val consumed = scrollBy(delta)
+                        lastValue = value
+                        velocityLeft = this.velocity
+                        // Hit an edge / content end → stop so overscroll can take over.
+                        if (kotlin.math.abs(delta - consumed) > 0.5f) cancelAnimation()
+                    }
+                return velocityLeft
+            }
+        }
+    }
 
     // The page + on-screen position where a newly placed image/signature should land: the
     // page occupying the vertical centre of the viewport, at the point the user is looking
@@ -336,15 +364,27 @@ fun PdfViewerScreen(
             Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                LiquidIconButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
+            // Same trio as the loaded viewer's chrome: back circle · centered title pill · balancer.
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                LiquidIconButton(
+                    onClick = onBack,
+                    backdrop = backdrop,
+                    surfaceColor = Color.White.copy(0.08f)
+                ) {
                     Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
                 }
-                LiquidGlassTopBar(stringResource(R.string.viewer_title), backdrop, uiSensor, Modifier.weight(1f))
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    GlassTitlePill(stringResource(R.string.viewer_title), backdrop)
+                }
+                Spacer(Modifier.size(40.dp))
             }
             Column(
                 Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
             ) {
                 Column(
                     Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(28.dp),
@@ -420,9 +460,18 @@ fun PdfViewerScreen(
     // dark scan. Sample the current page's average luminance and flip the whole
     // chrome palette (glass surface + foreground) so text/icons are always legible:
     // dark ink on a light page, white ink on a dark page.
+    //
+    // EXCEPT on a single-page document. That page is centred (see `Arrangement.Center` on the
+    // LazyColumn below), so the chrome floats over wide black bands rather than over the page, and
+    // sampling the page then picks the wrong palette: `chromeField` is only 6% alpha, so it sets no
+    // value of its own and every toolbar button just refracts the black beneath it — while its
+    // icon/label takes the *dark* foreground chosen from the white page. Dark on black is invisible.
+    // Pinning the dark branch is safe either way, since white-on-dark glass reads fine over both the
+    // black band and a white page (it is what every multi-page document already uses).
     val currentPageBitmap = state.pageBitmaps.getOrNull(currentPageIndex)
-    val isLightChrome = remember(currentPageBitmap) {
-        currentPageBitmap?.let { averageLuminance(it) > 0.60f } ?: false
+    val isLightChrome = remember(currentPageBitmap, safePageCount) {
+        if (safePageCount == 1) false
+        else currentPageBitmap?.let { averageLuminance(it) > 0.60f } ?: false
     }
     val chromeFg     = if (isLightChrome) Color(0xFF15171C) else Color.White
     val chromeFgSoft = if (isLightChrome) Color(0xFF15171C).copy(0.62f) else Color.White.copy(0.62f)
@@ -503,17 +552,29 @@ fun PdfViewerScreen(
                                     val panChange  = event.calculatePan()
                                     val zoomed = scale > 1.001f
                                     if (zoomChange != 1f || zoomed) {
-                                        val newScale = (scale * zoomChange).coerceIn(1f, 5f)
                                         val cw = size.width.toFloat()
+                                        val oldScale = scale
+                                        val newScale = (oldScale * zoomChange).coerceIn(1f, 5f)
+                                        // Real zoom ratio AFTER clamping — drives the focal correction.
+                                        val effZoom = if (oldScale != 0f) newScale / oldScale else 1f
+                                        val centroid = event.calculateCentroid(useCurrent = true)
+                                        val center = cw / 2f
                                         val maxOffsetX = ((cw * newScale - cw) / 2f).coerceAtLeast(0f)
                                         // Synchronous state writes — no per-event coroutine (Pdf_Tools parity).
                                         scale = newScale
                                         if (newScale > 1f) {
-                                            offsetX = (offsetX + panChange.x).coerceIn(-maxOffsetX, maxOffsetX)
-                                            // Vertical pan is LazyColumn scroll, which lives in UNSCALED
-                                            // content px — divide by scale so content tracks the finger 1:1
-                                            // instead of racing ahead at higher zoom.
-                                            if (panChange.y != 0f) listState.dispatchRawDelta(-panChange.y / newScale)
+                                            // FOCAL zoom: shift so the pinch centroid stays under the fingers
+                                            // (layer origin is top-CENTER on X), THEN apply the finger pan.
+                                            // Without this the page scaled around the centre, so zoom landed
+                                            // "beside" where you pinched.
+                                            val focalDx = if (centroid.isSpecified) (1f - effZoom) * (centroid.x - center - offsetX) else 0f
+                                            offsetX = (offsetX + focalDx + panChange.x).coerceIn(-maxOffsetX, maxOffsetX)
+                                            // Vertical is LazyColumn scroll in UNSCALED px (layer origin is TOP
+                                            // on Y): the focal term keeps the centroid's row put, the pan term
+                                            // tracks the finger (divided by scale for 1:1 at higher zoom).
+                                            val focalDy = if (centroid.isSpecified) centroid.y * (1f / oldScale - 1f / newScale) else 0f
+                                            val totalDy = focalDy + (-panChange.y / newScale)
+                                            if (totalDy != 0f) listState.dispatchRawDelta(totalDy)
                                         } else {
                                             offsetX = 0f
                                         }
@@ -561,6 +622,7 @@ fun PdfViewerScreen(
                 ) {
                     LazyColumn(
                         state = listState,
+                        flingBehavior = pageFling,
                         userScrollEnabled = activeTool == PdfEditTool.None && scale <= 1.01f,
                         modifier = Modifier.fillMaxSize(),
                         // Center the block when it's shorter than the viewport (e.g. a
@@ -570,7 +632,7 @@ fun PdfViewerScreen(
                         verticalArrangement = Arrangement.Center,
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 4.dp + extraBottomPadding)
                     ) {
-                        items(count = safePageCount, key = { it }) { page ->
+                        items(count = safePageCount, key = { it }, contentType = { "pdfPage" }) { page ->
                             // Re-request whenever this page has no bitmap (covers cache eviction
                             // while the item stays composed in the lazy list).
                             val needsRender = state.pageBitmaps.getOrNull(page) == null
@@ -664,23 +726,37 @@ fun PdfViewerScreen(
             }
         }
 
-        // ── Page scrubber ─────────────────────────────────────────────────
+        // ── Page scrubber (doubles as the fading scroll indicator) ─────────
         // Always present on multi-page docs so fast scrubbing is one drag away,
-        // independent of the auto-hiding chrome. The rail itself stays slim when idle.
+        // independent of the auto-hiding chrome. It brightens the moment the list
+        // scrolls/flings and gently fades back to a slim idle state when at rest,
+        // so it reads as an iOS-style scroll indicator without a second element.
+        // Held while the rail itself is being dragged. Dragging it does not scroll the list (that
+        // only happens on release), so without this the idle fade would run mid-drag and take the
+        // thumbnail preview down to 40% opacity — which reads as the preview "half disappearing".
+        var scrubberDragging by remember { mutableStateOf(false) }
+        val scrubberBright = listState.isScrollInProgress || scrubberDragging
+        val scrubberAlpha by androidx.compose.animation.core.animateFloatAsState(
+            targetValue = if (scrubberBright) 1f else 0.4f,
+            animationSpec = tween(durationMillis = if (scrubberBright) 120 else 600),
+            label = "scrubberFade"
+        )
         AnimatedVisibility(
             visible  = safePageCount > 1 && scale <= 1.01f,
             enter    = fadeIn(androidx.compose.animation.core.spring(stiffness = Spring.StiffnessMedium)) + scaleIn(initialScale = 0.92f, animationSpec = androidx.compose.animation.core.spring(dampingRatio = Spring.DampingRatioMediumBouncy)),
             exit     = fadeOut(androidx.compose.animation.core.spring(stiffness = Spring.StiffnessMedium)) + scaleOut(targetScale = 0.92f),
-            modifier = Modifier.align(Alignment.CenterEnd).navigationBarsPadding().statusBarsPadding().padding(end = 8.dp)
+            modifier = Modifier.align(Alignment.CenterEnd).graphicsLayer { alpha = scrubberAlpha }.navigationBarsPadding().statusBarsPadding().padding(end = 8.dp)
         ) {
             PageScrubber(
-                currentPage     = currentPageIndex,
-                pageCount       = safePageCount,
-                pageBitmaps     = state.pageBitmaps,
-                backdrop        = contentBackdrop,
-                uiSensor        = uiSensor,
-                onPageChange    = { page -> scrollToPage(page) },
-                onPageScrubbing = { page -> viewModel.renderPage(context, page, 400); lastInteractionAtMs = System.currentTimeMillis() }
+                currentPage      = currentPageIndex,
+                pageCount        = safePageCount,
+                pageBitmaps      = state.pageBitmaps,
+                backdrop         = contentBackdrop,
+                uiSensor         = uiSensor,
+                onPageChange     = { page -> scrollToPage(page) },
+                onPageScrubbing  = { page -> viewModel.renderPage(context, page, 400); lastInteractionAtMs = System.currentTimeMillis() },
+                onDraggingChange = { scrubberDragging = it },
+                isScrolling      = listState.isScrollInProgress
             )
         }
 
@@ -857,7 +933,8 @@ fun PdfViewerScreen(
                     fg       = chromeFg,
                     fgSoft   = chromeFgSoft,
                     glass    = chromeGlass,
-                    chip     = chromeField
+                    chip     = chromeField,
+                    docKind  = com.chethan616.clearpdf.utils.docKindOf(state.fileName)
                 )
             }
         }

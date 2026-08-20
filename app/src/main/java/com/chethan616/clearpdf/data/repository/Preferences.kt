@@ -13,7 +13,9 @@ data class RecentFile(
     val uriString: String,
     val timestamp: Long,
     val pageCount: Int = -1,
-    val sizeBytes: Long = -1
+    val sizeBytes: Long = -1,
+    /** Pinned entries sort to the top and survive the [RecentFilesManager] trim. */
+    val pinned: Boolean = false
 ) {
     val uri: Uri get() = Uri.parse(uriString)
 }
@@ -30,10 +32,12 @@ object RecentFilesManager {
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    /** Pinned first, then newest first. Stable across every read, so the UI never has to re-sort. */
     fun getRecents(context: Context): List<RecentFile> {
         val raw = prefs(context).getString(KEY_RECENTS, null) ?: return emptyList()
         return try {
             json.decodeFromString<List<RecentFile>>(raw)
+                .sortedWith(compareByDescending<RecentFile> { it.pinned }.thenByDescending { it.timestamp })
         } catch (_: Exception) {
             emptyList()
         }
@@ -41,14 +45,26 @@ object RecentFilesManager {
 
     fun addRecent(context: Context, file: RecentFile) {
         val current = getRecents(context).toMutableList()
-        // Remove duplicate by URI
+        // Re-opening a pinned file must not silently unpin it — carry the flag forward.
+        val wasPinned = current.any { it.uriString == file.uriString && it.pinned }
         current.removeAll { it.uriString == file.uriString }
-        // Add to front
-        current.add(0, file)
-        // Trim to max
-        val trimmed = current.take(MAX_RECENTS)
+        current.add(0, if (wasPinned) file.copy(pinned = true) else file)
+        // Trim to max, but a pin is an explicit "keep this" — pinned entries are exempt.
+        val (pinned, unpinned) = current.partition { it.pinned }
+        val trimmed = pinned + unpinned.take((MAX_RECENTS - pinned.size).coerceAtLeast(0))
         prefs(context).edit()
             .putString(KEY_RECENTS, json.encodeToString(trimmed))
+            .apply()
+    }
+
+    /** Flips the pin on one entry. No-op if the URI isn't in the list. */
+    fun togglePin(context: Context, uri: Uri) {
+        val target = uri.toString()
+        val updated = getRecents(context).map {
+            if (it.uriString == target) it.copy(pinned = !it.pinned) else it
+        }
+        prefs(context).edit()
+            .putString(KEY_RECENTS, json.encodeToString(updated))
             .apply()
     }
 

@@ -7,6 +7,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,6 +35,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -77,6 +81,13 @@ internal fun PageScrubber(
     uiSensor: UISensor,
     onPageChange: (Int) -> Unit,
     onPageScrubbing: (Int) -> Unit,
+    /**
+     * Reported on every rail grab/release. The parent fades the whole scrubber down when the list
+     * is at rest, and dragging the rail does not scroll the list (that only happens on release), so
+     * without this the preview bubble fades to 40% opacity in the middle of a drag.
+     */
+    onDraggingChange: (Boolean) -> Unit = {},
+    isScrolling: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkMode.current
@@ -120,6 +131,9 @@ internal fun PageScrubber(
         // ── The scrub track (drag target) ───────────────────────────────────
         Box(
             Modifier
+                // Pin the rail to the right edge so it doesn't jump left when the wider preview
+                // bubble appears (which grows the parent Box's width during a drag).
+                .align(Alignment.CenterEnd)
                 .height(TRACK_HEIGHT)
                 .width(28.dp)
                 .pointerInput(pageCount) {
@@ -134,14 +148,15 @@ internal fun PageScrubber(
                     detectDragGestures(
                         onDragStart = { start ->
                             isDragging = true
+                            onDraggingChange(true)
                             dragPage = ((start.y / size.height) * lastSpan).roundToInt().coerceIn(0, lastSpan)
                         },
                         onDrag = { change, _ ->
                             change.consume()
                             dragPage = ((change.position.y / size.height) * lastSpan).roundToInt().coerceIn(0, lastSpan)
                         },
-                        onDragEnd = { isDragging = false; onPageChange(dragPage) },
-                        onDragCancel = { isDragging = false; onPageChange(dragPage) }
+                        onDragEnd = { isDragging = false; onDraggingChange(false); onPageChange(dragPage) },
+                        onDragCancel = { isDragging = false; onDraggingChange(false); onPageChange(dragPage) }
                     )
                 },
             contentAlignment = Alignment.Center
@@ -167,64 +182,77 @@ internal fun PageScrubber(
             }
         }
 
-        // ── Floating page bubble + thumbnail preview ────────────────────────
+        // ── Floating page thumbnail (a compact scroll navigator, NOT a second document) ──────
+        // A clean miniature page card that follows the scroll/drag position on the right. It's an
+        // overlay (no glass container behind it, no grey pill), has no gesture handler so it never
+        // blocks document scrolling, preserves the real page aspect ratio, and stays inside the
+        // track. Shown ONLY while dragging the rail (never on normal scroll/fling).
+        val screenW = LocalConfiguration.current.screenWidthDp
+        val thumbW = when {
+            screenW < 340 -> 0.dp        // too little room → rail only, hide the thumbnail
+            screenW < 400 -> 84.dp
+            else          -> 104.dp
+        }
         AnimatedVisibility(
-            visible = isDragging,
-            enter = fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
-                    scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow)),
-            exit = fadeOut(spring(stiffness = Spring.StiffnessMedium)) + scaleOut(targetScale = 0.9f),
+            visible = isDragging && thumbW > 0.dp,
+            enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.92f, animationSpec = tween(160)),
+            exit  = fadeOut(tween(200)) + scaleOut(targetScale = 0.94f),
             modifier = Modifier.align(Alignment.CenterEnd)
         ) {
-            val preview = pageBitmaps.getOrNull(dragPage)
-            val yOffset = (TRACK_HEIGHT * fraction - TRACK_HEIGHT / 2f).coerceIn(-84.dp, 84.dp)
+            // Keep the LAST GOOD bitmap + aspect. The scrubbed page's high-res bitmap renders
+            // asynchronously, so during a fast drag it's often momentarily null (or a low-res cache
+            // being upgraded). Rather than crossfade null↔bitmap or low-res↔high-res (which read as
+            // a half/ghost render that stutters), we swap the image IN PLACE and, when the target is
+            // not ready yet, keep showing the last good one — the preview simply "catches up".
+            var lastShown by remember { mutableStateOf<Bitmap?>(null) }
+            var lastAspect by remember { mutableFloatStateOf(1f / 1.414f) }
+            val live = pageBitmaps.getOrNull(dragPage)?.takeIf { !it.isRecycled && it.height > 0 }
+            if (live != null) {
+                lastShown = live
+                lastAspect = live.width.toFloat() / live.height.toFloat()
+            }
+            val shown = live ?: lastShown?.takeIf { !it.isRecycled }
+            // Follow the scroll position, clamped to the track slack so it's never clipped at the ends.
+            val yOffset = (TRACK_HEIGHT * fraction - TRACK_HEIGHT / 2f).coerceIn(-22.dp, 22.dp)
 
             Column(
                 modifier = Modifier
-                    .offset(x = (-44).dp, y = yOffset)
-                    .width(132.dp)
-                    .liquidGlassPanel(backdrop, uiSensor, ViewerChromeGlass)
-                    .padding(8.dp),
+                    .offset(x = (-34).dp, y = yOffset)
+                    .width(thumbW)
+                    // No elevation shadow: an offset elevation shadow with clip=false bleeds past
+                    // the scrubber's offscreen alpha layer and reads as a torn edge. A clean clipped
+                    // card with a slightly stronger border gives the same lift without the artifact.
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(if (isDark) Color(0xFF2A2E37) else Color.White)
+                    .border(1.dp, if (isDark) Color.White.copy(0.18f) else Color.Black.copy(0.14f), RoundedCornerShape(11.dp))
+                    .padding(4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                Row(
-                    Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(accent.copy(0.24f))
-                        .padding(horizontal = 10.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    BasicText(
-                        stringResource(R.string.viewer_page_label),
-                        style = TextStyle(accent, 8.sp, fontWeight = FontWeight.Bold)
-                    )
-                    BasicText(
-                        "${dragPage + 1} / $pageCount",
-                        style = TextStyle(Color.White, 12.sp, fontWeight = FontWeight.ExtraBold)
-                    )
-                }
-
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .height(150.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.Black.copy(0.45f))
-                        .border(1.dp, Color.White.copy(0.15f), RoundedCornerShape(12.dp)),
+                        .aspectRatio(lastAspect)          // stable aspect → no layout jolt between pages
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isDark) Color(0xFF1B1E24) else Color(0xFFF2F3F5)),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (preview != null && !preview.isRecycled) {
+                    if (shown != null) {
                         Image(
-                            bitmap = preview.asImageBitmap(),
+                            bitmap = shown.asImageBitmap(),
                             contentDescription = stringResource(R.string.preview_page, dragPage + 1),
                             contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxSize().padding(4.dp)
+                            modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        CircularProgressIndicator(color = accent, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+                        // Nothing rendered yet at all → a faint spinner (only on the very first preview).
+                        CircularProgressIndicator(color = accent.copy(0.7f), strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                     }
                 }
+                BasicText(
+                    "${dragPage + 1} / $pageCount",
+                    style = TextStyle(if (isDark) Color.White.copy(0.85f) else Color(0xFF333333), 10.sp, fontWeight = FontWeight.SemiBold)
+                )
             }
         }
     }

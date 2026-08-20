@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
+import com.chethan616.clearpdf.ui.components.DestructiveGlassButton
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.utils.UISensor
@@ -259,9 +260,7 @@ internal fun AnnotationEditorDialog(
                         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        LiquidButton(onClick = onDelete, backdrop = backdrop, surfaceColor = Color(0xFFEF5350).copy(0.22f)) {
-                            BasicText(stringResource(R.string.delete), style = TextStyle(Color.White, 13.sp))
-                        }
+                        DestructiveGlassButton(stringResource(R.string.delete), onDelete, backdrop)
                         LiquidButton(onClick = onDismiss, backdrop = backdrop, surfaceColor = field) {
                             BasicText(stringResource(R.string.cancel), style = TextStyle(fg, 13.sp))
                         }
@@ -381,9 +380,7 @@ internal fun ShapeEditorPopup(
                         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        LiquidButton(onClick = onDelete, backdrop = backdrop, surfaceColor = Color(0xFFEF5350).copy(0.22f)) {
-                            BasicText(stringResource(R.string.delete), style = TextStyle(Color.White, 13.sp))
-                        }
+                        DestructiveGlassButton(stringResource(R.string.delete), onDelete, backdrop)
                         LiquidButton(onClick = onDismiss, backdrop = backdrop, tint = Color(0xFF1976D2)) {
                             BasicText(stringResource(R.string.viewer_done), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
                         }

@@ -31,6 +31,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
+        // A locale change restarts this Activity. DocsApp animates both halves of that restart, so
+        // the system's own cross-fade would just stack on top of ours.
+        com.chethan616.clearpdf.ui.utils.LocaleHelper.suppressActivityTransition(this)
+
         // Request the highest available refresh rate (90Hz/120Hz)
         requestHighRefreshRate()
 
@@ -60,13 +64,27 @@ class MainActivity : ComponentActivity() {
             else -> null
         }?.takeIf { uri -> isSupportedDocumentIntent(intent?.type, uri.toString()) }
 
-        // If a PDF was shared/opened, navigate to viewer with that URI
-        val effectiveRoute = if (incomingPdfUri != null) "pdf_viewer" else shortcutRoute
+        // Route an incoming document by its kind: spreadsheets → interactive grid, images → image
+        // editor, everything else → the PDF viewer.
+        val effectiveRoute = if (incomingPdfUri != null) {
+            when (com.chethan616.clearpdf.utils.docKindOf(queryDisplayName(incomingPdfUri))) {
+                com.chethan616.clearpdf.utils.DocKind.Excel -> "spreadsheet"
+                com.chethan616.clearpdf.utils.DocKind.Image -> "image_editor"
+                else -> "pdf_viewer"
+            }
+        } else shortcutRoute
 
         setContent {
             DocsApp(shortcutRoute = effectiveRoute, incomingPdfUri = incomingPdfUri)
         }
     }
+
+    private fun queryDisplayName(uri: Uri): String? = runCatching {
+        contentResolver.query(uri, null, null, null, null)?.use { c ->
+            val i = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (i != -1 && c.moveToFirst()) c.getString(i) else null
+        }
+    }.getOrNull() ?: uri.lastPathSegment
 
     private fun isSupportedDocumentIntent(mimeType: String?, uriString: String): Boolean {
         val lower = uriString.lowercase()

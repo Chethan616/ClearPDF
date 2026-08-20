@@ -40,9 +40,19 @@
     <string name="home_no_recents_subtitle">Open a PDF to get started</string>
     <string name="home_on_device">ON-DEVICE</string>
 
+    <!-- Search (shared header) -->
+    <string name="search_action">Search</string>
+    <string name="search_clear">Clear search</string>
+
     <!-- Tools Screen -->
     <string name="tools_title">Tools</string>
     <string name="tools_subtitle">Everything you need to work with PDFs.</string>
+    <string name="tools_search_hint">Search tools</string>
+    <string name="tools_no_matches">No matching tools</string>
+    <string name="tools_section_organize">Organize</string>
+    <string name="tools_section_convert">Convert</string>
+    <string name="tools_section_edit">Edit</string>
+    <string name="tools_section_optimize">Optimize &amp; Secure</string>
     <string name="tool_open_pdf">Open PDF</string>
     <string name="tool_open_pdf_sub">View and read</string>
     <string name="tool_merge">Merge PDFs</string>
@@ -186,6 +196,7 @@
     <string name="viewer_open_another">Open Another PDF</string>
     <string name="viewer_share_document">Share Document</string>
     <string name="viewer_editor_tools">Editor Tools</string>
+    <string name="viewer_tools_coming_soon">Editor tools coming soon</string>
     <string name="viewer_open_pdf_short">Open PDF</string>
     <string name="viewer_pen">Pen</string>
     <string name="viewer_highlight">Highlight</string>
@@ -245,6 +256,7 @@
     <string name="cancel">Cancel</string>
     <string name="ok">OK</string>
     <string name="copy">Copy</string>
+    <string name="edit">Edit</string>
     <string name="share">Share</string>
     <string name="delete">Delete</string>
     <string name="open">Open</string>
@@ -273,6 +285,33 @@
     <string name="recents_share_pdf">Share PDF</string>
     <string name="recents_pdf_type">PDF</string>
     <string name="recents_long_press_hint">Long press for quick actions</string>
+    <string name="recents_search_hint">Search recents</string>
+    <string name="recents_no_matches">No matching files</string>
+    <string name="sheet_prev">Previous sheet</string>
+    <string name="sheet_next">Next sheet</string>
+    <string name="sheet_index_of">%1$d of %2$d</string>
+    <string name="sheet_cell_value">Cell value</string>
+    <string name="sheet_cell_empty">Empty cell</string>
+    <string name="sheet_title_index">Sheet %1$d of %2$d</string>
+    <string name="viewer_sheet_of">Sheet %1$d / %2$d</string>
+    <string name="sheet_picker_title">SHEETS</string>
+    <string name="sheet_export_pdf">Export PDF</string>
+    <string name="sheet_zoom_in">Zoom in</string>
+    <string name="sheet_zoom_out">Zoom out</string>
+    <string name="image_editor_title">Edit Image</string>
+    <string name="image_rotate_left">Rotate left</string>
+    <string name="image_rotate_right">Rotate right</string>
+    <string name="image_reset_edits">Reset</string>
+    <string name="image_brightness">Brightness</string>
+    <string name="image_contrast">Contrast</string>
+    <string name="image_save_gallery">Save to gallery</string>
+    <string name="image_export_pdf">Export PDF</string>
+    <string name="image_filter_none">Original</string>
+    <string name="image_filter_mono">Mono</string>
+    <string name="image_filter_sepia">Sepia</string>
+    <string name="image_filter_vivid">Vivid</string>
+    <string name="image_filter_cool">Cool</string>
+    <string name="image_filter_warm">Warm</string>
     <string name="recents_file_info">File Info</string>
     <string name="recents_pages">Pages</string>
     <string name="recents_added">Added</string>
@@ -287,6 +326,18 @@
     <string name="recents_size_bytes">%1$d B</string>
     <string name="recents_page_count">%1$d pages</string>
     <string name="recents_size_label">Size</string>
+    <string name="recents_sheet_count">%1$d sheets</string>
+    <string name="recents_sheets">Sheets</string>
+    <string name="recents_pin">Pin</string>
+    <string name="recents_unpin">Unpin</string>
+    <string name="recents_filter">Filter by type</string>
+    <string name="recents_filter_all">All</string>
+    <string name="recents_filter_pdf">PDF</string>
+    <string name="recents_filter_word">Word</string>
+    <string name="recents_filter_excel">Excel</string>
+    <string name="recents_filter_ppt">Slides</string>
+    <string name="recents_filter_image">Images</string>
+    <string name="recents_swipe_delete">Swipe left to remove</string>
     <string name="tool_decrypt_pdf">Decrypt PDF</string>
     <string name="tool_decrypt_pdf_sub">Remove a PDF password</string>
     <string name="tool_encrypt_pdf">Encrypt PDF</string>

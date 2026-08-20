@@ -11,11 +11,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -46,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
-import com.chethan616.clearpdf.ui.utils.rememberUISensor
+import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.LayerBackdrop
 
 /**
@@ -108,6 +109,31 @@ fun GlassSectionHeader(
     }
 }
 
+/**
+ * The app's standard DESTRUCTIVE action button — the *exact* treatment used by the viewer's
+ * insert-text "Delete": a red-tinted (`#EF5350 @0.22`) liquid-glass capsule with a white label
+ * (and an optional leading icon). Use this for every delete / clear / remove *text* action so
+ * they read identically app-wide instead of each screen re-deriving a red button.
+ */
+@Composable
+fun DestructiveGlassButton(
+    text: String,
+    onClick: () -> Unit,
+    backdrop: Backdrop,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null
+) {
+    LiquidButton(
+        onClick = onClick,
+        backdrop = backdrop,
+        surfaceColor = Color(0xFFEF5350).copy(0.22f),
+        modifier = modifier
+    ) {
+        if (icon != null) Icon(icon, null, Modifier.size(16.dp), Color.White)
+        BasicText(text, style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.Medium))
+    }
+}
+
 /** Small tinted value pill (e.g. a "72%" quality badge). */
 @Composable
 fun GlassChip(
@@ -136,13 +162,13 @@ fun ToolScaffold(
     backdrop: LayerBackdrop,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    titleFontSize: TextUnit = 18.sp,
+    /** Retained for source compatibility; the title pill has a fixed 13 sp label like the viewer's. */
+    @Suppress("UNUSED_PARAMETER") titleFontSize: TextUnit = 18.sp,
     headerTrailing: (@Composable RowScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val isLight = !LocalIsDarkMode.current
     val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
-    val uiSensor = rememberUISensor()
     val density = LocalDensity.current.density
 
     var isVisible by remember { mutableStateOf(false) }
@@ -151,41 +177,58 @@ fun ToolScaffold(
     val topSpec = tween<Float>(durationMillis = 500, easing = FastOutSlowInEasing)
     val bodySpec = tween<Float>(durationMillis = 600, delayMillis = 100, easing = FastOutSlowInEasing)
     val topAlpha by animateFloatAsState(if (isVisible) 1f else 0f, topSpec, label = "toolTopA")
-    val topY     by animateFloatAsState(if (isVisible) 0f else 16f, topSpec, label = "toolTopY")
     val bodyAlpha by animateFloatAsState(if (isVisible) 1f else 0f, bodySpec, label = "toolBodyA")
     val bodyY     by animateFloatAsState(if (isVisible) 0f else 24f, bodySpec, label = "toolBodyY")
 
-    Column(
-        modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(GlassDimens.ScreenPadding),
-        verticalArrangement = Arrangement.spacedBy(GlassDimens.SectionGap)
-    ) {
-        Row(
-            Modifier.graphicsLayer { alpha = topAlpha; translationY = topY * density },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            LiquidIconButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
+    // The header floats ABOVE the scrolling body (see GlassScreenScaffold) rather than sitting in a
+    // Column above it, so cards pass under the glass instead of stopping at its edge — and the
+    // header samples wallpaper + live content, so its refraction is finally of something real. It
+    // used to sample a layer captured *below* it, which meant it refracted nothing at all.
+    GlassScreenScaffold(
+        backdrop = backdrop,
+        modifier = modifier,
+        contentBottomPadding = GlassDimens.ScreenPadding,
+        header = { headerBackdrop ->
+            // Same header trio as the PDF/spreadsheet viewers: back circle · centered title pill ·
+            // trailing action. The title is the viewer's page-pill widget with different text, so
+            // every tool screen reads as the same family as the viewer.
+            //
+            // Fade only — `topY` is gone. Translating a glass surface re-runs its blur+lens against
+            // a new region on every frame of the entrance.
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer { alpha = topAlpha },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                LiquidIconButton(onClick = onBack, backdrop = headerBackdrop, surfaceColor = Color.White.copy(0.08f)) {
+                    Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
+                }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    GlassTitlePill(text = title, backdrop = headerBackdrop)
+                }
+                if (headerTrailing != null) {
+                    headerTrailing.invoke(this)
+                } else {
+                    // Balances the back circle so the pill sits optically centered.
+                    Spacer(Modifier.size(40.dp))
+                }
             }
-            LiquidGlassTopBar(
-                title = title,
-                backdrop = backdrop,
-                uiSensor = uiSensor,
-                modifier = Modifier.weight(1f),
-                titleFontSize = titleFontSize
-            )
-            headerTrailing?.invoke(this)
         }
-
+    ) { contentPadding ->
         Column(
             Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .graphicsLayer { alpha = bodyAlpha; translationY = bodyY * density }
-                .verticalScroll(rememberScrollState()),
+                .fillMaxSize()
+                // Shrink the scrollable body by the keyboard height so the focused field can
+                // scroll above the IME. Compose text fields auto-bring-into-view within this
+                // scroll parent; the inset is released when the keyboard closes.
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                // Inside the scroll, so the header's clearance scrolls away like a LazyColumn's
+                // contentPadding rather than pinning a permanent gap.
+                .padding(contentPadding)
+                .graphicsLayer { alpha = bodyAlpha; translationY = bodyY * density },
             verticalArrangement = Arrangement.spacedBy(GlassDimens.SectionGap),
             content = content
         )

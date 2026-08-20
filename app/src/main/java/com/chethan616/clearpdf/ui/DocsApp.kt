@@ -2,6 +2,9 @@ package com.chethan616.clearpdf.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -47,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -130,8 +135,45 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
         }
     }
 
+    // ── Locale-switch choreography ──────────────────────────────────────────────────────────────
+    // The switch still restarts the Activity (see LocaleHelper.markLocaleFadePending), but the two
+    // halves are animated so it reads as one deliberate cross-fade instead of a hard flash.
+    var localeSwitching by remember { mutableStateOf(false) }
+    val exitProgress by animateFloatAsState(
+        targetValue = if (localeSwitching) 0f else 1f,
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        label = "localeExit"
+    )
+    val fadeInPending = remember { com.chethan616.clearpdf.ui.utils.LocaleHelper.consumeLocaleFadePending(context) }
+    var entered by remember { mutableStateOf(!fadeInPending) }
+    LaunchedEffect(Unit) { entered = true }
+    val enterProgress by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f,
+        animationSpec = tween(260, easing = FastOutSlowInEasing),
+        label = "localeEnter"
+    )
+    LaunchedEffect(localeSwitching) {
+        if (localeSwitching) {
+            // Restart once the fade has actually landed, not while it is still running.
+            kotlinx.coroutines.delay(210)
+            context.findActivity()?.let { activity ->
+                activity.recreate()
+                com.chethan616.clearpdf.ui.utils.LocaleHelper.suppressActivityTransition(activity)
+            }
+        }
+    }
+
     Box(
-        Modifier.fillMaxSize(),
+        Modifier
+            .fillMaxSize()
+            // Root-level only. The transform composites the finished frame, so the glass inside is
+            // never re-sampled — it does not violate the "don't move glass" rule.
+            .graphicsLayer {
+                alpha = exitProgress * enterProgress
+                val s = lerp(0.98f, 1f, exitProgress) * lerp(1.02f, 1f, enterProgress)
+                scaleX = s
+                scaleY = s
+            },
         contentAlignment = Alignment.TopCenter
     ) {
         val backdrop = rememberLayerBackdrop()
@@ -245,15 +287,17 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                         if (normalized != selectedLocale) {
                             // Persist the choice, then recreate the Activity so attachBaseContext
                             // rebuilds every resource in the new locale (the Compose-only path did
-                            // not actually switch strings).
+                            // not actually switch strings). The recreate is deferred until the
+                            // fade-out finishes — see `localeSwitching` above.
                             com.chethan616.clearpdf.ui.utils.LocaleHelper.applyLocale(
                                 context = context,
                                 languageTag = normalized,
                                 recreate = false,
                                 updateAppCompat = false
                             )
+                            com.chethan616.clearpdf.ui.utils.LocaleHelper.markLocaleFadePending(context)
                             selectedLocale = normalized
-                            context.findActivity()?.recreate()
+                            localeSwitching = true
                         }
                     },
                     incomingPdfUri = incomingPdfUri

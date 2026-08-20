@@ -291,24 +291,27 @@ internal fun PdfContinuousPage(
                         frame.left + match.right * frame.width,
                         frame.top + match.bottom * frame.height
                     )
-                    // The match rect is the whole LINE box; glyphs sit LOW in it (baseline near
-                    // the bottom, empty descent space below). Trim ASYMMETRICALLY — a little off
-                    // the top, more off the bottom — so the tag sits ON the word (caps→baseline)
-                    // rather than centering in the box (which read as a thin band through the middle).
-                    val insetTop = r.height * 0.06f
-                    val insetBottom = r.height * 0.13f
-                    val padX = 1f
-                    val hl = Rect(r.left - padX, r.top + insetTop, r.right + padX, r.bottom - insetBottom)
-                    // Rounding scaled to the trimmed height — a snug tag, not a big pill.
-                    val cr = (hl.height * 0.28f).coerceIn(3f, 7f)
+                    // The rect carries the word's EXACT bounds (per-glyph width × glyph box height).
+                    // Extend it a touch VERTICALLY so ascenders (the dot on "i") and descenders (the
+                    // tail on "p"/"g") fall INSIDE the selection — the OCR/text box hugs the x-height,
+                    // so without this those strokes poke out above/below the fill. A hair of horizontal
+                    // padding keeps it snug across font sizes.
+                    val padX = (r.height * 0.05f).coerceIn(0.75f, 3f)
+                    val padTop = r.height * 0.13f
+                    val padBottom = r.height * 0.11f
+                    val hl = Rect(r.left - padX, r.top - padTop, r.right + padX, r.bottom + padBottom)
+                    val cr = (hl.height * 0.14f).coerceIn(2f, 5f)
+                    // A TRUE text-selection overlay: one uniform blue fill covering the whole glyph
+                    // area (drawn over the page, so the glyphs read through it as a darker shape —
+                    // Google-Docs / Acrobat style), not a faint tint sitting behind the ink.
                     if (match == activeMatch) {
-                        // Focused result: a calm blue fill with a crisp thin outline (no halo).
                         val base = Color(0xFF3B82F6)
-                        drawRoundRect(base.copy(0.24f), hl.topLeft, hl.size, CornerRadius(cr, cr))
-                        drawRoundRect(base.copy(0.85f), hl.topLeft, hl.size, CornerRadius(cr, cr), style = Stroke(1.25f))
+                        drawRoundRect(base.copy(0.52f), hl.topLeft, hl.size, CornerRadius(cr, cr))
+                        // Focused-result border (unchanged style) so the current hit stands out.
+                        drawRoundRect(base.copy(0.9f), hl.topLeft, hl.size, CornerRadius(cr, cr), style = Stroke(1.25f))
                     } else {
-                        // Secondary results: a soft translucent blue, low-emphasis, no border.
-                        drawRoundRect(Color(0xFF60A5FA).copy(0.20f), hl.topLeft, hl.size, CornerRadius(cr, cr))
+                        // Secondary results: same uniform coverage, lower emphasis, no border.
+                        drawRoundRect(Color(0xFF60A5FA).copy(0.42f), hl.topLeft, hl.size, CornerRadius(cr, cr))
                     }
                 }
             }

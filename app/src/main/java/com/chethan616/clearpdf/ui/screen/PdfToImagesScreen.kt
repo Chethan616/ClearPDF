@@ -59,7 +59,8 @@ import android.graphics.BitmapFactory
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
+import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -98,31 +99,27 @@ fun PdfToImagesScreen(
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { isVisible = true }
     val topAlpha by animateFloatAsState(if (isVisible) 1f else 0f, tween(500, easing = FastOutSlowInEasing), label = "t")
-    val topY by animateFloatAsState(if (isVisible) 0f else 16f, tween(500, easing = FastOutSlowInEasing), label = "ty")
     val bodyAlpha by animateFloatAsState(if (isVisible) 1f else 0f, tween(600, 100, FastOutSlowInEasing), label = "b")
     val bodyY by animateFloatAsState(if (isVisible) 0f else 24f, tween(600, 100, FastOutSlowInEasing), label = "by")
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Row(
-            Modifier.graphicsLayer { alpha = topAlpha; translationY = topY * density },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            LiquidIconButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, stringResourceSafe(), Modifier.size(16.dp), text)
-            }
-            LiquidGlassTopBar(title = androidx.compose.ui.res.stringResource(R.string.tool_pdf_to_images), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
+    GlassScreenScaffold(
+        backdrop = backdrop,
+        header = { headerBackdrop ->
+            // Fade only — the header is glass, and translating glass re-runs its blur+lens.
+            GlassScreenHeaderRow(
+                title = androidx.compose.ui.res.stringResource(R.string.tool_pdf_to_images),
+                backdrop = headerBackdrop,
+                onBack = onBack,
+                modifier = Modifier.graphicsLayer { alpha = topAlpha }
+            )
         }
-
+    ) { contentPadding ->
         Column(
-            Modifier.fillMaxWidth().graphicsLayer { alpha = bodyAlpha; translationY = bodyY * density },
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(contentPadding)
+                .graphicsLayer { alpha = bodyAlpha; translationY = bodyY * density },
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Column(
