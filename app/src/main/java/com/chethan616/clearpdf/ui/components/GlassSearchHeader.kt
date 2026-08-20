@@ -95,8 +95,11 @@ val GlassSearchPillHeight = 36.dp
  * to the cancel circle.
  *
  * A single [updateTransition] drives the pill collapse, the leading slot's width, the field's scale
- * and both icon cross-fades — one frame clock, so nothing can drift. Everything here is critically
- * damped: an overshooting width re-measures the glass and re-runs its blur+lens at a new size.
+ * and both icon cross-fades — one frame clock, so nothing can drift. It forks into three floats by
+ * what each one is allowed to do: `progress` owns the layout width and stays critically damped (an
+ * overshooting width re-measures the glass and re-runs its blur+lens at a new size, and a negative
+ * one throws), `fade` owns alpha and stays critically damped (overshoot clips at 1.0 and reads as a
+ * flicker), and `bounce` owns the scales and the icon spin, where overshoot is the whole point.
  */
 @Composable
 fun GlassSearchHeader(
@@ -117,13 +120,22 @@ fun GlassSearchHeader(
     val keyboard = LocalSoftwareKeyboardController.current
 
     val transition = updateTransition(active, label = "searchHeader")
+    // Owns the leading slot's real WIDTH, so it must never overshoot — a negative width throws.
     val progress by transition.animateFloat(
-        transitionSpec = { spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow) },
+        transitionSpec = { GlassMotion.settle() },
         label = "searchProgress"
     ) { if (it) 1f else 0f }
     val fade by transition.animateFloat(
-        transitionSpec = { spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium) },
+        transitionSpec = { GlassMotion.fade() },
         label = "searchFade"
+    ) { if (it) 1f else 0f }
+    // The bounce rides its own clock so it can overshoot without dragging `progress` — and therefore
+    // the layout width — past 1. Everything it drives is a draw-time property, so the overshoot costs
+    // a layer-matrix update, not a re-measure: `drawBackdrop` never re-runs its blur or lens.
+    // Open only. Overshooting on close drives the scale under its floor and reads as a glitch.
+    val bounce by transition.animateFloat(
+        transitionSpec = { if (targetState) GlassMotion.morph() else GlassMotion.settle() },
+        label = "searchBounce"
     ) { if (it) 1f else 0f }
 
     val dismiss = {
@@ -148,8 +160,9 @@ fun GlassSearchHeader(
     ) {
         // Idle, this balances the trailing circle so the title pill sits dead-centre. As search
         // opens it collapses — width and its trailing gap both go to zero — so the field gets the
-        // whole row. `progress` is critically damped, so the width only ever shrinks monotonically.
-        val leadingWidth = (HeaderCircleSize + HeaderGap) * (1f - progress)
+        // whole row. `progress` is critically damped, so the width only ever shrinks monotonically;
+        // the clamp is belt-and-braces, because Modifier.width() throws on a negative value.
+        val leadingWidth = (HeaderCircleSize + HeaderGap) * (1f - progress).coerceAtLeast(0f)
         Box(
             Modifier
                 .width(leadingWidth)
@@ -165,7 +178,9 @@ fun GlassSearchHeader(
                 Box(
                     Modifier.graphicsLayer {
                         alpha = 1f - fade
-                        val s = lerp(1f, 0.86f, progress.coerceIn(0f, 1f))
+                        // Clamped: the pill only needs the eased shape, not the overshoot — it is on
+                        // its way out and a rebound would fight the fade.
+                        val s = lerp(1f, 0.86f, bounce.coerceIn(0f, 1f))
                         scaleX = s
                         scaleY = s
                     }
@@ -185,10 +200,11 @@ fun GlassSearchHeader(
                         .graphicsLayer {
                             alpha = fade
                             // Grow out of the circle: the capsule's right edge is pinned, so it
-                            // unfurls leftward and overshoots a hair before settling.
+                            // unfurls leftward, overshoots past full width and springs back. The
+                            // overshoot runs into the leading slot, which has collapsed by then.
                             transformOrigin = TransformOrigin(1f, 0.5f)
-                            scaleX = lerp(0.32f, 1f, progress)
-                            scaleY = lerp(0.72f, 1f, progress)
+                            scaleX = lerp(0.32f, 1f, bounce)
+                            scaleY = lerp(0.72f, 1f, bounce)
                         }
                 ) {
                     GlassSearchPill(
@@ -217,9 +233,10 @@ fun GlassSearchHeader(
         ) {
             val tint = LiquidGlassColors.text(LocalIsDarkMode.current)
             // The icon spins a quarter turn as it swaps, so the circle feels like it re-purposes
-            // rather than just blinking to a new glyph.
+            // rather than just blinking to a new glyph. On `bounce`, so it overshoots the turn in
+            // step with the capsule instead of arriving ahead of it.
             Box(
-                Modifier.graphicsLayer { rotationZ = lerp(0f, 90f, progress) },
+                Modifier.graphicsLayer { rotationZ = lerp(0f, 90f, bounce) },
                 contentAlignment = Alignment.Center
             ) {
                 if (showTitle) {
@@ -250,6 +267,8 @@ fun GlassSearchHeader(
  *
  * @param animateIn set `false` when a caller already animates the pill in (e.g. [GlassSearchHeader]
  *   grows it out of the search circle) — otherwise the two entrances stack.
+ * @param viewerChrome set `true` inside the viewers, where the pill wears [viewerGlass]'s lighter
+ *   stack so it matches the top bar's title pill instead of the app-chrome one Home and Tools use.
  * @param trailing an optional slot before the clear button, e.g. the find bar's "3 / 12" counter.
  */
 @Composable
@@ -263,6 +282,7 @@ fun GlassSearchPill(
     focusRequester: FocusRequester? = null,
     onSubmit: () -> Unit = {},
     animateIn: Boolean = true,
+    viewerChrome: Boolean = false,
     surfaceColor: Color = Color.Unspecified,
     contentColor: Color = Color.Unspecified,
     hintColor: Color = Color.Unspecified,
@@ -298,20 +318,29 @@ fun GlassSearchPill(
                 scaleY = enterScale
                 alpha = enterAlpha
             }
-            .drawBackdrop(
-                backdrop = backdrop,
-                shape = { Capsule },
-                effects = {
-                    vibrancy()
-                    blur(8f.dp.toPx())
-                    lens(16f.dp.toPx(), 32f.dp.toPx())
-                },
-                highlight = {
-                    Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f))
-                },
-                shadow = { Shadow(radius = 6f.dp, color = Color.Black.copy(alpha = 0.08f)) },
-                innerShadow = { InnerShadow(radius = 2f.dp, alpha = 0.25f) },
-                onDrawSurface = { drawRect(containerColor) }
+            // Two stacks, one shape. In the viewers the pill has to be the same material as the top
+            // bar's title pill, which is a plain LiquidButton — lighter blur, shallower lens, and the
+            // library's default highlight/shadow rather than the gravity-angled app-chrome ones.
+            .then(
+                if (viewerChrome) {
+                    Modifier.viewerGlass(backdrop, containerColor, shape = { Capsule })
+                } else {
+                    Modifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { Capsule },
+                        effects = {
+                            vibrancy()
+                            blur(8f.dp.toPx())
+                            lens(16f.dp.toPx(), 32f.dp.toPx())
+                        },
+                        highlight = {
+                            Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f))
+                        },
+                        shadow = { Shadow(radius = 6f.dp, color = Color.Black.copy(alpha = 0.08f)) },
+                        innerShadow = { InnerShadow(radius = 2f.dp, alpha = 0.25f) },
+                        onDrawSurface = { drawRect(containerColor) }
+                    )
+                }
             )
             .height(GlassSearchPillHeight)
             .padding(horizontal = 12.dp),

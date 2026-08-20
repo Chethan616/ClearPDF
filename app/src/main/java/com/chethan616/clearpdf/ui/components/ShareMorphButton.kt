@@ -46,8 +46,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.chethan616.clearpdf.R
-import com.chethan616.clearpdf.ui.utils.UISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.shapes.Capsule
 
 /**
  * A liquid-glass circle with an Apple-style share gesture: **tap** = [onOpen]; **press-and-hold**
@@ -65,7 +65,6 @@ import com.kyant.backdrop.backdrops.LayerBackdrop
 @Composable
 fun ShareMorphButton(
     backdrop: LayerBackdrop,
-    uiSensor: UISensor,
     glass: Color,
     fg: Color,
     onOpen: () -> Unit,
@@ -141,7 +140,10 @@ fun ShareMorphButton(
             .width(52.dp)
             .height(height)
             .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
-            .liquidGlassPanel(backdrop, uiSensor, containerColorOverride = surface)
+            // The viewer's own chrome material, so this sits beside the back and search circles as one
+            // family rather than as a frostier slab. Capsule, not a 28 dp rounded rectangle, so the
+            // 52 -> 104 dp morph is an actual circle-to-capsule the whole way up.
+            .viewerGlass(backdrop, surface, shape = { Capsule })
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {

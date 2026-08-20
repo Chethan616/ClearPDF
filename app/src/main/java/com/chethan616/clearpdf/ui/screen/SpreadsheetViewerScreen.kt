@@ -90,7 +90,8 @@ import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.ShareMorphButton
-import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.components.viewerChromeGlass
+import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -149,7 +150,7 @@ fun SpreadsheetViewerScreen(
     val searchFocus = remember { FocusRequester() }
     val gridListState = rememberLazyListState()
     // Theme-adaptive glass surface for the top-bar pill / buttons → true liquid-glass refraction.
-    val chromeGlass = if (isDark) Color(0xFF20242C).copy(0.7f) else Color.White.copy(0.55f)
+    val chromeGlass = viewerChromeGlass(isDark)
 
     val sheets = state.sheets
     val idx = sheetIndex.coerceIn(0, sheets.lastIndex.coerceAtLeast(0))
@@ -254,7 +255,7 @@ fun SpreadsheetViewerScreen(
                     Column(
                         Modifier
                             .fillMaxWidth().padding(28.dp)
-                            .liquidGlassPanel(backdrop, uiSensor)
+                            .viewerGlass(backdrop, chromeGlass)
                             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                             .padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -339,7 +340,6 @@ fun SpreadsheetViewerScreen(
         if (currentSheet != null && !showSearch) {
             ShareMorphButton(
                 backdrop = backdrop,
-                uiSensor = uiSensor,
                 glass = chromeGlass,
                 fg = text,
                 onOpen = { viewModel.exportToPdf(context) { u -> u?.let(onOpenPdf) } },
@@ -370,7 +370,6 @@ fun SpreadsheetViewerScreen(
                 // Translucent, not the old opaque slab colour — the search pill is glass now, and
                 // an opaque surface would kill its refraction.
                 surface = chromeGlass,
-                field = if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.06f),
                 onQueryChange = { searchQuery = it },
                 onPrevMatch = { goToMatch(-1) },
                 onNextMatch = { goToMatch(1) },
@@ -419,7 +418,7 @@ private fun SheetPickerPopup(
         ) {
             Column(
                 Modifier.fillMaxWidth().widthIn(max = 360.dp)
-                    .liquidGlassPanel(backdrop, uiSensor)
+                    .viewerGlass(backdrop, viewerChromeGlass(isDark))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)

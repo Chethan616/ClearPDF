@@ -115,7 +115,8 @@ import com.chethan616.clearpdf.ui.components.GlassTitlePill
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.ViewerChromeGlass
 import com.chethan616.clearpdf.ui.components.LiquidSaveSheet
-import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.components.viewerChromeGlass
+import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.PdfViewerViewModel
@@ -387,7 +388,7 @@ fun PdfViewerScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
             ) {
                 Column(
-                    Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(28.dp),
+                    Modifier.fillMaxWidth().viewerGlass(backdrop, viewerChromeGlass(isDarkMode)).padding(28.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -410,7 +411,7 @@ fun PdfViewerScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).imePadding()
             ) {
                 Column(
-                    Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(16.dp),
+                    Modifier.fillMaxWidth().viewerGlass(backdrop, viewerChromeGlass(isDarkMode)).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     BasicText(stringResource(R.string.pdf_password_title), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
@@ -960,7 +961,6 @@ fun PdfViewerScreen(
                 fg                = chromeFg,
                 fgSoft            = chromeFgSoft,
                 surface           = chromeGlass,
-                field             = chromeField,
                 onQueryChange     = { q -> findQuery = q; viewModel.searchText(q) },
                 onPrevMatch       = { viewModel.prevMatch(); lastInteractionAtMs = System.currentTimeMillis() },
                 onNextMatch       = { viewModel.nextMatch(); lastInteractionAtMs = System.currentTimeMillis() },

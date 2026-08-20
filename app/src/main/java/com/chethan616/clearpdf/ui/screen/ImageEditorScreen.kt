@@ -50,7 +50,8 @@ import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
 import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
-import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.components.viewerChromeGlass
+import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -125,7 +126,7 @@ fun ImageEditorScreen(
 
                 // Controls panel
                 Column(
-                    Modifier.fillMaxWidth().navigationBarsPadding().liquidGlassPanel(backdrop, uiSensor).padding(14.dp),
+                    Modifier.fillMaxWidth().navigationBarsPadding().viewerGlass(backdrop, viewerChromeGlass(isDark)).padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Rotate + reset

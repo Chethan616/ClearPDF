@@ -82,7 +82,7 @@ import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.ShareMorphButton
-import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.chethan616.clearpdf.utils.DocKind
 import com.kyant.backdrop.backdrops.LayerBackdrop
@@ -193,7 +193,7 @@ internal fun PdfViewerBottomToolbar(
             Column(
                 Modifier.fillMaxWidth()
                     .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                    .liquidGlassPanel(backdrop, uiSensor, glass).padding(12.dp),
+                    .viewerGlass(backdrop, glass).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
@@ -369,7 +369,7 @@ internal fun PdfViewerBottomToolbar(
         // ── Export feedback row ────────────────────────────────────────────
         if (exportError != null || exportMessage != null || isExporting) {
             Row(
-                Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor, glass).padding(12.dp),
+                Modifier.fillMaxWidth().viewerGlass(backdrop, glass).padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment     = Alignment.CenterVertically
             ) {
@@ -413,7 +413,7 @@ internal fun PdfViewerBottomToolbar(
                     Modifier
                         .fillMaxWidth()
                         .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                        .liquidGlassPanel(backdrop, uiSensor, glass)
+                        .viewerGlass(backdrop, glass)
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically
@@ -428,7 +428,7 @@ internal fun PdfViewerBottomToolbar(
                     Modifier
                         .fillMaxWidth()
                         .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                        .liquidGlassPanel(backdrop, uiSensor, glass)
+                        .viewerGlass(backdrop, glass)
                         .padding(horizontal = 12.dp, vertical = 10.dp)
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -461,7 +461,7 @@ internal fun PdfViewerBottomToolbar(
                 Modifier
                     .fillMaxWidth()
                     .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                    .liquidGlassPanel(backdrop, uiSensor, glass)
+                    .viewerGlass(backdrop, glass)
                     .padding(horizontal = 12.dp, vertical = 10.dp)
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -621,7 +621,6 @@ internal fun PdfViewerBottomToolbar(
         ) {
             ShareMorphButton(
                 backdrop = backdrop,
-                uiSensor = uiSensor,
                 glass = glass,
                 fg = fg,
                 onOpen = onOpenAnotherPdf,
