@@ -38,8 +38,8 @@ android {
         applicationId = "com.chethan616.clearpdf"
         minSdk = 23
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
         // Keep every locale declared by the app. Filtering this to English
         // removes values-pt-rBR from the packaged APK, so the language picker
         // can appear to work while the app continues to resolve English.
