@@ -266,7 +266,7 @@ internal fun PdfViewerBottomToolbar(
                         translationY = (1f - reveal) * 8.dp.toPx()
                     }
                     .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                    .viewerGlass(backdrop, glass).padding(12.dp),
+                    .viewerGlass(backdrop, glass, clipContent = false).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
@@ -459,7 +459,7 @@ internal fun PdfViewerBottomToolbar(
         // ── Export feedback row ────────────────────────────────────────────
         if (exportError != null || exportMessage != null || isExporting) {
             Row(
-                Modifier.fillMaxWidth().viewerGlass(backdrop, glass).padding(12.dp),
+                Modifier.fillMaxWidth().viewerGlass(backdrop, glass, clipContent = false).padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment     = Alignment.CenterVertically
             ) {
@@ -520,7 +520,7 @@ internal fun PdfViewerBottomToolbar(
                     Modifier
                         .fillMaxWidth()
                         .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                        .viewerGlass(backdrop, pillGlass)
+                        .viewerGlass(backdrop, pillGlass, clipContent = false)
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically
@@ -536,7 +536,7 @@ internal fun PdfViewerBottomToolbar(
                     Modifier
                         .fillMaxWidth()
                         .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                        .viewerGlass(backdrop, pillGlass)
+                        .viewerGlass(backdrop, pillGlass, clipContent = false)
                         // Clip to the capsule's own curve and soften the ends. See [carouselEdges]
                         // for why the padding has to come after the scroll, not before it.
                         .carouselEdges(wordScroll)
@@ -573,7 +573,7 @@ internal fun PdfViewerBottomToolbar(
                 Modifier
                     .fillMaxWidth()
                     .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                    .viewerGlass(backdrop, pillGlass)
+                    .viewerGlass(backdrop, pillGlass, clipContent = false)
                     // The chips are meant to disappear behind the capsule's curved ends. Without
                     // this the scroll viewport clipped them with a straight vertical line inset
                     // from the curve. See [carouselEdges] — the padding order is load-bearing.

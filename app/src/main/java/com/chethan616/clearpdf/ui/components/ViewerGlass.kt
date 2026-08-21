@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -49,7 +50,10 @@ fun Modifier.viewerGlass(
     shape: () -> Shape = { ViewerGlassShape },
     // Off for surfaces that must NOT cast a drop shadow — e.g. the onboarding page-1 book, whose
     // shadow otherwise snapped in the moment the assembled book reached full opacity.
-    withShadow: Boolean = true
+    withShadow: Boolean = true,
+    // Panels sometimes host animated/scrolling controls that intentionally float beyond the glass
+    // silhouette. The default preserves the original safe behavior for the rest of the app.
+    clipContent: Boolean = true
 ): Modifier = drawBackdrop(
     backdrop = backdrop,
     shape = shape,
@@ -59,7 +63,12 @@ fun Modifier.viewerGlass(
         lens(12f.dp.toPx(), 24f.dp.toPx())
     },
     shadow = if (withShadow) ({ com.kyant.backdrop.shadow.Shadow.Default }) else null,
-    onDrawSurface = { drawRect(color) }
+    clipContent = clipContent,
+    onDrawSurface = {
+        // When content is allowed to overflow, draw the tint as the glass outline instead of a
+        // rectangular wash. This keeps the material rounded while its controls remain un-clipped.
+        drawOutline(shape().createOutline(size, layoutDirection, this), color)
+    }
 )
 
 /**
