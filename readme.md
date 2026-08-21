@@ -54,6 +54,21 @@
 
 ---
 
+# 🎬 Demo
+
+Explore the included ClearPDF walkthroughs and editing-tool previews:
+
+- [▶️ Onboarding walkthrough](demo/1.mp4)
+- [▶️ PDF viewer walkthrough](demo/2.mp4)
+
+<p align="center">
+  <img src="demo/3.jpg" width="260" alt="ClearPDF editing tools preview 1"/>
+  <img src="demo/4.jpg" width="260" alt="ClearPDF editing tools preview 2"/>
+  <img src="demo/5.jpg" width="260" alt="ClearPDF editing tools preview 3"/>
+</p>
+
+---
+
 # 🧊 Liquid Glass UI
 
 ClearPDF uses a custom Android liquid glass inspired design system with:
