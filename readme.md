@@ -1,3 +1,5 @@
+
+
 # ClearPDF
 
 <p align="center">
@@ -25,6 +27,7 @@
 - 🔀 Merge multiple PDFs (lossless — text & vectors preserved)
 - ✂️ Split and extract PDF pages (lossless)
 - 🗜️ Compress PDFs with quality controls
+- 🔐 Encrypt and decrypt PDFs
 - 🖼️ Images → PDF and 📄 Create PDFs from scans or blank pages
 - 🔎 Extract text from PDFs (copy / share)
 - 📷 Document scanner with edge detection (Google ML Kit)
