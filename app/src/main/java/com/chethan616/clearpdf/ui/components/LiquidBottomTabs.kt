@@ -169,7 +169,12 @@ fun LiquidBottomTabs(
                     shape = { Capsule },
                     effects = {
                         vibrancy()
-                        blur(8f.dp.toPx())
+                        // Half the original 8 dp. This is the tab bar's own surface only — the
+                        // selection capsule below draws through `tabsBackdrop`, which keeps its
+                        // own blur, so softening the bar does not soften the slider riding on it.
+                        // The lens is untouched: at 24x24 it is what gives the bar its edge, and
+                        // dropping the blur without it would flatten the whole capsule.
+                        blur(4f.dp.toPx())
                         lens(24f.dp.toPx(), 24f.dp.toPx())
                     },
                     layerBlock = {
@@ -274,12 +279,16 @@ fun LiquidBottomTabs(
                     },
                     onDrawSurface = {
                         val progress = dampedDragAnimation.pressProgress
+                        // A bright, frosted-glass highlight (not a dark pasted-on pill): a soft
+                        // white sheen with a whisper of the accent so the selected tab reads as a
+                        // lit capsule of the same glass, not a separate dark chip.
                         drawRect(
-                            if (isLightTheme) Color.Black.copy(0.1f)
-                            else Color.White.copy(0.1f),
+                            if (isLightTheme) Color.White.copy(0.55f)
+                            else Color.White.copy(0.14f),
                             alpha = 1f - progress
                         )
-                        drawRect(Color.Black.copy(alpha = 0.03f * progress))
+                        drawRect(accentColor.copy(alpha = if (isLightTheme) 0.10f else 0.16f), alpha = 1f - progress)
+                        drawRect(Color.White.copy(alpha = 0.04f * progress))
                     }
                 )
                 .height(56f.dp)

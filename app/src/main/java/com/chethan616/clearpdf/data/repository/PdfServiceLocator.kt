@@ -14,6 +14,8 @@ import com.kyant.pdfcore.splitter.PdfSplitter
 import com.kyant.pdfcore.splitter.PdfSplitterImpl
 import com.kyant.pdfcore.viewer.PdfViewer
 import com.kyant.pdfcore.viewer.PdfViewerImpl
+import com.kyant.pdfcore.text.PdfTextService
+import com.kyant.pdfcore.text.PdfTextServiceImpl
 
 object PdfServiceLocator {
     val pdfViewer: PdfViewer by lazy { PdfViewerImpl() }
@@ -23,4 +25,5 @@ object PdfServiceLocator {
     val pdfSplitter: PdfSplitter by lazy { PdfSplitterImpl() }
     val pdfEditor: PdfEditor by lazy { PdfEditorImpl() }
     val pdfConverter: PdfConverter by lazy { PdfConverterImpl() }
+    val pdfTextService: PdfTextService by lazy { PdfTextServiceImpl() }
 }

@@ -18,6 +18,8 @@
     <string name="onboarding_language_title">Choose your language</string>
     <string name="onboarding_language_subtitle">Personalize your experience</string>
     <string name="onboarding_language_label">Language</string>
+    <string name="onboarding_appearance_title">Make it yours</string>
+    <string name="onboarding_appearance_subtitle">Pick a theme and a background. Change both any time in Settings.</string>
     <string name="onboarding_files_title">Open anything</string>
     <string name="onboarding_files_subtitle">PDFs, docs, sheets, slides, images &amp; more</string>
     <string name="onboarding_features_title">Powerful tools</string>
@@ -25,6 +27,9 @@
     <string name="onboarding_cta_continue">Continue</string>
     <string name="onboarding_cta_get_started">Get Started</string>
     <string name="onboarding_step">%1$d of %2$d</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="settings_replay_onboarding">Watch intro again</string>
+    <string name="settings_replay_onboarding_desc">Replay the welcome tour</string>
 
     <!-- Home Screen -->
     <string name="home_title">ClearPDF</string>
@@ -40,9 +45,19 @@
     <string name="home_no_recents_subtitle">Open a PDF to get started</string>
     <string name="home_on_device">ON-DEVICE</string>
 
+    <!-- Search (shared header) -->
+    <string name="search_action">Search</string>
+    <string name="search_clear">Clear search</string>
+
     <!-- Tools Screen -->
     <string name="tools_title">Tools</string>
     <string name="tools_subtitle">Everything you need to work with PDFs.</string>
+    <string name="tools_search_hint">Search tools</string>
+    <string name="tools_no_matches">No matching tools</string>
+    <string name="tools_section_organize">Organize</string>
+    <string name="tools_section_convert">Convert</string>
+    <string name="tools_section_edit">Edit</string>
+    <string name="tools_section_optimize">Optimize &amp; Secure</string>
     <string name="tool_open_pdf">Open PDF</string>
     <string name="tool_open_pdf_sub">View and read</string>
     <string name="tool_merge">Merge PDFs</string>
@@ -55,6 +70,82 @@
     <string name="tool_organize_sub">Reorder &amp; rotate</string>
     <string name="tool_images">Images to PDF</string>
     <string name="tool_images_sub">Photos to PDF</string>
+    <string name="tool_pdf_to_images">PDF to Images</string>
+    <string name="tool_pdf_to_images_sub">Export pages as JPG/PNG</string>
+    <string name="tool_watermark">Watermark</string>
+    <string name="tool_watermark_sub">Stamp text over pages</string>
+    <string name="watermark_text_label">Watermark</string>
+    <string name="watermark_mode_text">Text</string>
+    <string name="watermark_mode_image">Image</string>
+    <string name="watermark_pick_image">Pick watermark image</string>
+    <string name="watermark_text_hint">e.g. CONFIDENTIAL</string>
+    <string name="watermark_opacity">Opacity</string>
+    <string name="watermark_diagonal">Diagonal (45°)</string>
+    <string name="watermark_apply">Apply Watermark</string>
+    <string name="watermark_applying">Applying…</string>
+    <string name="settings_personalization">Personalization</string>
+    <string name="settings_background">Background</string>
+    <string name="settings_background_desc">Show the wallpaper image behind the app</string>
+    <string name="settings_privacy_policy">Privacy Policy</string>
+    <string name="settings_version_label">Version</string>
+    <string name="tool_extract_pages">Extract Pages</string>
+    <string name="tool_extract_pages_sub">Pull pages into a new PDF</string>
+    <string name="extract_pages_label">Pages to extract</string>
+    <string name="extract_pages_hint">e.g. 1-3, 5, 8-10</string>
+    <string name="extract_pages_total">of %1$d</string>
+    <string name="extract_pages_action">Extract Pages</string>
+    <string name="extract_pages_working">Extracting…</string>
+    <string name="tool_page_numbers">Page Numbers</string>
+    <string name="tool_page_numbers_sub">Number every page</string>
+    <string name="page_numbers_position">Position</string>
+    <string name="page_numbers_center">Center</string>
+    <string name="page_numbers_right">Right</string>
+    <string name="page_numbers_total">Show total</string>
+    <string name="page_numbers_total_desc">Render as "3 / 12" instead of "3"</string>
+    <string name="page_numbers_action">Add Page Numbers</string>
+    <string name="page_numbers_working">Adding…</string>
+    <string name="tool_flatten">Flatten PDF</string>
+    <string name="tool_flatten_sub">Make forms permanent</string>
+    <string name="flatten_desc">Bake interactive form fields into static content so they can no longer be edited.</string>
+    <string name="flatten_hint">Form values become permanent page content.</string>
+    <string name="flatten_action">Flatten PDF</string>
+    <string name="flatten_working">Flattening…</string>
+    <string name="tool_image_tools">Image Tools</string>
+    <string name="tool_image_tools_sub">Compress, resize, convert</string>
+    <string name="image_tools_pick">Pick Image</string>
+    <string name="image_tools_options">Options</string>
+    <string name="image_tools_format">Format</string>
+    <string name="image_tools_quality">Quality</string>
+    <string name="image_tools_resize">Resize</string>
+    <string name="image_tools_note">Metadata (EXIF/GPS) is removed on export.</string>
+    <string name="image_tools_process">Process Image</string>
+    <string name="image_tools_processing">Processing…</string>
+    <string name="image_tools_save">Save</string>
+    <string name="image_tools_share">Share</string>
+    <string name="tool_html_to_pdf">Web to PDF</string>
+    <string name="tool_html_to_pdf_sub">URL or HTML to PDF</string>
+    <string name="html_to_pdf_mode_web">Web URL</string>
+    <string name="html_to_pdf_mode_html">HTML</string>
+    <string name="html_to_pdf_url_desc">Enter a web address to capture the page as a PDF.</string>
+    <string name="html_to_pdf_url_hint">https://example.com</string>
+    <string name="html_to_pdf_desc">Paste HTML or load an .html file — rendered on-device.</string>
+    <string name="html_to_pdf_load_file">Load .html file</string>
+    <string name="html_to_pdf_hint">&lt;h1&gt;Hello&lt;/h1&gt;&lt;p&gt;Your HTML here…&lt;/p&gt;</string>
+    <string name="html_to_pdf_action">Convert to PDF</string>
+    <string name="html_to_pdf_working">Rendering…</string>
+    <string name="tool_fill_form">Fill Form</string>
+    <string name="tool_fill_form_sub">Complete PDF form fields</string>
+    <string name="fill_form_fields">Form fields</string>
+    <string name="fill_form_flatten">Flatten when saving</string>
+    <string name="fill_form_flatten_desc">Make the filled values permanent</string>
+    <string name="fill_form_action">Save Filled PDF</string>
+    <string name="fill_form_working">Saving…</string>
+    <string name="tool_pdf_to_images_desc">Render each page to a high-quality image you can save or share.</string>
+    <string name="pdf_to_images_format">Image format</string>
+    <string name="pdf_to_images_convert">Convert to images</string>
+    <string name="pdf_to_images_working">Converting… %1$d%%</string>
+    <string name="pdf_to_images_preview">Rendered pages</string>
+    <string name="pdf_to_images_save">Save to gallery</string>
     <string name="tool_extract">Extract Text</string>
     <string name="tool_extract_sub">Copy text</string>
     <string name="tool_create">Create PDF</string>
@@ -77,8 +168,6 @@
     <string name="settings_auto_compress_desc">Automatically compress PDFs on import</string>
     <string name="settings_keep_original">Keep Original</string>
     <string name="settings_keep_original_desc">Preserve original file after editing</string>
-    <string name="settings_notifications">Notifications</string>
-    <string name="settings_notifications_desc">Show notification when tasks finish</string>
     <string name="settings_compression_quality">Compression Quality</string>
     <string name="settings_smaller_size">Smaller size</string>
     <string name="settings_higher_quality">Higher quality</string>
@@ -110,6 +199,10 @@
     <string name="viewer_prev">Previous</string>
     <string name="viewer_next">Next</string>
     <string name="viewer_open_another">Open Another PDF</string>
+    <string name="viewer_share_document">Share Document</string>
+    <string name="viewer_editor_tools">Editor Tools</string>
+    <string name="viewer_tools_coming_soon">Editor tools coming soon</string>
+    <string name="viewer_open_pdf_short">Open PDF</string>
     <string name="viewer_pen">Pen</string>
     <string name="viewer_highlight">Highlight</string>
     <string name="viewer_rect">Rect</string>
@@ -122,6 +215,8 @@
     <string name="viewer_underline">Underline</string>
     <string name="viewer_strike">Strike</string>
     <string name="viewer_done">Done</string>
+    <string name="viewer_color">Color</string>
+    <string name="viewer_edit_shape">Edit Shape</string>
     <string name="viewer_new_sign">New Sign</string>
     <string name="viewer_replace">Replace</string>
     <string name="viewer_saving">Saving edited PDF&#8230;</string>
@@ -131,6 +226,16 @@
     <string name="viewer_page_label">Page</string>
     <string name="viewer_go">Go</string>
     <string name="viewer_ocr">OCR (%1$d)</string>
+
+    <!-- Share / export dialog -->
+    <string name="viewer_share_title">Share</string>
+    <string name="viewer_share_format">Format</string>
+    <string name="viewer_share_encrypt">Encrypt with password</string>
+    <string name="viewer_share_password_hint">Password</string>
+    <string name="viewer_share_button">Share</string>
+    <string name="viewer_share_pdf">PDF</string>
+    <string name="viewer_share_normal">Normal</string>
+    <string name="viewer_share_encrypted">Encrypted</string>
 
     <!-- Signature Pad -->
     <string name="sig_draw_title">Draw your signature</string>
@@ -145,6 +250,9 @@
     <string name="sig_saved_title">Saved Signatures</string>
     <string name="sig_name_hint">Name this signature</string>
     <string name="sig_name_save">Save name</string>
+    <string name="sig_name_title">Name your signature</string>
+    <string name="sig_delete_title">Delete signature?</string>
+    <string name="sig_delete_msg">“%1$s” will be permanently removed.</string>
 
     <!-- Onboarding feature highlights -->
     <string name="feature_annotate_title">Annotate &amp; Sign</string>
@@ -163,16 +271,24 @@
     <string name="cancel">Cancel</string>
     <string name="ok">OK</string>
     <string name="copy">Copy</string>
+    <string name="edit">Edit</string>
     <string name="share">Share</string>
     <string name="delete">Delete</string>
     <string name="open">Open</string>
     <string name="save">Save</string>
     <string name="dismiss">Dismiss</string>
+    <string name="anno_note_title">Sticky note</string>
+    <string name="anno_text_title">Insert text</string>
+    <string name="anno_hint">Type here…</string>
+    <string name="anno_save">Save</string>
     <string name="not_now">Not now</string>
     <string name="dont_ask_again">Don\'t ask again</string>
     <string name="settings_custom_directory">Custom Directory</string>
     <string name="settings_default_directory">Default Directory</string>
     <string name="settings_default_path">Downloads / ClearPDF</string>
+    <string name="settings_change_folder">Change Folder</string>
+    <string name="settings_reset">Reset</string>
+    <string name="settings_bg_gallery">Gallery</string>
     <string name="settings_license_notice">Licensed under the Apache License, Version 2.0.\nYou may obtain a copy at apache.org/licenses/LICENSE-2.0</string>
     <string name="settings_license_author">by %1$s</string>
     <string name="language_english">English</string>
@@ -184,6 +300,33 @@
     <string name="recents_share_pdf">Share PDF</string>
     <string name="recents_pdf_type">PDF</string>
     <string name="recents_long_press_hint">Long press for quick actions</string>
+    <string name="recents_search_hint">Search recents</string>
+    <string name="recents_no_matches">No matching files</string>
+    <string name="sheet_prev">Previous sheet</string>
+    <string name="sheet_next">Next sheet</string>
+    <string name="sheet_index_of">%1$d of %2$d</string>
+    <string name="sheet_cell_value">Cell value</string>
+    <string name="sheet_cell_empty">Empty cell</string>
+    <string name="sheet_title_index">Sheet %1$d of %2$d</string>
+    <string name="viewer_sheet_of">Sheet %1$d / %2$d</string>
+    <string name="sheet_picker_title">SHEETS</string>
+    <string name="sheet_export_pdf">Export PDF</string>
+    <string name="sheet_zoom_in">Zoom in</string>
+    <string name="sheet_zoom_out">Zoom out</string>
+    <string name="image_editor_title">Edit Image</string>
+    <string name="image_rotate_left">Rotate left</string>
+    <string name="image_rotate_right">Rotate right</string>
+    <string name="image_reset_edits">Reset</string>
+    <string name="image_brightness">Brightness</string>
+    <string name="image_contrast">Contrast</string>
+    <string name="image_save_gallery">Save to gallery</string>
+    <string name="image_export_pdf">Export PDF</string>
+    <string name="image_filter_none">Original</string>
+    <string name="image_filter_mono">Mono</string>
+    <string name="image_filter_sepia">Sepia</string>
+    <string name="image_filter_vivid">Vivid</string>
+    <string name="image_filter_cool">Cool</string>
+    <string name="image_filter_warm">Warm</string>
     <string name="recents_file_info">File Info</string>
     <string name="recents_pages">Pages</string>
     <string name="recents_added">Added</string>
@@ -198,6 +341,18 @@
     <string name="recents_size_bytes">%1$d B</string>
     <string name="recents_page_count">%1$d pages</string>
     <string name="recents_size_label">Size</string>
+    <string name="recents_sheet_count">%1$d sheets</string>
+    <string name="recents_sheets">Sheets</string>
+    <string name="recents_pin">Pin</string>
+    <string name="recents_unpin">Unpin</string>
+    <string name="recents_filter">Filter by type</string>
+    <string name="recents_filter_all">All</string>
+    <string name="recents_filter_pdf">PDF</string>
+    <string name="recents_filter_word">Word</string>
+    <string name="recents_filter_excel">Excel</string>
+    <string name="recents_filter_ppt">Slides</string>
+    <string name="recents_filter_image">Images</string>
+    <string name="recents_swipe_delete">Swipe left to remove</string>
     <string name="tool_decrypt_pdf">Decrypt PDF</string>
     <string name="tool_decrypt_pdf_sub">Remove a PDF password</string>
     <string name="tool_encrypt_pdf">Encrypt PDF</string>
@@ -237,6 +392,8 @@
     <string name="reorder_files_hint">Reorder files before merging. Top to bottom = output order.</string>
     <string name="select_two_pdfs">Select at least 2 PDFs to continue.</string>
     <string name="add_files">Add Files</string>
+    <string name="merge_now">Merge Now</string>
+    <string name="merging">Merging…</string>
     <string name="split_quick_all">All</string>
     <string name="split_quick_odd">Odd</string>
     <string name="split_quick_even">Even</string>

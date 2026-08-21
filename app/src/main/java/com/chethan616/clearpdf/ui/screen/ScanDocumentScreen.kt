@@ -82,7 +82,8 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.model.ScanFilter
 import com.chethan616.clearpdf.ui.components.LiquidButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
+import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
@@ -198,25 +199,26 @@ fun ScanDocumentScreen(
             }
     }
 
+    GlassScreenScaffold(
+        backdrop = backdrop,
+        contentBottomPadding = 16.dp,
+        header = { headerBackdrop ->
+            // No back button here, so the pill centres against the full width. Fade only — the pill
+            // is glass, and translating glass re-runs its blur+lens.
+            GlassScreenHeaderRow(
+                title = stringResource(R.string.scan_title),
+                backdrop = headerBackdrop,
+                onBack = null,
+                modifier = Modifier.graphicsLayer { alpha = topBarAlpha }
+            )
+        }
+    ) { contentPadding ->
     Column(
         Modifier
             .fillMaxSize()
-            .statusBarsPadding()
-            .padding(16.dp),
+            .padding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        LiquidGlassTopBar(
-            title = stringResource(R.string.scan_title),
-            backdrop = backdrop,
-            uiSensor = uiSensor,
-            modifier = Modifier
-                .fillMaxWidth()
-                .graphicsLayer {
-                    alpha = topBarAlpha
-                    translationY = topBarOffsetY * density
-                }
-        )
-
         Column(
             Modifier
                 .fillMaxWidth()
@@ -570,6 +572,7 @@ fun ScanDocumentScreen(
             }
         }
         }
+    }
     }
 }
 

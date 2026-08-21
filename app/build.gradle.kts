@@ -38,8 +38,8 @@ android {
         applicationId = "com.chethan616.clearpdf"
         minSdk = 23
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
         // Keep every locale declared by the app. Filtering this to English
         // removes values-pt-rBR from the packaged APK, so the language picker
         // can appear to work while the app continues to resolve English.
@@ -133,9 +133,11 @@ dependencies {
     implementation("org.apache.poi:poi:3.17")
     implementation("org.apache.poi:poi-scratchpad:3.17")
     
+    // PdfBox-Android — needed by PdfViewerViewModel for native PDF overlay export
+    implementation(libs.pdfbox.android)
+
     // ML Kit Document Scanner & Camera
     implementation(libs.play.services.mlkit.scanner)
-    implementation(libs.play.services.mlkit.text.recognition)
     implementation(libs.camerax.core)
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)

@@ -5,15 +5,23 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import androidx.compose.ui.res.stringResource
 import com.chethan616.clearpdf.R
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.scaleIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,8 +43,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Undo
 import androidx.compose.material.icons.rounded.Gesture
 import androidx.compose.material3.Icon
@@ -46,17 +54,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.focus.FocusRequester
@@ -73,10 +84,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
-import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.components.LiquidSlider
+import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Full-screen signature capture dialog. Presents a dark canvas for the user to draw
@@ -90,28 +103,42 @@ fun SignaturePadDialog(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val uiSensor = rememberUISensor()
+    val scope = rememberCoroutineScope()
+
+    // Theme-adaptive chrome. Everything that sits on the SCREEN background — header, action buttons,
+    // section labels — flips with the app theme: white ink on the dark screen, near-black on the
+    // light one. The signing paper (canvas) and the control tray stay light in both, so dark ink is
+    // always visible while drawing and stamps legibly onto white PDF pages.
+    val isDark = LocalIsDarkMode.current
+    val chrome = if (isDark) Color.White else Color(0xFF15171C)
+    val chromeSoft = chrome.copy(0.55f)
+    val chromeChip = if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.05f)
+    val screenGradient = if (isDark)
+        listOf(Color(0xFF171A21), Color(0xFF0C0E13), Color(0xFF060709))
+    else
+        listOf(Color(0xFFF3F4F6), Color(0xFFEAECEF), Color(0xFFE2E5E9))
+    // Light control tray: paper-on-dark needs no outline; white-on-light needs a hairline to define
+    // its edge against the near-white screen.
+    val trayColor = if (isDark) Color(0xFFF2F2EE) else Color(0xFFFFFFFF)
+    val cardBorder = if (isDark) Color.Transparent else Color.Black.copy(0.06f)
 
     data class StrokeItem(val points: List<Offset>, val color: Color, val width: Float)
     val strokes = remember { mutableStateListOf<StrokeItem>() }
     var currentStroke by remember { mutableStateOf<List<Offset>>(emptyList()) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
+    // Dark inks for a white "paper" pad — natural to sign with, and (unlike white ink)
+    // the resulting signature is actually visible when stamped onto a white PDF page.
     val signatureColors = listOf(
-        Color.White,
-        Color(0xFF2196F3), // Ink Blue
-        Color(0xFF4CAF50), // Emerald
-        Color(0xFFE91E63), // Crimson
-        Color(0xFF9C27B0), // Purple
-        Color(0xFFFF9800)  // Gold
+        Color(0xFF141414), // Black
+        Color(0xFF1565C0), // Ink Blue
+        Color(0xFF0D3B66), // Navy
+        Color(0xFFB3261E), // Crimson
+        Color(0xFF1B5E20), // Green
+        Color(0xFF6A1B9A)  // Purple
     )
     var selectedColor by remember { mutableStateOf(signatureColors[0]) }
 
-    val strokeWidths = listOf(
-        3.5f to stringResource(R.string.sig_thin),
-        6.5f to stringResource(R.string.sig_medium),
-        11f to stringResource(R.string.sig_thick),
-        16f to stringResource(R.string.sig_heavy)
-    )
     var selectedWidth by remember { androidx.compose.runtime.mutableFloatStateOf(6.5f) }
     var contentVisible by remember { mutableStateOf(false) }
     var showNamePrompt by remember { mutableStateOf(false) }
@@ -123,6 +150,14 @@ fun SignaturePadDialog(
         contentVisible = true
     }
 
+    // Play the exit animation FULLY, THEN actually dismiss (Dialogs otherwise snap shut).
+    // Delay must be >= the exit duration below (fade 200 / slide 300) so it never cuts off.
+    val requestClose: () -> Unit = {
+        contentVisible = false
+        scope.launch { delay(310); onDismiss() }
+        Unit
+    }
+
     LaunchedEffect(showNamePrompt) {
         if (showNamePrompt) {
             delay(120)
@@ -130,7 +165,7 @@ fun SignaturePadDialog(
         }
     }
 
-    data class SavedSignature(val name: String, val bitmap: Bitmap)
+    data class SavedSignature(val name: String, val bitmap: Bitmap, val file: java.io.File)
     val savedSignatures = remember(context) {
         mutableStateListOf<SavedSignature>().apply {
             try {
@@ -141,13 +176,16 @@ fun SignaturePadDialog(
                             .loadSignature(file)
                             ?.let { SavedSignature(
                                 com.chethan616.clearpdf.data.repository.SignatureManager.displayName(file),
-                                it
+                                it,
+                                file
                             ) }
                     }
                     .forEach(::add)
             } catch (_: Throwable) {}
         }
     }
+    // Long-pressed saved signature awaiting a delete confirmation.
+    var signatureToDelete by remember { mutableStateOf<SavedSignature?>(null) }
 
     val confirmSignatureName = {
         val bitmap = pendingSignature
@@ -164,18 +202,34 @@ fun SignaturePadDialog(
     }
 
     Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = true)
+        onDismissRequest = requestClose,
+        // decorFitsSystemWindows = false → the dialog draws edge-to-edge (behind the
+        // status/nav bars) so there are no gaps above/below. dismissOnBackPress = false
+        // so the back gesture routes through requestClose and plays the exit animation.
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = false,
+            decorFitsSystemWindows = false
+        )
     ) {
+        BackHandler { requestClose() }
         AnimatedVisibility(
             visible = contentVisible,
             modifier = Modifier.fillMaxSize(),
-            enter = fadeIn(tween(220)) + scaleIn(initialScale = 0.98f)
+            // Slide in/out like a pushed screen (not a modal pop).
+            enter = fadeIn(tween(200)) + slideInHorizontally(tween(300)) { it / 3 },
+            exit  = fadeOut(tween(200)) + slideOutHorizontally(tween(260)) { it / 3 }
         ) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    // A soft top-lit gradient (dark or light per theme) gives the screen depth and
+                    // lets the light signing cards read as "paper on a desk" rather than floating.
+                    .background(Brush.verticalGradient(screenGradient))
+            ) {
             Column(
                 Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF0A0A0A))
                     .statusBarsPadding()
                     .navigationBarsPadding()
                     .padding(16.dp),
@@ -188,108 +242,118 @@ fun SignaturePadDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 LiquidIconButton(
-                    onClick = onDismiss,
+                    onClick = requestClose,
                     backdrop = backdrop,
-                    surfaceColor = Color.White.copy(0.08f),
+                    surfaceColor = chromeChip,
                     modifier = Modifier.size(44.dp)
                 ) {
-                    Icon(Icons.Rounded.Close, stringResource(R.string.close), Modifier.size(20.dp), Color.White)
+                    Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), chrome)
                 }
 
-                BasicText(
-                    stringResource(R.string.sig_draw_title),
-                    style = TextStyle(Color.White.copy(0.85f), 17.sp, FontWeight.SemiBold)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Rounded.Gesture, null, Modifier.size(19.dp), chromeSoft)
+                    BasicText(
+                        stringResource(R.string.sig_draw_title),
+                        style = TextStyle(chrome, 18.sp, FontWeight.Bold, letterSpacing = 0.2.sp)
+                    )
+                }
 
                 LiquidIconButton(
                     onClick = { if (strokes.isNotEmpty()) strokes.removeAt(strokes.lastIndex) },
                     backdrop = backdrop,
-                    surfaceColor = Color.White.copy(0.08f),
+                    surfaceColor = chromeChip,
                     modifier = Modifier.size(44.dp)
                 ) {
-                    Icon(Icons.Rounded.Undo, stringResource(R.string.undo), Modifier.size(20.dp), Color.White)
+                    // Subtle when there's nothing to undo.
+                    Icon(
+                        Icons.Rounded.Undo, stringResource(R.string.undo), Modifier.size(20.dp),
+                        chrome.copy(if (strokes.isEmpty()) 0.32f else 1f)
+                    )
                 }
             }
 
             Spacer(Modifier.height(8.dp))
 
-            // Color & Line Width Controls
+            // Light control tray: ink colours (no outline rings — they read cleanly on
+            // the light surface) and a liquid-glass thickness slider.
             Column(
-                Modifier.fillMaxWidth(),
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(trayColor)
+                    .border(1.dp, cardBorder, RoundedCornerShape(22.dp))
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Color palette
+                // Ink colour beads — plain, no outline circle.
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White.copy(0.08f))
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     signatureColors.forEach { color ->
                         val isSelected = selectedColor == color
-                        Box(
-                            Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .border(
-                                    if (isSelected) 2.5.dp else 1.dp,
-                                    if (isSelected) Color.White else Color.White.copy(0.3f),
-                                    CircleShape
-                                )
-                                .clickable {
-                                    selectedColor = color
-                                    if (strokes.isNotEmpty()) {
-                                        strokes.indices.forEach { idx ->
-                                            strokes[idx] = strokes[idx].copy(color = color)
-                                        }
+                        // Springy grow on selection instead of a hard size jump — the bead reads as
+                        // a physical thing you press, matching the rest of the liquid chrome.
+                        val beadSize by animateDpAsState(
+                            if (isSelected) 40.dp else 30.dp,
+                            spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow),
+                            label = "beadSize"
+                        )
+                        LiquidIconButton(
+                            onClick = {
+                                selectedColor = color
+                                if (strokes.isNotEmpty()) {
+                                    strokes.indices.forEach { idx ->
+                                        strokes[idx] = strokes[idx].copy(color = color)
                                     }
-                                },
-                            contentAlignment = Alignment.Center
+                                }
+                            },
+                            backdrop = backdrop,
+                            surfaceColor = color,
+                            modifier = Modifier.size(beadSize)
                         ) {
-                            if (isSelected) {
-                                Box(
-                                    Modifier
-                                        .size(7.dp)
-                                        .clip(CircleShape)
-                                        .background(if (color == Color.White) Color.Black else Color.White)
-                                )
-                            }
+                            if (isSelected) Icon(Icons.Rounded.Check, null, Modifier.size(17.dp), Color.White)
                         }
                     }
                 }
 
-                // Stroke width pills
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Color.Black.copy(0.07f))
+                )
+
+                // Thickness: liquid-glass slider with a live ink-dot preview.
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White.copy(0.08f))
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    strokeWidths.forEach { (w, label) ->
-                        val isSelected = selectedWidth == w
+                    Box(
+                        Modifier.size(22.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Box(
                             Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSelected) Color.White.copy(0.25f) else Color.Transparent)
-                                .clickable { selectedWidth = w }
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            BasicText(
-                                label,
-                                style = TextStyle(
-                                    if (isSelected) Color.White else Color.White.copy(0.6f),
-                                    12.sp,
-                                    if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            )
-                        }
+                                .size((selectedWidth * 1.1f).dp.coerceIn(4.dp, 20.dp))
+                                .clip(CircleShape)
+                                .background(selectedColor)
+                        )
                     }
+                    LiquidSlider(
+                        value = { selectedWidth },
+                        onValueChange = { selectedWidth = it.coerceIn(2f, 20f) },
+                        valueRange = 2f..20f,
+                        visibilityThreshold = 0.1f,
+                        backdrop = backdrop,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
@@ -301,8 +365,8 @@ fun SignaturePadDialog(
                     .weight(1f)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF111111))
-                    .border(1.dp, Color.White.copy(0.12f), RoundedCornerShape(20.dp))
+                    .background(Color(0xFFF7F7F3))
+                    .border(1.dp, Color.Black.copy(0.10f), RoundedCornerShape(20.dp))
                     .onSizeChanged { canvasSize = it }
                     .pointerInput(selectedColor, selectedWidth) {
                         detectDragGestures(
@@ -323,23 +387,31 @@ fun SignaturePadDialog(
                         )
                     }
             ) {
-                // Baseline hint
+                // Empty-canvas guides: a subtle centered "Sign here", plus a faint
+                // signature baseline with an × marker near the lower third.
                 if (strokes.isEmpty() && currentStroke.isEmpty()) {
-                    Box(
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 48.dp)
-                            .fillMaxWidth(0.75f)
-                            .height(1.dp)
-                            .background(Color.White.copy(0.15f))
-                    )
                     BasicText(
                         stringResource(R.string.sig_hint),
-                        style = TextStyle(Color.White.copy(0.2f), 14.sp),
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 24.dp)
+                        style = TextStyle(Color.Black.copy(0.20f), 14.sp, FontWeight.Medium),
+                        modifier = Modifier.align(Alignment.Center)
                     )
+                    Row(
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 44.dp)
+                            .fillMaxWidth(0.84f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        BasicText("✕", style = TextStyle(Color.Black.copy(0.22f), 16.sp, FontWeight.Bold))
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .height(1.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(Color.Black.copy(0.14f))
+                        )
+                    }
                 }
 
                 Canvas(Modifier.fillMaxSize()) {
@@ -387,38 +459,61 @@ fun SignaturePadDialog(
                 Spacer(Modifier.height(10.dp))
                 BasicText(
                     stringResource(R.string.sig_saved_title),
-                    style = TextStyle(Color.White.copy(0.7f), 12.sp, FontWeight.SemiBold)
+                    style = TextStyle(chrome.copy(0.6f), 12.sp, FontWeight.SemiBold, letterSpacing = 0.3.sp)
                 )
                 Row(
                     Modifier
                         .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
                         .padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    savedSignatures.take(4).forEach { savedBmp ->
-                        Box(
-                            Modifier
-                                .size(70.dp, 44.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color.White.copy(0.10f))
-                                .border(1.dp, Color.White.copy(0.2f), RoundedCornerShape(10.dp))
-                                .clickable {
-                                    val safeBmp = if (savedBmp.bitmap.config == Bitmap.Config.HARDWARE || !savedBmp.bitmap.isMutable) {
-                                        savedBmp.bitmap.copy(Bitmap.Config.ARGB_8888, true)
-                                    } else {
-                                        savedBmp.bitmap
-                                    }
-                                    onSignatureCaptured(safeBmp)
-                                },
-                            contentAlignment = Alignment.Center
+                    savedSignatures.forEach { savedBmp ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .pointerInput(savedBmp.file) {
+                                    detectTapGestures(
+                                        onTap = {
+                                            val safeBmp = if (savedBmp.bitmap.config == Bitmap.Config.HARDWARE || !savedBmp.bitmap.isMutable) {
+                                                savedBmp.bitmap.copy(Bitmap.Config.ARGB_8888, true)
+                                            } else {
+                                                savedBmp.bitmap
+                                            }
+                                            onSignatureCaptured(safeBmp)
+                                        },
+                                        // Long-press → ask to delete this saved signature.
+                                        onLongPress = { signatureToDelete = savedBmp }
+                                    )
+                                }
+                                .padding(2.dp)
                         ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            // Preview the actual signature ink on a light "paper" tile so
+                            // the dark ink reads (matches the signing surface).
+                            Box(
+                                Modifier
+                                    .size(84.dp, 50.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFFF7F7F3))
+                                    // A dark hairline reads on the light paper tile; the old white
+                                    // border was invisible against it.
+                                    .border(1.dp, Color.Black.copy(0.08f), RoundedCornerShape(10.dp)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Rounded.Gesture, null, Modifier.size(12.dp), Color.White)
-                                    BasicText(savedBmp.name, style = TextStyle(Color.White, 11.sp, FontWeight.Medium))
+                                androidx.compose.foundation.Image(
+                                    bitmap = savedBmp.bitmap.asImageBitmap(),
+                                    contentDescription = savedBmp.name,
+                                    modifier = Modifier.fillMaxSize().padding(6.dp),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                                )
                             }
+                            BasicText(
+                                savedBmp.name,
+                                style = TextStyle(chrome.copy(0.7f), 10.sp, FontWeight.Medium),
+                                maxLines = 1
+                            )
                         }
                     }
                 }
@@ -426,34 +521,25 @@ fun SignaturePadDialog(
 
             Spacer(Modifier.height(14.dp))
 
-            // Bottom actions
-            if (showNamePrompt) {
-                SignatureNameBar(
-                    backdrop = backdrop,
-                    uiSensor = uiSensor,
-                    name = signatureName,
-                    focusRequester = nameFocusRequester,
-                    onNameChange = { signatureName = it },
-                    onCancel = {
-                        showNamePrompt = false
-                        pendingSignature = null
-                    },
-                    onSave = confirmSignatureName
-                )
-            } else Row(
+            // Bottom draw actions. Name entry is a floating overlay (below) so the
+            // keyboard never displaces this layout.
+            Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                val hasInk = strokes.isNotEmpty()
+                // Secondary, subdued when there's nothing to clear.
                 LiquidButton(
-                    onClick = { strokes.clear(); currentStroke = emptyList() },
+                    onClick = { if (hasInk) { strokes.clear(); currentStroke = emptyList() } },
                     backdrop = backdrop,
-                    surfaceColor = Color.White.copy(0.08f),
+                    surfaceColor = chrome.copy(if (hasInk) 0.10f else 0.04f),
                     modifier = Modifier.weight(1f)
                 ) {
                     BasicText(
                         stringResource(R.string.sig_clear),
-                        style = TextStyle(Color.White.copy(0.75f), 15.sp, FontWeight.Medium),
-                        modifier = Modifier.padding(vertical = 6.dp)
+                        style = TextStyle(chrome.copy(if (hasInk) 0.85f else 0.32f), 15.sp, FontWeight.Medium),
+                        modifier = Modifier.padding(vertical = 9.dp)
                     )
                 }
 
@@ -493,13 +579,13 @@ fun SignaturePadDialog(
                         }
                     },
                     backdrop = backdrop,
-                    tint = Color(0xFF00C853),
-                    modifier = Modifier.weight(2f)
+                    tint = if (hasInk) Color(0xFF00C853) else Color(0xFF2E7D32).copy(0.55f),
+                    modifier = Modifier.weight(1.7f)
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(vertical = 6.dp)
+                        modifier = Modifier.padding(vertical = 9.dp)
                     ) {
                         Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), Color.White)
                         BasicText(
@@ -509,85 +595,179 @@ fun SignaturePadDialog(
                     }
                 }
             }
+            }
+
+        }
+    }
+    }
+
+    // Naming uses its own modal window so the platform pans it cleanly above the
+    // keyboard and the signature canvas behind it never reflows.
+    if (showNamePrompt) {
+        SignatureNameDialog(
+            backdrop = backdrop,
+            uiSensor = uiSensor,
+            name = signatureName,
+            focusRequester = nameFocusRequester,
+            onNameChange = { signatureName = it },
+            onDismiss = { showNamePrompt = false; pendingSignature = null },
+            onSave = confirmSignatureName
+        )
+    }
+
+    // Delete a saved signature (from a long-press on its thumbnail).
+    signatureToDelete?.let { sig ->
+        Dialog(onDismissRequest = { signatureToDelete = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Column(
+                Modifier
+                    .fillMaxWidth(0.82f)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(if (isDark) Color(0xFF1B1E25) else Color.White)
+                    .border(1.dp, if (isDark) Color.White.copy(0.12f) else Color.Black.copy(0.08f), RoundedCornerShape(24.dp))
+                    .padding(22.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                BasicText(
+                    stringResource(R.string.sig_delete_title),
+                    style = TextStyle(chrome, 17.sp, FontWeight.Bold)
+                )
+                BasicText(
+                    stringResource(R.string.sig_delete_msg, sig.name),
+                    style = TextStyle(chrome.copy(0.72f), 14.sp)
+                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                ) {
+                    LiquidButton(
+                        onClick = { signatureToDelete = null },
+                        backdrop = backdrop,
+                        surfaceColor = chromeChip
+                    ) {
+                        BasicText(stringResource(R.string.cancel), style = TextStyle(chrome, 13.sp), modifier = Modifier.padding(vertical = 4.dp))
+                    }
+                    LiquidButton(
+                        onClick = {
+                            runCatching {
+                                com.chethan616.clearpdf.data.repository.SignatureManager.deleteSignature(sig.file)
+                            }
+                            savedSignatures.remove(sig)
+                            signatureToDelete = null
+                        },
+                        backdrop = backdrop,
+                        tint = Color(0xFFEF5350)
+                    ) {
+                        BasicText(stringResource(R.string.delete), style = TextStyle(Color.White, 13.sp, FontWeight.SemiBold), modifier = Modifier.padding(vertical = 4.dp))
+                    }
+                }
+            }
         }
     }
 }
-}
 
 @Composable
-private fun SignatureNameBar(
+private fun SignatureNameDialog(
     backdrop: LayerBackdrop,
     uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
     name: String,
     focusRequester: FocusRequester,
     onNameChange: (String) -> Unit,
-    onCancel: () -> Unit,
+    onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
     val canSave = name.trim().isNotEmpty()
+    // Same theme-adaptive chrome as the signing screen so the naming sheet matches it in both modes.
+    val isDark = LocalIsDarkMode.current
+    val chrome = if (isDark) Color.White else Color(0xFF15171C)
+    val cardBg = if (isDark) Color(0xFF1B1E25) else Color.White
+    val cardBorder = if (isDark) Color.White.copy(0.12f) else Color.Black.copy(0.08f)
+    val fieldBg = if (isDark) Color.White.copy(0.12f) else Color.Black.copy(0.05f)
+    val chipBg = if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.05f)
 
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .imePadding()
-            .liquidGlassPanel(backdrop, uiSensor)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Row(
+    LaunchedEffect(Unit) {
+        delay(150)
+        runCatching { focusRequester.requestFocus() }
+    }
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
             Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.White.copy(0.12f))
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .fillMaxWidth(0.9f)
+                .clip(RoundedCornerShape(26.dp))
+                // Solid card (matches the signature screen) instead of sampling
+                // the wallpaper PNG through glass in a separate Dialog window.
+                .background(cardBg)
+                .border(1.dp, cardBorder, RoundedCornerShape(26.dp))
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(Icons.Rounded.Gesture, null, Modifier.size(16.dp), Color.White.copy(0.6f))
-            Box(Modifier.weight(1f)) {
-                if (name.isEmpty()) {
-                    BasicText(
-                        stringResource(R.string.sig_name_hint),
-                        style = TextStyle(Color.White.copy(0.45f), 13.sp)
+            BasicText(
+                stringResource(R.string.sig_name_title),
+                style = TextStyle(chrome, 16.sp, FontWeight.Bold)
+            )
+
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(fieldBg)
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Rounded.Gesture, null, Modifier.size(18.dp), chrome.copy(0.6f))
+                Box(Modifier.weight(1f)) {
+                    if (name.isEmpty()) {
+                        BasicText(
+                            stringResource(R.string.sig_name_hint),
+                            style = TextStyle(chrome.copy(0.45f), 14.sp)
+                        )
+                    }
+                    BasicTextField(
+                        value = name,
+                        onValueChange = onNameChange,
+                        textStyle = TextStyle(chrome, 14.sp),
+                        cursorBrush = SolidColor(chrome),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { if (canSave) onSave() }),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester)
                     )
                 }
-                BasicTextField(
-                    value = name,
-                    onValueChange = onNameChange,
-                    textStyle = TextStyle(Color.White, 13.sp),
-                    cursorBrush = SolidColor(Color.White),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { onSave() }),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester)
-                )
             }
-        }
 
-        LiquidButton(
-            onClick = onCancel,
-            backdrop = backdrop,
-            surfaceColor = Color.White.copy(0.08f),
-            modifier = Modifier.width(86.dp)
-        ) {
-            BasicText(
-                stringResource(R.string.cancel),
-                style = TextStyle(Color.White.copy(0.78f), 12.sp, FontWeight.Medium)
-            )
-        }
-        LiquidButton(
-            onClick = onSave,
-            backdrop = backdrop,
-            tint = if (canSave) Color(0xFF00C853) else Color.White.copy(0.08f),
-            modifier = Modifier.width(96.dp)
-        ) {
-            BasicText(
-                stringResource(R.string.sig_name_save),
-                style = TextStyle(Color.White.copy(if (canSave) 1f else 0.45f), 12.sp, FontWeight.SemiBold)
-            )
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                LiquidButton(
+                    onClick = onDismiss,
+                    backdrop = backdrop,
+                    surfaceColor = chipBg,
+                    modifier = Modifier.width(100.dp)
+                ) {
+                    BasicText(
+                        stringResource(R.string.cancel),
+                        style = TextStyle(chrome.copy(0.78f), 13.sp, FontWeight.Medium),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+                LiquidButton(
+                    onClick = { if (canSave) onSave() },
+                    backdrop = backdrop,
+                    tint = if (canSave) Color(0xFF00C853) else chipBg,
+                    modifier = Modifier.width(110.dp)
+                ) {
+                    BasicText(
+                        stringResource(R.string.sig_name_save),
+                        style = TextStyle((if (canSave) Color.White else chrome).copy(if (canSave) 1f else 0.45f), 13.sp, FontWeight.SemiBold),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+            }
         }
     }
 }

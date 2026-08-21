@@ -10,6 +10,39 @@ import java.util.Locale
 
 object LocaleHelper {
 
+    private const val PREFS_NAME = "clearpdf_settings"
+    private const val KEY_PENDING_FADE = "pending_locale_fade"
+
+    /**
+     * A locale change has to restart the Activity — 15 call sites read strings outside Compose, so a
+     * Compose-only swap would leave half the app in the old language. The restart is therefore kept
+     * and *choreographed* instead: the outgoing instance fades out, and this one-shot flag tells the
+     * incoming one to fade in rather than snap. Written on the way out, consumed on the way in.
+     */
+    fun markLocaleFadePending(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_PENDING_FADE, true).apply()
+    }
+
+    /** Reads the flag and clears it, so a later recreate (rotation, theme) doesn't re-fade. */
+    fun consumeLocaleFadePending(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val pending = prefs.getBoolean(KEY_PENDING_FADE, false)
+        if (pending) prefs.edit().remove(KEY_PENDING_FADE).apply()
+        return pending
+    }
+
+    /** Kills the OS's own restart cross-fade so it can't stack on ours. */
+    fun suppressActivityTransition(activity: android.app.Activity) {
+        if (Build.VERSION.SDK_INT >= 34) {
+            activity.overrideActivityTransition(android.app.Activity.OVERRIDE_TRANSITION_OPEN, 0, 0)
+            activity.overrideActivityTransition(android.app.Activity.OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            activity.overridePendingTransition(0, 0)
+        }
+    }
+
     private fun normalizeLanguageTag(languageTag: String): String {
         val locale = Locale.forLanguageTag(languageTag.replace('_', '-'))
         return if (locale.language.equals("pt", ignoreCase = true)) "pt-BR" else "en"

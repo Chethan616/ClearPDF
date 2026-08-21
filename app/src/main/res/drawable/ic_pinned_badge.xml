@@ -1,0 +1,14 @@
+<!-- Pinned-recents badge: a shield-with-check ("kept / verified"). Material Symbols geometry is
+     authored in the "0 -960 960 960" viewport, so the path is shifted down by 960 to sit in a
+     standard top-left origin. fillColor is a placeholder — the Icon tint overrides it at draw time. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <group android:translateY="960">
+        <path
+            android:fillColor="#E3E3E3"
+            android:pathData="M455-64q-12-4-23-12L192-256q-15-11-23.5-28t-8.5-36v-480q0-33 23.5-56.5T240-880h480q33 0 56.5 23.5T800-800v480q0 19-8.5 36T768-256L528-76q-11 8-23 12t-25 4q-13 0-25-4Zm25-76 240-180v-480H240v480l240 180Zm-42-334-56-56q-12-12-28-11.5T326-530q-12 12-12.5 28.5T325-473l85 85q12 12 28 12t28-12l170-170q12-12 11.5-28T636-614q-12-12-28.5-12.5T579-615L438-474Zm42-326H240h480-240Z"/>
+    </group>
+</vector>

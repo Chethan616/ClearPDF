@@ -76,7 +76,6 @@ fun Modifier.drawPlainBackdrop(
             )
         )
 }
-
 fun Modifier.drawBackdrop(
     backdrop: Backdrop,
     shape: () -> Shape,

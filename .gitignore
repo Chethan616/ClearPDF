@@ -60,3 +60,6 @@ app/src/main/assets/adi-registration.properties
 
 # Local graphify knowledge graph
 /graphify-out/
+
+# Local scratch / reference clones
+scratch/

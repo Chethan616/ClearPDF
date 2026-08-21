@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -48,7 +49,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.LiquidButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.LiquidIconButton
+import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
+import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -124,20 +127,24 @@ fun EncryptPdfScreen(
         confirmPassword = ""
     }
 
+    GlassScreenScaffold(
+        backdrop = backdrop,
+        header = { headerBackdrop ->
+            GlassScreenHeaderRow(
+                title = stringResource(R.string.encrypt_pdf_title),
+                backdrop = headerBackdrop,
+                onBack = onBack
+            )
+        }
+    ) { contentPadding ->
     Column(
         Modifier
             .fillMaxSize()
-            .statusBarsPadding()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
-            }
-            LiquidGlassTopBar(stringResource(R.string.encrypt_pdf_title), backdrop, uiSensor, Modifier.weight(1f))
-        }
 
         Column(
             Modifier
@@ -237,6 +244,7 @@ fun EncryptPdfScreen(
         androidx.compose.foundation.layout.Spacer(
             Modifier.padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 68.dp)
         )
+    }
     }
 }
 

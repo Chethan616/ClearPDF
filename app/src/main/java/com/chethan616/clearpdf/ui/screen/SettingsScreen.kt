@@ -8,17 +8,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -29,19 +27,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.Compress
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.PhotoLibrary
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.DarkMode
-import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.FileCopy
 import androidx.compose.material.icons.rounded.FolderOpen
-import androidx.compose.material.icons.rounded.FolderSpecial
 import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
@@ -61,15 +62,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.stringResource
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.ui.components.LiquidButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.LiquidIconButton
+import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
+import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.LiquidToggle
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
@@ -87,8 +91,13 @@ fun SettingsScreen(
     onDarkModeChanged: (Boolean) -> Unit = {},
     themeMode: Int = 0,
     onThemeModeChanged: (Int) -> Unit = {},
+    showWallpaper: Boolean = true,
+    onShowWallpaperChanged: (Boolean) -> Unit = {},
+    hasCustomWallpaper: Boolean = false,
+    onCustomWallpaperChanged: (String?) -> Unit = {},
     selectedLocale: String = "en",
-    onLocaleChanged: (String) -> Unit = {}
+    onLocaleChanged: (String) -> Unit = {},
+    onReplayOnboarding: () -> Unit = {}
 ) {
     val isLight = !isDarkMode
     val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
@@ -102,7 +111,6 @@ fun SettingsScreen(
 
     var autoCompress by remember { mutableStateOf(AppSettingsManager.getAutoCompress(context)) }
     var keepOriginal by remember { mutableStateOf(AppSettingsManager.getKeepOriginal(context)) }
-    var notifications by remember { mutableStateOf(AppSettingsManager.getNotifications(context)) }
     var defaultQuality by remember { mutableFloatStateOf(AppSettingsManager.getDefaultQuality(context)) }
 
     // Debounce quality slider persistence to prevent lag
@@ -128,6 +136,19 @@ fun SettingsScreen(
             val displayPath = uri.lastPathSegment?.replace("primary:", "") ?: uri.toString()
             SaveLocationManager.setSaveLocation(context, uri, displayPath)
             saveUri = uri
+        }
+    }
+
+    // Pick a custom background image from the gallery (persistable so it survives restarts).
+    val wallpaperPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Exception) {}
+            AppSettingsManager.setCustomWallpaper(context, uri.toString())
+            onCustomWallpaperChanged(uri.toString())
         }
     }
 
@@ -215,23 +236,26 @@ fun SettingsScreen(
         label = "settingsPanel6OffsetY"
     )
 
+    GlassScreenScaffold(
+        backdrop = backdrop,
+        header = { headerBackdrop ->
+            // No back button here, so the pill centres against the full width. Fade only — the pill
+            // is glass, and translating glass re-runs its blur+lens.
+            GlassScreenHeaderRow(
+                title = stringResource(R.string.settings_title),
+                backdrop = headerBackdrop,
+                onBack = null,
+                modifier = Modifier.graphicsLayer { alpha = topBarAlpha }
+            )
+        }
+    ) { contentPadding ->
     Column(
         Modifier
             .fillMaxSize()
-            .statusBarsPadding()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Box(
-            Modifier.graphicsLayer {
-                alpha = topBarAlpha
-                translationY = topBarOffsetY * density
-            }
-        ) {
-            LiquidGlassTopBar(title = stringResource(R.string.settings_title), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.fillMaxWidth())
-        }
-
         // ── Theme Mode Selector ──
         Column(
             Modifier
@@ -252,11 +276,8 @@ fun SettingsScreen(
                 BasicText(stringResource(R.string.settings_appearance), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
-            // Liquid Glass Theme Mode Selector
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+            // Liquid-glass refracted segmented control
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector, val activeColor: Color)
                 val options = listOf(
                     ThemeOption(0, stringResource(R.string.settings_theme_auto), Icons.Rounded.PhoneAndroid, Color(0xFF0088FF)),
@@ -265,30 +286,25 @@ fun SettingsScreen(
                 )
                 options.forEach { option ->
                     val isSelected = themeMode == option.idx
-                    val itemContentColor = if (isSelected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+                    val cc = if (isSelected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
                     LiquidButton(
                         onClick = { onThemeModeChanged(option.idx) },
                         backdrop = backdrop,
-                        tint = if (isSelected) option.activeColor else Color.Transparent,
-                        surfaceColor = if (isSelected) option.activeColor.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
+                        tint = if (isSelected) option.activeColor else Color.Unspecified,
+                        surfaceColor = if (isSelected) Color.Unspecified else (if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f)),
                         modifier = Modifier.weight(1f)
                     ) {
                         Row(
+                            Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally)
                         ) {
-                            Icon(
-                                option.icon, null,
-                                Modifier.size(17.dp),
-                                itemContentColor
-                            )
+                            Icon(option.icon, null, Modifier.size(16.dp), cc)
                             BasicText(
                                 option.label,
-                                style = TextStyle(
-                                    itemContentColor,
-                                    13.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                )
+                                style = TextStyle(cc, 13.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium),
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                         }
                     }
@@ -303,6 +319,54 @@ fun SettingsScreen(
                 },
                 style = TextStyle(sub, 12.sp)
             )
+        }
+
+        // ── Language ──
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel1Alpha
+                    translationY = panel1OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Rounded.Language, null, Modifier.size(22.dp), label)
+                BasicText(stringResource(R.string.settings_language), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+            }
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                data class LangOption(val code: String, val label: String)
+                val langs = listOf(
+                    LangOption("en", stringResource(R.string.language_english)),
+                    LangOption("pt-BR", stringResource(R.string.language_portuguese))
+                )
+                val accent = Color(0xFF0088FF)
+                langs.forEach { opt ->
+                    val isSelected = selectedLocale == opt.code
+                    val cc = if (isSelected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+                    LiquidButton(
+                        onClick = { onLocaleChanged(opt.code) },
+                        backdrop = backdrop,
+                        tint = if (isSelected) accent else Color.Unspecified,
+                        surfaceColor = if (isSelected) Color.Unspecified else (if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        BasicText(
+                            opt.label,
+                            style = TextStyle(cc, 13.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                }
+            }
         }
 
         // ── Save Location ──
@@ -321,77 +385,10 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), Color(0xFF0088FF))
+                Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), Color(0xFF1976D2))
                 BasicText(stringResource(R.string.settings_save_location), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
-            // Liquid Glass Save Location Mode Selector
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                val isDefault = saveUri == null
-                val activeBlue = Color(0xFF0088FF)
-                val activeGreen = Color(0xFF00C853)
-
-                // 1. Default Downloads Button
-                val defContentColor = if (isDefault) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
-                LiquidButton(
-                    onClick = {
-                        if (!isDefault) {
-                            SaveLocationManager.clearSaveLocation(context)
-                            saveUri = null
-                        }
-                    },
-                    backdrop = backdrop,
-                    tint = if (isDefault) activeBlue else Color.Transparent,
-                    surfaceColor = if (isDefault) activeBlue.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(Icons.Rounded.Download, null, Modifier.size(17.dp), defContentColor)
-                        BasicText(
-                            stringResource(R.string.settings_save_downloads),
-                            style = TextStyle(
-                                defContentColor,
-                                13.sp,
-                                fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Medium
-                            )
-                        )
-                    }
-                }
-
-                // 2. Custom Folder Button
-                val isCustom = !isDefault
-                val customContentColor = if (isCustom) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
-                LiquidButton(
-                    onClick = { folderPicker.launch(null) },
-                    backdrop = backdrop,
-                    tint = if (isCustom) activeGreen else Color.Transparent,
-                    surfaceColor = if (isCustom) activeGreen.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(Icons.Rounded.FolderSpecial, null, Modifier.size(17.dp), customContentColor)
-                        BasicText(
-                            stringResource(R.string.settings_save_custom),
-                            style = TextStyle(
-                                customContentColor,
-                                13.sp,
-                                fontWeight = if (isCustom) FontWeight.Bold else FontWeight.Medium
-                            )
-                        )
-                    }
-                }
-            }
-
-            // Path Details Card
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -402,30 +399,50 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                val iconColor = if (saveUri != null) Color(0xFF00C853) else Color(0xFF0088FF)
                 Box(
                     Modifier
-                        .size(38.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
-                        .background(iconColor.copy(0.14f)),
+                        .background(Color(0xFF1976D2).copy(0.14f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        if (saveUri != null) Icons.Rounded.FolderSpecial else Icons.Rounded.Download,
-                        null,
-                        Modifier.size(19.dp),
-                        iconColor
-                    )
+                    Icon(Icons.Rounded.FolderOpen, null, Modifier.size(20.dp), Color(0xFF1976D2))
                 }
                 Column(Modifier.weight(1f)) {
                     BasicText(
                         if (saveUri != null) stringResource(R.string.settings_custom_directory) else stringResource(R.string.settings_default_directory),
-                        style = TextStyle(label, 13.sp, fontWeight = FontWeight.SemiBold)
+                        style = TextStyle(label, 14.sp, fontWeight = FontWeight.SemiBold)
                     )
                     val path = if (saveUri != null) {
                         saveUri!!.lastPathSegment?.replace("primary:", "") ?: saveUri.toString()
                     } else stringResource(R.string.settings_default_path)
                     BasicText(path, style = TextStyle(sub, 12.sp))
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                LiquidButton(
+                    onClick = { folderPicker.launch(null) },
+                    backdrop = backdrop,
+                    tint = Color(0xFF1976D2),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    BasicText(stringResource(R.string.settings_change_folder), style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold))
+                }
+                if (saveUri != null) {
+                    LiquidButton(
+                        onClick = {
+                            SaveLocationManager.clearSaveLocation(context)
+                            saveUri = null
+                        },
+                        backdrop = backdrop,
+                        surfaceColor = Color.White.copy(0.08f)
+                    ) {
+                        BasicText(stringResource(R.string.settings_reset), style = TextStyle(text, 13.sp, fontWeight = FontWeight.SemiBold))
+                    }
                 }
             }
         }
@@ -447,12 +464,12 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Rounded.AutoFixHigh, null, Modifier.size(22.dp), label)
+                Icon(Icons.Rounded.Description, null, Modifier.size(22.dp), label)
                 BasicText(stringResource(R.string.settings_file_handling), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
             SettingsToggleRow(
-                icon = Icons.Rounded.AutoFixHigh,
+                icon = Icons.Rounded.Compress,
                 title = stringResource(R.string.settings_auto_compress),
                 desc = stringResource(R.string.settings_auto_compress_desc),
                 checked = autoCompress,
@@ -479,21 +496,6 @@ fun SettingsScreen(
                 subColor = sub
             )
 
-            Box(
-                Modifier.fillMaxWidth().padding(vertical = 4.dp).height(1.dp)
-                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
-            )
-
-            SettingsToggleRow(
-                icon = Icons.Rounded.Notifications,
-                title = stringResource(R.string.settings_notifications),
-                desc = stringResource(R.string.settings_notifications_desc),
-                checked = notifications,
-                onCheckedChange = { notifications = it; AppSettingsManager.setNotifications(context, it) },
-                backdrop = backdrop,
-                labelColor = label,
-                subColor = sub
-            )
         }
 
         // ── Default Quality ──
@@ -553,7 +555,7 @@ fun SettingsScreen(
             }
         }
 
-        // ── Language Selection ──
+        // ── Personalization ──
         Column(
             Modifier
                 .fillMaxWidth()
@@ -563,43 +565,86 @@ fun SettingsScreen(
                 }
                 .liquidGlassSection(isLight)
                 .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Row(
+                Modifier.padding(bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Rounded.Language, null, Modifier.size(22.dp), Color(0xFF0088FF))
-                BasicText(stringResource(R.string.settings_language), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
+                Icon(Icons.Rounded.Wallpaper, null, Modifier.size(22.dp), label)
+                BasicText(stringResource(R.string.settings_personalization), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                val languages = listOf(
-                    Pair("en", stringResource(R.string.language_english)),
-                    Pair("pt-BR", stringResource(R.string.language_portuguese))
-                )
-                languages.forEach { (code, labelText) ->
-                    val isSelected = selectedLocale == code
-                    val activeColor = Color(0xFF0088FF)
-                    val contentColor = if (isSelected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
+            SettingsToggleRow(
+                icon = Icons.Rounded.Wallpaper,
+                title = stringResource(R.string.settings_background),
+                desc = stringResource(R.string.settings_background_desc),
+                checked = showWallpaper,
+                onCheckedChange = onShowWallpaperChanged,
+                backdrop = backdrop,
+                labelColor = label,
+                subColor = sub
+            )
+
+            // When the background is on, let the user pick a custom image + reset to default.
+            if (showWallpaper) {
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp, start = 46.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     LiquidButton(
-                        onClick = { onLocaleChanged(code) },
+                        onClick = { wallpaperPicker.launch(arrayOf("image/*")) },
                         backdrop = backdrop,
-                        tint = if (isSelected) activeColor else Color.Transparent,
-                        surfaceColor = if (isSelected) activeColor.copy(0.18f) else (if (isLight) Color.White.copy(0.70f) else Color.White.copy(0.10f)),
+                        tint = Color(0xFF0088FF),
                         modifier = Modifier.weight(1f)
                     ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                        ) {
+                            Icon(Icons.Rounded.PhotoLibrary, null, Modifier.size(16.dp), Color.White)
+                            BasicText(stringResource(R.string.settings_bg_gallery), style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
+                        }
+                    }
+                    LiquidIconButton(
+                        onClick = { AppSettingsManager.clearCustomWallpaper(context); onCustomWallpaperChanged(null) },
+                        backdrop = backdrop,
+                        surfaceColor = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f),
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(Icons.Rounded.Refresh, stringResource(R.string.settings_reset), Modifier.size(18.dp), if (hasCustomWallpaper) label else label.copy(0.4f))
+                    }
+                }
+            }
+
+            // Replaying the tour also clears the completion flag (see the nav graph), so quitting
+            // the replay early does not leave it marked as seen-but-never-finished.
+            Spacer(Modifier.height(12.dp))
+            LiquidButton(
+                onClick = onReplayOnboarding,
+                backdrop = backdrop,
+                surfaceColor = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp), label)
+                    Column(Modifier.weight(1f)) {
                         BasicText(
-                            labelText,
-                            style = TextStyle(
-                                contentColor,
-                                13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                            ),
-                            modifier = Modifier.padding(vertical = 4.dp)
+                            stringResource(R.string.settings_replay_onboarding),
+                            style = TextStyle(text, 14.sp, fontWeight = FontWeight.SemiBold),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
+                        BasicText(
+                            stringResource(R.string.settings_replay_onboarding_desc),
+                            style = TextStyle(sub, 12.sp),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -691,16 +736,29 @@ fun SettingsScreen(
                     .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
             )
 
+            LicenseItem(
+                name = "Pdf_Tools",
+                author = "Karna14314",
+                license = "PDF viewer zoom/pan reference",
+                url = "https://github.com/Karna14314/Pdf_Tools",
+                labelColor = label,
+                subColor = sub
+            )
+
+            Box(
+                Modifier.fillMaxWidth().height(1.dp)
+                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
+            )
+
             BasicText(
                 stringResource(R.string.settings_license_notice),
                 style = TextStyle(sub.copy(0.7f), 11.sp, lineHeight = 16.sp)
             )
         }
 
-        // Dynamic bottom spacer: tab bar (64dp) + actual nav bar inset + breathing room
-        Spacer(Modifier.height(
-            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 84.dp
-        ))
+        // Clear the floating bottom navigation bar + system nav inset.
+        Spacer(Modifier.height(120.dp))
+    }
     }
 }
 
@@ -779,6 +837,16 @@ private fun LicenseItem(
             BasicText(stringResource(R.string.settings_license_author, author), style = TextStyle(subColor, 12.sp))
         }
         BasicText(license, style = TextStyle(subColor, 11.sp))
-        BasicText(url, style = TextStyle(Color(0xFF0088FF), 11.sp))
+        val context = LocalContext.current
+        // Same blue URL text, now a tap target that opens the repo. No indication/ripple so the row
+        // looks exactly as before — only its behaviour changes.
+        BasicText(
+            url,
+            style = TextStyle(Color(0xFF0088FF), 11.sp),
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { openExternalLink(context, url) }
+        )
     }
 }

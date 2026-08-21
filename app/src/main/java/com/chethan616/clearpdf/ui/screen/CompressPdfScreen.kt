@@ -47,9 +47,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chethan616.clearpdf.ui.components.GlassChip
 import com.chethan616.clearpdf.ui.components.LiquidButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
 import com.chethan616.clearpdf.ui.components.LiquidSlider
+import com.chethan616.clearpdf.ui.components.ToolScaffold
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -86,66 +87,11 @@ fun CompressPdfScreen(
         if (uri != null) viewModel.onSelectFile(context, uri)
     }
 
-    var isVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { isVisible = true }
-    val density = androidx.compose.ui.platform.LocalDensity.current.density
-
-    val topBarAlpha by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-        label = "compressTopBarAlpha"
-    )
-    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isVisible) 0f else 16f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-        label = "compressTopBarOffsetY"
-    )
-
-    val contentAlpha by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-        label = "compressContentAlpha"
-    )
-    val contentOffsetY by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isVisible) 0f else 24f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-        label = "compressContentOffsetY"
-    )
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ToolScaffold(
+        title = stringResource(R.string.tool_compress),
+        backdrop = backdrop,
+        onBack = onBack
     ) {
-        // Floating Liquid Glass Top Bar
-        Row(
-            Modifier.graphicsLayer {
-                alpha = topBarAlpha
-                translationY = topBarOffsetY * density
-            },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
-            }
-            LiquidGlassTopBar(title = stringResource(R.string.tool_compress), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f), titleFontSize = 18.sp)
-        }
-
-        // Scrollable Body Content
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .graphicsLayer {
-                    alpha = contentAlpha
-                    translationY = contentOffsetY * density
-                }
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -201,17 +147,7 @@ fun CompressPdfScreen(
                             Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), accent)
                             BasicText(stringResource(R.string.settings_compression_quality), style = TextStyle(text, 16.sp, fontWeight = FontWeight.SemiBold))
                         }
-                        Box(
-                            Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(accent.copy(0.12f))
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            BasicText(
-                                "${(state.qualitySlider * 100).toInt()}%",
-                                style = TextStyle(accent, 13.sp, fontWeight = FontWeight.Bold)
-                            )
-                        }
+                        GlassChip("${(state.qualitySlider * 100).toInt()}%", accent)
                     }
 
                     LiquidSlider(
@@ -242,11 +178,11 @@ fun CompressPdfScreen(
 
                 // Compress button
                 LiquidButton(
-                    onClick = { viewModel.onCompress(context) },
+                    onClick = { if (!state.isCompressing) viewModel.onCompress(context) },
                     backdrop = backdrop, tint = accent,
-                    isInteractive = !state.isCompressing
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
                         if (state.isCompressing) {
                             CircularProgressIndicator(Modifier.size(18.dp), Color.White, strokeWidth = 2.dp)
                         } else {
@@ -254,7 +190,8 @@ fun CompressPdfScreen(
                         }
                         BasicText(
                             if (state.isCompressing) "Compressing..." else "Compress Now",
-                            style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium)
+                            style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium),
+                            maxLines = 1
                         )
                     }
                 }
@@ -281,6 +218,5 @@ fun CompressPdfScreen(
             }
 
             Spacer(Modifier.height(40.dp))
-        }
     }
 }

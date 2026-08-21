@@ -52,7 +52,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.ui.components.LiquidButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.LiquidIconButton
+import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
+import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -108,11 +110,6 @@ fun SplitPdfScreen(
         animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "splitTopBarAlpha"
     )
-    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isVisible) 0f else 16f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-        label = "splitTopBarOffsetY"
-    )
 
     val contentAlpha by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
@@ -125,31 +122,23 @@ fun SplitPdfScreen(
         label = "splitContentOffsetY"
     )
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Row(
-            Modifier.graphicsLayer {
-                alpha = topBarAlpha
-                translationY = topBarOffsetY * density
-            },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
-            }
-            LiquidGlassTopBar(title = stringResource(R.string.tool_split), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
+    GlassScreenScaffold(
+        backdrop = backdrop,
+        header = { headerBackdrop ->
+            // Fade only — the header is glass, and translating glass re-runs its blur+lens.
+            GlassScreenHeaderRow(
+                title = stringResource(R.string.tool_split),
+                backdrop = headerBackdrop,
+                onBack = onBack,
+                modifier = Modifier.graphicsLayer { alpha = topBarAlpha }
+            )
         }
-
+    ) { contentPadding ->
         Column(
             Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(contentPadding)
                 .graphicsLayer {
                     alpha = contentAlpha
                     translationY = contentOffsetY * density
@@ -320,12 +309,12 @@ fun SplitPdfScreen(
             }
 
             LiquidButton(
-                onClick = { viewModel.onRunPrimaryAction(context) },
+                onClick = { if (!state.isSplitting) viewModel.onRunPrimaryAction(context) },
                 backdrop = backdrop,
                 tint = accent,
-                isInteractive = !state.isSplitting
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
                     if (state.isSplitting) {
                         CircularProgressIndicator(Modifier.size(18.dp), Color.White, strokeWidth = 2.dp)
                     } else {
@@ -336,7 +325,7 @@ fun SplitPdfScreen(
                             Color.White
                         )
                     }
-                    BasicText(actionLabel, style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+                    BasicText(actionLabel, style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium), maxLines = 1)
                 }
             }
         }

@@ -1,93 +1,76 @@
 package com.chethan616.clearpdf.ui.screen
 
-import androidx.compose.ui.res.stringResource
-import com.chethan616.clearpdf.R
-
 import android.app.Activity
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDecay
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.VectorConverter
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
-import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListLayoutInfo
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.VerticalPager
-import androidx.compose.material.icons.rounded.FormatListNumbered
-import androidx.compose.material.icons.rounded.SwapHoriz
-import androidx.compose.material.icons.rounded.SwapVert
-import kotlin.math.roundToInt
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.window.Dialog
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.PictureAsPdf
-import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Gesture
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -106,84 +89,63 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.chethan616.clearpdf.ui.components.CloseCrossIcon
+import com.chethan616.clearpdf.R
+import com.chethan616.clearpdf.data.repository.AppSettingsManager
+import com.chethan616.clearpdf.ui.components.DecryptingAnimation
 import com.chethan616.clearpdf.ui.components.LiquidButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.GlassTitlePill
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
-import com.chethan616.clearpdf.ui.components.LiquidSaveDialog
+import com.chethan616.clearpdf.ui.components.ViewerChromeGlass
+import com.chethan616.clearpdf.ui.components.LiquidSaveSheet
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
-import androidx.compose.material.icons.rounded.Close
+import com.chethan616.clearpdf.ui.components.viewerChromeGlass
+import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
-import com.chethan616.clearpdf.ui.viewmodel.ExportOverlay
-import com.chethan616.clearpdf.ui.viewmodel.FindMatch
-import com.chethan616.clearpdf.ui.viewmodel.NormalizedPoint
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
-import com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock
 import com.chethan616.clearpdf.ui.viewmodel.PdfViewerViewModel
+import com.chethan616.clearpdf.ui.viewmodel.OcrTextRange
 import com.kyant.backdrop.backdrops.LayerBackdrop
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.input.TextFieldValue
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.pow
-import kotlin.math.sin
-
-private const val MIN_ZOOM             = 1.0f
-private const val MAX_ZOOM             = 8.0f
-private const val ZOOM_SLOP            = 0.01f
-private const val PAN_SLOP_PX          = 8f
-private const val SWIPE_ANGLE_DEG      = 38f
-private const val SNAP_BACK_THRESHOLD  = 1.08f
-private const val FLING_FRICTION       = 0.92f
-private const val FLING_MIN_VELOCITY   = 50f
-private const val DOUBLE_TAP_ZOOM_1    = 2.5f
-private const val DOUBLE_TAP_ZOOM_2    = 4.5f
+import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 @Composable
 fun PdfViewerScreen(
     backdrop: LayerBackdrop,
     viewModel: PdfViewerViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    // True when the caller (recents / external open / a tool's output) already handed us a document
+    // to load. In that case the viewer must NOT flash its "Open a PDF" picker while the pages render —
+    // it shows a loading curtain that the real document fades in behind. See [ViewerLoadingCurtain].
+    pendingLoad: Boolean = false
 ) {
     val state         by viewModel.uiState.collectAsState()
     val isDarkMode     = LocalIsDarkMode.current
@@ -199,52 +161,195 @@ fun PdfViewerScreen(
     val view           = LocalView.current
     val scope          = rememberCoroutineScope()
 
+    // ── Local UI state ─────────────────────────────────────────────────────
     var controlsVisible     by rememberSaveable { mutableStateOf(true) }
     var controlsPinned      by rememberSaveable { mutableStateOf(false) }
+    // True while the bottom "Editor Tools" panel is expanded — keeps the chrome from auto-hiding
+    // so the user can browse tools without it disappearing.
+    var editorToolsOpen     by rememberSaveable { mutableStateOf(false) }
+    // True for as long as the share capsule is held morphed open. Not saveable on purpose: a
+    // configuration change cancels the pointer gesture, so a persisted `true` would pin the chrome
+    // open forever with no finger left to release it.
+    var shareHolding        by remember { mutableStateOf(false) }
     var lastInteractionAtMs by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
-    var scrollOrientation   by rememberSaveable { mutableStateOf(if (com.chethan616.clearpdf.data.repository.AppSettingsManager.getScrollOrientation(context) == 1) ScrollOrientation.Horizontal else ScrollOrientation.Vertical) }
+    // Adobe-style single-axis reading: the viewer is vertical-only. Horizontal
+    // panning is still allowed inside a zoomed page (handled in PdfContinuousPage).
+    val scrollOrientation = ScrollOrientation.Vertical
     var showPageJumpDialog  by rememberSaveable { mutableStateOf(false) }
+    var activeTool          by rememberSaveable { mutableStateOf(PdfEditTool.None) }
+    var currentColorLong    by rememberSaveable { mutableLongStateOf(0xFF00BCD4L) }
+    val currentColor         = Color(currentColorLong)
+    var currentStrokeWidth  by rememberSaveable { mutableFloatStateOf(6f) }
+    var activeImageId       by remember { mutableStateOf<Long?>(null) }
+    var showSaveDialog      by rememberSaveable { mutableStateOf(false) }
+    var showShareDialog     by remember { mutableStateOf(false) }
+    var showFindBar         by rememberSaveable { mutableStateOf(false) }
+    var findQuery           by rememberSaveable { mutableStateOf("") }
+    val findFocusRequester   = remember { FocusRequester() }
+    var passwordText        by rememberSaveable { mutableStateOf("") }
+    val passwordFocusRequester = remember { FocusRequester() }
+    var showSignaturePad    by remember { mutableStateOf(false) }
+    var showZoomHud         by remember { mutableStateOf(false) }
+    // Annotation (text box / sticky note) editing
+    var editingAnnoId       by remember { mutableStateOf<Long?>(null) }
+    var editingAnnoPage     by remember { mutableStateOf(0) }
+    var editingAnnoIsNote   by remember { mutableStateOf(false) }
+    var annotationDraft     by remember { mutableStateOf("") }
+    var editingAnnoColor    by remember { mutableStateOf(Color(0xFF1976D2)) }
+    // Shape (rect / oval / line / arrow / stroke) editing — identified by page + list index.
+    var editingShapePage    by remember { mutableStateOf<Int?>(null) }
+    var editingShapeIndex   by remember { mutableStateOf(-1) }
+    // Generic markup selection (move + resize of shapes / text / notes).
+    var selectedAnnoPage    by remember { mutableStateOf<Int?>(null) }
+    var selectedAnnoIndex   by remember { mutableStateOf(-1) }
+    val density              = LocalDensity.current
 
-    val zoomAnim = remember { Animatable(1f) }
-    val panXAnim = remember { Animatable(0f) }
-    val panYAnim = remember { Animatable(0f) }
+    // ── Zoom / pan state ───────────────────────────────────────────────────
+    // Ported from Pdf_Tools (Karna14314): document-level zoom/pan is plain float
+    // state updated *synchronously* inside the gesture loop. The earlier
+    // Animatable approach launched a coroutine (snapTo) per pointer event, which
+    // raced on single-page docs and made pinch/pan stutter — see settings credit.
+    var scale   by remember { mutableFloatStateOf(1f) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
 
-    val zoomScale: Float  = zoomAnim.value
-    val panOffset: Offset = Offset(panXAnim.value, panYAnim.value)
-
-    var showZoomHud by remember { mutableStateOf(false) }
-    val zoomHudText  = "${(zoomAnim.value * 100 + 0.5f).toInt()}%"
-
-    LaunchedEffect(zoomAnim.value) {
-        if (zoomAnim.value > 1.05f) {
-            showZoomHud = true
-            delay(900)
-            showZoomHud = false
-        } else {
-            showZoomHud = false
-        }
+    LaunchedEffect(scale) {
+        if (scale > 1.05f) { showZoomHud = true; delay(900); showZoomHud = false }
+        else showZoomHud = false
     }
 
-    var activeTool         by rememberSaveable { mutableStateOf(PdfEditTool.None) }
-    var currentColorLong   by rememberSaveable { mutableLongStateOf(0xFF00BCD4L) }
-    val currentColor        = Color(currentColorLong)
-    var currentStrokeWidth by rememberSaveable { mutableFloatStateOf(6f) }
-    var activeImageId      by remember { mutableStateOf<Long?>(null) }
-    var showSaveDialog     by rememberSaveable { mutableStateOf(false) }
-    var showFindBar        by rememberSaveable { mutableStateOf(false) }
-    var findQuery          by rememberSaveable { mutableStateOf("") }
-    val findFocusRequester = remember { FocusRequester() }
-    var passwordText       by rememberSaveable { mutableStateOf("") }
-    val passwordFocusRequester = remember { FocusRequester() }
-    var showSignaturePad   by remember { mutableStateOf(false) }
-    val haptic             = LocalHapticFeedback.current
-
-    val annotationsByPage  = remember { mutableStateMapOf<Int, MutableList<PdfMarkup>>() }
-    val pageCanvasSizes    = remember { mutableStateMapOf<Int, Size>() }
-    val pageBitmapSizes    = remember { mutableStateMapOf<Int, Size>() }
+    // ── Page annotation state ──────────────────────────────────────────────
+    val annotationsByPage = remember { mutableStateMapOf<Int, MutableList<PdfMarkup>>() }
+    val pageCanvasSizes   = remember { mutableStateMapOf<Int, Size>() }
+    val pageBitmapSizes   = remember { mutableStateMapOf<Int, Size>() }
 
     fun getPageMarks(page: Int): MutableList<PdfMarkup> =
         annotationsByPage.getOrPut(page) { mutableStateListOf() }
+
+    fun selectedTextRanges(page: Int): List<OcrTextRange> =
+        state.selectedOcrRangesByPage[page].orEmpty()
+
+    // Undo history: the page each added markup landed on, newest last. Undo pops the most recent
+    // entry and removes THAT page's last mark, so "undo" means the last thing the user actually
+    // did. The old behaviour removed the last mark of `listState.firstVisibleItemIndex`, which is
+    // the first *partially* visible page — usually a sliver of the previous page while you draw on
+    // the one filling the screen, so undo silently no-op'd on an empty list. The same trap is
+    // already documented for image placement at `activeImageLoc`.
+    val undoStack = remember { mutableStateListOf<Int>() }
+
+    // Declared here (rather than lower) so the image/signature launchers below can place
+    // annotations onto whichever page is under the viewport centre.
+    val listState = rememberLazyListState()
+
+    // iOS-style momentum for the continuous page scroll: a lower-friction exponential decay
+    // glides longer and settles smoothly (vs the stiffer platform spline), so even 2–3 page
+    // docs feel continuous instead of stopping abruptly. Only the fling curve changes — the
+    // scroll mechanics and the default stretch overscroll (rubber-band at the edges) are intact.
+    val iosPageDecay = remember { androidx.compose.animation.core.exponentialDecay<Float>(frictionMultiplier = 0.55f) }
+    val pageFling = remember(iosPageDecay) {
+        object : androidx.compose.foundation.gestures.FlingBehavior {
+            override suspend fun androidx.compose.foundation.gestures.ScrollScope.performFling(initialVelocity: Float): Float {
+                if (kotlin.math.abs(initialVelocity) <= 1f) return initialVelocity
+                var lastValue = 0f
+                var velocityLeft = initialVelocity
+                androidx.compose.animation.core.AnimationState(initialValue = 0f, initialVelocity = initialVelocity)
+                    .animateDecay(iosPageDecay) {
+                        val delta = value - lastValue
+                        val consumed = scrollBy(delta)
+                        lastValue = value
+                        velocityLeft = this.velocity
+                        // Hit an edge / content end → stop so overscroll can take over.
+                        if (kotlin.math.abs(delta - consumed) > 0.5f) cancelAnimation()
+                    }
+                return velocityLeft
+            }
+        }
+    }
+
+    // The page + on-screen position where a newly placed image/signature should land: the
+    // page occupying the vertical centre of the viewport, at the point the user is looking
+    // at (so a sign never silently lands off-screen on page 1). Returns a null offset when
+    // the page isn't measured yet → callers fall back to that page's frame centre.
+    fun viewportPlacementTarget(): Pair<Int, Offset?> {
+        val info = listState.layoutInfo
+        val visible = info.visibleItemsInfo
+        if (visible.isEmpty()) return state.currentPage to null
+        val centerY = (info.viewportStartOffset + info.viewportEndOffset) / 2
+        val item = visible.firstOrNull { centerY >= it.offset && centerY < it.offset + it.size }
+            ?: visible.minByOrNull { kotlin.math.abs((it.offset + it.size / 2) - centerY) }!!
+        val page = item.index
+        val cs = pageCanvasSizes[page] ?: return page to null
+        if (cs.width < 50f || cs.height < 50f) return page to null
+        val topPadPx = with(density) { 6.dp.toPx() }
+        val localY = (centerY - item.offset - topPadPx).coerceIn(0f, cs.height)
+        val bs = pageBitmapSizes[page] ?: cs
+        val frame = fitBitmapRect(cs, bs.width, bs.height)
+        return page to Offset(frame.center.x, localY)
+    }
+
+    /** Record that [page] just gained a markup, so undo can find it again. */
+    fun recordEdit(page: Int) { undoStack.add(page) }
+
+    /**
+     * Remove the most recently added markup, wherever it lives. Entries can go stale — the eraser
+     * and the shape editor delete marks without touching the stack — so pop past any page that has
+     * since been emptied. If the history is exhausted (or was never populated) fall back to the page
+     * under the viewport centre, which is the page the user is looking at.
+     */
+    fun undoLastEdit() {
+        while (undoStack.isNotEmpty()) {
+            val page = undoStack.removeAt(undoStack.lastIndex)
+            val marks = getPageMarks(page)
+            if (marks.isNotEmpty()) { marks.removeAt(marks.lastIndex); return }
+        }
+        val marks = getPageMarks(viewportPlacementTarget().first)
+        if (marks.isNotEmpty()) marks.removeAt(marks.lastIndex)
+    }
+
+    /** Clear every markup on the page under the viewport centre — the one the user can see. */
+    fun clearVisiblePage() {
+        val page = viewportPlacementTarget().first
+        getPageMarks(page).clear()
+        undoStack.removeAll { it == page }
+    }
+
+    // Add a new image/signature centred at the viewport-target on the correct page, sized
+    // to the page and clamped fully on-page. Shared by the image picker and signature pad.
+    fun placeImageMarkup(bmp: Bitmap, isSignature: Boolean) {
+        val (page, target) = viewportPlacementTarget()
+        val marks = getPageMarks(page)
+        val rawCs = pageCanvasSizes[page]
+        val cs = if (rawCs != null && rawCs.width > 50f && rawCs.height > 50f) rawCs else Size(1000f, 1400f)
+        val bs = pageBitmapSizes[page] ?: cs
+        val frame = fitBitmapRect(cs, bs.width, bs.height)
+        val maxW = (if (frame.width > 50f) frame.width else cs.width) * (if (isSignature) 0.45f else 0.5f)
+        val ratio = bmp.height.toFloat() / bmp.width.toFloat().coerceAtLeast(1f)
+        val w = maxW.coerceAtLeast(100f)
+        val h = w * ratio
+        val fallbackCenter = if (frame.width > 50f) frame.center else Offset(cs.width / 2f, cs.height / 2f)
+        val center = target ?: fallbackCenter
+        val cx = center.x.coerceIn(w / 2f, (cs.width - w / 2f).coerceAtLeast(w / 2f))
+        val cy = center.y.coerceIn(h / 2f, (cs.height - h / 2f).coerceAtLeast(h / 2f))
+        val id = System.nanoTime()
+        marks.add(PdfMarkup.ImageMarkup(id, bmp, Offset(cx - w / 2f, cy - h / 2f), Offset(cx + w / 2f, cy + h / 2f), isSignature))
+        recordEdit(page)
+        activeImageId = id; activeTool = PdfEditTool.Image; controlsVisible = true
+    }
+
+    // Locate the currently selected image across ALL pages (it may live on a page other
+    // than firstVisibleItemIndex, since placement targets the viewport-centre page).
+    fun activeImageLoc(): Triple<Int, Int, PdfMarkup.ImageMarkup>? {
+        val id = activeImageId ?: return null
+        annotationsByPage.forEach { (pg, m) ->
+            val i = m.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == id }
+            if (i >= 0) return Triple(pg, i, m[i] as PdfMarkup.ImageMarkup)
+        }
+        return null
+    }
+
+    // ── Launchers ─────────────────────────────────────────────────────────
+    val pdfPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { viewModel.openPdf(context, it) }
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -253,66 +358,23 @@ fun PdfViewerScreen(
                 android.graphics.BitmapFactory.decodeStream(it)
             }
         }.getOrNull() ?: return@rememberLauncherForActivityResult
-        val page = state.currentPage
-        val marks = getPageMarks(page)
-        val existingIdx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
-        if (existingIdx >= 0) {
+        // If an image is currently selected, replace its bitmap in place; otherwise place a
+        // new one on the page under the viewport (never silently on page 1).
+        val existingPage = annotationsByPage.entries.firstOrNull { (_, m) -> m.any { it is PdfMarkup.ImageMarkup && it.id == activeImageId } }?.key
+        val existingIdx = existingPage?.let { getPageMarks(it).indexOfLast { m -> m is PdfMarkup.ImageMarkup && m.id == activeImageId } } ?: -1
+        if (existingPage != null && existingIdx >= 0) {
+            val marks = getPageMarks(existingPage)
             val existing = marks[existingIdx] as PdfMarkup.ImageMarkup
             val ratio = bmp.height.toFloat() / bmp.width.toFloat().coerceAtLeast(1f)
-            val currentWidth = (existing.end.x - existing.start.x).let { kotlin.math.abs(it) }.coerceAtLeast(20f)
-            val newHeight = currentWidth * ratio
-            marks[existingIdx] = existing.copy(
-                bitmap = bmp,
-                end = Offset(existing.end.x, existing.start.y + newHeight),
-                isSignature = false
-            )
+            val currentW = kotlin.math.abs(existing.end.x - existing.start.x).coerceAtLeast(20f)
+            marks[existingIdx] = existing.copy(bitmap = bmp, end = Offset(existing.end.x, existing.start.y + currentW * ratio), isSignature = false)
         } else {
-            val cs = pageCanvasSizes[page] ?: Size(bmp.width.toFloat(), bmp.height.toFloat())
-            val frame = fitBitmapRect(cs, (pageBitmapSizes[page]?.width ?: cs.width), (pageBitmapSizes[page]?.height ?: cs.height))
-            val maxW = (if (frame.width > 0f) frame.width else cs.width) * 0.5f
-            val ratio = bmp.height.toFloat() / bmp.width.toFloat().coerceAtLeast(1f)
-            val w = maxW.coerceAtLeast(1f)
-            val h = w * ratio
-            val center = if (frame.width > 0f) frame.center else Offset(cs.width / 2f, cs.height / 2f)
-            val id = System.nanoTime()
-            marks.add(
-                PdfMarkup.ImageMarkup(
-                    id = id,
-                    bitmap = bmp,
-                    start = Offset(center.x - w / 2f, center.y - h / 2f),
-                    end = Offset(center.x + w / 2f, center.y + h / 2f),
-                    isSignature = false
-                )
-            )
-            activeImageId = id
-            activeTool = PdfEditTool.Image
+            placeImageMarkup(bmp, isSignature = false)
         }
     }
 
-    suspend fun animateZoomPan(
-        targetZoom: Float,
-        targetPan: Offset,
-        dampingRatio: Float = Spring.DampingRatioMediumBouncy,
-        stiffness: Float    = Spring.StiffnessMedium
-    ) {
-        val spec = spring<Float>(dampingRatio = dampingRatio, stiffness = stiffness)
-        coroutineScope {
-            launch { zoomAnim.animateTo(targetZoom, spec) }
-            launch { panXAnim.animateTo(targetPan.x, spec) }
-            launch { panYAnim.animateTo(targetPan.y, spec) }
-        }
-    }
-
-    suspend fun snapZoomPan(targetZoom: Float, targetPan: Offset) {
-        coroutineScope {
-            launch { zoomAnim.snapTo(targetZoom) }
-            launch { panXAnim.snapTo(targetPan.x) }
-            launch { panYAnim.snapTo(targetPan.y) }
-        }
-    }
-
+    // ── Immersive mode ────────────────────────────────────────────────────
     val immersiveActive = state.document != null && !controlsVisible
-
     DisposableEffect(activity, view, immersiveActive) {
         val ctrl = activity?.let { WindowCompat.getInsetsController(it.window, view) }
         ctrl?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -321,164 +383,168 @@ fun PdfViewerScreen(
         onDispose { ctrl?.show(WindowInsetsCompat.Type.systemBars()) }
     }
 
+    // ── Document lifecycle effects ─────────────────────────────────────────
     LaunchedEffect(state.document?.uri) {
-        controlsVisible = true
-        controlsPinned  = false
+        controlsVisible = true; controlsPinned = false
         lastInteractionAtMs = System.currentTimeMillis()
-        zoomAnim.snapTo(1f); panXAnim.snapTo(0f); panYAnim.snapTo(0f)
+        scale = 1f; offsetX = 0f
         activeTool = PdfEditTool.None
-        annotationsByPage.clear(); pageCanvasSizes.clear(); pageBitmapSizes.clear()
-        viewModel.clearOcrSelection(state.currentPage)
-        viewModel.clearExportFeedback()
-        showFindBar = false
-        findQuery = ""
-        viewModel.clearSearch()
+        selectedAnnoPage = null; selectedAnnoIndex = -1
+        annotationsByPage.clear(); undoStack.clear(); pageCanvasSizes.clear(); pageBitmapSizes.clear()
+        viewModel.clearOcrSelection(state.currentPage); viewModel.clearExportFeedback()
+        showFindBar = false; findQuery = ""; viewModel.clearSearch()
     }
 
-    val pagerScopeForFind = rememberCoroutineScope()
-
-    LaunchedEffect(state.document, controlsVisible, controlsPinned, activeTool, lastInteractionAtMs) {
-        if (state.document != null && controlsVisible && !controlsPinned
-            && zoomAnim.value <= 1.01f && activeTool == PdfEditTool.None
-        ) {
+    LaunchedEffect(state.document, controlsVisible, controlsPinned, activeTool, editorToolsOpen, shareHolding, lastInteractionAtMs) {
+        if (state.document != null && controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && !editorToolsOpen && !shareHolding) {
             val snap = lastInteractionAtMs
-            delay(3500)
-            if (controlsVisible && !controlsPinned && zoomAnim.value <= 1.01f
-                && activeTool == PdfEditTool.None && snap == lastInteractionAtMs)
+            // Comfortable auto-hide window; any interaction bumps lastInteractionAtMs and
+            // restarts this. It never fires while a tool is active (activeTool != None), while
+            // the Editor Tools panel is open, or while the share capsule is held — a long-press
+            // produces no pointer events for the viewer to see, so without that last guard the
+            // chrome hid itself out from under the finger mid-gesture.
+            delay(5000)
+            if (controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && !editorToolsOpen && !shareHolding && snap == lastInteractionAtMs)
                 controlsVisible = false
         }
+    }
+
+    LaunchedEffect(state.passwordUri) {
+        if (state.passwordUri != null) { passwordText = ""; delay(120); passwordFocusRequester.requestFocus() }
     }
 
     BackHandler(enabled = state.document != null) {
         if (!controlsVisible) controlsVisible = true else onBack()
     }
 
-    val pdfPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { viewModel.openPdf(context, it) }
-    }
-
-    LaunchedEffect(state.passwordUri) {
-        if (state.passwordUri != null) {
-            passwordText = ""
-            delay(120)
-            passwordFocusRequester.requestFocus()
-        }
-    }
-
+    // ── No-document state ─────────────────────────────────────────────────
     if (state.document == null) {
-        Column(
-            Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                    Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
-                }
-                LiquidGlassTopBar(
-                    stringResource(R.string.viewer_title),
-                    backdrop,
-                    uiSensor,
-                    Modifier.weight(1f)
-                )
-            }
-            Column(
-                Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Column(
-                    Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(28.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(56.dp), accent)
-                    BasicText(
-                        stringResource(R.string.viewer_open_pdf),
-                        style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold)
-                    )
-                    BasicText(
-                        stringResource(R.string.viewer_select_file),
-                        style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center)
-                    )
-                    LiquidButton(
-                        onClick = { pdfPickerLauncher.launch(arrayOf("*/*")) },
-                        backdrop = backdrop, tint = accent
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
-                            BasicText(stringResource(R.string.viewer_pick_pdf), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
-                        }
+        val askingPassword = state.passwordRequired && state.passwordUri != null
+        // A document is on its way in (recents / external / tool output) and nothing has gone wrong
+        // yet: show the loading curtain instead of the picker so the user never sees the "Open a PDF"
+        // card flash before their file appears. The identical curtain is held over the loaded viewer
+        // below until the first page is rendered, so the swap between these two branches is seamless.
+        val openingHandedDoc = !askingPassword && state.errorMessage == null && (state.isLoading || pendingLoad)
+        if (openingHandedDoc) {
+            Box(Modifier.fillMaxSize()) {
+                ViewerLoadingCurtain(isLight = isLight)
+                // While a password PDF is actually being unlocked, play the padlock "decrypting"
+                // animation over the fill (styled after the onboarding page-5 demos). Plain opening
+                // fills (a normal load) show nothing extra — a lock would be misleading there.
+                if (state.decrypting) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        DecryptingAnimation(backdrop = backdrop)
                     }
                 }
-                state.errorMessage?.let { BasicText(it, style = TextStyle(Color(0xFFD32F2F), 14.sp)) }
+            }
+            return
+        }
+        // The password prompt is an OVERLAY on this Box, not a third row inside the Column below.
+        //
+        // It used to be a sibling of the "Open a PDF" card in a `spacedBy(16.dp)` Column whose middle
+        // section carried `weight(1f)`. So the moment the prompt and the keyboard were both up, the
+        // weighted section was squeezed and the card was chopped mid-sentence — the whole point of a
+        // password dialog is that the thing behind it stays intact.
+        Box(Modifier.fillMaxSize()) {
+            Column(
+                Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Same trio as the loaded viewer's chrome: back circle · centered title pill · balancer.
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // No `surfaceColor`, like Home's — this circle used to paint a white 8% wash that
+                    // nothing else in the app does.
+                    LiquidIconButton(onClick = onBack, backdrop = backdrop) {
+                        Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
+                    }
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        GlassTitlePill(stringResource(R.string.viewer_title), backdrop)
+                    }
+                    Spacer(Modifier.size(40.dp))
+                }
+                Column(
+                    Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().viewerGlass(backdrop, viewerChromeGlass(isDarkMode)).padding(28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(56.dp), accent)
+                        BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
+                        BasicText(stringResource(R.string.viewer_select_file), style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center))
+                        LiquidButton(onClick = { pdfPickerLauncher.launch(arrayOf("*/*")) }, backdrop = backdrop, tint = accent) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
+                                BasicText(stringResource(R.string.viewer_pick_pdf), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+                            }
+                        }
+                    }
+                    state.errorMessage?.let { BasicText(it, style = TextStyle(Color(0xFFD32F2F), 14.sp)) }
+                }
+            }
+
+            // ── Password prompt (in-window, so the glass samples the real backdrop) ──
+            // `askingPassword` is computed at the top of this branch.
+
+            // Dimming scrim. Deliberately NOT tap-to-dismiss, unlike LiquidPageJumpPopup: there is
+            // nothing behind this to go back to — dismissing would leave a locked document and an
+            // empty screen. Back already exits the viewer.
+            AnimatedVisibility(
+                visible = askingPassword,
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(180)),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(0.45f)))
             }
 
             AnimatedVisibility(
-                visible = state.passwordRequired && state.passwordUri != null,
-                enter = fadeIn() + scaleIn(initialScale = 0.96f),
-                exit = fadeOut() + scaleOut(targetScale = 0.98f),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-                    .imePadding()
+                visible = askingPassword,
+                // LiquidPageJumpPopup's entrance, verbatim, so the app has one dialog motion.
+                enter = fadeIn(tween(220)) +
+                    scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)),
+                exit = fadeOut(tween(140)) + scaleOut(targetScale = 0.9f, animationSpec = tween(150)),
+                modifier = Modifier.align(Alignment.Center).imePadding()
             ) {
                 Column(
                     Modifier
-                        .fillMaxWidth()
+                        .widthIn(max = 340.dp)
+                        .fillMaxWidth(0.86f)
+                        // The heavy stack, not `viewerGlass`: this is a dialog over a scrim and needs
+                        // an edge of its own. No `containerColorOverride` — there is no page to sample
+                        // in this branch, so the theme tint is the right one.
                         .liquidGlassPanel(backdrop, uiSensor)
-                        .padding(16.dp),
+                        .padding(22.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    BasicText(stringResource(R.string.pdf_password_title), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
                     BasicText(
-                        stringResource(R.string.pdf_password_title),
-                        style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold)
-                    )
-                    BasicText(
-                        if (state.passwordAttemptFailed) stringResource(R.string.pdf_password_wrong)
-                        else stringResource(R.string.pdf_password_subtitle),
+                        if (state.passwordAttemptFailed) stringResource(R.string.pdf_password_wrong) else stringResource(R.string.pdf_password_subtitle),
                         style = TextStyle(sub, 12.sp)
                     )
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                         BasicTextField(
                             value = passwordText,
                             onValueChange = { passwordText = it },
                             singleLine = true,
                             textStyle = TextStyle(text, 15.sp),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onDone = {
-                                    state.passwordUri?.let { viewModel.openPdf(context, it, passwordText) }
-                                }
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { state.passwordUri?.let { viewModel.openPdf(context, it, passwordText) } }),
+                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
                                 .background(if (isLight) Color.Black.copy(0.05f) else Color.White.copy(0.08f))
-                                .padding(horizontal = 12.dp, vertical = 11.dp)
-                                .focusRequester(passwordFocusRequester),
+                                .padding(horizontal = 12.dp, vertical = 11.dp).focusRequester(passwordFocusRequester),
                             decorationBox = { inner ->
-                                if (passwordText.isEmpty()) {
-                                    BasicText(stringResource(R.string.pdf_password_hint), style = TextStyle(sub, 14.sp))
-                                }
+                                if (passwordText.isEmpty()) BasicText(stringResource(R.string.pdf_password_hint), style = TextStyle(sub, 14.sp))
                                 inner()
                             }
                         )
-                        LiquidButton(
-                            onClick = {
-                                state.passwordUri?.let { viewModel.openPdf(context, it, passwordText) }
-                            },
-                            backdrop = backdrop,
-                            tint = accent
-                        ) {
+                        LiquidButton(onClick = { state.passwordUri?.let { viewModel.openPdf(context, it, passwordText) } }, backdrop = backdrop, tint = accent) {
                             BasicText(stringResource(R.string.pdf_password_unlock), style = TextStyle(Color.White, 13.sp, FontWeight.SemiBold))
                         }
                     }
@@ -488,1439 +554,821 @@ fun PdfViewerScreen(
         return
     }
 
+    // ── PDF viewer (continuous vertical scroll, Adobe-style) ─────────────────
     val safePageCount = state.pageCount.coerceAtLeast(1)
-    val pagerState    = rememberPagerState(initialPage = 0) { safePageCount }
-    val pagerScope    = rememberCoroutineScope()
+    val viewerScope   = rememberCoroutineScope()
+    val currentPageIndex = listState.firstVisibleItemIndex.coerceIn(0, safePageCount - 1)
 
-    LaunchedEffect(pagerState.currentPage) {
-        zoomAnim.snapTo(1f); panXAnim.snapTo(0f); panYAnim.snapTo(0f)
-        viewModel.onPageChanged(pagerState.currentPage)
+    // Live backdrop that captures the ACTUAL rendered page column (dark bg + PDF
+    // pages), so the glass chrome reflects real content instead of the static
+    // wallpaper PNG. The chrome is drawn as siblings on top of the captured Box, so
+    // there is no feedback loop.
+    val contentBackdrop = rememberLayerBackdrop()
+
+    // ── Adaptive chrome contrast ────────────────────────────────────────────
+    // The chrome glass floats over the page, which may be a bright white note or a
+    // dark scan. Sample the current page's average luminance and flip the whole
+    // chrome palette (glass surface + foreground) so text/icons are always legible:
+    // dark ink on a light page, white ink on a dark page.
+    //
+    // Single-page documents used to be pinned to the dark branch. That was over-broad and is the
+    // reason the chrome looked stuck in dark mode: a converted .docx is usually one page, so *every*
+    // Word document and every one-page PDF got dark glass no matter the page or the theme.
+    //
+    // The reason for the pin was real, though. A lone page is centred (`Arrangement.Center` on the
+    // LazyColumn below), so the chrome can float over the near-black canvas rather than over the
+    // page — and at 66% the light surface set little value of its own, leaving buttons refracting
+    // black while their icons took the *dark* foreground chosen from the white page. The fix is to
+    // make the light surface actually opaque enough to stand on its own (78%, below) instead of
+    // throwing away a correct luminance reading. Dark ink on that holds up over the black band and
+    // over the page alike.
+    val currentPageBitmap = state.pageBitmaps.getOrNull(currentPageIndex)
+    // Whole-page luminance still drives the DIALOG panels (chromePanel / panelFg): those sit over a
+    // scrim on an opaque surface, not over the live document, so a single global reading is right.
+    // The floating BARS no longer use this — they sample the content directly behind each bar
+    // (topFg / bottomFg, computed once containerHeightPx is known, further down). That is what makes
+    // the icons dynamic per-region, kills the "doesn't flip until you scroll deep into page 3" lag,
+    // and tracks the zoomed region on a single page. The old single-page white-pin is gone with it —
+    // band sampling reads the dark letterbox as dark (→ white ink) on its own.
+    val isLightChrome = remember(currentPageBitmap) {
+        currentPageBitmap?.let { averageLuminance(it) > 0.60f } ?: false
+    }
+    // Home's tint, verbatim — the same expression GlassTitlePill and GlassSearchPill resolve — but
+    // picked off the *page's* luminance instead of the theme, so a white scan in dark mode still gets
+    // the light surface.
+    //
+    // This used to be 0.78/0.62, roughly twice Home's weight, and it was painted onto controls Home
+    // leaves entirely clear: `LiquidIconButton` with no `surfaceColor` draws nothing at all in
+    // `onDrawSurface`, so Home's circles are pure refraction. Over a white page a 62% #12151C slab
+    // composites to about #6C6C6C, which is why the chrome read as grey blobs sitting *on* the
+    // document rather than as glass floating over it. The effect stack was never the difference —
+    // `LiquidIconButton` and `viewerGlass` both run vibrancy + blur 2 + lens 12x24 — only the tint was.
+    val chromeGlass  = if (isLightChrome) Color(0xFFFAFAFA).copy(0.35f) else Color(0xFF1E1E1E).copy(0.35f)
+    // Dialogs keep the old, heavier tint. They sit over a 45% black scrim and carry dense content, and
+    // the app's own rule is that the heavy stack stays reserved for them (see ViewerGlass's KDoc).
+    val chromePanel  = if (isLightChrome) Color(0xFFEFF1F4).copy(0.78f) else ViewerChromeGlass
+    // The dialogs' ink deliberately does *not* take the single-page pin above. Their surface is
+    // `chromePanel`, which is opaque enough to be its own background, so it is the panel the text has
+    // to contrast with — not the canvas. Pinning these to white alongside the floating chrome would
+    // put white text on a 78% white panel every time a one-page document happened to be light.
+    val panelFg      = if (isLightChrome) Color(0xFF15171C) else Color.White
+    val panelFgSoft  = if (isLightChrome) Color(0xFF15171C).copy(0.62f) else Color.White.copy(0.62f)
+    val chromeField  = if (isLightChrome) Color.Black.copy(0.10f) else Color.White.copy(0.10f)
+
+    // The top visible page drives text extraction + bitmap caching.
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .distinctUntilChanged()
+            .collect { idx -> viewModel.onPageChanged(idx.coerceIn(0, safePageCount - 1)) }
+    }
+
+    // Scroll to the page holding the active find match.
+    LaunchedEffect(state.currentMatchIndex, state.findMatches) {
+        val idx = state.currentMatchIndex
+        val matches = state.findMatches
+        if (idx >= 0 && matches.isNotEmpty()) {
+            viewerScope.launch { listState.animateScrollToItem(matches[idx].pageIndex) }
+        }
+    }
+
+    val drawingToolActive = activeTool in setOf(
+        PdfEditTool.Draw, PdfEditTool.Highlight, PdfEditTool.Rect,
+        PdfEditTool.Ellipse, PdfEditTool.Line, PdfEditTool.Arrow
+    )
+    val zoomHudText = "${(scale * 100 + 0.5f).toInt()}%"
+
+    fun scrollToPage(target: Int) {
+        viewerScope.launch { listState.animateScrollToItem(target.coerceIn(0, safePageCount - 1)) }
+        lastInteractionAtMs = System.currentTimeMillis()
+    }
+
+    // Smooth, critically-damped zoom — NO overshoot/bounce (premium, Apple-style ease).
+    val animateZoomPan: suspend (Float, Offset) -> Unit = { targetZoom, targetPan ->
+        val spec = androidx.compose.animation.core.spring<Float>(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness    = Spring.StiffnessMediumLow
+        )
+        coroutineScope {
+            launch { androidx.compose.animation.core.animate(scale, targetZoom, animationSpec = spec) { v, _ -> scale = v } }
+            launch { androidx.compose.animation.core.animate(offsetX, targetPan.x, animationSpec = spec) { v, _ -> offsetX = v } }
+        }
     }
 
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(if (isLight) Color(0xFF0E1218).copy(0.92f) else Color(0xFF050608).copy(0.92f))
+            .background(if (isLight) Color(0xFF0A0E14).copy(0.85f) else Color(0xFF020305).copy(0.88f))
     ) {
         val renderWidthPx = with(LocalDensity.current) { maxWidth.roundToPx() }.coerceAtLeast(720)
 
-        val drawingToolActive = activeTool in setOf(
-            PdfEditTool.Draw, PdfEditTool.Highlight, PdfEditTool.Rect,
-            PdfEditTool.Ellipse, PdfEditTool.Line, PdfEditTool.Arrow
-        )
+        var containerHeightPx by remember { mutableStateOf(0) }
 
-        val pagerScrollEnabled = activeTool == PdfEditTool.None && zoomScale <= 1.02f
-
-        LaunchedEffect(pagerState.currentPage, renderWidthPx) {
-            viewModel.renderPage(context, pagerState.currentPage, renderWidthPx)
-            if (pagerState.currentPage - 1 >= 0)
-                viewModel.renderPage(context, pagerState.currentPage - 1, renderWidthPx)
-            if (pagerState.currentPage + 1 < safePageCount)
-                viewModel.renderPage(context, pagerState.currentPage + 1, renderWidthPx)
-        }
-
-        val pageContent: @Composable (Int) -> Unit = pageContent@ { page ->
-            val bitmap         = state.pageBitmaps.getOrNull(page)
-            val marks          = getPageMarks(page)
-            val ocrBlocks      = state.ocrBlocksByPage[page].orEmpty()
-            val selectedOcrIds = state.selectedOcrBlockIdsByPage[page].orEmpty()
-
-            var draftPoints    by remember(page, activeTool) { mutableStateOf<List<Offset>>(emptyList()) }
-            var draftRectStart by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
-            var draftRectEnd   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
-            var selDragStart   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
-            var selDragEnd     by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
-
-            if (bitmap == null) {
-                Box(Modifier.fillMaxSize().background(Color(0xFF0E1218)), Alignment.Center) {
-                    CircularProgressIndicator(color = accent, strokeWidth = 2.dp)
-                }
-                return@pageContent
-            }
-
-            pageBitmapSizes[page] = Size(bitmap.width.toFloat(), bitmap.height.toFloat())
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .onSizeChanged { sz ->
-                        pageCanvasSizes[page] = Size(sz.width.toFloat(), sz.height.toFloat())
-                    }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(page, activeTool, scrollOrientation) {
-                            if (activeTool != PdfEditTool.None) return@pointerInput
-
-                            awaitEachGesture {
-                                awaitFirstDown(requireUnconsumed = false)
-
-                                val velocityTracker = VelocityTracker()
-                                var panAccum        = Offset.Zero
-                                var determined      = false
-                                var isOurGesture    = false
-
-                                loop@ while (true) {
-                                    val event   = awaitPointerEvent(PointerEventPass.Main)
-                                    val pressed = event.changes.filter { it.pressed }
-
-                                    if (pressed.isEmpty()) {
-                                        val currentZoom = zoomAnim.value
-                                        if (currentZoom < SNAP_BACK_THRESHOLD && currentZoom > 0.95f) {
-                                            scope.launch {
-                                                animateZoomPan(
-                                                    targetZoom   = 1f,
-                                                    targetPan    = Offset.Zero,
-                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                    stiffness    = Spring.StiffnessMedium
-                                                )
-                                            }
-                                        }
-                                        else if (isOurGesture && currentZoom > 1.02f) {
-                                            val vel     = velocityTracker.calculateVelocity()
-                                            val cs      = pageCanvasSizes[page] ?: Size.Zero
-                                            val bs      = pageBitmapSizes[page]  ?: Size.Zero
-                                            scope.launch {
-                                                var vx = vel.x * 0.016f
-                                                var vy = vel.y * 0.016f
-                                                while (vx * vx + vy * vy > FLING_MIN_VELOCITY * 0.016f * FLING_MIN_VELOCITY * 0.016f) {
-                                                    val newPan = clampPanOffset(
-                                                        Offset(panXAnim.value + vx, panYAnim.value + vy),
-                                                        zoomAnim.value, cs, bs
-                                                    )
-                                                    snapZoomPan(zoomAnim.value, newPan)
-                                                    vx *= FLING_FRICTION
-                                                    vy *= FLING_FRICTION
-                                                    delay(16L)
-                                                }
-                                            }
-                                        }
-                                        break@loop
-                                    }
-
-                                    if (pressed.size >= 2) {
-                                        if (!determined) { determined = true; isOurGesture = true }
-
-                                        val zoomDelta  = event.calculateZoom()
-                                        val panDelta   = event.calculatePan()
-                                        val centroid   = event.calculateCentroid(useCurrent = false)
-                                        val centSize   = event.calculateCentroidSize(useCurrent = false)
-                                        val cs         = pageCanvasSizes[page] ?: Size.Zero
-                                        val bs         = pageBitmapSizes[page]  ?: Size.Zero
-                                        val boxCenter  = Offset(cs.width / 2f, cs.height / 2f)
-
-                                        if (centSize > 0f && abs(zoomDelta - 1f) > ZOOM_SLOP) {
-                                            val oldScale = zoomAnim.value
-                                            val boosted   = if (zoomDelta > 1f)
-                                                zoomDelta.toDouble().pow(1.18).toFloat().coerceIn(1f, 1.30f)
-                                            else
-                                                zoomDelta.coerceIn(0.78f, 1f)
-                                            val newScale  = (oldScale * boosted).coerceIn(MIN_ZOOM, MAX_ZOOM)
-
-                                            val ratio      = newScale / oldScale
-                                            val currentPan = Offset(panXAnim.value, panYAnim.value)
-                                            val focalPan   = (centroid - boxCenter) * (1f - ratio) + currentPan * ratio
-                                            val clampedPan = clampPanOffset(focalPan + panDelta * ratio, newScale, cs, bs)
-
-                                            scope.launch { snapZoomPan(newScale, clampedPan) }
-                                            lastInteractionAtMs = System.currentTimeMillis()
-                                        } else if (pressed.size >= 2 && panDelta != Offset.Zero) {
-                                            val cs2 = pageCanvasSizes[page] ?: Size.Zero
-                                            val bs2 = pageBitmapSizes[page]  ?: Size.Zero
-                                            val newPan = clampPanOffset(
-                                                Offset(panXAnim.value, panYAnim.value) + panDelta,
-                                                zoomAnim.value, cs2, bs2
-                                            )
-                                            scope.launch { snapZoomPan(zoomAnim.value, newPan) }
-                                            lastInteractionAtMs = System.currentTimeMillis()
-                                        }
-
-                                        event.changes.forEach { it.consume() }
-                                        continue@loop
-                                    }
-
-                                    val change = pressed.first()
-                                    val delta  = change.position - change.previousPosition
-
-                                    velocityTracker.addPosition(
-                                        change.uptimeMillis, change.position
-                                    )
-
-                                    if (!determined) {
-                                        panAccum += delta
-                                        val dist = panAccum.getDistance()
-                                        if (dist > PAN_SLOP_PX) {
-                                            determined = true
-                                            val angleDeg = Math.toDegrees(
-                                                abs(atan2(panAccum.y.toDouble(), panAccum.x.toDouble()))
-                                            ).toFloat()
-                                            val isHoriz = angleDeg <= SWIPE_ANGLE_DEG
-                                                    || angleDeg >= (180f - SWIPE_ANGLE_DEG)
-
-                                            val isSwipeForPager = if (scrollOrientation == ScrollOrientation.Horizontal) isHoriz else !isHoriz
-
-                                            if (isSwipeForPager && zoomAnim.value <= 1.02f) {
-                                                isOurGesture = false
-                                                break@loop
-                                            }
-                                            isOurGesture = true
-                                        }
-                                    } else if (isOurGesture && zoomAnim.value > 1.02f) {
-                                        val cs = pageCanvasSizes[page] ?: Size.Zero
-                                        val bs = pageBitmapSizes[page]  ?: Size.Zero
-                                        val newPan = clampPanOffset(
-                                            Offset(panXAnim.value + delta.x, panYAnim.value + delta.y),
-                                            zoomAnim.value, cs, bs
-                                        )
-                                        scope.launch { snapZoomPan(zoomAnim.value, newPan) }
-                                        change.consume()
-                                        lastInteractionAtMs = System.currentTimeMillis()
-                                    }
-                                }
-                            }
-                        }
-                        .pointerInput(page, activeTool) {
-                            detectTapGestures(
-                                onTap = { tap ->
-                                    if (activeTool == PdfEditTool.Image && activeImageId != null) {
-                                        val cs = pageCanvasSizes[page] ?: Size.Zero
-                                        val bc = Offset(cs.width / 2f, cs.height / 2f)
-                                        val p = screenToContent(tap, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
-                                        val marks = getPageMarks(page)
-                                        val idx = marks.indexOfLast {
-                                            if (it is PdfMarkup.ImageMarkup) {
-                                                val r = Rect(min(it.start.x, it.end.x), min(it.start.y, it.end.y), max(it.start.x, it.end.x), max(it.start.y, it.end.y))
-                                                r.contains(p)
-                                            } else false
-                                        }
-                                        if (idx >= 0) {
-                                            val img = marks[idx] as PdfMarkup.ImageMarkup
-                                            activeImageId = img.id
-                                            controlsVisible = true
-                                        } else {
-                                            activeImageId = null
-                                            activeTool = PdfEditTool.None
-                                            controlsVisible = !controlsVisible
-                                        }
-                                    } else if (activeTool == PdfEditTool.None) {
-                                        val cs = pageCanvasSizes[page] ?: Size.Zero
-                                        val bc = Offset(cs.width / 2f, cs.height / 2f)
-                                        val p = screenToContent(tap, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
-                                        val marks = getPageMarks(page)
-                                        val idx = marks.indexOfLast {
-                                            if (it is PdfMarkup.ImageMarkup) {
-                                                val r = Rect(min(it.start.x, it.end.x), min(it.start.y, it.end.y), max(it.start.x, it.end.x), max(it.start.y, it.end.y))
-                                                r.contains(p)
-                                            } else false
-                                        }
-                                        if (idx >= 0) {
-                                            val img = marks[idx] as PdfMarkup.ImageMarkup
-                                            activeImageId = img.id
-                                            activeTool = PdfEditTool.Image
-                                            controlsVisible = true
-                                        } else {
-                                            controlsVisible = !controlsVisible
-                                        }
-                                    } else {
-                                        controlsVisible = !controlsVisible
-                                    }
-                                    lastInteractionAtMs = System.currentTimeMillis()
-                                },
-                                onDoubleTap = { tap ->
-                                    if (activeTool != PdfEditTool.None) return@detectTapGestures
-                                    lastInteractionAtMs = System.currentTimeMillis()
-
-                                    val cs        = pageCanvasSizes[page] ?: return@detectTapGestures
-                                    val bs        = pageBitmapSizes[page]  ?: return@detectTapGestures
-                                    val boxCenter = Offset(cs.width / 2f, cs.height / 2f)
-
-                                    val currentZoom = zoomAnim.value
-                                    val targetZoom = when {
-                                        currentZoom < 1.5f -> DOUBLE_TAP_ZOOM_1
-                                        currentZoom < 3.5f -> DOUBLE_TAP_ZOOM_2
-                                        else               -> 1f
-                                    }
-
-                                    val targetPan = if (targetZoom <= 1.01f) {
-                                        Offset.Zero
-                                    } else {
-                                        val ratio      = targetZoom / currentZoom
-                                        val currentPan = Offset(panXAnim.value, panYAnim.value)
-                                        val focalPan   = (tap - boxCenter) * (1f - ratio) + currentPan * ratio
-                                        clampPanOffset(focalPan, targetZoom, cs, bs)
-                                    }
-
-                                    scope.launch {
-                                        animateZoomPan(
-                                            targetZoom   = targetZoom,
-                                            targetPan    = targetPan,
-                                            dampingRatio = if (targetZoom < currentZoom)
-                                                               Spring.DampingRatioMediumBouncy
-                                                           else Spring.DampingRatioLowBouncy,
-                                            stiffness    = Spring.StiffnessMediumLow
-                                        )
-                                    }
-                                }
-                            )
-                        }
-                ) {
-                  Box(
-                      modifier = Modifier
-                          .fillMaxSize()
-                          .graphicsLayer(
-                              scaleX       = zoomScale,
-                              scaleY       = zoomScale,
-                              translationX = panOffset.x,
-                              translationY = panOffset.y
-                          )
-                  ) {
-                    Image(
-                        bitmap          = bitmap.asImageBitmap(),
-                        contentDescription = stringResource(R.string.page_number, page + 1),
-                        contentScale    = ContentScale.Fit,
-                        modifier        = Modifier.fillMaxSize()
-                    )
-
-                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                        val ir = fitBitmapRect(size, bitmap.width.toFloat(), bitmap.height.toFloat())
-
-                        selectedOcrIds.forEach { id ->
-                            ocrBlocks.firstOrNull { it.id == id }?.let { b ->
-                                val r = ocrBlockToRect(b, ir)
-                                drawRect(Color(0xFFFFEB3B).copy(0.30f), r.topLeft, r.size)
-                            }
-                        }
-                        if (activeTool == PdfEditTool.SelectText) {
-                            ocrBlocks.forEach { b ->
-                                val r = ocrBlockToRect(b, ir)
-                                drawRect(Color.White.copy(0.18f), r.topLeft, r.size, style = Stroke(1f))
-                            }
-                        }
-
-                        marks.forEach { markup ->
-                            when (markup) {
-                                is PdfMarkup.StrokeMarkup -> {
-                                    if (markup.points.size > 1) {
-                                        val path = smoothPath(markup.points)
-                                        drawPath(
-                                            path, markup.color.copy(markup.alpha),
-                                            style = Stroke(markup.width, cap = StrokeCap.Round, join = StrokeJoin.Round)
-                                        )
-                                    }
-                                }
-                                is PdfMarkup.RectMarkup -> {
-                                    val r = Rect(
-                                        min(markup.start.x, markup.end.x), min(markup.start.y, markup.end.y),
-                                        max(markup.start.x, markup.end.x), max(markup.start.y, markup.end.y)
-                                    )
-                                    if (markup.filled) drawRect(markup.color.copy(markup.alpha), r.topLeft, r.size)
-                                    else drawRect(markup.color.copy(markup.alpha), r.topLeft, r.size, style = Stroke(3f))
-                                }
-                                is PdfMarkup.OvalMarkup -> {
-                                    val r = Rect(
-                                        min(markup.start.x, markup.end.x), min(markup.start.y, markup.end.y),
-                                        max(markup.start.x, markup.end.x), max(markup.start.y, markup.end.y)
-                                    )
-                                    if (markup.filled) drawOval(markup.color.copy(markup.alpha), r.topLeft, r.size)
-                                    else drawOval(markup.color.copy(markup.alpha), r.topLeft, r.size, style = Stroke(3f))
-                                }
-                                is PdfMarkup.LineMarkup -> {
-                                    if (markup.arrowHead)
-                                        drawArrow(markup.start, markup.end, markup.color.copy(markup.alpha), markup.width)
-                                    else
-                                        drawLine(markup.color.copy(markup.alpha), markup.start, markup.end, markup.width)
-                                }
-                                is PdfMarkup.TextBlockHighlightMarkup -> {
-                                    ocrBlocks.firstOrNull { it.id == markup.blockId }?.let { b ->
-                                        val r = ocrBlockToRect(b, ir)
-                                        drawRect(markup.color.copy(markup.alpha), r.topLeft, r.size)
-                                    }
-                                }
-                                is PdfMarkup.TextBlockLineMarkup -> {
-                                    ocrBlocks.firstOrNull { it.id == markup.blockId }?.let { b ->
-                                        val r = ocrBlockToRect(b, ir)
-                                        val y = if (markup.strikeThrough) r.center.y else r.bottom - r.height * 0.10f
-                                        drawLine(markup.color.copy(markup.alpha), Offset(r.left, y), Offset(r.right, y), markup.width)
-                                    }
-                                }
-                                is PdfMarkup.ImageMarkup -> {
-                                    val r = Rect(
-                                        min(markup.start.x, markup.end.x), min(markup.start.y, markup.end.y),
-                                        max(markup.start.x, markup.end.x), max(markup.start.y, markup.end.y)
-                                    )
-                                    if (!markup.bitmap.isRecycled && markup.bitmap.width > 0 && markup.bitmap.height > 0) {
-                                        runCatching {
-                                            drawImage(
-                                                image     = markup.bitmap.asImageBitmap(),
-                                                srcOffset = androidx.compose.ui.unit.IntOffset.Zero,
-                                                srcSize   = androidx.compose.ui.unit.IntSize(markup.bitmap.width, markup.bitmap.height),
-                                                dstOffset = androidx.compose.ui.unit.IntOffset(r.left.toInt(), r.top.toInt()),
-                                                dstSize   = androidx.compose.ui.unit.IntSize(r.width.toInt().coerceAtLeast(1), r.height.toInt().coerceAtLeast(1))
-                                            )
-                                        }
-                                    }
-                                    if (activeTool == PdfEditTool.Image && markup.id == activeImageId) {
-                                        drawRect(Color(0xFF1976D2), r.topLeft, r.size, style = Stroke(2f))
-                                        drawCircle(Color(0xFF1976D2), 14f, Offset(r.right, r.bottom))
-                                        drawCircle(Color.White, 7f, Offset(r.right, r.bottom))
-                                    }
-                                }
-                            }
-                        }
-
-                        if (draftPoints.size > 1) {
-                            val path = smoothPath(draftPoints)
-                            val isHl = activeTool == PdfEditTool.Highlight
-                            drawPath(
-                                path,
-                                currentColor.copy(if (isHl) 0.32f else 0.95f),
-                                style = Stroke(
-                                    if (isHl) currentStrokeWidth * 3.5f else currentStrokeWidth,
-                                    cap = StrokeCap.Round, join = StrokeJoin.Round
-                                )
-                            )
-                        }
-
-                        if (draftRectStart != null && draftRectEnd != null) {
-                            val s = draftRectStart!!; val e = draftRectEnd!!
-                            val pr = Rect(min(s.x, e.x), min(s.y, e.y), max(s.x, e.x), max(s.y, e.y))
-                            when (activeTool) {
-                                PdfEditTool.Rect      -> drawRect(Color(0xFF42A5F5), pr.topLeft, pr.size, style = Stroke(3f))
-                                PdfEditTool.Ellipse   -> drawOval(Color(0xFF26A69A), pr.topLeft, pr.size, style = Stroke(3f))
-                                PdfEditTool.Line      -> drawLine(Color(0xFF66BB6A), s, e, 4f)
-                                PdfEditTool.Arrow     -> drawArrow(s, e, Color(0xFFEF5350), 4f)
-                                else -> Unit
-                            }
-                        }
-
-                        if (selDragStart != null && selDragEnd != null && activeTool == PdfEditTool.SelectText) {
-                            val s = selDragStart!!; val e = selDragEnd!!
-                            val r = Rect(min(s.x, e.x), min(s.y, e.y), max(s.x, e.x), max(s.y, e.y))
-                            drawRect(Color(0xFFAB47BC).copy(0.20f), r.topLeft, r.size)
-                            drawRect(Color(0xFFAB47BC), r.topLeft, r.size, style = Stroke(2f))
-                        }
-
-                        if (showFindBar && state.findMatches.isNotEmpty()) {
-                            val pageMatches = state.findMatches.filter { it.pageIndex == page }
-                            val ocrBlocks = state.ocrBlocksByPage[page].orEmpty()
-                            val cs = pageCanvasSizes[page] ?: Size.Zero
-                            val bs = pageBitmapSizes[page] ?: Size.Zero
-                            if (cs != Size.Zero && bs != Size.Zero && ocrBlocks.isNotEmpty()) {
-                                val frame = fitBitmapRect(cs, bs.width, bs.height)
-                                pageMatches.forEach { match ->
-                                    val block = ocrBlocks.firstOrNull { it.id == match.blockId }
-                                    if (block != null) {
-                                        val r = Rect(
-                                            frame.left + block.left * frame.width,
-                                            frame.top + block.top * frame.height,
-                                            frame.left + block.right * frame.width,
-                                            frame.top + block.bottom * frame.height
-                                        )
-                                        val isCurrent = (state.findMatches.getOrNull(state.currentMatchIndex) == match)
-                                        if (isCurrent) {
-                                            drawRect(Color(0xFFFF9800).copy(0.60f), r.topLeft, r.size)
-                                            drawRect(Color(0xFFE65100), r.topLeft, r.size, style = Stroke(3.5f))
-                                        } else {
-                                            drawRect(Color(0xFFFFEB3B).copy(0.40f), r.topLeft, r.size)
-                                            drawRect(Color(0xFFFBC02D), r.topLeft, r.size, style = Stroke(1.5f))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                  }
-                }
-
-                if (drawingToolActive) {
-                    Box(
-                        Modifier.fillMaxSize().pointerInput(page, activeTool) {
-                            fun toContent(o: Offset): Offset {
-                                val cs = pageCanvasSizes[page] ?: Size.Zero
-                                val bc = Offset(cs.width / 2f, cs.height / 2f)
-                                return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
-                            }
-                            val freehand = activeTool == PdfEditTool.Draw || activeTool == PdfEditTool.Highlight
-                            detectDragGestures(
-                                onDragStart = { start ->
-                                    lastInteractionAtMs = System.currentTimeMillis()
-                                    val p = toContent(start)
-                                    if (freehand) draftPoints = listOf(p)
-                                    else { draftRectStart = p; draftRectEnd = p }
-                                },
-                                onDrag = { change, _ ->
-                                    change.consume()
-                                    lastInteractionAtMs = System.currentTimeMillis()
-                                    val p = toContent(change.position)
-                                    if (freehand) draftPoints = draftPoints + p
-                                    else draftRectEnd = p
-                                },
-                                onDragCancel = { draftPoints = emptyList(); draftRectStart = null; draftRectEnd = null },
-                                onDragEnd = {
-                                    when (activeTool) {
-                                        PdfEditTool.Draw      -> if (draftPoints.size > 1) marks.add(PdfMarkup.StrokeMarkup(draftPoints, currentColor, currentStrokeWidth, 0.95f))
-                                        PdfEditTool.Highlight -> if (draftPoints.size > 1) marks.add(PdfMarkup.StrokeMarkup(draftPoints, currentColor, currentStrokeWidth * 3.5f, 0.32f))
-                                        PdfEditTool.Rect      -> draftRectStart?.let { s -> draftRectEnd?.let { e -> marks.add(PdfMarkup.RectMarkup(s, e, currentColor, 1f, false)) } }
-                                        PdfEditTool.Ellipse   -> draftRectStart?.let { s -> draftRectEnd?.let { e -> marks.add(PdfMarkup.OvalMarkup(s, e, currentColor, 1f, false)) } }
-                                        PdfEditTool.Line      -> draftRectStart?.let { s -> draftRectEnd?.let { e -> marks.add(PdfMarkup.LineMarkup(s, e, currentColor, currentStrokeWidth, 1f, false)) } }
-                                        PdfEditTool.Arrow     -> draftRectStart?.let { s -> draftRectEnd?.let { e -> marks.add(PdfMarkup.LineMarkup(s, e, currentColor, currentStrokeWidth, 1f, true)) } }
-                                        else -> Unit
-                                    }
-                                    draftPoints = emptyList(); draftRectStart = null; draftRectEnd = null
-                                }
-                            )
-                        }
-                    )
-                }
-
-                if (activeTool == PdfEditTool.Eraser) {
-                    Box(
-                        Modifier.fillMaxSize().pointerInput(page) {
-                            fun toContent(o: Offset): Offset {
-                                val cs = pageCanvasSizes[page] ?: Size.Zero
-                                val bc = Offset(cs.width / 2f, cs.height / 2f)
-                                return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
-                            }
-                            fun eraseAt(o: Offset) {
-                                val p = toContent(o)
-                                val idx = marks.indexOfLast { it.hitTest(p) }
-                                if (idx >= 0) marks.removeAt(idx)
-                            }
-                            detectTapGestures { eraseAt(it); lastInteractionAtMs = System.currentTimeMillis() }
-                        }.pointerInput(page) {
-                            fun toContent(o: Offset): Offset {
-                                val cs = pageCanvasSizes[page] ?: Size.Zero
-                                val bc = Offset(cs.width / 2f, cs.height / 2f)
-                                return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
-                            }
-                            detectDragGestures(onDrag = { change, _ ->
-                                change.consume()
-                                val p = toContent(change.position)
-                                val idx = marks.indexOfLast { it.hitTest(p) }
-                                if (idx >= 0) marks.removeAt(idx)
-                                lastInteractionAtMs = System.currentTimeMillis()
-                            })
-                        }
-                    )
-                }
-
-                if (activeTool == PdfEditTool.Image && activeImageId != null) {
-                    Box(
-                        Modifier.fillMaxSize()
-                            .pointerInput(page, activeImageId) {
-                                fun toContent(o: Offset): Offset {
-                                    val cs = pageCanvasSizes[page] ?: Size.Zero
-                                    val bc = Offset(cs.width / 2f, cs.height / 2f)
-                                    return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
-                                }
-                                detectTapGestures { tapPos ->
-                                    val p = toContent(tapPos)
-                                    val m = getPageMarks(page)
-                                    val tappedMark = m.lastOrNull { it is PdfMarkup.ImageMarkup && it.hitTest(p) } as? PdfMarkup.ImageMarkup
-                                    if (tappedMark != null) {
-                                        activeImageId = tappedMark.id
-                                        activeTool = PdfEditTool.Image
-                                        controlsVisible = true
-                                    } else {
-                                        activeImageId = null
-                                        activeTool = PdfEditTool.None
-                                        controlsVisible = !controlsVisible
-                                    }
-                                }
-                            }
-                            .pointerInput(page, activeImageId) {
-                                fun toContent(o: Offset): Offset {
-                                    val cs = pageCanvasSizes[page] ?: Size.Zero
-                                    val bc = Offset(cs.width / 2f, cs.height / 2f)
-                                    return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
-                                }
-                                var resizing = false
-                                detectDragGestures(
-                                    onDragStart = { start ->
-                                        val p = toContent(start)
-                                        val idx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
-                                        val img = marks.getOrNull(idx) as? PdfMarkup.ImageMarkup
-                                        resizing = img != null && (p - img.end).getDistance() <= 36f
-                                        lastInteractionAtMs = System.currentTimeMillis()
-                                    },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        val idx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
-                                        val img = marks.getOrNull(idx) as? PdfMarkup.ImageMarkup ?: return@detectDragGestures
-                                        val d = dragAmount / zoomAnim.value
-                                        marks[idx] = if (resizing) {
-                                            val newEnd = Offset(
-                                                (img.end.x + d.x).coerceAtLeast(img.start.x + 24f),
-                                                (img.end.y + d.y).coerceAtLeast(img.start.y + 24f)
-                                            )
-                                            img.copy(end = newEnd)
-                                        } else {
-                                            img.copy(start = img.start + d, end = img.end + d)
-                                        }
-                                        lastInteractionAtMs = System.currentTimeMillis()
-                                    }
-                                )
-                            }
-                    )
-                } else if (activeTool == PdfEditTool.None) {
-                    Box(
-                        Modifier.fillMaxSize().pointerInput(page) {
-                            fun toContent(o: Offset): Offset {
-                                val cs = pageCanvasSizes[page] ?: Size.Zero
-                                val bc = Offset(cs.width / 2f, cs.height / 2f)
-                                return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
-                            }
-                            detectTapGestures { tapPos ->
-                                val p = toContent(tapPos)
-                                val m = getPageMarks(page)
-                                val tappedMark = m.lastOrNull { it is PdfMarkup.ImageMarkup && it.hitTest(p) } as? PdfMarkup.ImageMarkup
-                                if (tappedMark != null) {
-                                    activeImageId = tappedMark.id
-                                    activeTool = PdfEditTool.Image
-                                    controlsVisible = true
-                                } else {
-                                    controlsVisible = !controlsVisible
-                                }
-                            }
-                        }
-                    )
-                }
-
-                if (activeTool == PdfEditTool.SelectText) {
-                    Box(
-                        Modifier.fillMaxSize()
-                            .pointerInput(page, ocrBlocks) {
-                                fun toContent(o: Offset): Offset {
-                                    val cs = pageCanvasSizes[page] ?: Size.Zero
-                                    val bc = Offset(cs.width / 2f, cs.height / 2f)
-                                    return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
-                                }
-                                detectTapGestures(
-                                    onDoubleTap = { tap ->
-                                        lastInteractionAtMs = System.currentTimeMillis()
-                                        val cs    = pageCanvasSizes[page] ?: return@detectTapGestures
-                                        val bs    = pageBitmapSizes[page]  ?: return@detectTapGestures
-                                        val frame = fitBitmapRect(cs, bs.width, bs.height)
-                                        val hit   = hitTestOcrBlock(ocrBlocks, toContent(tap), frame)
-                                        if (hit != null) viewModel.selectLine(page, hit.id)
-                                    },
-                                    onLongPress = { tap ->
-                                        lastInteractionAtMs = System.currentTimeMillis()
-                                        val cs    = pageCanvasSizes[page] ?: return@detectTapGestures
-                                        val bs    = pageBitmapSizes[page]  ?: return@detectTapGestures
-                                        val frame = fitBitmapRect(cs, bs.width, bs.height)
-                                        val hit   = hitTestOcrBlock(ocrBlocks, toContent(tap), frame)
-                                        if (hit != null) viewModel.selectParagraph(page, hit.id)
-                                    },
-                                    onTap = { tap ->
-                                        lastInteractionAtMs = System.currentTimeMillis()
-                                        val cs    = pageCanvasSizes[page] ?: return@detectTapGestures
-                                        val bs    = pageBitmapSizes[page]  ?: return@detectTapGestures
-                                        val frame = fitBitmapRect(cs, bs.width, bs.height)
-                                        val hit   = hitTestOcrBlock(ocrBlocks, toContent(tap), frame)
-                                        if (hit != null) viewModel.toggleOcrSelection(page, hit.id)
-                                        else viewModel.clearOcrSelection(page)
-                                    }
-                                )
-                            }
-                            .pointerInput(page, ocrBlocks) {
-                                fun toContent(o: Offset): Offset {
-                                    val cs = pageCanvasSizes[page] ?: Size.Zero
-                                    val bc = Offset(cs.width / 2f, cs.height / 2f)
-                                    return screenToContent(o, zoomAnim.value, Offset(panXAnim.value, panYAnim.value), bc)
-                                }
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = { s ->
-                                        lastInteractionAtMs = System.currentTimeMillis()
-                                        val p = toContent(s)
-                                        selDragStart = p; selDragEnd = p
-                                    },
-                                    onDrag = { change, _ ->
-                                        change.consume()
-                                        lastInteractionAtMs = System.currentTimeMillis()
-                                        selDragEnd = toContent(change.position)
-                                    },
-                                    onDragCancel = { selDragStart = null; selDragEnd = null },
-                                    onDragEnd = {
-                                        val s = selDragStart; val e = selDragEnd
-                                        selDragStart = null; selDragEnd = null
-                                        if (s == null || e == null || ocrBlocks.isEmpty()) return@detectDragGesturesAfterLongPress
-                                        val cs    = pageCanvasSizes[page] ?: return@detectDragGesturesAfterLongPress
-                                        val bs    = pageBitmapSizes[page]  ?: return@detectDragGesturesAfterLongPress
-                                        val frame = fitBitmapRect(cs, bs.width, bs.height)
-                                        val dist  = kotlin.math.hypot((e.x - s.x).toDouble(), (e.y - s.y).toDouble())
-                                        if (dist < 12.0) {
-                                            hitTestOcrBlock(ocrBlocks, s, frame)
-                                                ?.let { viewModel.toggleOcrSelection(page, it.id) }
-                                            return@detectDragGesturesAfterLongPress
-                                        }
-                                        val marquee = Rect(min(s.x, e.x), min(s.y, e.y), max(s.x, e.x), max(s.y, e.y))
-                                        viewModel.selectOcrBlocks(
-                                            page,
-                                            ocrBlocks.filter { intersects(marquee, ocrBlockToRect(it, frame)) }
-                                                     .map { it.id }.toSet(),
-                                            append = true
-                                        )
-                                    }
-                                )
-                            }
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible  = showZoomHud,
-                    enter    = fadeIn(tween(120)),
-                    exit     = fadeOut(tween(300)),
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 60.dp)
-                ) {
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color.Black.copy(alpha = 0.55f))
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        BasicText(
-                            zoomHudText,
-                            style = TextStyle(
-                                color      = Color.White,
-                                fontSize   = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        )
-                    }
-                }
-
+        // ── Adaptive control ink, sampled per bar (Apple-style) ──────────────────────────────
+        // Each bar reads the luminance of the content *directly behind it*, so on a page that is a
+        // dark image up top and a white canvas below, the top bar goes white while the bottom toolbar
+        // goes dark — and both update the instant that content scrolls or zooms under them, not when
+        // the page becomes the first fully-visible item. Bands are in screen px; the content Box is
+        // scaled about a top origin with translationY = 0, so a screen Y maps to the LazyColumn's own
+        // coordinate as screenY / scale (see [bandLuminance]).
+        val topBandBottomPx = with(density) { 96.dp.toPx() }
+        val bottomBandDepthPx = with(density) { 140.dp.toPx() }
+        var topBarLight by remember { mutableStateOf(false) }
+        var bottomBarLight by remember { mutableStateOf(false) }
+        // Hysteresis: flip to light at 0.62, back to dark at 0.58, so a page hovering near the
+        // midpoint doesn't strobe while scrolling. The colour crossfade below smooths the flip
+        // itself. The sampling runs in a coroutine off `snapshotFlow`, so scrolling recomputes the
+        // luminance every frame but only an actual light/dark flip ever recomposes the chrome.
+        LaunchedEffect(containerHeightPx) {
+            snapshotFlow {
+                bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, 0f, topBandBottomPx)
+            }.collect { lum ->
+                if (lum > 0.62f) topBarLight = true else if (lum < 0.58f) topBarLight = false
             }
         }
-
-        if (scrollOrientation == ScrollOrientation.Vertical) {
-            VerticalPager(
-                state          = pagerState,
-                userScrollEnabled = pagerScrollEnabled,
-                modifier       = Modifier.fillMaxSize(),
-                pageContent    = { page -> pageContent(page) }
-            )
-        } else {
-            HorizontalPager(
-                state          = pagerState,
-                userScrollEnabled = pagerScrollEnabled,
-                modifier       = Modifier.fillMaxSize(),
-                pageContent    = { page -> pageContent(page) }
-            )
+        LaunchedEffect(containerHeightPx) {
+            snapshotFlow {
+                val h = containerHeightPx.toFloat()
+                if (h <= 0f) 0f
+                else bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, h - bottomBandDepthPx, h)
+            }.collect { lum ->
+                if (lum > 0.62f) bottomBarLight = true else if (lum < 0.58f) bottomBarLight = false
+            }
         }
+        val topFg by animateColorAsState(if (topBarLight) Color(0xFF15171C) else Color.White, tween(200), label = "topBarInk")
+        val bottomFg by animateColorAsState(if (bottomBarLight) Color(0xFF15171C) else Color.White, tween(200), label = "bottomBarInk")
+        val topFgSoft = topFg.copy(alpha = 0.62f)
+        val bottomFgSoft = bottomFg.copy(alpha = 0.62f)
 
-        AnimatedVisibility(
-            visible  = controlsVisible && safePageCount > 1,
-            enter    = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) +
-                       scaleIn(initialScale = 0.92f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)),
-            exit     = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMedium)) +
-                       scaleOut(targetScale = 0.92f),
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .navigationBarsPadding()
-                .statusBarsPadding()
-                .padding(end = 8.dp)
-        ) {
-            PageScrubber(
-                currentPage   = pagerState.currentPage,
-                pageCount     = safePageCount,
-                pageBitmaps   = state.pageBitmaps,
-                backdrop      = backdrop,
-                uiSensor      = uiSensor,
-                onPageChange  = { page ->
-                    pagerScope.launch { pagerState.animateScrollToPage(page) }
-                    lastInteractionAtMs = System.currentTimeMillis()
-                },
-                onPageScrubbing = { page ->
-                    viewModel.renderPage(context, page, 400)
-                    lastInteractionAtMs = System.currentTimeMillis()
+        // The find bar is the one control that does NOT sit at the screen edge: with the keyboard up
+        // it floats at the top of the IME, so the bottom-of-screen band (behind the keyboard) is the
+        // wrong reading for it. Sample the band directly above the IME instead, so its text and its
+        // prev/next/close icons adapt to the page content actually behind the search bar. When the
+        // keyboard is down the IME inset is 0 and this collapses to the same bottom band.
+        val imeInset = WindowInsets.ime
+        var findBarLight by remember { mutableStateOf(false) }
+        LaunchedEffect(containerHeightPx) {
+            snapshotFlow {
+                val h = containerHeightPx.toFloat()
+                if (h <= 0f) 0f
+                else {
+                    val bottom = (h - imeInset.getBottom(density)).coerceAtLeast(bottomBandDepthPx)
+                    bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, bottom - bottomBandDepthPx, bottom)
                 }
-            )
+            }.collect { lum ->
+                if (lum > 0.62f) findBarLight = true else if (lum < 0.58f) findBarLight = false
+            }
         }
+        val findFg by animateColorAsState(if (findBarLight) Color(0xFF15171C) else Color.White, tween(200), label = "findBarInk")
+        val findFgSoft = findFg.copy(alpha = 0.62f)
 
+        // ── Continuous vertical page column with document-level zoom/pan ─────
+        // layerBackdrop + background live INSIDE this Box so the captured layer holds
+        // the dark base + PDF pages; the glass chrome samples it (real reflections).
         Box(
             Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(16.dp)
+                .layerBackdrop(contentBackdrop)
+                .background(if (isLight) Color(0xFF0A0E14).copy(0.85f) else Color(0xFF020305).copy(0.88f))
+                .clipToBounds()
         ) {
-            AnimatedVisibility(
-                visible = controlsVisible,
-                enter   = fadeIn(tween(200)) + androidx.compose.animation.slideInVertically { -it / 2 },
-                exit    = fadeOut(tween(150)) + androidx.compose.animation.slideOutVertically { -it / 2 },
-                modifier = Modifier.align(Alignment.TopCenter)
-            ) {
-                Row(
-                    verticalAlignment   = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.Black.copy(0.35f)) {
-                    Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), Color.White)
-                    }
-                    LiquidGlassTopBar(
-                        title         = stringResource(R.string.viewer_page_of, state.currentPage + 1, safePageCount),
-                        backdrop      = backdrop,
-                        uiSensor      = uiSensor,
-                        modifier      = Modifier
-                            .weight(1f)
-                            .clickable { showPageJumpDialog = true },
-                        titleFontSize = 12.sp,
-                        fontWeight    = FontWeight.Medium
-                    )
-
-                    LiquidButton(onClick = {
-                        val t = (pagerState.currentPage - 1).coerceAtLeast(0)
-                        if (t != pagerState.currentPage) pagerScope.launch { pagerState.animateScrollToPage(t) }
-                        lastInteractionAtMs = System.currentTimeMillis()
-                    }, backdrop = backdrop) { BasicText(stringResource(R.string.viewer_prev), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-                    LiquidButton(onClick = {
-                        val t = (pagerState.currentPage + 1).coerceAtMost(safePageCount - 1)
-                        if (t != pagerState.currentPage) pagerScope.launch { pagerState.animateScrollToPage(t) }
-                        lastInteractionAtMs = System.currentTimeMillis()
-                    }, backdrop = backdrop) { BasicText(stringResource(R.string.viewer_next), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-                }
-            }
-
-            AnimatedVisibility(
-                visible = controlsVisible,
-                enter   = fadeIn(tween(200)) + androidx.compose.animation.slideInVertically { it / 2 },
-                exit    = fadeOut(tween(150)) + androidx.compose.animation.slideOutVertically { it / 2 },
-                modifier = Modifier.align(Alignment.BottomCenter)
-            ) {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val selectedTextCount  = state.selectedOcrBlockIdsByPage[state.currentPage]?.size ?: 0
-                    val currentSelectedIds = state.selectedOcrBlockIdsByPage[state.currentPage].orEmpty()
-                    val hasEdits           = annotationsByPage.values.any { it.isNotEmpty() }
-                    val toolbarMode = when {
-                        showFindBar -> ViewerToolbarMode.Search
-                        showSignaturePad -> ViewerToolbarMode.Signature
-                        activeImageId != null -> ViewerToolbarMode.Image
-                        drawingToolActive -> ViewerToolbarMode.Drawing
-                        activeTool == PdfEditTool.SelectText || selectedTextCount > 0 -> ViewerToolbarMode.Selection
-                        activeTool == PdfEditTool.Eraser -> ViewerToolbarMode.Eraser
-                        else -> ViewerToolbarMode.Main
-                    }
-
-                    AnimatedVisibility(
-                        visible = !showFindBar && !showSignaturePad && activeImageId == null,
-                        enter = fadeIn(tween(220)) + expandVertically(
-                            animationSpec = tween(260),
-                            expandFrom = Alignment.Bottom
-                        ) + scaleIn(initialScale = 0.96f),
-                        exit = fadeOut(tween(150)) + shrinkVertically(
-                            animationSpec = tween(180),
-                            shrinkTowards = Alignment.Bottom
-                        ) + scaleOut(targetScale = 0.96f)
-                    ) {
-                        AnimatedContent(
-                            targetState = toolbarMode,
-                            transitionSpec = {
-                                (fadeIn(tween(180)) + expandVertically(
-                                    animationSpec = tween(220),
-                                    expandFrom = Alignment.Bottom
-                                ) + scaleIn(initialScale = 0.97f)).togetherWith(
-                                    fadeOut(tween(120)) + shrinkVertically(
-                                        animationSpec = tween(150),
-                                        shrinkTowards = Alignment.Bottom
-                                    ) + scaleOut(targetScale = 0.97f)
-                                )
-                            },
-                            label = "viewerToolMorph"
-                        ) { _ ->
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .liquidGlassPanel(backdrop, uiSensor)
-                                    .padding(horizontal = 12.dp, vertical = 10.dp)
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                            LiquidButton(
-                                onClick  = { activeTool = if (drawingToolActive) PdfEditTool.None else PdfEditTool.Draw },
-                                backdrop = backdrop,
-                                tint     = if (drawingToolActive) Color(0xFF00BCD4) else Color.Transparent
-                            ) { BasicText(stringResource(R.string.viewer_draw_tools), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-
-                            LiquidButton(
-                                onClick  = { activeTool = if (activeTool == PdfEditTool.SelectText) PdfEditTool.None else PdfEditTool.SelectText },
-                                backdrop = backdrop,
-                                tint     = if (activeTool == PdfEditTool.SelectText) Color(0xFFAB47BC) else Color.Transparent
-                            ) {
-                                BasicText(
-                                    if (selectedTextCount > 0) stringResource(R.string.viewer_ocr, selectedTextCount) else stringResource(R.string.viewer_select_text),
-                                    style = TextStyle(Color.White, 12.sp, FontWeight.Medium)
-                                )
-                            }
-
-                            LiquidButton(
-                                onClick  = { imagePickerLauncher.launch("image/*") },
-                                backdrop = backdrop,
-                                tint     = if (activeTool == PdfEditTool.Image) Color(0xFF1976D2) else Color.Transparent
-                            ) { BasicText(stringResource(R.string.viewer_add_image), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-
-                            LiquidButton(
-                                onClick  = { activeTool = if (activeTool == PdfEditTool.Eraser) PdfEditTool.None else PdfEditTool.Eraser },
-                                backdrop = backdrop,
-                                tint     = if (activeTool == PdfEditTool.Eraser) Color(0xFFEF5350) else Color.Transparent
-                            ) { BasicText(stringResource(R.string.viewer_eraser), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-
-                            LiquidButton(
-                                onClick = { showSignaturePad = true },
-                                backdrop = backdrop,
-                                tint = Color(0xFF5E35B1)
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Rounded.Gesture, null, Modifier.size(14.dp), Color.White)
-                                    BasicText(stringResource(R.string.viewer_sign), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
-                                }
-                            }
-
-                            LiquidButton(
-                                onClick = {
-                                    showFindBar = !showFindBar
-                                    if (showFindBar) viewModel.triggerOcrForAllPages(context)
-                                    else {
-                                        focusManager.clearFocus()
-                                        viewModel.clearSearch()
-                                        findQuery = ""
-                                    }
-                                },
-                                backdrop = backdrop,
-                                tint = if (showFindBar) Color(0xFF0288D1) else Color.Transparent
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Rounded.Search, null, Modifier.size(14.dp), Color.White)
-                                    BasicText(stringResource(R.string.viewer_find), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
-                                }
-                            }
-
-                            if (drawingToolActive || activeTool == PdfEditTool.SelectText ||
-                                activeTool == PdfEditTool.Image || activeTool == PdfEditTool.Eraser) {
-                                LiquidIconButton(
-                                    onClick = {
-                                        activeTool = PdfEditTool.None
-                                        activeImageId = null
-                                        viewModel.clearOcrSelection(state.currentPage)
-                                    },
-                                    backdrop = backdrop,
-                                    tint = Color(0xFFEF5350),
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    CloseCrossIcon(Modifier.size(14.dp), Color.White)
-                                }
-                            }
-
-                            if (zoomScale > 1.01f) {
-                                LiquidButton(
-                                    onClick = {
-                                        scope.launch {
-                                            animateZoomPan(
-                                                targetZoom   = 1f,
-                                                targetPan    = Offset.Zero,
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness    = Spring.StiffnessMedium
-                                            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { containerHeightPx = it.height }
+                    .then(
+                        // Keep pinch zoom available in Select Text mode. Other editing tools own
+                        // the page gesture surface because their strokes/shapes need the drag.
+                        if (activeTool != PdfEditTool.None && activeTool != PdfEditTool.SelectText) Modifier
+                        else Modifier.pointerInput(Unit) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                do {
+                                    val event = awaitPointerEvent()
+                                    val zoomChange = event.calculateZoom()
+                                    val panChange  = event.calculatePan()
+                                    val zoomed = scale > 1.001f
+                                    if (zoomChange != 1f || zoomed) {
+                                        val cw = size.width.toFloat()
+                                        val oldScale = scale
+                                        val newScale = (oldScale * zoomChange).coerceIn(1f, 5f)
+                                        // Real zoom ratio AFTER clamping — drives the focal correction.
+                                        val effZoom = if (oldScale != 0f) newScale / oldScale else 1f
+                                        val centroid = event.calculateCentroid(useCurrent = true)
+                                        val center = cw / 2f
+                                        val maxOffsetX = ((cw * newScale - cw) / 2f).coerceAtLeast(0f)
+                                        // Synchronous state writes — no per-event coroutine (Pdf_Tools parity).
+                                        scale = newScale
+                                        if (newScale > 1f) {
+                                            // FOCAL zoom: shift so the pinch centroid stays under the fingers
+                                            // (layer origin is top-CENTER on X), THEN apply the finger pan.
+                                            // Without this the page scaled around the centre, so zoom landed
+                                            // "beside" where you pinched.
+                                            val focalDx = if (centroid.isSpecified) (1f - effZoom) * (centroid.x - center - offsetX) else 0f
+                                            offsetX = (offsetX + focalDx + panChange.x).coerceIn(-maxOffsetX, maxOffsetX)
+                                            // Vertical is LazyColumn scroll in UNSCALED px (layer origin is TOP
+                                            // on Y): the focal term keeps the centroid's row put, the pan term
+                                            // tracks the finger (divided by scale for 1:1 at higher zoom).
+                                            val focalDy = if (centroid.isSpecified) centroid.y * (1f / oldScale - 1f / newScale) else 0f
+                                            val totalDy = focalDy + (-panChange.y / newScale)
+                                            if (totalDy != 0f) listState.dispatchRawDelta(totalDy)
+                                        } else {
+                                            offsetX = 0f
                                         }
                                         lastInteractionAtMs = System.currentTimeMillis()
-                                    },
-                                    backdrop = backdrop
-                                ) {
-                                    BasicText(
-                                        stringResource(
-                                            R.string.viewer_reset_zoom,
-                                            (zoomScale * 100 + 0.5f).toInt()
-                                        ),
-                                        style = TextStyle(Color.White, 12.sp, FontWeight.Medium)
-                                    )
-                                }
-                            }
-
-                            if (hasEdits && !state.isExporting) {
-                                LiquidButton(
-                                    onClick  = { showSaveDialog = true },
-                                    backdrop = backdrop,
-                                    tint     = Color(0xFF1976D2)
-                                ) { BasicText(stringResource(R.string.viewer_save_edits), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-                            }
+                                    }
+                                } while (event.changes.any { it.pressed })
                             }
                         }
-                    }
-
-                    val showDrawTools = drawingToolActive
-                    val showOcrTools = activeTool == PdfEditTool.SelectText || selectedTextCount > 0
-                    val showImageTools = activeTool == PdfEditTool.Image && activeImageId != null
-
-                    AnimatedVisibility(
-                        visible = (showDrawTools || showOcrTools || showImageTools) &&
-                            !showFindBar && !showSignaturePad,
-                        enter = fadeIn(tween(220)) + expandVertically(
-                            animationSpec = tween(260),
-                            expandFrom = Alignment.Bottom
-                        ) + scaleIn(initialScale = 0.97f),
-                        exit = fadeOut(tween(150)) + shrinkVertically(
-                            animationSpec = tween(180),
-                            shrinkTowards = Alignment.Bottom
-                        ) + scaleOut(targetScale = 0.97f)
-                    ) {
-                        Column(
-                            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    if (showDrawTools) {
-                                        listOf(
-                                            PdfEditTool.Draw      to stringResource(R.string.viewer_pen),
-                                            PdfEditTool.Highlight to stringResource(R.string.viewer_highlight),
-                                            PdfEditTool.Rect      to stringResource(R.string.viewer_rect),
-                                            PdfEditTool.Ellipse   to stringResource(R.string.viewer_oval),
-                                            PdfEditTool.Line      to stringResource(R.string.viewer_line),
-                                            PdfEditTool.Arrow     to stringResource(R.string.viewer_arrow)
-                                        ).forEach { (tool, label) ->
-                                            LiquidButton(
-                                                onClick       = { activeTool = tool },
-                                                backdrop      = backdrop,
-                                                surfaceColor  = if (activeTool == tool)
-                                                                    currentColor.copy(0.2f)
-                                                                else Color.White.copy(0.08f)
-                                            ) { BasicText(label, style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-                                        }
-                                        LiquidButton(
-                                            onClick  = {
-                                                getPageMarks(state.currentPage).let { if (it.isNotEmpty()) it.removeAt(it.lastIndex) }
-                                            },
-                                            backdrop = backdrop
-                                        ) { BasicText(stringResource(R.string.viewer_undo), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-                                        LiquidButton(
-                                            onClick  = { getPageMarks(state.currentPage).clear() },
-                                            backdrop = backdrop
-                                        ) { BasicText(stringResource(R.string.viewer_clear), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-                                    } else if (showOcrTools) {
-                                        LiquidButton(onClick = {
-                                            val ids = state.ocrBlocksByPage[state.currentPage].orEmpty().map { it.id }.toSet()
-                                            if (ids.isNotEmpty()) viewModel.selectOcrBlocks(state.currentPage, ids, false)
-                                        }, backdrop = backdrop) { BasicText(stringResource(R.string.viewer_select_all), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-
-                                        LiquidButton(
-                                            onClick = {
-                                                viewModel.getSelectedOcrText(state.currentPage)
-                                                    .takeIf { it.isNotBlank() }
-                                                    ?.let { clipboard.setText(AnnotatedString(it)) }
-                                            },
-                                            backdrop = backdrop, tint = Color(0xFF7E57C2)
-                                        ) { BasicText(stringResource(R.string.copy), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-
-                                        LiquidButton(
-                                            onClick = {
-                                                val m = getPageMarks(state.currentPage)
-                                                currentSelectedIds.forEach { id ->
-                                                    if (!m.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == id })
-                                                        m.add(PdfMarkup.TextBlockHighlightMarkup(id, Color(currentColorLong), 0.30f))
-                                                }
-                                            },
-                                            backdrop = backdrop, tint = Color(0xFFFFB300)
-                                        ) { BasicText(stringResource(R.string.viewer_highlight), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-
-                                        LiquidButton(
-                                            onClick = {
-                                                val m = getPageMarks(state.currentPage)
-                                                currentSelectedIds.forEach { id ->
-                                                    if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == id && !it.strikeThrough })
-                                                        m.add(PdfMarkup.TextBlockLineMarkup(id, Color(currentColorLong), 3f, 1f, false))
-                                                }
-                                            },
-                                            backdrop = backdrop, tint = Color(0xFF4CAF50)
-                                        ) { BasicText(stringResource(R.string.viewer_underline), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-
-                                        LiquidButton(
-                                            onClick = {
-                                                val m = getPageMarks(state.currentPage)
-                                                currentSelectedIds.forEach { id ->
-                                                    if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == id && it.strikeThrough })
-                                                        m.add(PdfMarkup.TextBlockLineMarkup(id, Color(currentColorLong), 3f, 1f, true))
-                                                }
-                                            },
-                                            backdrop = backdrop, tint = Color(0xFFEF5350)
-                                        ) { BasicText(stringResource(R.string.viewer_strike), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-
-                                        LiquidButton(
-                                            onClick  = { viewModel.clearOcrSelection(state.currentPage) },
-                                            backdrop = backdrop
-                                        ) { BasicText(stringResource(R.string.viewer_clear), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-                                    } else if (showImageTools) {
-                                        val activeItem = getPageMarks(state.currentPage)
-                                            .firstOrNull { it is PdfMarkup.ImageMarkup && it.id == activeImageId } as? PdfMarkup.ImageMarkup
-                                        val isSignature = activeItem?.isSignature == true
-
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 4.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            LiquidButton(
-                                                onClick = {
-                                                    activeImageId = null
-                                                    activeTool = PdfEditTool.None
-                                                },
-                                                backdrop = backdrop,
-                                                tint = Color(0xFF00C853)
-                                            ) {
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                                                ) {
-                                                    Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), Color.White)
-                                                    BasicText(stringResource(R.string.viewer_done), style = TextStyle(Color.White, 14.sp, FontWeight.Bold))
-                                                }
-                                            }
-
-                                            LiquidButton(
-                                                onClick = {
-                                                    if (isSignature) {
-                                                        showSignaturePad = true
-                                                    } else {
-                                                        imagePickerLauncher.launch("image/*")
-                                                    }
-                                                },
-                                                backdrop = backdrop,
-                                                tint = Color(0xFF1976D2)
-                                            ) {
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                                                ) {
-                                                    Icon(Icons.Rounded.SwapHoriz, null, Modifier.size(18.dp), Color.White)
-                                                    BasicText(if (isSignature) stringResource(R.string.viewer_new_sign) else stringResource(R.string.viewer_replace), style = TextStyle(Color.White, 13.sp, FontWeight.Medium))
-                                                }
-                                            }
-
-                                            LiquidButton(
-                                                onClick = {
-                                                    val m = getPageMarks(state.currentPage)
-                                                    val idx = m.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
-                                                    if (idx >= 0) m.removeAt(idx)
-                                                    activeImageId = null
-                                                    activeTool = PdfEditTool.None
-                                                },
-                                                backdrop = backdrop,
-                                                tint = Color(0xFFEF5350)
-                                            ) {
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                                                ) {
-                                                    Icon(Icons.Rounded.Delete, null, Modifier.size(18.dp), Color.White)
-                                                    BasicText(stringResource(R.string.delete), style = TextStyle(Color.White, 13.sp, FontWeight.Medium))
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (showDrawTools) {
-                                Row(
-                                    Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    BasicText(stringResource(R.string.viewer_size), style = TextStyle(Color.White.copy(0.7f), 12.sp))
-                                    listOf("S" to 3f, "M" to 6f, "L" to 11f, "XL" to 18f).forEach { (label, w) ->
-                                        val sel = currentStrokeWidth == w
-                                        LiquidButton(
-                                            onClick = { currentStrokeWidth = w },
-                                            backdrop = backdrop,
-                                            surfaceColor = if (sel) currentColor.copy(0.30f) else Color.White.copy(0.08f)
-                                        ) { BasicText(label, style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-                                    }
-                                }
-                            }
-
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment     = Alignment.CenterVertically
-                            ) {
-                                listOf(
-                                    0xFF00BCD4L, 0xFFFFB300L, 0xFF4CAF50L, 0xFFEF5350L,
-                                    0xFF42A5F5L, 0xFFAB47BCL, 0xFF26A69AL, 0xFFE0E0E0L
-                                ).forEach { cl ->
-                                    val sel = currentColorLong == cl
-                                    Box(
-                                        Modifier
-                                            .size(26.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(cl))
-                                            .clickable {
-                                                currentColorLong = cl
-                                                if (showImageTools) {
-                                                    val marks = getPageMarks(state.currentPage)
-                                                    val idx = marks.indexOfLast {
-                                                        it is PdfMarkup.ImageMarkup &&
-                                                            it.id == activeImageId &&
-                                                            it.isSignature
-                                                    }
-                                                    val signature = marks.getOrNull(idx) as? PdfMarkup.ImageMarkup
-                                                    if (signature != null) {
-                                                        marks[idx] = signature.copy(
-                                                            bitmap = recolorSignatureBitmap(
-                                                                signature.bitmap,
-                                                                Color(cl).toArgb()
-                                                            )
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                            .border(if (sel) 2.dp else 0.dp,
-                                                    if (sel) Color.White else Color.Transparent,
-                                                    CircleShape)
-                                    ) {
-                                        if (sel) Box(
-                                            Modifier
-                                                .size(8.dp)
-                                                .clip(CircleShape)
-                                                .background(Color.White)
-                                                .align(Alignment.Center)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (state.exportError != null || state.exportMessage != null || state.isExporting) {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .liquidGlassPanel(backdrop, uiSensor)
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment     = Alignment.CenterVertically
-                        ) {
-                            when {
-                                state.isExporting -> BasicText(
-                                    stringResource(R.string.viewer_saving),
-                                    style = TextStyle(Color.White.copy(0.82f), 12.sp)
+                    )
+                    .pointerInput(activeTool) {
+                        detectTapGestures(
+                            onTap = { if (activeTool == PdfEditTool.None) controlsVisible = !controlsVisible; lastInteractionAtMs = System.currentTimeMillis() },
+                            onDoubleTap = { tap ->
+                                if (activeTool != PdfEditTool.None) return@detectTapGestures
+                                val cw = size.width.toFloat()
+                                val s0 = scale
+                                val target = if (s0 > 1.5f) 1f else 2.5f
+                                val maxOffsetX = ((cw * target - cw) / 2f).coerceAtLeast(0f)
+                                // Horizontal focal: keep the tapped X under the finger
+                                // (graphicsLayer origin is top-CENTER, so translationX compensates).
+                                val focalX = if (target > 1f) ((cw / 2f - tap.x) * (target - 1f)).coerceIn(-maxOffsetX, maxOffsetX) else 0f
+                                // Vertical focal: the layer is TOP-anchored, so keep the tapped Y
+                                // under the finger by scrolling the list Δ = tap.y*(1/s0 - 1/target).
+                                val scrollDelta = tap.y * (1f / s0 - 1f / target)
+                                val focalSpec = androidx.compose.animation.core.spring<Float>(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness    = Spring.StiffnessMediumLow
                                 )
-                                state.exportError != null -> {
-                                    BasicText(state.exportError!!, style = TextStyle(Color(0xFFFF8A80), 12.sp))
-                                    LiquidButton(
-                                        onClick  = { viewModel.clearExportFeedback() },
-                                        backdrop = backdrop
-                                    ) {
-                                        BasicText(
-                                            stringResource(R.string.dismiss),
-                                            style = TextStyle(Color.White, 11.sp, FontWeight.Medium)
-                                        )
-                                    }
-                                }
-                                state.exportMessage != null -> {
-                                    BasicText(state.exportMessage!!, style = TextStyle(Color(0xFFB9F6CA), 12.sp))
-                                    state.lastExportedUri?.let { uri ->
-                                        LiquidButton(
-                                            onClick  = { viewModel.openPdf(context, uri) },
-                                            backdrop = backdrop,
-                                            tint     = Color(0xFF1976D2)
-                                        ) {
-                                            BasicText(
-                                                stringResource(R.string.open),
-                                                style = TextStyle(Color.White, 11.sp, FontWeight.Medium)
-                                            )
-                                        }
-                                    }
-                                }
+                                viewerScope.launch { animateZoomPan(target, Offset(focalX, 0f)) }
+                                viewerScope.launch { listState.animateScrollBy(scrollDelta, focalSpec) }
+                                lastInteractionAtMs = System.currentTimeMillis()
                             }
-                        }
+                        )
                     }
+            ) {
+                val extraBottomPadding = if (scale > 1f && containerHeightPx > 0)
+                    with(LocalDensity.current) { (containerHeightPx * ((scale - 1f) / scale)).toDp() } else 0.dp
 
-                    AnimatedVisibility(visible = activeImageId == null && !showFindBar && !drawingToolActive) {
-                        LiquidButton(
-                            onClick   = { pdfPickerLauncher.launch(arrayOf("*/*")) },
-                            backdrop  = backdrop,
-                            tint      = accent,
-                            modifier  = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment     = Alignment.CenterVertically,
-                                modifier              = Modifier.padding(vertical = 10.dp)
-                            ) {
-                                Icon(Icons.Rounded.UploadFile, null, Modifier.size(16.dp), Color.White)
-                                BasicText(stringResource(R.string.viewer_open_another), style = TextStyle(Color.White, 14.sp, fontWeight = FontWeight.Medium))
+                Box(
+                    Modifier.fillMaxSize().graphicsLayer {
+                        scaleX = scale; scaleY = scale
+                        translationX = offsetX; translationY = 0f
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+                    }
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        flingBehavior = pageFling,
+                        userScrollEnabled = activeTool == PdfEditTool.None && scale <= 1.01f,
+                        modifier = Modifier.fillMaxSize(),
+                        // Center the block when it's shorter than the viewport (e.g. a
+                        // single page) so it sits neatly centered instead of pinned to
+                        // the top with a dark blank half below. No effect once content
+                        // overflows (multi-page / zoomed), where it scrolls normally.
+                        verticalArrangement = Arrangement.Center,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 4.dp + extraBottomPadding)
+                    ) {
+                        items(count = safePageCount, key = { it }, contentType = { "pdfPage" }) { page ->
+                            // Re-request whenever this page has no bitmap (covers cache eviction
+                            // while the item stays composed in the lazy list).
+                            val needsRender = state.pageBitmaps.getOrNull(page) == null
+                            LaunchedEffect(page, renderWidthPx, needsRender) {
+                                if (needsRender) viewModel.renderPage(context, page, renderWidthPx)
                             }
+                            PdfContinuousPage(
+                                page               = page,
+                                bitmap             = state.pageBitmaps.getOrNull(page),
+                                marks              = getPageMarks(page),
+                                ocrBlocks          = state.ocrBlocksByPage[page].orEmpty(),
+                                selectedOcrIds     = state.selectedOcrBlockIdsByPage[page].orEmpty(),
+                                selectedOcrRanges  = state.selectedOcrRangesByPage[page].orEmpty(),
+                                findMatches        = state.findMatches,
+                                currentMatchIndex  = state.currentMatchIndex,
+                                showFindBar        = showFindBar,
+                                activeTool         = activeTool,
+                                currentColor       = currentColor,
+                                currentStrokeWidth = currentStrokeWidth,
+                                activeImageId      = activeImageId,
+                                pageCanvasSizes    = pageCanvasSizes,
+                                pageBitmapSizes    = pageBitmapSizes,
+                                onInteraction      = { lastInteractionAtMs = System.currentTimeMillis() },
+                                onMarkAdded        = { recordEdit(page) },
+                                onToggleControls   = { controlsVisible = !controlsVisible },
+                                onShowControls     = { controlsVisible = true },
+                                onActiveToolChanged     = { activeTool = it },
+                                onActiveImageIdChanged  = { activeImageId = it },
+                                onClearOcrSelection     = { viewModel.clearOcrSelection(page) },
+                                // Replace (not append): a drag defines the whole selection live, so as
+                                // the finger shrinks the range the deselected words must drop out too.
+                                onSelectOcrRange        = { viewModel.selectOcrRanges(page, it, append = false) },
+                                onPlaceText             = { pt ->
+                                    val id = System.nanoTime()
+                                    getPageMarks(page).add(PdfMarkup.TextBoxMarkup(id, pt, "", currentColor, 40f))
+                                    recordEdit(page)
+                                    editingAnnoId = id; editingAnnoPage = page; editingAnnoIsNote = false; annotationDraft = ""
+                                    activeTool = PdfEditTool.None; controlsVisible = true
+                                },
+                                onPlaceNote             = { pt ->
+                                    val id = System.nanoTime()
+                                    getPageMarks(page).add(PdfMarkup.NoteMarkup(id, pt, "", Color(0xFFFFC107)))
+                                    recordEdit(page)
+                                    editingAnnoId = id; editingAnnoPage = page; editingAnnoIsNote = true; annotationDraft = ""
+                                    activeTool = PdfEditTool.None; controlsVisible = true
+                                },
+                                onEditAnnotation        = { id ->
+                                    val m = getPageMarks(page).firstOrNull {
+                                        (it is PdfMarkup.TextBoxMarkup && it.id == id) || (it is PdfMarkup.NoteMarkup && it.id == id)
+                                    }
+                                    editingAnnoId = id; editingAnnoPage = page
+                                    editingAnnoIsNote = m is PdfMarkup.NoteMarkup
+                                    annotationDraft = when (m) {
+                                        is PdfMarkup.TextBoxMarkup -> m.text
+                                        is PdfMarkup.NoteMarkup    -> m.text
+                                        else -> ""
+                                    }
+                                    editingAnnoColor = when (m) {
+                                        is PdfMarkup.TextBoxMarkup -> m.color
+                                        is PdfMarkup.NoteMarkup    -> m.color
+                                        else -> Color(0xFF1976D2)
+                                    }
+                                    controlsVisible = true
+                                },
+                                onEditShape             = { idx ->
+                                    editingShapePage = page; editingShapeIndex = idx; controlsVisible = true
+                                },
+                                selectedMarkupIndex     = if (page == selectedAnnoPage) selectedAnnoIndex else -1,
+                                onSelectMarkup          = { idx ->
+                                    if (idx < 0) { selectedAnnoPage = null; selectedAnnoIndex = -1 }
+                                    else { selectedAnnoPage = page; selectedAnnoIndex = idx }
+                                },
+                                onDeleteMarkup          = { idx ->
+                                    val m = getPageMarks(page); if (idx in m.indices) m.removeAt(idx)
+                                    selectedAnnoPage = null; selectedAnnoIndex = -1
+                                },
+                                onCopySelection = {
+                                    viewModel.getSelectedOcrText(page).takeIf { it.isNotBlank() }
+                                        ?.let { clipboard.setText(AnnotatedString(it)) }
+                                    lastInteractionAtMs = System.currentTimeMillis()
+                                },
+                                onHighlightSelection = {
+                                    val m = getPageMarks(page)
+                                    selectedTextRanges(page).forEach { range ->
+                                        if (!m.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end })
+                                            m.add(PdfMarkup.TextBlockHighlightMarkup(range.blockId, Color(currentColorLong), 0.38f, range.start, range.end))
+                                    }
+                                    viewModel.clearOcrSelection(page)
+                                }
+                            )
                         }
                     }
                 }
             }
         }
 
+        // ── Page scrubber (doubles as the fading scroll indicator) ─────────
+        // Always present on multi-page docs so fast scrubbing is one drag away,
+        // independent of the auto-hiding chrome. It brightens the moment the list
+        // scrolls/flings and gently fades back to a slim idle state when at rest,
+        // so it reads as an iOS-style scroll indicator without a second element.
+        // Held while the rail itself is being dragged. Dragging it does not scroll the list (that
+        // only happens on release), so without this the idle fade would run mid-drag and take the
+        // thumbnail preview down to 40% opacity — which reads as the preview "half disappearing".
+        var scrubberDragging by remember { mutableStateOf(false) }
+        val scrubberBright = listState.isScrollInProgress || scrubberDragging
+        val scrubberAlpha by androidx.compose.animation.core.animateFloatAsState(
+            targetValue = if (scrubberBright) 1f else 0.4f,
+            animationSpec = tween(durationMillis = if (scrubberBright) 120 else 600),
+            label = "scrubberFade"
+        )
+        AnimatedVisibility(
+            visible  = safePageCount > 1 && scale <= 1.01f,
+            enter    = fadeIn(androidx.compose.animation.core.spring(stiffness = Spring.StiffnessMedium)) + scaleIn(initialScale = 0.92f, animationSpec = androidx.compose.animation.core.spring(dampingRatio = Spring.DampingRatioMediumBouncy)),
+            exit     = fadeOut(androidx.compose.animation.core.spring(stiffness = Spring.StiffnessMedium)) + scaleOut(targetScale = 0.92f),
+            modifier = Modifier.align(Alignment.CenterEnd).graphicsLayer { alpha = scrubberAlpha }.navigationBarsPadding().statusBarsPadding().padding(end = 8.dp)
+        ) {
+            PageScrubber(
+                currentPage      = currentPageIndex,
+                pageCount        = safePageCount,
+                pageBitmaps      = state.pageBitmaps,
+                backdrop         = contentBackdrop,
+                uiSensor         = uiSensor,
+                onPageChange     = { page -> scrollToPage(page) },
+                onPageScrubbing  = { page -> viewModel.renderPage(context, page, 400); lastInteractionAtMs = System.currentTimeMillis() },
+                onDraggingChange = { scrubberDragging = it },
+                isScrolling      = listState.isScrollInProgress
+            )
+        }
+
+        // ── Top + bottom controls overlay ──────────────────────────────────
+        Box(
+            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(16.dp)
+        ) {
+            // Top bar
+            AnimatedVisibility(
+                visible  = controlsVisible,
+                enter    = fadeIn(tween(200)) + slideInVertically { -it / 2 },
+                exit     = fadeOut(tween(150)) + slideOutVertically { -it / 2 },
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                // Home and Tools' header trio, verbatim: back circle · centred [GlassTitlePill] ·
+                // search circle, 10 dp apart. The pill is the same widget carrying "ClearPDF" on
+                // Home rather than a look-alike `LiquidButton`, so the two screens can't drift; only
+                // the palette differs, because the viewer picks its chrome from the *page's*
+                // luminance instead of the theme.
+                //
+                // Page navigation lives in the right-edge scrubber + scroll, so no oversized
+                // prev/next controls cover the document.
+                Row(
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier              = Modifier.fillMaxWidth()
+                ) {
+                    // No `surfaceColor`, exactly as Home calls it: the circle paints nothing of its own
+                    // and is pure refraction. Only the icon's colour adapts to the page.
+                    LiquidIconButton(onClick = onBack, backdrop = contentBackdrop) {
+                        Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), topFg)
+                    }
+                    // A weighted Box rather than two weighted spacers: the back circle and the
+                    // search circle are the same 40 dp, so this centres the pill on the row exactly
+                    // the way Home's header does, and a long "Page 100 / 1000" grows symmetrically.
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        GlassTitlePill(
+                            text = stringResource(R.string.viewer_page_of, currentPageIndex + 1, safePageCount),
+                            backdrop = contentBackdrop,
+                            onClick = { showPageJumpDialog = true },
+                            // Transparent, not omitted: omitting falls back to the theme's 0.35 tint,
+                            // and this pill sits between two circles that paint nothing at all, so any
+                            // tint at all makes it read as a slab bolted between two pieces of glass.
+                            // `drawRect(Color.Transparent)` is the same no-op `LiquidIconButton`
+                            // performs when it is given no `surfaceColor`.
+                            surfaceColor = Color.Transparent,
+                            contentColor = topFg,
+                            // The enclosing AnimatedVisibility already slides and fades the whole bar
+                            // in every time the chrome returns; the pill's own spring would stack on
+                            // top of that and read as a stutter. Same call the find bar makes.
+                            animateIn = false
+                        )
+                    }
+                    LiquidIconButton(
+                        onClick = {
+                            showFindBar = !showFindBar
+                            if (showFindBar) viewModel.triggerOcrForAllPages(context)
+                            else { focusManager.clearFocus(); viewModel.clearSearch(); findQuery = "" }
+                        },
+                        backdrop = contentBackdrop
+                    ) {
+                        Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), topFg)
+                    }
+                }
+            }
+
+            // Bottom toolbar
+            AnimatedVisibility(
+                visible  = controlsVisible,
+                enter    = fadeIn(tween(200)) + slideInVertically { it / 2 },
+                exit     = fadeOut(tween(150)) + slideOutVertically { it / 2 },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                val activeItem = activeImageLoc()?.third
+
+                PdfViewerBottomToolbar(
+                    activeTool         = activeTool,
+                    drawingToolActive  = drawingToolActive,
+                    showFindBar        = showFindBar,
+                    showSignaturePad   = showSignaturePad,
+                    activeImageId      = activeImageId,
+                    currentColor       = currentColor,
+                    currentColorLong   = currentColorLong,
+                    currentStrokeWidth = currentStrokeWidth,
+                    zoomScale          = scale,
+                    hasEdits           = annotationsByPage.values.any { it.isNotEmpty() },
+                    isExporting        = state.isExporting,
+                    exportError        = state.exportError,
+                    exportMessage      = state.exportMessage,
+                    lastExportedUri    = state.lastExportedUri,
+                    selectedTextCount  = selectedTextRanges(currentPageIndex).size,
+                    currentSelectedIds = state.selectedOcrBlockIdsByPage[currentPageIndex].orEmpty(),
+                    activeIsSignature  = activeItem?.isSignature == true,
+                    // Undo is history-driven, not page-driven. Two earlier attempts keyed it to a
+                    // page index — first `state.currentPage` (async, lagged behind the scroll), then
+                    // `listState.firstVisibleItemIndex` (the first *partially* visible page, which
+                    // while you draw is usually a sliver of the PREVIOUS page). Both removed from the
+                    // wrong, usually empty, list. There is no page index that reliably means "what
+                    // the user just did", so the viewer records each addition instead.
+                    canUndo            = undoStack.isNotEmpty() || annotationsByPage.any { it.value.isNotEmpty() },
+                    onUndo             = { undoLastEdit(); lastInteractionAtMs = System.currentTimeMillis() },
+                    onClearPage        = { clearVisiblePage(); lastInteractionAtMs = System.currentTimeMillis() },
+                    onSetActiveTool    = { activeTool = it; if (it == PdfEditTool.None) activeImageId = null; selectedAnnoPage = null; selectedAnnoIndex = -1; viewModel.clearOcrSelection(currentPageIndex) },
+                    onToggleFindBar    = {
+                        showFindBar = !showFindBar
+                        if (showFindBar) viewModel.triggerOcrForAllPages(context)
+                        else { focusManager.clearFocus(); viewModel.clearSearch(); findQuery = "" }
+                    },
+                    onShowSignaturePad = { showSignaturePad = true },
+                    onPickImage        = { activeImageId = null; imagePickerLauncher.launch("image/*") },
+                    onResetZoom        = { scope.launch { animateZoomPan(1f, Offset.Zero) }
+                                          lastInteractionAtMs = System.currentTimeMillis() },
+                    onShowSaveDialog   = { showSaveDialog = true },
+                    onImageDone        = { activeImageId = null; activeTool = PdfEditTool.None },
+                    onReplaceImage     = {
+                        if (activeItem?.isSignature == true) showSignaturePad = true
+                        else imagePickerLauncher.launch("image/*")
+                    },
+                    onDeleteImage      = {
+                        activeImageLoc()?.let { (pg, idx, _) -> getPageMarks(pg).removeAt(idx) }
+                        activeImageId = null; activeTool = PdfEditTool.None
+                    },
+                    onSelectAllText    = {
+                        val ids = state.ocrBlocksByPage[currentPageIndex].orEmpty().map { it.id }.toSet()
+                        if (ids.isNotEmpty()) viewModel.selectOcrBlocks(currentPageIndex, ids, false)
+                    },
+                    onCopyText         = {
+                        viewModel.getSelectedOcrText(currentPageIndex).takeIf { it.isNotBlank() }
+                            ?.let { clipboard.setText(AnnotatedString(it)) }
+                    },
+                    onHighlightSelected = {
+                        val m = getPageMarks(currentPageIndex)
+                        selectedTextRanges(currentPageIndex).forEach { range ->
+                            if (!m.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end })
+                                m.add(PdfMarkup.TextBlockHighlightMarkup(range.blockId, Color(currentColorLong), 0.38f, range.start, range.end))
+                        }
+                    },
+                    onUnderlineSelected = {
+                        val m = getPageMarks(currentPageIndex)
+                        selectedTextRanges(currentPageIndex).forEach { range ->
+                            if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end && !it.strikeThrough })
+                                m.add(PdfMarkup.TextBlockLineMarkup(range.blockId, Color(currentColorLong), 3f, 1f, false, range.start, range.end))
+                        }
+                    },
+                    onStrikeSelected    = {
+                        val m = getPageMarks(currentPageIndex)
+                        selectedTextRanges(currentPageIndex).forEach { range ->
+                            if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end && it.strikeThrough })
+                                m.add(PdfMarkup.TextBlockLineMarkup(range.blockId, Color(currentColorLong), 3f, 1f, true, range.start, range.end))
+                        }
+                    },
+                    onClearTextSelection = { viewModel.clearOcrSelection(currentPageIndex) },
+                    onSetColorLong   = { currentColorLong = it },
+                    onSetStrokeWidth = { currentStrokeWidth = it },
+                    onDismissExportFeedback = { viewModel.clearExportFeedback() },
+                    onOpenExportedFile = { state.lastExportedUri?.let { viewModel.openPdf(context, it) } },
+                    onOpenAnotherPdf   = { pdfPickerLauncher.launch(arrayOf("*/*")) },
+                    onEditorOpenChanged = { editorToolsOpen = it },
+                    // Bumping the timestamp on RELEASE is half the fix: otherwise the hold ends and
+                    // the effect resumes a window that is already most of the way expired, so the
+                    // chrome blinks out a moment after the finger lifts.
+                    onShareHoldChanged = { shareHolding = it; lastInteractionAtMs = System.currentTimeMillis() },
+                    // Share now opens the export chooser instead of firing a PDF straight out — a
+                    // .docx used to always leave as the converted PDF, silently. The dialog lets the
+                    // user pick the original file vs a PDF (and encrypt the PDF). See ExportShareDialog.
+                    onShareDocument    = { showShareDialog = true },
+                    onRecolorSignature = { cl ->
+                        activeImageLoc()?.let { (pg, idx, sig) ->
+                            if (sig.isSignature) getPageMarks(pg)[idx] = sig.copy(bitmap = recolorSignatureBitmap(sig.bitmap, Color(cl).toArgb()))
+                        }
+                    },
+                    backdrop = contentBackdrop,
+                    uiSensor = uiSensor,
+                    fg       = bottomFg,
+                    fgSoft   = bottomFgSoft,
+                    glass    = chromeGlass,
+                    chip     = chromeField,
+                    docKind  = com.chethan616.clearpdf.utils.docKindOf(state.fileName)
+                )
+            }
+        }
+
+        // ── Find bar ──────────────────────────────────────────────────────
         AnimatedVisibility(
             visible  = showFindBar,
-            enter    = fadeIn(tween(220)) + expandVertically(
-                animationSpec = tween(280),
-                expandFrom = Alignment.Bottom
-            ) + scaleIn(initialScale = 0.96f),
-            exit     = fadeOut(tween(150)) + shrinkVertically(
-                animationSpec = tween(180),
-                shrinkTowards = Alignment.Bottom
-            ) + scaleOut(targetScale = 0.96f),
+            enter    = fadeIn(tween(220)) + expandVertically(tween(280), Alignment.Bottom) + scaleIn(initialScale = 0.96f),
+            exit     = fadeOut(tween(150)) + shrinkVertically(tween(180), Alignment.Bottom) + scaleOut(targetScale = 0.96f),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            val findMatches = state.findMatches
-            val matchIdx    = state.currentMatchIndex
-            val pagerRef    = pagerState
+            PdfSearchBar(
+                query             = findQuery,
+                matchCount        = state.findMatches.size,
+                currentMatchIndex = state.currentMatchIndex,
+                focusRequester    = findFocusRequester,
+                backdrop          = contentBackdrop,
+                uiSensor          = uiSensor,
+                fg                = findFg,
+                fgSoft            = findFgSoft,
+                surface           = chromeGlass,
+                onQueryChange     = { q -> findQuery = q; viewModel.searchText(q) },
+                onPrevMatch       = { viewModel.prevMatch(); lastInteractionAtMs = System.currentTimeMillis() },
+                onNextMatch       = { viewModel.nextMatch(); lastInteractionAtMs = System.currentTimeMillis() },
+                onClose           = { showFindBar = false; focusManager.clearFocus(); findQuery = ""; viewModel.clearSearch() }
+            )
+        }
 
-            LaunchedEffect(showFindBar) {
-                if (showFindBar) {
-                    kotlinx.coroutines.delay(100)
-                    try { findFocusRequester.requestFocus() } catch (_: Exception) {}
-                }
-            }
+        // ── Page-jump popup (in-window, so it samples the liquid-glass backdrop) ──
+        LiquidPageJumpPopup(
+            visible      = showPageJumpDialog,
+            currentPage  = currentPageIndex,
+            pageCount    = safePageCount,
+            backdrop     = contentBackdrop,
+            uiSensor     = uiSensor,
+            fg           = panelFg,
+            fgSoft       = panelFgSoft,
+            surface      = chromePanel,
+            field        = chromeField,
+            onDismiss    = { showPageJumpDialog = false },
+            onJumpToPage = { targetPage -> showPageJumpDialog = false; scrollToPage(targetPage) }
+        )
 
-            LaunchedEffect(matchIdx, findMatches) {
-                if (matchIdx >= 0 && findMatches.isNotEmpty()) {
-                    val match = findMatches[matchIdx]
-                    if (pagerRef.currentPage != match.pageIndex) {
-                        pagerScopeForFind.launch {
-                            pagerRef.animateScrollToPage(match.pageIndex)
+        // ── Text / note editor (in-window, samples the real page backdrop) ──
+        editingAnnoId?.let { annoId ->
+            fun matches(m: PdfMarkup) =
+                (m is PdfMarkup.TextBoxMarkup && m.id == annoId) || (m is PdfMarkup.NoteMarkup && m.id == annoId)
+            AnnotationEditorDialog(
+                isNote = editingAnnoIsNote,
+                initialText = annotationDraft,
+                initialColor = editingAnnoColor,
+                backdrop = contentBackdrop,
+                uiSensor = uiSensor,
+                fg = panelFg,
+                fgSoft = panelFgSoft,
+                surface = chromePanel,
+                field = chromeField,
+                onDismiss = {
+                    getPageMarks(editingAnnoPage).removeAll { m -> matches(m) &&
+                        ((m is PdfMarkup.TextBoxMarkup && m.text.isBlank()) || (m is PdfMarkup.NoteMarkup && m.text.isBlank())) }
+                    editingAnnoId = null
+                },
+                onDelete = {
+                    getPageMarks(editingAnnoPage).removeAll { matches(it) }
+                    editingAnnoId = null
+                },
+                onSave = { newText, newColor ->
+                    val list = getPageMarks(editingAnnoPage)
+                    val idx = list.indexOfFirst { matches(it) }
+                    if (idx >= 0) {
+                        if (newText.isBlank() && list[idx] is PdfMarkup.TextBoxMarkup) list.removeAt(idx)
+                        else list[idx] = when (val m = list[idx]) {
+                            is PdfMarkup.TextBoxMarkup -> m.copy(text = newText, color = newColor)
+                            is PdfMarkup.NoteMarkup    -> m.copy(text = newText, color = newColor)
+                            else -> m
                         }
                     }
+                    editingAnnoId = null
                 }
-            }
+            )
+        }
 
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .liquidGlassPanel(backdrop, uiSensor)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(
-                    Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(0.12f))
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(Icons.Rounded.Search, null, Modifier.size(16.dp), Color.White.copy(0.6f))
-                    Box(Modifier.weight(1f)) {
-                        if (findQuery.isEmpty()) {
-                            BasicText(
-                                stringResource(R.string.viewer_find_hint),
-                                style = TextStyle(Color.White.copy(0.45f), 13.sp)
-                            )
-                        }
-                        BasicTextField(
-                            value = findQuery,
-                            onValueChange = { q ->
-                                findQuery = q
-                                viewModel.searchText(q)
-                            },
-                            textStyle = TextStyle(Color.White, 13.sp),
-                            singleLine = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(findFocusRequester)
-                        )
-                    }
-                }
-
-                if (findMatches.isNotEmpty()) {
-                    BasicText(
-                        "${matchIdx + 1}/${findMatches.size}",
-                        style = TextStyle(Color.White.copy(0.85f), 11.sp, FontWeight.SemiBold)
-                    )
-                } else if (findQuery.isNotBlank()) {
-                    BasicText(
-                        stringResource(R.string.viewer_find_no_results),
-                        style = TextStyle(Color(0xFFFF8A80), 11.sp, FontWeight.Medium)
-                    )
-                }
-
-                LiquidIconButton(
-                    onClick = { viewModel.prevMatch(); lastInteractionAtMs = System.currentTimeMillis() },
-                    backdrop = backdrop,
-                    surfaceColor = Color.White.copy(0.1f),
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(Icons.Rounded.KeyboardArrowUp, stringResource(R.string.previous), Modifier.size(18.dp), Color.White)
-                }
-                LiquidIconButton(
-                    onClick = { viewModel.nextMatch(); lastInteractionAtMs = System.currentTimeMillis() },
-                    backdrop = backdrop,
-                    surfaceColor = Color.White.copy(0.1f),
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.next), Modifier.size(18.dp), Color.White)
-                }
-
-                LiquidIconButton(
-                    onClick = {
-                        showFindBar = false
-                        focusManager.clearFocus()
-                        findQuery = ""
-                        viewModel.clearSearch()
+        // ── Shape editor (recolour / delete a placed rect / oval / line / arrow / stroke) ──
+        editingShapePage?.let { shapePage ->
+            val list = getPageMarks(shapePage)
+            val shape = list.getOrNull(editingShapeIndex)
+            if (shape != null && shape.isShape()) {
+                ShapeEditorPopup(
+                    initialColor = shape.shapeColor(),
+                    backdrop = contentBackdrop,
+                    uiSensor = uiSensor,
+                    fg = panelFg,
+                    fgSoft = panelFgSoft,
+                    surface = chromePanel,
+                    field = chromeField,
+                    onColorChange = { c ->
+                        val cur = list.getOrNull(editingShapeIndex)
+                        if (cur != null && cur.isShape()) list[editingShapeIndex] = cur.recolored(c)
+                        lastInteractionAtMs = System.currentTimeMillis()
                     },
-                    backdrop = backdrop,
-                    surfaceColor = Color(0xFFEF5350).copy(0.18f),
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    CloseCrossIcon(Modifier.size(12.dp), Color.White)
-                }
+                    onDelete = {
+                        if (editingShapeIndex in list.indices) list.removeAt(editingShapeIndex)
+                        editingShapePage = null; editingShapeIndex = -1
+                    },
+                    onDismiss = { editingShapePage = null; editingShapeIndex = -1 }
+                )
+            } else {
+                editingShapePage = null; editingShapeIndex = -1
             }
         }
-    }
 
-    if (showSaveDialog) {
-        LiquidSaveDialog(
-            initialFileName = state.document?.name
-                ?.substringBeforeLast('.')
-                ?.let { "${it}_Edited" } ?: "Document",
-            backdrop        = backdrop,
+        // ── Save Document — REAL in-window glass (samples the live page) ──
+        LiquidSaveSheet(
+            visible         = showSaveDialog,
+            initialFileName = state.document?.name?.substringBeforeLast('.')?.let { "${it}_Edited" } ?: "Document",
+            backdrop        = contentBackdrop,
             uiSensor        = uiSensor,
+            fg              = panelFg,
+            fgSoft          = panelFgSoft,
+            surface         = chromePanel,
+            field           = chromeField,
             onDismiss       = { showSaveDialog = false },
             onSave          = { fileName, overrideUri ->
                 showSaveDialog = false
-                val overlays = buildExportOverlays(
-                    annotationsByPage, state.ocrBlocksByPage, pageCanvasSizes, pageBitmapSizes
-                )
-                if (overlays.isNotEmpty())
-                    viewModel.exportEditedPdf(context, overlays, fileName, overrideUri)
+                val overlays = buildExportOverlays(annotationsByPage, state.ocrBlocksByPage, pageCanvasSizes, pageBitmapSizes)
+                if (overlays.isNotEmpty()) viewModel.exportEditedPdf(context, overlays, fileName, overrideUri)
             }
         )
+
+        // ── Share / export chooser ──
+        // Original vs PDF (with optional encryption). `originalExt` is null for a plain PDF, which
+        // collapses the dialog to just the encrypt toggle.
+        val shareExt = state.fileName.substringAfterLast('.', "").uppercase()
+        ExportShareDialog(
+            visible     = showShareDialog,
+            originalExt = if (shareExt.isNotBlank() && shareExt != "PDF") shareExt else null,
+            backdrop    = contentBackdrop,
+            uiSensor    = uiSensor,
+            fg          = panelFg,
+            fgSoft      = panelFgSoft,
+            surface     = chromePanel,
+            field       = chromeField,
+            onDismiss   = { showShareDialog = false },
+            onShare     = { format, encrypt, password ->
+                showShareDialog = false
+                viewerScope.launch {
+                    // All file work off the main thread: copy/encrypt, then hand a FileProvider uri to
+                    // the chooser. Everything lands in cacheDir/shared, which the app FileProvider
+                    // serves (file_paths.xml cache-path "/").
+                    val payload = withContext(Dispatchers.IO) {
+                        runCatching {
+                            fun wrap(u: android.net.Uri): android.net.Uri =
+                                if (u.scheme == "file")
+                                    androidx.core.content.FileProvider.getUriForFile(
+                                        context, "${context.packageName}.provider", java.io.File(u.path!!)
+                                    )
+                                else u
+                            val shareDir = java.io.File(context.cacheDir, "shared").apply { mkdirs() }
+                            when (format) {
+                                ShareFormat.ORIGINAL -> state.originalUri?.let { orig ->
+                                    // Mirror the original into our own storage so the target app can
+                                    // actually read it — a SAF uri from another provider can't be
+                                    // re-granted to a third app.
+                                    val safeName = state.fileName.ifBlank { "document.$shareExt" }
+                                        .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                                    val out = java.io.File(shareDir, "${System.currentTimeMillis()}_$safeName")
+                                    context.contentResolver.openInputStream(orig)?.use { input ->
+                                        out.outputStream().use { input.copyTo(it) }
+                                    } ?: return@runCatching null
+                                    androidx.core.content.FileProvider.getUriForFile(
+                                        context, "${context.packageName}.provider", out
+                                    ) to (context.contentResolver.getType(orig) ?: "application/octet-stream")
+                                }
+                                ShareFormat.PDF -> state.document?.uri?.let { pdf ->
+                                    if (encrypt && password.isNotBlank()) {
+                                        val out = java.io.File(shareDir, "protected_${System.currentTimeMillis()}.pdf")
+                                        val outUri = androidx.core.content.FileProvider.getUriForFile(
+                                            context, "${context.packageName}.provider", out
+                                        )
+                                        com.kyant.pdfcore.security.PdfSecurityService.encryptToUri(context, pdf, outUri, password)
+                                        outUri to "application/pdf"
+                                    } else {
+                                        wrap(pdf) to "application/pdf"
+                                    }
+                                }
+                            }
+                        }.getOrNull()
+                    }
+                    if (payload != null) {
+                        val (shareUri, mime) = payload
+                        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = mime
+                            putExtra(android.content.Intent.EXTRA_STREAM, shareUri)
+                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        runCatching {
+                            context.startActivity(
+                                android.content.Intent.createChooser(send, null)
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    }
+                }
+            }
+        )
+
+        // ── Opening curtain ────────────────────────────────────────────────
+        // The very same dark curtain the no-document branch shows while a handed-in file loads, now
+        // held over the freshly-loaded viewer until page 1 has actually rendered — so the reader is
+        // never flashed a blank white page card. Because both branches paint the identical opaque
+        // fill and spinner, the hand-off between them is invisible; only when the first bitmap arrives
+        // does this fade away, letting the real document appear underneath. That is what makes tapping
+        // a recent read as "wait a beat, then the PDF fades in" instead of a hard cut to an empty page.
+        val firstPageRendered = state.pageBitmaps.getOrNull(0) != null
+        var revealDocument by remember { mutableStateOf(false) }
+        LaunchedEffect(firstPageRendered) {
+            if (firstPageRendered && !revealDocument) {
+                delay(140)          // let the page paint a frame before we lift the curtain
+                revealDocument = true
+            }
+        }
+        AnimatedVisibility(
+            visible  = !revealDocument,
+            exit     = fadeOut(tween(420, easing = androidx.compose.animation.core.FastOutSlowInEasing)),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            ViewerLoadingCurtain(isLight = isLight)
+        }
     }
+
+    // ── Dialogs ───────────────────────────────────────────────────────────
 
     if (showSignaturePad) {
         SignaturePadDialog(
@@ -1929,693 +1377,126 @@ fun PdfViewerScreen(
             onSignatureCaptured = { bmp ->
                 showSignaturePad = false
                 runCatching {
-                    val safeBmp = if (bmp.isRecycled) null else if (bmp.config == Bitmap.Config.HARDWARE || !bmp.isMutable) bmp.copy(Bitmap.Config.ARGB_8888, true) else bmp
+                    val safeBmp = when {
+                        bmp.isRecycled -> null
+                        bmp.config == Bitmap.Config.HARDWARE || !bmp.isMutable -> bmp.copy(Bitmap.Config.ARGB_8888, true)
+                        else -> bmp
+                    }
                     if (safeBmp != null && safeBmp.width > 0 && safeBmp.height > 0) {
-                        val page = state.currentPage
-                        val marks = getPageMarks(page)
-                        val existingIdx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
-                        if (existingIdx >= 0 && (marks[existingIdx] as PdfMarkup.ImageMarkup).isSignature) {
-                            val existing = marks[existingIdx] as PdfMarkup.ImageMarkup
-                            val ratio = safeBmp.height.toFloat() / safeBmp.width.toFloat().coerceAtLeast(1f)
-                            val currentWidth = (existing.end.x - existing.start.x).let { kotlin.math.abs(it) }.coerceAtLeast(20f)
-                            val newHeight = currentWidth * ratio
-                            marks[existingIdx] = existing.copy(
-                                bitmap = safeBmp,
-                                end = Offset(existing.end.x, existing.start.y + newHeight),
-                                isSignature = true
-                            )
-                        } else {
-                            val rawCs = pageCanvasSizes[page]
-                            val cs = if (rawCs != null && rawCs.width > 50f && rawCs.height > 50f) rawCs else Size(1000f, 1400f)
-                            val bs = pageBitmapSizes[page] ?: cs
-                            val frame = fitBitmapRect(cs, bs.width, bs.height)
-                            val maxW = (if (frame.width > 50f) frame.width else cs.width) * 0.45f
-                            val ratio = safeBmp.height.toFloat() / safeBmp.width.toFloat().coerceAtLeast(1f)
-                            val w = maxW.coerceAtLeast(100f)
-                            val h = w * ratio
-                            val center = if (frame.width > 50f) frame.center else Offset(cs.width / 2f, cs.height / 2f)
-                            val id = System.nanoTime()
-                            marks.add(
-                                PdfMarkup.ImageMarkup(
-                                    id = id,
-                                    bitmap = safeBmp,
-                                    start = Offset(center.x - w / 2f, center.y - h / 2f),
-                                    end = Offset(center.x + w / 2f, center.y + h / 2f),
-                                    isSignature = true
-                                )
-                            )
-                            activeImageId = id
-                            activeTool = PdfEditTool.Image
-                        }
+                        placeImageMarkup(safeBmp, isSignature = true)
                     }
                 }
             }
         )
     }
 
-    if (showPageJumpDialog) {
-        LiquidPageJumpDialog(
-            currentPage = pagerState.currentPage,
-            pageCount = safePageCount,
-            backdrop = backdrop,
-            uiSensor = uiSensor,
-            onDismiss = { showPageJumpDialog = false },
-            onJumpToPage = { targetPage ->
-                showPageJumpDialog = false
-                pagerScope.launch { pagerState.animateScrollToPage(targetPage) }
-            }
-        )
-    }
 }
 
-private enum class ScrollOrientation { Vertical, Horizontal }
-
-private enum class PdfEditTool { None, Draw, Highlight, Rect, Ellipse, Line, Arrow, SelectText, Image, Eraser }
-
-/** The large bottom control surface follows the user's current intent. */
-private enum class ViewerToolbarMode { Main, Drawing, Selection, Image, Eraser, Search, Signature }
-
+/**
+ * A plain opaque fill shown while a handed-in document loads — no spinner, no indicator, nothing to
+ * look at. It exists only so that (a) the "Open a PDF" picker never flashes before the pages arrive,
+ * and (b) the loaded viewer can fade in from behind it. It's identical in the no-document branch and
+ * the loaded overlay, so the branch swap is seamless; when the first page is ready the overlay simply
+ * fades out (see the AnimatedVisibility that hosts it) to reveal the PDF. That fade is the whole
+ * "opening" animation — deliberately just a dissolve.
+ */
 @Composable
-private fun PageScrubber(
-    currentPage: Int,
-    pageCount: Int,
-    pageBitmaps: List<android.graphics.Bitmap?>,
-    backdrop: com.kyant.backdrop.backdrops.LayerBackdrop,
-    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
-    onPageChange: (Int) -> Unit,
-    onPageScrubbing: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val isDarkMode = LocalIsDarkMode.current
-    val accent = Color(0xFF0088FF)
-
-    var isDragging by remember { mutableStateOf(false) }
-    var isHoveredOrActive by remember { mutableStateOf(false) }
-    var dragPage by remember { mutableIntStateOf(currentPage) }
-    var lastTouchTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
-
-    LaunchedEffect(currentPage) {
-        if (!isDragging) {
-            dragPage = currentPage
-            isHoveredOrActive = true
-            lastTouchTime = System.currentTimeMillis()
-        }
-    }
-
-    LaunchedEffect(lastTouchTime, isDragging) {
-        if (!isDragging) {
-            delay(2200)
-            isHoveredOrActive = false
-        }
-    }
-
-    LaunchedEffect(dragPage, isDragging) {
-        if (isDragging) {
-            onPageScrubbing(dragPage)
-        }
-    }
-
-    val targetFraction = (currentPage.toFloat() / (pageCount - 1).coerceAtLeast(1)).coerceIn(0f, 1f)
-    val animatedFraction by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isDragging) (dragPage.toFloat() / (pageCount - 1).coerceAtLeast(1)).coerceIn(0f, 1f) else targetFraction,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy),
-        label = "thumbFraction"
-    )
-
-    val scrubberHeightDp = 182.dp
-
-    val trackWidthDp by androidx.compose.animation.core.animateDpAsState(
-        targetValue = if (isDragging) 12.dp else 6.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessLow),
-        label = "trackWidth"
-    )
-
-    Box(
-        modifier = modifier
-            .padding(end = 4.dp)
-            .width(48.dp)
-            .height(scrubberHeightDp + 36.dp)
-            .liquidGlassPanel(backdrop, uiSensor)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        contentAlignment = Alignment.CenterEnd
-    ) {
-        BasicText(
-            text = "${currentPage + 1}",
-            style = TextStyle(color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold),
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
-        Box(
-            modifier = Modifier
-                .width(40.dp)
-                .height(scrubberHeightDp)
-                .pointerInput(pageCount) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            isDragging = true
-                            isHoveredOrActive = true
-                            val totalPx = size.height.toFloat()
-                            val frac = (offset.y / totalPx).coerceIn(0f, 1f)
-                            val target = (frac * (pageCount - 1)).roundToInt()
-                            dragPage = target
-                            onPageScrubbing(target)
-                            onPageChange(target)
-                        },
-                        onDragEnd = {
-                            isDragging = false
-                            lastTouchTime = System.currentTimeMillis()
-                            onPageChange(dragPage)
-                        },
-                        onDragCancel = {
-                            isDragging = false
-                            lastTouchTime = System.currentTimeMillis()
-                        },
-                        onDrag = { change, _ ->
-                            isHoveredOrActive = true
-                            val totalPx = size.height.toFloat()
-                            val frac = (change.position.y / totalPx).coerceIn(0f, 1f)
-                            val target = (frac * (pageCount - 1)).roundToInt()
-                            if (target != dragPage) {
-                                dragPage = target
-                                onPageScrubbing(target)
-                                onPageChange(target)
-                            }
-                        }
-                    )
-                }
-                .pointerInput(pageCount) {
-                    detectTapGestures { offset ->
-                        isHoveredOrActive = true
-                        lastTouchTime = System.currentTimeMillis()
-                        val totalPx = size.height.toFloat()
-                        val frac = (offset.y / totalPx).coerceIn(0f, 1f)
-                        val target = (frac * (pageCount - 1)).roundToInt()
-                        dragPage = target
-                        onPageScrubbing(target)
-                        onPageChange(target)
-                    }
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .height(scrubberHeightDp)
-                    .padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.SpaceEvenly,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                repeat(pageCount.coerceAtMost(16)) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(2.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(if (isDarkMode) Color.White.copy(0.10f) else Color.Black.copy(0.08f))
-                    )
-                }
-            }
-            Box(
-                modifier = Modifier
-                    .width(trackWidthDp)
-                    .height(scrubberHeightDp)
-                    .clip(RoundedCornerShape(50))
-                    .background(if (isDarkMode) Color.White.copy(0.12f) else Color.Black.copy(0.08f)),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                Box(
-                    Modifier
-                        .padding(top = (scrubberHeightDp * animatedFraction - 16.dp).coerceIn(0.dp, scrubberHeightDp - 32.dp))
-                        .size(width = if (isDragging) 16.dp else 10.dp, height = 32.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(if (isDragging) accent else Color.White.copy(alpha = 0.95f))
-                        .border(
-                            width = 1.dp,
-                            color = if (isDragging) Color.White.copy(0.6f) else Color.Black.copy(0.1f),
-                            shape = RoundedCornerShape(16.dp)
-                        )
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = isDragging,
-            enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMedium)) +
-                    scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow)),
-            exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMedium)) +
-                   scaleOut(targetScale = 0.9f)
-        ) {
-            val previewBitmap = pageBitmaps.getOrNull(dragPage)
-            val yOffsetDp = (scrubberHeightDp * animatedFraction - scrubberHeightDp / 2).coerceIn(-78.dp, 78.dp)
-
-            Column(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .offset(x = (-42).dp, y = yOffsetDp)
-                    .width(124.dp)
-                    .liquidGlassPanel(backdrop, uiSensor)
-                    .padding(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(
-                    Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(accent.copy(0.22f))
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    BasicText(
-                        text = stringResource(R.string.viewer_page_label),
-                        style = TextStyle(color = accent, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                    )
-                    BasicText(
-                        text = "${dragPage + 1} / $pageCount",
-                        style = TextStyle(color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.Black.copy(0.45f))
-                        .border(1.dp, Color.White.copy(0.15f), RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (previewBitmap != null && !previewBitmap.isRecycled) {
-                        Image(
-                            bitmap = previewBitmap.asImageBitmap(),
-                                contentDescription = stringResource(R.string.preview_page, dragPage + 1),
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxSize().padding(4.dp)
-                        )
-                    } else {
-                        CircularProgressIndicator(color = accent, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
-                    }
-                }
-            }
-        }
-    }
+private fun ViewerLoadingCurtain(isLight: Boolean) {
+    val bg = if (isLight) Color(0xFF0A0E14) else Color(0xFF05070B)
+    Box(Modifier.fillMaxSize().background(bg))
 }
 
-@Composable
-private fun LiquidPageJumpDialog(
-    currentPage: Int,
-    pageCount: Int,
-    backdrop: LayerBackdrop,
-    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
-    onDismiss: () -> Unit,
-    onJumpToPage: (Int) -> Unit
-) {
-    var targetText by remember { mutableStateOf((currentPage + 1).toString()) }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier
-                .fillMaxWidth(0.85f)
-                .liquidGlassPanel(backdrop, uiSensor)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            BasicText(
-                stringResource(R.string.viewer_jump_to_page),
-                style = TextStyle(Color.White, 16.sp, fontWeight = FontWeight.Bold)
-            )
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                BasicTextField(
-                    value = targetText,
-                    onValueChange = { targetText = it.filter { c -> c.isDigit() } },
-                    textStyle = TextStyle(Color.White, 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center),
-                    singleLine = true,
-                    modifier = Modifier
-                        .width(70.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.White.copy(0.12f))
-                        .padding(horizontal = 8.dp, vertical = 6.dp)
-                )
-
-                BasicText(
-                    "/ $pageCount",
-                    style = TextStyle(Color.White.copy(0.7f), 16.sp, fontWeight = FontWeight.Medium)
-                )
-            }
-
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
-            ) {
-                LiquidButton(onClick = onDismiss, backdrop = backdrop) {
-                    BasicText(stringResource(R.string.cancel), style = TextStyle(Color.White, 13.sp))
-                }
-                LiquidButton(
-                    onClick = {
-                        val p = targetText.toIntOrNull()?.minus(1)?.coerceIn(0, pageCount - 1)
-                        if (p != null) onJumpToPage(p)
-                    },
-                    backdrop = backdrop,
-                    tint = Color(0xFF1976D2)
-                ) {
-                    BasicText(stringResource(R.string.viewer_go), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
-                }
-            }
+/**
+ * Cheap average perceptual luminance (0..1) of a page bitmap, sampled at a tiny
+ * resolution. Drives the viewer's adaptive chrome contrast (dark ink on light pages,
+ * white ink on dark pages).
+ */
+/**
+ * Perceptual luminance of a vertical slice `[fTop, fBottom]` (fractions of height) of [bitmap],
+ * sampled on a sparse 8x5 grid across the central 80% of the width. Deliberately uses `getPixel`
+ * on the live bitmap rather than `createScaledBitmap` so it is cheap enough to run per scroll frame.
+ * Central-width only: the far edges are usually margins that don't sit under a control.
+ */
+private fun regionLuminance(bitmap: Bitmap, fTop: Float, fBottom: Float): Float = runCatching {
+    val w = bitmap.width
+    val h = bitmap.height
+    if (w <= 0 || h <= 0) return@runCatching 0f
+    val y0 = (fTop.coerceIn(0f, 1f) * h).toInt().coerceIn(0, h - 1)
+    val y1 = (fBottom.coerceIn(0f, 1f) * h).toInt().coerceIn(y0 + 1, h)
+    val x0 = (w * 0.1f).toInt().coerceIn(0, w - 1)
+    val x1 = (w * 0.9f).toInt().coerceIn(x0 + 1, w)
+    val cols = 8
+    val rows = 5
+    var sum = 0.0
+    var n = 0
+    for (r in 0 until rows) {
+        val py = (y0 + (y1 - y0) * (r + 0.5f) / rows).toInt().coerceIn(0, h - 1)
+        for (c in 0 until cols) {
+            val px = (x0 + (x1 - x0) * (c + 0.5f) / cols).toInt().coerceIn(0, w - 1)
+            val p = bitmap.getPixel(px, py)
+            val rr = ((p shr 16) and 0xFF) / 255.0
+            val gg = ((p shr 8) and 0xFF) / 255.0
+            val bb = (p and 0xFF) / 255.0
+            sum += 0.299 * rr + 0.587 * gg + 0.114 * bb
+            n++
         }
     }
-}
+    if (n == 0) 0f else (sum / n).toFloat()
+}.getOrDefault(0f)
 
-private fun recolorSignatureBitmap(source: Bitmap, colorArgb: Int): Bitmap {
-    if (source.isRecycled || source.width <= 0 || source.height <= 0) return source
-
-    val result = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
-    val pixels = IntArray(source.width * source.height)
-    source.getPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
-    val rgb = colorArgb and 0x00FFFFFF
-    for (index in pixels.indices) {
-        val alpha = android.graphics.Color.alpha(pixels[index])
-        pixels[index] = if (alpha == 0) 0 else (alpha shl 24) or rgb
-    }
-    result.setPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
-    return result
-}
-
-private sealed class PdfMarkup {
-    data class StrokeMarkup(
-        val points: List<Offset>,
-        val color: Color,
-        val width: Float,
-        val alpha: Float = 1f
-    ) : PdfMarkup()
-
-    data class RectMarkup(
-        val start: Offset,
-        val end: Offset,
-        val color: Color,
-        val alpha: Float = 1f,
-        val filled: Boolean = false
-    ) : PdfMarkup()
-
-    data class OvalMarkup(
-        val start: Offset,
-        val end: Offset,
-        val color: Color,
-        val alpha: Float = 1f,
-        val filled: Boolean = false
-    ) : PdfMarkup()
-
-    data class LineMarkup(
-        val start: Offset,
-        val end: Offset,
-        val color: Color,
-        val width: Float = 3f,
-        val alpha: Float = 1f,
-        val arrowHead: Boolean = false
-    ) : PdfMarkup()
-
-    data class TextBlockHighlightMarkup(
-        val blockId: String,
-        val color: Color,
-        val alpha: Float = 0.30f
-    ) : PdfMarkup()
-
-    data class TextBlockLineMarkup(
-        val blockId: String,
-        val color: Color,
-        val width: Float = 3f,
-        val alpha: Float = 1f,
-        val strikeThrough: Boolean = false
-    ) : PdfMarkup()
-
-    data class ImageMarkup(
-        val id: Long,
-        val bitmap: Bitmap,
-        val start: Offset,
-        val end: Offset,
-        val isSignature: Boolean = false
-    ) : PdfMarkup()
-
-    fun hitTest(p: Offset): Boolean = when (this) {
-        is StrokeMarkup -> points.any { (it - p).getDistance() <= width.coerceAtLeast(16f) }
-        is RectMarkup -> {
-            val r = Rect(min(start.x, end.x), min(start.y, end.y), max(start.x, end.x), max(start.y, end.y))
-            r.contains(p)
-        }
-        is OvalMarkup -> {
-            val r = Rect(min(start.x, end.x), min(start.y, end.y), max(start.x, end.x), max(start.y, end.y))
-            r.contains(p)
-        }
-        is LineMarkup -> {
-            val d = distToSegment(p, start, end)
-            d <= width.coerceAtLeast(16f)
-        }
-        is TextBlockHighlightMarkup -> false
-        is TextBlockLineMarkup      -> false
-        is ImageMarkup -> {
-            val r = Rect(min(start.x, end.x), min(start.y, end.y), max(start.x, end.x), max(start.y, end.y))
-            r.contains(p)
-        }
-    }
-}
-
-private fun fitBitmapRect(canvasSize: Size, bitmapW: Float, bitmapH: Float): Rect {
-    if (canvasSize.width <= 0f || canvasSize.height <= 0f || bitmapW <= 0f || bitmapH <= 0f)
-        return Rect(0f, 0f, canvasSize.width, canvasSize.height)
-
-    val canvasRatio = canvasSize.width / canvasSize.height
-    val bitmapRatio = bitmapW / bitmapH
-
-    val (w, h) = if (canvasRatio > bitmapRatio) {
-        val h1 = canvasSize.height
-        val w1 = h1 * bitmapRatio
-        Pair(w1, h1)
-    } else {
-        val w1 = canvasSize.width
-        val h1 = w1 / bitmapRatio
-        Pair(w1, h1)
-    }
-    val left = (canvasSize.width - w) / 2f
-    val top  = (canvasSize.height - h) / 2f
-    return Rect(left, top, left + w, top + h)
-}
-
-private fun screenToContent(
-    screen: Offset,
-    zoomScale: Float,
-    panOffset: Offset,
-    boxCenter: Offset
-): Offset {
-    val unpanned = screen - panOffset
-    val rel      = unpanned - boxCenter
-    return (rel / zoomScale) + boxCenter
-}
-
-private fun clampPanOffset(
-    pan: Offset,
+/**
+ * Average luminance of the document content behind a screen-space horizontal band
+ * `[screenTopPx, screenBottomPx]`, i.e. behind one of the floating bars.
+ *
+ * The content Box scales about a top origin with `translationY = 0`, and the LazyColumn's
+ * `visibleItemsInfo.offset` is already in list-local (unscaled, viewport-relative, centring-folded)
+ * coordinates — so a screen Y maps to list-local as `screenY / scale`. Each visible page item that
+ * intersects the band contributes its overlapping slice, weighted by how much of the band it covers.
+ * Returns 0 (→ dark → white ink) when the band sits over the empty letterbox with no page under it,
+ * which is exactly what a single unzoomed page's centred layout should read as behind its bars.
+ */
+private fun bandLuminance(
+    layoutInfo: LazyListLayoutInfo,
+    pageBitmaps: List<Bitmap?>,
     scale: Float,
-    canvasSize: Size,
-    bitmapSize: Size
-): Offset {
-    if (scale <= 1.01f || canvasSize.width <= 0f || canvasSize.height <= 0f) return Offset.Zero
-    val frame = fitBitmapRect(canvasSize, bitmapSize.width, bitmapSize.height)
-    val maxPanX = (frame.width * (scale - 1f) / 2f).coerceAtLeast(0f)
-    val maxPanY = (frame.height * (scale - 1f) / 2f).coerceAtLeast(0f)
-    return Offset(
-        pan.x.coerceIn(-maxPanX, maxPanX),
-        pan.y.coerceIn(-maxPanY, maxPanY)
-    )
-}
-
-private fun ocrBlockToRect(block: OcrTextBlock, frame: Rect): Rect = Rect(
-    frame.left + block.left * frame.width,
-    frame.top  + block.top  * frame.height,
-    frame.left + block.right * frame.width,
-    frame.top  + block.bottom * frame.height
-)
-
-private fun hitTestOcrBlock(blocks: List<OcrTextBlock>, contentPoint: Offset, frame: Rect): OcrTextBlock? {
-    val paddedPoint = contentPoint
-    return blocks.firstOrNull { b ->
-        val r = ocrBlockToRect(b, frame)
-        val expanded = Rect(r.left - 4f, r.top - 4f, r.right + 4f, r.bottom + 4f)
-        expanded.contains(paddedPoint)
+    screenTopPx: Float,
+    screenBottomPx: Float
+): Float {
+    val s = scale.coerceAtLeast(0.01f)
+    val lTop = screenTopPx / s
+    val lBottom = screenBottomPx / s
+    var lum = 0.0
+    var weight = 0.0
+    for (item in layoutInfo.visibleItemsInfo) {
+        if (item.size <= 0) continue
+        val io = item.offset.toFloat()
+        val ib = io + item.size.toFloat()
+        val interTop = maxOf(io, lTop)
+        val interBottom = minOf(ib, lBottom)
+        val cover = interBottom - interTop
+        if (cover <= 0f) continue
+        val bmp = pageBitmaps.getOrNull(item.index) ?: continue
+        val fTop = (interTop - io) / item.size
+        val fBottom = (interBottom - io) / item.size
+        lum += regionLuminance(bmp, fTop, fBottom).toDouble() * cover
+        weight += cover.toDouble()
     }
+    return if (weight <= 0.0) 0f else (lum / weight).toFloat()
 }
 
-private fun intersects(a: Rect, b: Rect): Boolean =
-    a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
-
-private fun distToSegment(p: Offset, a: Offset, b: Offset): Float {
-    val l2 = (b - a).getDistanceSq()
-    if (l2 == 0f) return (p - a).getDistance()
-    val t = (((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2).coerceIn(0f, 1f)
-    val proj = Offset(a.x + t * (b.x - a.x), a.y + t * (b.y - a.y))
-    return (p - proj).getDistance()
-}
-
-private fun Offset.getDistanceSq(): Float = x * x + y * y
-
-private fun smoothPath(pts: List<Offset>): Path {
-    val path = Path()
-    if (pts.isEmpty()) return path
-    path.moveTo(pts[0].x, pts[0].y)
-    if (pts.size == 1) return path
-    if (pts.size == 2) {
-        path.lineTo(pts[1].x, pts[1].y)
-        return path
+private fun averageLuminance(bitmap: Bitmap): Float = runCatching {
+    val w = 12
+    val h = 16
+    val scaled = Bitmap.createScaledBitmap(bitmap, w, h, true)
+    val pixels = IntArray(w * h)
+    scaled.getPixels(pixels, 0, w, 0, 0, w, h)
+    if (scaled != bitmap) scaled.recycle()
+    var sum = 0.0
+    for (p in pixels) {
+        val r = ((p shr 16) and 0xFF) / 255.0
+        val g = ((p shr 8) and 0xFF) / 255.0
+        val b = (p and 0xFF) / 255.0
+        sum += 0.299 * r + 0.587 * g + 0.114 * b
     }
-    for (i in 1 until pts.size - 1) {
-        val p0 = pts[i]
-        val p1 = pts[i + 1]
-        val midX = (p0.x + p1.x) / 2f
-        val midY = (p0.y + p1.y) / 2f
-        path.quadraticTo(p0.x, p0.y, midX, midY)
-    }
-    path.lineTo(pts.last().x, pts.last().y)
-    return path
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawArrow(
-    start: Offset, end: Offset, color: Color, width: Float
-) {
-    drawLine(color, start, end, width, cap = StrokeCap.Round)
-    val angle = atan2((end.y - start.y).toDouble(), (end.x - start.x).toDouble())
-    val arrowLen = (width * 3.5f).coerceAtLeast(18f)
-    val angle1 = angle + PI - (PI / 6)
-    val angle2 = angle + PI + (PI / 6)
-    val p1 = Offset((end.x + arrowLen * cos(angle1)).toFloat(), (end.y + arrowLen * sin(angle1)).toFloat())
-    val p2 = Offset((end.x + arrowLen * cos(angle2)).toFloat(), (end.y + arrowLen * sin(angle2)).toFloat())
-    val path = Path().apply {
-        moveTo(end.x, end.y)
-        lineTo(p1.x, p1.y)
-        lineTo(p2.x, p2.y)
-        close()
-    }
-    drawPath(path, color)
-}
-
-private fun buildExportOverlays(
-    annotationsByPage: Map<Int, List<PdfMarkup>>,
-    ocrBlocksByPage: Map<Int, List<OcrTextBlock>>,
-    pageCanvasSizes: Map<Int, Size>,
-    pageBitmapSizes: Map<Int, Size>
-): Map<Int, List<ExportOverlay>> {
-    val map = mutableMapOf<Int, List<ExportOverlay>>()
-
-    annotationsByPage.forEach { (page, markups) ->
-        if (markups.isEmpty()) return@forEach
-        val cs = pageCanvasSizes[page] ?: return@forEach
-        val bs = pageBitmapSizes[page]  ?: cs
-        if (cs.width <= 0f || cs.height <= 0f || bs.width <= 0f || bs.height <= 0f) return@forEach
-
-        val frame = fitBitmapRect(cs, bs.width, bs.height)
-
-        fun normPoint(p: Offset): NormalizedPoint = NormalizedPoint(
-            x = ((p.x - frame.left) / frame.width).coerceIn(0f, 1f),
-            y = ((p.y - frame.top) / frame.height).coerceIn(0f, 1f)
-        )
-
-        fun normDist(px: Float): Float = px / frame.width.coerceAtLeast(1f)
-
-        val ocrBlocks = ocrBlocksByPage[page].orEmpty()
-        val list = mutableListOf<ExportOverlay>()
-
-        markups.forEach { markup ->
-            when (markup) {
-                is PdfMarkup.StrokeMarkup -> {
-                    if (markup.points.size > 1) {
-                        list.add(
-                            ExportOverlay.Stroke(
-                                points = markup.points.map { normPoint(it) },
-                                colorArgb = markup.color.toArgb(),
-                                widthNorm = normDist(markup.width),
-                                alpha = markup.alpha
-                            )
-                        )
-                    }
-                }
-                is PdfMarkup.RectMarkup -> {
-                    list.add(
-                        ExportOverlay.RectShape(
-                            start = normPoint(markup.start),
-                            end = normPoint(markup.end),
-                            colorArgb = markup.color.toArgb(),
-                            alpha = markup.alpha,
-                            filled = markup.filled
-                        )
-                    )
-                }
-                is PdfMarkup.OvalMarkup -> {
-                    list.add(
-                        ExportOverlay.OvalShape(
-                            start = normPoint(markup.start),
-                            end = normPoint(markup.end),
-                            colorArgb = markup.color.toArgb(),
-                            alpha = markup.alpha,
-                            filled = markup.filled
-                        )
-                    )
-                }
-                is PdfMarkup.LineMarkup -> {
-                    list.add(
-                        ExportOverlay.LineShape(
-                            start = normPoint(markup.start),
-                            end = normPoint(markup.end),
-                            colorArgb = markup.color.toArgb(),
-                            widthNorm = normDist(markup.width),
-                            alpha = markup.alpha,
-                            arrowHead = markup.arrowHead
-                        )
-                    )
-                }
-                is PdfMarkup.TextBlockHighlightMarkup -> {
-                    ocrBlocks.firstOrNull { it.id == markup.blockId }?.let { b ->
-                        list.add(
-                            ExportOverlay.RectShape(
-                                start = NormalizedPoint(b.left, b.top),
-                                end = NormalizedPoint(b.right, b.bottom),
-                                colorArgb = markup.color.toArgb(),
-                                alpha = markup.alpha,
-                                filled = true
-                            )
-                        )
-                    }
-                }
-                is PdfMarkup.TextBlockLineMarkup -> {
-                    ocrBlocks.firstOrNull { it.id == markup.blockId }?.let { b ->
-                        val y = if (markup.strikeThrough) (b.top + b.bottom) / 2f else b.bottom - (b.bottom - b.top) * 0.1f
-                        list.add(
-                            ExportOverlay.LineShape(
-                                start = NormalizedPoint(b.left, y),
-                                end = NormalizedPoint(b.right, y),
-                                colorArgb = markup.color.toArgb(),
-                                widthNorm = normDist(markup.width),
-                                alpha = markup.alpha,
-                                arrowHead = false
-                            )
-                        )
-                    }
-                }
-                is PdfMarkup.ImageMarkup -> {
-                    if (!markup.bitmap.isRecycled) {
-                        list.add(
-                            ExportOverlay.ImageStamp(
-                                bitmap = markup.bitmap,
-                                start = normPoint(markup.start),
-                                end = normPoint(markup.end)
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
-        if (list.isNotEmpty()) map[page] = list
-    }
-
-    return map
-}
+    (sum / pixels.size).toFloat()
+}.getOrDefault(0f)

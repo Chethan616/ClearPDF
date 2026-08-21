@@ -47,7 +47,8 @@ import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
+import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -100,12 +101,6 @@ fun MergePdfScreen(
         animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "mergeTopBarAlpha"
     )
-    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isVisible) 0f else 16f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-        label = "mergeTopBarOffsetY"
-    )
-
     val contentAlpha by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
         animationSpec = androidx.compose.animation.core.tween(durationMillis = 600, delayMillis = 100, easing = androidx.compose.animation.core.FastOutSlowInEasing),
@@ -117,31 +112,23 @@ fun MergePdfScreen(
         label = "mergeContentOffsetY"
     )
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Row(
-            Modifier.graphicsLayer {
-                alpha = topBarAlpha
-                translationY = topBarOffsetY * density
-            },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
-            }
-            LiquidGlassTopBar(title = stringResource(R.string.tool_merge), backdrop = backdrop, uiSensor = uiSensor, modifier = Modifier.weight(1f))
+    GlassScreenScaffold(
+        backdrop = backdrop,
+        header = { headerBackdrop ->
+            // Fade only — the header is glass, and translating glass re-runs its blur+lens.
+            GlassScreenHeaderRow(
+                title = stringResource(R.string.tool_merge),
+                backdrop = headerBackdrop,
+                onBack = onBack,
+                modifier = Modifier.graphicsLayer { alpha = topBarAlpha }
+            )
         }
-
+    ) { contentPadding ->
         Column(
             Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(contentPadding)
                 .graphicsLayer {
                     alpha = contentAlpha
                     translationY = contentOffsetY * density
@@ -223,19 +210,25 @@ fun MergePdfScreen(
             }
 
             LiquidButton(
-                onClick = { viewModel.onMerge(context) },
-                backdrop = backdrop, tint = accent,
-                isInteractive = canMerge
+                onClick = { if (canMerge) viewModel.onMerge(context) },
+                backdrop = backdrop,
+                tint = if (canMerge) accent else accent.copy(0.35f),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                ) {
                     if (state.isMerging) {
                         CircularProgressIndicator(Modifier.size(18.dp), Color.White, strokeWidth = 2.dp)
                     } else {
-                        Icon(Icons.AutoMirrored.Rounded.MergeType, null, Modifier.size(18.dp), Color.White)
+                        Icon(Icons.AutoMirrored.Rounded.MergeType, null, Modifier.size(18.dp), Color.White.copy(if (canMerge) 1f else 0.6f))
                     }
                     BasicText(
-                        if (state.isMerging) "Merging..." else "Merge Now",
-                        style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium)
+                        if (state.isMerging) stringResource(R.string.merging) else stringResource(R.string.merge_now),
+                        style = TextStyle(Color.White.copy(if (canMerge) 1f else 0.6f), 15.sp, fontWeight = FontWeight.SemiBold),
+                        maxLines = 1
                     )
                 }
             }

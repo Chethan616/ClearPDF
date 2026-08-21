@@ -10,6 +10,7 @@ import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
@@ -52,6 +53,15 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
     fun onSelectFile(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
+                // Honor the user's Default Quality setting instead of always starting on MEDIUM.
+                // Mapped with the same thresholds the slider uses (see onQualitySliderChanged), and
+                // the slider seeds to the raw stored value so its knob lands where the user set it.
+                val defaultQuality = AppSettingsManager.getDefaultQuality(context)
+                val quality = when {
+                    defaultQuality < 0.33f -> CompressionQuality.LOW
+                    defaultQuality < 0.66f -> CompressionQuality.MEDIUM
+                    else -> CompressionQuality.HIGH
+                }
                 val (name, size, estimate) = withContext(AppDispatchers.pdf) {
                     try {
                         context.contentResolver.takePersistableUriPermission(
@@ -62,14 +72,15 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
                     val fileSize = context.contentResolver.openFileDescriptor(uri, "r")
                         ?.use { it.statSize } ?: -1L
                     val source = PdfDocument(uri = uri, name = fileName, sizeBytes = fileSize)
-                    val est = compressPdfUseCase.estimateSize(source, CompressionQuality.MEDIUM)
+                    val est = compressPdfUseCase.estimateSize(source, quality)
                     Triple(fileName, fileSize, est)
                 }
                 _uiState.value = CompressPdfUiState(
                     sourceFileName = name,
                     sourceUri = uri,
                     originalSizeBytes = size,
-                    qualitySlider = 0.5f,
+                    selectedQuality = quality,
+                    qualitySlider = defaultQuality,
                     estimatedSizeBytes = estimate
                 )
             } catch (e: Exception) {

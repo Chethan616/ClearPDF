@@ -65,7 +65,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.chethan616.clearpdf.ui.components.LiquidButton
-import com.chethan616.clearpdf.ui.components.LiquidGlassTopBar
+import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
+import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.LiquidSaveDialog
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
@@ -103,11 +104,6 @@ fun PageOrganizerScreen(
         targetValue = if (isVisible) 1f else 0f,
         animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "organizerTopBarAlpha"
-    )
-    val topBarOffsetY by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isVisible) 0f else 16f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-        label = "organizerTopBarOffsetY"
     )
 
     val contentAlpha by androidx.compose.animation.core.animateFloatAsState(
@@ -148,28 +144,23 @@ fun PageOrganizerScreen(
         uri?.let { viewModel.onSelectFile(context, it) }
     }
 
-    Column(
-        Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Row(
-            Modifier.graphicsLayer {
-                alpha = topBarAlpha
-                translationY = topBarOffsetY * density.density
-            },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            LiquidButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(18.dp), text)
-            }
-            LiquidGlassTopBar(stringResource(R.string.organize_screen_title), backdrop, uiSensor, Modifier.weight(1f), titleFontSize = 18.sp)
+    GlassScreenScaffold(
+        backdrop = backdrop,
+        contentBottomPadding = 16.dp,
+        header = { headerBackdrop ->
+            // Fade only — the header is glass, and translating glass re-runs its blur+lens.
+            GlassScreenHeaderRow(
+                title = stringResource(R.string.organize_screen_title),
+                backdrop = headerBackdrop,
+                onBack = onBack,
+                modifier = Modifier.graphicsLayer { alpha = topBarAlpha }
+            )
         }
-
+    ) { contentPadding ->
         Column(
             Modifier
-                .fillMaxWidth()
-                .weight(1f)
+                .fillMaxSize()
+                .padding(contentPadding)
                 .graphicsLayer {
                     alpha = contentAlpha
                     translationY = contentOffsetY * density.density
