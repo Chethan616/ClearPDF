@@ -1,19 +1,6 @@
 package com.chethan616.clearpdf.ui.components
 
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.rememberScrollableState
-import androidx.compose.foundation.gestures.scrollable
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
@@ -22,8 +9,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
@@ -32,7 +17,6 @@ import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.shapes.RoundedRectangle
-import kotlin.math.roundToInt
 
 /**
  * The PDF viewer top bar's glass, as a modifier for surfaces that are not buttons.
@@ -79,91 +63,6 @@ fun Modifier.viewerGlass(
 )
 
 /**
- * Scroll metrics for a carousel whose interactive children must be able to paint beyond the
- * scrolling viewport. Unlike [ScrollState], this state is intentionally independent of
- * `horizontalScroll`: that modifier installs a clipping layer around its children, which turns a
- * pressed liquid chip into a flat-cut shape at the edge of the viewport.
- */
-@Stable
-class ViewerCarouselState internal constructor() {
-    var value by mutableFloatStateOf(0f)
-        private set
-
-    var maxValue by mutableIntStateOf(0)
-        private set
-
-    internal fun updateMaxValue(newMaxValue: Int) {
-        maxValue = newMaxValue.coerceAtLeast(0)
-        if (value > maxValue) value = maxValue.toFloat()
-    }
-
-    internal fun consumeScrollDelta(delta: Float): Float {
-        val previous = value
-        value = (value + delta).coerceIn(0f, maxValue.toFloat())
-        return value - previous
-    }
-}
-
-@Composable
-fun rememberViewerCarouselState(): ViewerCarouselState = remember { ViewerCarouselState() }
-
-/**
- * A horizontally scrolling strip with an overflow-safe interactive layer.
- *
- * `scrollable` handles touch, mouse, accessibility and fling without imposing the child clipping
- * used by `horizontalScroll`. The small layout below measures the strip unbounded, updates the
- * scroll range, and translates the actual buttons itself. The parent therefore remains free to
- * draw the full liquid-button shape while the carousel keeps the same edge fade.
- */
-@Composable
-fun ViewerOverflowCarousel(
-    modifier: Modifier = Modifier,
-    state: ViewerCarouselState = rememberViewerCarouselState(),
-    contentPadding: PaddingValues = PaddingValues(0.dp),
-    itemSpacing: Dp = 0.dp,
-    content: @Composable () -> Unit
-) {
-    val scrollableState = rememberScrollableState { delta -> state.consumeScrollDelta(delta) }
-    Layout(
-        modifier = modifier
-            .carouselEdges(state, clipContent = false)
-            .scrollable(scrollableState, Orientation.Horizontal),
-        content = content
-    ) { measurables, constraints ->
-        val start = contentPadding.calculateStartPadding(layoutDirection).roundToPx()
-        val end = contentPadding.calculateEndPadding(layoutDirection).roundToPx()
-        val left = if (layoutDirection == androidx.compose.ui.unit.LayoutDirection.Ltr) start else end
-        val right = if (layoutDirection == androidx.compose.ui.unit.LayoutDirection.Ltr) end else start
-        val top = contentPadding.calculateTopPadding().roundToPx()
-        val bottom = contentPadding.calculateBottomPadding().roundToPx()
-        val spacing = itemSpacing.roundToPx()
-        val childConstraints = constraints.copy(
-            minWidth = 0,
-            maxWidth = Constraints.Infinity,
-            minHeight = 0,
-            maxHeight = (constraints.maxHeight - top - bottom).coerceAtLeast(0)
-        )
-        val placeables = measurables.map { it.measure(childConstraints) }
-        val childrenWidth = placeables.sumOf { it.width }
-        val gapsWidth = spacing * (placeables.size - 1).coerceAtLeast(0)
-        val contentWidth = left + childrenWidth + gapsWidth + right
-        val width = if (constraints.maxWidth == Constraints.Infinity) contentWidth else constraints.maxWidth
-        val contentHeight = placeables.maxOfOrNull { it.height } ?: 0
-        val height = (top + contentHeight + bottom).coerceIn(constraints.minHeight, constraints.maxHeight)
-        state.updateMaxValue((contentWidth - width).coerceAtLeast(0))
-
-        layout(width, height) {
-            var x = left - state.value.roundToInt()
-            placeables.forEach { placeable ->
-                val y = top + ((height - top - bottom - placeable.height) / 2).coerceAtLeast(0)
-                placeable.placeRelative(x, y)
-                x += placeable.width + spacing
-            }
-        }
-    }
-}
-
-/**
  * Soft, scroll-aware edge mask for a horizontally scrolling strip that rides on a [viewerGlass]
  * surface.
  *
@@ -201,21 +100,6 @@ fun Modifier.carouselEdges(
     // Keep the fade mask, but allow a caller with its own overflow-safe layer to opt out of
     // clipping the interactive children to the viewport's rounded outline.
     clipContent: Boolean = true
-): Modifier = carouselEdges(state.value, state.maxValue, shape, fade, clipContent)
-
-fun Modifier.carouselEdges(
-    state: ViewerCarouselState,
-    shape: Shape = ViewerGlassShape,
-    fade: Dp = 18.dp,
-    clipContent: Boolean = true
-): Modifier = carouselEdges(state.value.roundToInt(), state.maxValue, shape, fade, clipContent)
-
-private fun Modifier.carouselEdges(
-    value: Int,
-    max: Int,
-    shape: Shape,
-    fade: Dp,
-    clipContent: Boolean
 ): Modifier = this
     // One layer does both jobs. `Offscreen` is not decoration: it is what makes the `DstIn` below
     // mask this strip rather than punch a hole through everything already on the canvas.
@@ -230,11 +114,12 @@ private fun Modifier.carouselEdges(
         val fadePx = fade.toPx()
         if (w <= fadePx * 2f) return@drawWithContent
 
+        val max = state.maxValue
         // `maxValue` is Int.MAX_VALUE until the strip has been measured. Treated as "nothing to
         // scroll", otherwise a row that fits flashes a trailing fade on its first frame.
         val scrollable = max in 1..<Int.MAX_VALUE
-        val lead = if (scrollable) (value / fadePx).coerceIn(0f, 1f) else 0f
-        val trail = if (scrollable) ((max - value) / fadePx).coerceIn(0f, 1f) else 0f
+        val lead = if (scrollable) (state.value / fadePx).coerceIn(0f, 1f) else 0f
+        val trail = if (scrollable) ((max - state.value) / fadePx).coerceIn(0f, 1f) else 0f
         if (lead == 0f && trail == 0f) return@drawWithContent
 
         val edge = fadePx / w

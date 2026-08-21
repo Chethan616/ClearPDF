@@ -27,11 +27,11 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
@@ -85,9 +86,8 @@ import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.ShareMorphButton
-import com.chethan616.clearpdf.ui.components.ViewerOverflowCarousel
+import com.chethan616.clearpdf.ui.components.carouselEdges
 import com.chethan616.clearpdf.ui.components.viewerGlass
-import com.chethan616.clearpdf.ui.components.rememberViewerCarouselState
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.chethan616.clearpdf.utils.DocKind
 import com.kyant.backdrop.backdrops.LayerBackdrop
@@ -311,12 +311,15 @@ internal fun PdfViewerBottomToolbar(
                     // the pen / shapes / OCR buttons slide away behind the capsule curve instead of
                     // being chopped by a hard vertical line. Content padding keeps the first/last
                     // button spaced like the rest.
-                    val toolRowScroll = rememberViewerCarouselState()
-                    ViewerOverflowCarousel(
-                        modifier = Modifier.weight(1f),
-                        state = toolRowScroll,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
-                        itemSpacing = 8.dp
+                    val toolRowScroll = rememberScrollState()
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .carouselEdges(toolRowScroll, clipContent = false)
+                            .horizontalScroll(toolRowScroll)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         when {
                             showDrawTools -> {
@@ -435,12 +438,15 @@ internal fun PdfViewerBottomToolbar(
                 // so the toolbar stays compact instead of stacking rows. Same curved-edge fade as the
                 // tool row above, so the colour beads disappear behind the capsule curve rather than a
                 // straight cut.
-                val attrRowScroll = rememberViewerCarouselState()
-                ViewerOverflowCarousel(
-                    modifier = Modifier.fillMaxWidth(),
-                    state = attrRowScroll,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
-                    itemSpacing = 8.dp
+                val attrRowScroll = rememberScrollState()
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .carouselEdges(attrRowScroll, clipContent = false)
+                        .horizontalScroll(attrRowScroll)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment     = Alignment.CenterVertically
                 ) {
                     if (showDrawTools) {
                         listOf("S" to 3f, "M" to 6f, "L" to 11f, "XL" to 18f).forEach { (label, w) ->
@@ -553,18 +559,24 @@ internal fun PdfViewerBottomToolbar(
             } else if (docKind == DocKind.Word) {
                 // Curated Word reading/markup set — Select Text, Highlight, Find. No PDF-centric
                 // shapes / add-image / text-box / note / eraser / sign.
-                val wordScroll = rememberViewerCarouselState()
+                val wordScroll = rememberScrollState()
                 ViewerGlassOverflowSurface(
                     modifier = Modifier.fillMaxWidth()
                         .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) },
                     backdrop = backdrop,
                     color = pillGlass
                 ) {
-                ViewerOverflowCarousel(
-                    modifier = Modifier.fillMaxWidth(),
-                    state = wordScroll,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
-                    itemSpacing = 8.dp
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        // Keep the existing fade mask and scroll behavior; the extra vertical
+                        // breathing room is what lets a pressed chip deform without touching the
+                        // viewport's top or bottom edge.
+                        .carouselEdges(wordScroll, clipContent = false)
+                        .horizontalScroll(wordScroll)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     fun wSurface(color: Color, active: Boolean) = color.copy(if (active) 0.96f else 0.80f)
                     val selOn = activeTool == PdfEditTool.SelectText
@@ -590,18 +602,23 @@ internal fun PdfViewerBottomToolbar(
                 }
                 }
             } else {
-            val toolScroll = rememberViewerCarouselState()
+            val toolScroll = rememberScrollState()
             ViewerGlassOverflowSurface(
                 modifier = Modifier.fillMaxWidth()
                     .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) },
                 backdrop = backdrop,
                 color = pillGlass
             ) {
-            ViewerOverflowCarousel(
-                modifier = Modifier.fillMaxWidth(),
-                state = toolScroll,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
-                itemSpacing = 8.dp
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    // The existing carouselEdges mask remains unchanged; this row is simply
+                    // rendered above the separate glass sibling so its chips can overflow cleanly.
+                    .carouselEdges(toolScroll, clipContent = false)
+                    .horizontalScroll(toolScroll)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 // Each tool wears its own professional colour (like the Sign button):
                 // a solid colour chip, brighter when active. White ink reads on all of them.
