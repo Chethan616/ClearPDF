@@ -113,6 +113,8 @@ internal fun PdfContinuousPage(
     var draftRectEnd   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
     var selDragStart   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
     var selDragEnd     by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
+    val selectionHandleDiameterPx = with(LocalDensity.current) { 32.dp.toPx() }
+    val selectionHandleHitRadiusPx = with(LocalDensity.current) { 30.dp.toPx() }
 
     // Page layout (rebuilt on the Pdf_Tools model): the image is drawn at its TRUE
     // aspect via ContentScale.FillWidth, so the box height follows the bitmap. There
@@ -152,10 +154,10 @@ internal fun PdfContinuousPage(
             selectedOcrRanges.forEach { range ->
                 ocrBlocks.firstOrNull { it.id == range.blockId }?.let { b ->
                     val r = expandedTextHighlightRect(ocrTextRangeToRect(b, range, frame), verticalScale = 1.35f)
-                    // Match the find bar's tight word geometry, with a little more vertical air so
-                    // the selected glyphs remain legible at normal phone sizes.
-                    drawRoundRect(Color(0xFF2F80ED).copy(0.62f), r.topLeft, r.size, CornerRadius((r.height * 0.14f).coerceIn(2f, 5f), (r.height * 0.14f).coerceIn(2f, 5f)))
-                    drawRoundRect(Color(0xFF60A5FA).copy(0.96f), r.topLeft, r.size, CornerRadius((r.height * 0.14f).coerceIn(2f, 5f), (r.height * 0.14f).coerceIn(2f, 5f)), style = Stroke(1.25f))
+                    // Match the reference's soft cyan fill: no border, no font changes, and
+                    // enough vertical air for ascenders/descenders without covering other lines.
+                    val radius = (r.height * 0.14f).coerceIn(2f, 5f)
+                    drawRoundRect(Color(0xFF9ADBF0).copy(0.82f), r.topLeft, r.size, CornerRadius(radius, radius))
                 }
             }
 
@@ -259,6 +261,13 @@ internal fun PdfContinuousPage(
                             drawLine(accent, Offset(br.x - 1f, br.y + 6f), Offset(br.x + 6f, br.y - 1f), 3f)
                         }
                     }
+                }
+            }
+
+            if (activeTool == PdfEditTool.SelectText) {
+                ocrSelectionHandleAnchors(ocrBlocks, selectedOcrRanges, frame)?.let { (start, end) ->
+                    drawTextSelectionHandle(start, selectionHandleDiameterPx)
+                    drawTextSelectionHandle(end, selectionHandleDiameterPx)
                 }
             }
 
@@ -510,13 +519,14 @@ internal fun PdfContinuousPage(
                 // Direct drag (no long-press wait): sweep a contiguous run of words in reading order
                 // and update the range live. The page stays in text-selection mode, while the parent
                 // viewer still receives two-finger pinch events for zoom.
-                .pointerInput(page, ocrBlocks) {
+                .pointerInput(page, ocrBlocks, selectedOcrRanges, selectionHandleHitRadiusPx) {
                     fun updateRange() {
                         val s = selDragStart; val e = selDragEnd
                         if (s == null || e == null || ocrBlocks.isEmpty()) return
                         val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
                         onSelectOcrRange(ocrWordRangesBetween(ocrBlocks, frame, s, e))
                     }
+
                     // Do not use detectDragGestures here: it commits to a one-finger drag before
                     // the second finger of a pinch arrives. That is why zooming used to leave a
                     // text selection behind. We wait for touch slop, then only consume while the
@@ -524,6 +534,19 @@ internal fun PdfContinuousPage(
                     // and leaves the event stream available to the viewer's pinch detector.
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
+                        val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
+                        val handles = ocrSelectionHandleAnchors(ocrBlocks, selectedOcrRanges, frame)
+                        val handleMode = when {
+                            handles == null -> 0
+                            (down.position - handles.first).getDistance() <= selectionHandleHitRadiusPx -> 1
+                            (down.position - handles.second).getDistance() <= selectionHandleHitRadiusPx -> 2
+                            else -> 0
+                        }
+                        val fixedHandlePoint = when (handleMode) {
+                            1 -> handles?.second
+                            2 -> handles?.first
+                            else -> null
+                        }
                         val pointerId = down.id
                         var selecting = false
                         var multiTouch = false
@@ -542,12 +565,13 @@ internal fun PdfContinuousPage(
                                 if (change != null) {
                                     if (!selecting && (change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
                                         selecting = true
-                                        selDragStart = down.position
+                                        selDragStart = fixedHandlePoint ?: down.position
                                         selDragEnd = change.position
                                         updateRange()
                                         onInteraction()
                                     } else if (selecting) {
                                         change.consume()
+                                        selDragStart = fixedHandlePoint ?: down.position
                                         selDragEnd = change.position
                                         updateRange()
                                         onInteraction()

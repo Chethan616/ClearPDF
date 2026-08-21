@@ -328,6 +328,54 @@ internal fun expandedTextHighlightRect(rect: Rect, verticalScale: Float = 1f): R
     return Rect(rect.left - padX, rect.top - padTop, rect.right + padX, rect.bottom + padBottom)
 }
 
+internal fun ocrSelectionHandleAnchors(
+    blocks: List<OcrTextBlock>,
+    ranges: List<OcrTextRange>,
+    frame: Rect
+): Pair<Offset, Offset>? {
+    if (ranges.isEmpty()) return null
+    val blocksById = blocks.associateBy { it.id }
+    val ordered = ranges.sortedWith(
+        compareBy<OcrTextRange>(
+            { blocksById[it.blockId]?.top ?: Float.MAX_VALUE },
+            { blocksById[it.blockId]?.left ?: Float.MAX_VALUE },
+            { it.start }
+        )
+    )
+    val first = ordered.first()
+    val last = ordered.last()
+    val firstRect = expandedTextHighlightRect(
+        ocrTextRangeToRect(blocksById[first.blockId] ?: return null, first, frame),
+        verticalScale = 1.35f
+    )
+    val lastRect = expandedTextHighlightRect(
+        ocrTextRangeToRect(blocksById[last.blockId] ?: return null, last, frame),
+        verticalScale = 1.35f
+    )
+    return Offset(firstRect.left, firstRect.bottom) to Offset(lastRect.right, lastRect.bottom)
+}
+
+/** Custom organic handle used by the PDF selection layer; deliberately not a platform handle. */
+internal fun DrawScope.drawTextSelectionHandle(
+    anchor: Offset,
+    diameter: Float,
+    color: Color = Color(0xFF4285F4)
+) {
+    val neckHalfWidth = diameter * 0.22f
+    val bodyRadius = diameter * 0.47f
+    val top = anchor.y - 1f
+    val bottom = top + bodyRadius * 2f
+    val path = Path().apply {
+        moveTo(anchor.x - neckHalfWidth, top)
+        lineTo(anchor.x + neckHalfWidth, top)
+        lineTo(anchor.x + neckHalfWidth, top + 6f)
+        cubicTo(anchor.x + bodyRadius, top + 9f, anchor.x + bodyRadius, bottom - 2f, anchor.x, bottom)
+        cubicTo(anchor.x - bodyRadius, bottom - 2f, anchor.x - bodyRadius, top + 9f, anchor.x - neckHalfWidth, top + 6f)
+        close()
+    }
+    drawPath(path, color)
+}
+
 internal fun OcrTextBlock.wordRangeAtPoint(point: Offset, frame: Rect): OcrTextRange? {
     val blockRect = ocrBlockToRect(this, frame)
     if (!Rect(blockRect.left - 6f, blockRect.top - 6f, blockRect.right + 6f, blockRect.bottom + 6f).contains(point)) return null
