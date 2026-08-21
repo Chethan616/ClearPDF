@@ -517,12 +517,47 @@ internal fun PdfContinuousPage(
                         val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
                         onSelectOcrRange(ocrWordRangesBetween(ocrBlocks, frame, s, e))
                     }
-                    detectDragGestures(
-                        onDragStart = { p -> selDragStart = p; selDragEnd = p; updateRange(); onInteraction() },
-                        onDrag = { ch, _ -> ch.consume(); selDragEnd = ch.position; updateRange(); onInteraction() },
-                        onDragCancel = { selDragStart = null; selDragEnd = null },
-                        onDragEnd = { selDragStart = null; selDragEnd = null }
-                    )
+                    // Do not use detectDragGestures here: it commits to a one-finger drag before
+                    // the second finger of a pinch arrives. That is why zooming used to leave a
+                    // text selection behind. We wait for touch slop, then only consume while the
+                    // gesture remains single-touch; a second finger cancels selection immediately
+                    // and leaves the event stream available to the viewer's pinch detector.
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val pointerId = down.id
+                        var selecting = false
+                        var multiTouch = false
+                        do {
+                            val event = awaitPointerEvent()
+                            val pressed = event.changes.count { it.pressed }
+                            if (pressed > 1) {
+                                if (!multiTouch) {
+                                    multiTouch = true
+                                    if (selecting) onClearOcrSelection()
+                                }
+                                selDragStart = null
+                                selDragEnd = null
+                            } else if (!multiTouch) {
+                                val change = event.changes.firstOrNull { it.id == pointerId }
+                                if (change != null) {
+                                    if (!selecting && (change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                                        selecting = true
+                                        selDragStart = down.position
+                                        selDragEnd = change.position
+                                        updateRange()
+                                        onInteraction()
+                                    } else if (selecting) {
+                                        change.consume()
+                                        selDragEnd = change.position
+                                        updateRange()
+                                        onInteraction()
+                                    }
+                                }
+                            }
+                        } while (event.changes.any { it.pressed })
+                        selDragStart = null
+                        selDragEnd = null
+                    }
                 }
             )
         }
