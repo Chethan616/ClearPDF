@@ -8,7 +8,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -50,10 +49,7 @@ fun Modifier.viewerGlass(
     shape: () -> Shape = { ViewerGlassShape },
     // Off for surfaces that must NOT cast a drop shadow — e.g. the onboarding page-1 book, whose
     // shadow otherwise snapped in the moment the assembled book reached full opacity.
-    withShadow: Boolean = true,
-    // Panels sometimes host animated/scrolling controls that intentionally float beyond the glass
-    // silhouette. The default preserves the original safe behavior for the rest of the app.
-    clipContent: Boolean = true
+    withShadow: Boolean = true
 ): Modifier = drawBackdrop(
     backdrop = backdrop,
     shape = shape,
@@ -63,12 +59,7 @@ fun Modifier.viewerGlass(
         lens(12f.dp.toPx(), 24f.dp.toPx())
     },
     shadow = if (withShadow) ({ com.kyant.backdrop.shadow.Shadow.Default }) else null,
-    clipContent = clipContent,
-    onDrawSurface = {
-        // When content is allowed to overflow, draw the tint as the glass outline instead of a
-        // rectangular wash. This keeps the material rounded while its controls remain un-clipped.
-        drawOutline(shape().createOutline(size, layoutDirection, this), color)
-    }
+    onDrawSurface = { drawRect(color) }
 )
 
 /**
@@ -105,15 +96,17 @@ fun Modifier.viewerGlass(
 fun Modifier.carouselEdges(
     state: ScrollState,
     shape: Shape = ViewerGlassShape,
-    fade: Dp = 18.dp
+    fade: Dp = 18.dp,
+    // Keep the fade mask, but allow a caller with its own overflow-safe layer to opt out of
+    // clipping the interactive children to the viewport's rounded outline.
+    clipContent: Boolean = true
 ): Modifier = this
-    // Keep the edge fade isolated. `Offscreen` is not decoration: it is what makes the `DstIn` below
-    // mask this strip rather than punch a hole through everything already on the canvas. `clip`
-    // stays false on purpose; the glass panel owns the surface shape, while this scrolling content
-    // remains a floating layer that is not chopped by the panel's corners.
+    // One layer does both jobs. `Offscreen` is not decoration: it is what makes the `DstIn` below
+    // mask this strip rather than punch a hole through everything already on the canvas.
     .graphicsLayer {
         compositingStrategy = CompositingStrategy.Offscreen
-        clip = false
+        clip = clipContent
+        this.shape = shape
     }
     .drawWithContent {
         drawContent()

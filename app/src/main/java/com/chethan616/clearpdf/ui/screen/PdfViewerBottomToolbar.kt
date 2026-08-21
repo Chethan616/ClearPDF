@@ -30,6 +30,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -97,6 +98,25 @@ import com.kyant.backdrop.backdrops.LayerBackdrop
  * at alpha 0 — a clean sequential cross-fade with no overlap.
  */
 private const val FaceHandoffMillis = 150
+
+/**
+ * A glass surface and its controls are siblings on purpose. [viewerGlass] owns a shaped offscreen
+ * layer, which is exactly what gives the panel its clean rounded material; placing animated buttons
+ * inside that layer clips their press-deformation at the panel edge. This surface keeps the glass
+ * clipped and lets the interactive content paint in an overflow-safe layer above it.
+ */
+@Composable
+private fun ViewerGlassOverflowSurface(
+    modifier: Modifier,
+    backdrop: LayerBackdrop,
+    color: Color,
+    content: @Composable BoxScope.() -> Unit
+) {
+    Box(modifier) {
+        Box(Modifier.matchParentSize().viewerGlass(backdrop, color))
+        Box(Modifier.fillMaxWidth().zIndex(1f), content = content)
+    }
+}
 
 @Composable
 internal fun PdfViewerBottomToolbar(
@@ -258,15 +278,19 @@ internal fun PdfViewerBottomToolbar(
                 },
                 label = "drawToolsReveal"
             ) { if (it == EnterExitState.Visible) 1f else 0f }
-            Column(
-                Modifier.fillMaxWidth()
+            ViewerGlassOverflowSurface(
+                modifier = Modifier.fillMaxWidth()
                     .graphicsLayer {
                         scaleY = 0.9f + 0.1f * reveal
                         transformOrigin = TransformOrigin(0.5f, 1f)
                         translationY = (1f - reveal) * 8.dp.toPx()
                     }
-                    .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                    .viewerGlass(backdrop, glass, clipContent = false).padding(12.dp),
+                    .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) },
+                backdrop = backdrop,
+                color = glass
+            ) {
+            Column(
+                Modifier.fillMaxWidth().padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
@@ -291,9 +315,9 @@ internal fun PdfViewerBottomToolbar(
                     Row(
                         modifier = Modifier
                             .weight(1f)
-                            .carouselEdges(toolRowScroll)
+                            .carouselEdges(toolRowScroll, clipContent = false)
                             .horizontalScroll(toolRowScroll)
-                            .padding(horizontal = 4.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -418,9 +442,9 @@ internal fun PdfViewerBottomToolbar(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .carouselEdges(attrRowScroll)
+                        .carouselEdges(attrRowScroll, clipContent = false)
                         .horizontalScroll(attrRowScroll)
-                        .padding(horizontal = 4.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment     = Alignment.CenterVertically
                 ) {
@@ -454,12 +478,13 @@ internal fun PdfViewerBottomToolbar(
                     }
                 }
             }
+            }
         }
 
         // ── Export feedback row ────────────────────────────────────────────
         if (exportError != null || exportMessage != null || isExporting) {
             Row(
-                Modifier.fillMaxWidth().viewerGlass(backdrop, glass, clipContent = false).padding(12.dp),
+                Modifier.fillMaxWidth().viewerGlass(backdrop, glass).padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment     = Alignment.CenterVertically
             ) {
@@ -516,30 +541,38 @@ internal fun PdfViewerBottomToolbar(
             if (docKind == DocKind.Ppt) {
                 // PowerPoint editing isn't available yet — a friendly placeholder instead of the
                 // annotation tools (which don't map cleanly onto slides).
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                        .viewerGlass(backdrop, pillGlass, clipContent = false)
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically
+                ViewerGlassOverflowSurface(
+                    modifier = Modifier.fillMaxWidth()
+                        .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) },
+                    backdrop = backdrop,
+                    color = pillGlass
                 ) {
-                    Icon(Icons.Rounded.Slideshow, null, Modifier.size(20.dp), fg)
-                    BasicText(stringResource(R.string.viewer_tools_coming_soon), style = TextStyle(fg, 14.sp, FontWeight.SemiBold))
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Rounded.Slideshow, null, Modifier.size(20.dp), fg)
+                        BasicText(stringResource(R.string.viewer_tools_coming_soon), style = TextStyle(fg, 14.sp, FontWeight.SemiBold))
+                    }
                 }
             } else if (docKind == DocKind.Word) {
                 // Curated Word reading/markup set — Select Text, Highlight, Find. No PDF-centric
                 // shapes / add-image / text-box / note / eraser / sign.
                 val wordScroll = rememberScrollState()
+                ViewerGlassOverflowSurface(
+                    modifier = Modifier.fillMaxWidth()
+                        .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) },
+                    backdrop = backdrop,
+                    color = pillGlass
+                ) {
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                        .viewerGlass(backdrop, pillGlass, clipContent = false)
-                        // Clip to the capsule's own curve and soften the ends. See [carouselEdges]
-                        // for why the padding has to come after the scroll, not before it.
-                        .carouselEdges(wordScroll)
+                        // Keep the existing fade mask and scroll behavior; the extra vertical
+                        // breathing room is what lets a pressed chip deform without touching the
+                        // viewport's top or bottom edge.
+                        .carouselEdges(wordScroll, clipContent = false)
                         .horizontalScroll(wordScroll)
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -567,17 +600,21 @@ internal fun PdfViewerBottomToolbar(
                         }
                     }
                 }
+                }
             } else {
             val toolScroll = rememberScrollState()
+            ViewerGlassOverflowSurface(
+                modifier = Modifier.fillMaxWidth()
+                    .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) },
+                backdrop = backdrop,
+                color = pillGlass
+            ) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                    .viewerGlass(backdrop, pillGlass, clipContent = false)
-                    // The chips are meant to disappear behind the capsule's curved ends. Without
-                    // this the scroll viewport clipped them with a straight vertical line inset
-                    // from the curve. See [carouselEdges] — the padding order is load-bearing.
-                    .carouselEdges(toolScroll)
+                    // The existing carouselEdges mask remains unchanged; this row is simply
+                    // rendered above the separate glass sibling so its chips can overflow cleanly.
+                    .carouselEdges(toolScroll, clipContent = false)
                     .horizontalScroll(toolScroll)
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -687,6 +724,7 @@ internal fun PdfViewerBottomToolbar(
                         BasicText(stringResource(R.string.viewer_save_edits), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
                     }
                 }
+            }
             }
             }
             }
