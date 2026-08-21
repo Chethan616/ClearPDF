@@ -126,6 +126,7 @@ import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.PdfViewerViewModel
+import com.chethan616.clearpdf.ui.viewmodel.OcrTextRange
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -223,6 +224,9 @@ fun PdfViewerScreen(
 
     fun getPageMarks(page: Int): MutableList<PdfMarkup> =
         annotationsByPage.getOrPut(page) { mutableStateListOf() }
+
+    fun selectedTextRanges(page: Int): List<OcrTextRange> =
+        state.selectedOcrRangesByPage[page].orEmpty()
 
     // Undo history: the page each added markup landed on, newest last. Undo pops the most recent
     // entry and removes THAT page's last mark, so "undo" means the last thing the user actually
@@ -732,8 +736,9 @@ fun PdfViewerScreen(
                     .fillMaxSize()
                     .onSizeChanged { containerHeightPx = it.height }
                     .then(
-                        // Zoom/pan only in reading mode; tool gestures own the page while editing.
-                        if (activeTool != PdfEditTool.None) Modifier
+                        // Keep pinch zoom available in Select Text mode. Other editing tools own
+                        // the page gesture surface because their strokes/shapes need the drag.
+                        if (activeTool != PdfEditTool.None && activeTool != PdfEditTool.SelectText) Modifier
                         else Modifier.pointerInput(Unit) {
                             awaitEachGesture {
                                 awaitFirstDown(requireUnconsumed = false)
@@ -777,7 +782,7 @@ fun PdfViewerScreen(
                     )
                     .pointerInput(activeTool) {
                         detectTapGestures(
-                            onTap = { controlsVisible = !controlsVisible; lastInteractionAtMs = System.currentTimeMillis() },
+                            onTap = { if (activeTool == PdfEditTool.None) controlsVisible = !controlsVisible; lastInteractionAtMs = System.currentTimeMillis() },
                             onDoubleTap = { tap ->
                                 if (activeTool != PdfEditTool.None) return@detectTapGestures
                                 val cw = size.width.toFloat()
@@ -836,6 +841,7 @@ fun PdfViewerScreen(
                                 marks              = getPageMarks(page),
                                 ocrBlocks          = state.ocrBlocksByPage[page].orEmpty(),
                                 selectedOcrIds     = state.selectedOcrBlockIdsByPage[page].orEmpty(),
+                                selectedOcrRanges  = state.selectedOcrRangesByPage[page].orEmpty(),
                                 findMatches        = state.findMatches,
                                 currentMatchIndex  = state.currentMatchIndex,
                                 showFindBar        = showFindBar,
@@ -851,13 +857,10 @@ fun PdfViewerScreen(
                                 onShowControls     = { controlsVisible = true },
                                 onActiveToolChanged     = { activeTool = it },
                                 onActiveImageIdChanged  = { activeImageId = it },
-                                onToggleOcrSelection    = { viewModel.toggleOcrSelection(page, it) },
                                 onClearOcrSelection     = { viewModel.clearOcrSelection(page) },
-                                onSelectLine            = { viewModel.selectLine(page, it) },
-                                onSelectParagraph       = { viewModel.selectParagraph(page, it) },
                                 // Replace (not append): a drag defines the whole selection live, so as
                                 // the finger shrinks the range the deselected words must drop out too.
-                                onSelectOcrRange        = { viewModel.selectOcrBlocks(page, it, append = false) },
+                                onSelectOcrRange        = { viewModel.selectOcrRanges(page, it, append = false) },
                                 onPlaceText             = { pt ->
                                     val id = System.nanoTime()
                                     getPageMarks(page).add(PdfMarkup.TextBoxMarkup(id, pt, "", currentColor, 40f))
@@ -909,9 +912,9 @@ fun PdfViewerScreen(
                                 },
                                 onHighlightSelection = {
                                     val m = getPageMarks(page)
-                                    state.selectedOcrBlockIdsByPage[page].orEmpty().forEach { id ->
-                                        if (!m.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == id })
-                                            m.add(PdfMarkup.TextBlockHighlightMarkup(id, Color(currentColorLong), 0.30f))
+                                    selectedTextRanges(page).forEach { range ->
+                                        if (!m.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end })
+                                            m.add(PdfMarkup.TextBlockHighlightMarkup(range.blockId, Color(currentColorLong), 0.38f, range.start, range.end))
                                     }
                                     viewModel.clearOcrSelection(page)
                                 }
@@ -1043,7 +1046,7 @@ fun PdfViewerScreen(
                     exportError        = state.exportError,
                     exportMessage      = state.exportMessage,
                     lastExportedUri    = state.lastExportedUri,
-                    selectedTextCount  = state.selectedOcrBlockIdsByPage[currentPageIndex]?.size ?: 0,
+                    selectedTextCount  = selectedTextRanges(currentPageIndex).size,
                     currentSelectedIds = state.selectedOcrBlockIdsByPage[currentPageIndex].orEmpty(),
                     activeIsSignature  = activeItem?.isSignature == true,
                     // Undo is history-driven, not page-driven. Two earlier attempts keyed it to a
@@ -1085,23 +1088,23 @@ fun PdfViewerScreen(
                     },
                     onHighlightSelected = {
                         val m = getPageMarks(currentPageIndex)
-                        state.selectedOcrBlockIdsByPage[currentPageIndex].orEmpty().forEach { id ->
-                            if (!m.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == id })
-                                m.add(PdfMarkup.TextBlockHighlightMarkup(id, Color(currentColorLong), 0.30f))
+                        selectedTextRanges(currentPageIndex).forEach { range ->
+                            if (!m.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end })
+                                m.add(PdfMarkup.TextBlockHighlightMarkup(range.blockId, Color(currentColorLong), 0.38f, range.start, range.end))
                         }
                     },
                     onUnderlineSelected = {
                         val m = getPageMarks(currentPageIndex)
-                        state.selectedOcrBlockIdsByPage[currentPageIndex].orEmpty().forEach { id ->
-                            if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == id && !it.strikeThrough })
-                                m.add(PdfMarkup.TextBlockLineMarkup(id, Color(currentColorLong), 3f, 1f, false))
+                        selectedTextRanges(currentPageIndex).forEach { range ->
+                            if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end && !it.strikeThrough })
+                                m.add(PdfMarkup.TextBlockLineMarkup(range.blockId, Color(currentColorLong), 3f, 1f, false, range.start, range.end))
                         }
                     },
                     onStrikeSelected    = {
                         val m = getPageMarks(currentPageIndex)
-                        state.selectedOcrBlockIdsByPage[currentPageIndex].orEmpty().forEach { id ->
-                            if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == id && it.strikeThrough })
-                                m.add(PdfMarkup.TextBlockLineMarkup(id, Color(currentColorLong), 3f, 1f, true))
+                        selectedTextRanges(currentPageIndex).forEach { range ->
+                            if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end && it.strikeThrough })
+                                m.add(PdfMarkup.TextBlockLineMarkup(range.blockId, Color(currentColorLong), 3f, 1f, true, range.start, range.end))
                         }
                     },
                     onClearTextSelection = { viewModel.clearOcrSelection(currentPageIndex) },

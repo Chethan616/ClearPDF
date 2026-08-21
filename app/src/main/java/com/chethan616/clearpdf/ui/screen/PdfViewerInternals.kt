@@ -14,6 +14,7 @@ import com.chethan616.clearpdf.ui.viewmodel.ExportOverlay
 import com.chethan616.clearpdf.ui.viewmodel.FindMatch
 import com.chethan616.clearpdf.ui.viewmodel.NormalizedPoint
 import com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock
+import com.chethan616.clearpdf.ui.viewmodel.OcrTextRange
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -68,7 +69,9 @@ internal sealed class PdfMarkup {
     data class TextBlockHighlightMarkup(
         val blockId: String,
         val color: Color,
-        val alpha: Float = 0.30f
+        val alpha: Float = 0.30f,
+        val start: Int = 0,
+        val end: Int = -1
     ) : PdfMarkup()
 
     data class TextBlockLineMarkup(
@@ -76,7 +79,9 @@ internal sealed class PdfMarkup {
         val color: Color,
         val width: Float = 3f,
         val alpha: Float = 1f,
-        val strikeThrough: Boolean = false
+        val strikeThrough: Boolean = false,
+        val start: Int = 0,
+        val end: Int = -1
     ) : PdfMarkup()
 
     data class ImageMarkup(
@@ -287,6 +292,62 @@ internal fun ocrBlockToRect(block: OcrTextBlock, frame: Rect): Rect = Rect(
     frame.top  + block.bottom * frame.height
 )
 
+internal fun OcrTextBlock.wordRanges(): List<IntRange> {
+    if (text.isEmpty()) return emptyList()
+    val ranges = mutableListOf<IntRange>()
+    var index = 0
+    while (index < text.length) {
+        while (index < text.length && text[index].isWhitespace()) index++
+        if (index >= text.length) break
+        val start = index
+        while (index < text.length && !text[index].isWhitespace()) index++
+        ranges += start..(index - 1)
+    }
+    return ranges
+}
+
+internal fun ocrTextRangeToRect(block: OcrTextBlock, range: OcrTextRange, frame: Rect): Rect {
+    val start = range.start.coerceIn(0, block.text.length)
+    val end = (if (range.end < 0) block.text.length else range.end)
+        .coerceIn(start, block.text.length)
+    if (start >= end || block.charLefts.size < end || block.charRights.size < end) {
+        return ocrBlockToRect(block, frame)
+    }
+    return Rect(
+        frame.left + block.charLefts[start] * frame.width,
+        frame.top + block.top * frame.height,
+        frame.left + block.charRights[end - 1] * frame.width,
+        frame.top + block.bottom * frame.height
+    )
+}
+
+internal fun expandedTextHighlightRect(rect: Rect, verticalScale: Float = 1f): Rect {
+    val padX = (rect.height * 0.05f).coerceIn(0.75f, 3f)
+    val padTop = rect.height * 0.13f * verticalScale
+    val padBottom = rect.height * 0.11f * verticalScale
+    return Rect(rect.left - padX, rect.top - padTop, rect.right + padX, rect.bottom + padBottom)
+}
+
+internal fun OcrTextBlock.wordRangeAtPoint(point: Offset, frame: Rect): OcrTextRange? {
+    val blockRect = ocrBlockToRect(this, frame)
+    if (!Rect(blockRect.left - 6f, blockRect.top - 6f, blockRect.right + 6f, blockRect.bottom + 6f).contains(point)) return null
+    val word = wordRanges().minByOrNull { word ->
+        val wordRect = ocrTextRangeToRect(this, OcrTextRange(id, word.first, word.last + 1), frame)
+        val dx = when {
+            point.x < wordRect.left -> wordRect.left - point.x
+            point.x > wordRect.right -> point.x - wordRect.right
+            else -> 0f
+        }
+        val dy = when {
+            point.y < wordRect.top -> wordRect.top - point.y
+            point.y > wordRect.bottom -> point.y - wordRect.bottom
+            else -> 0f
+        }
+        dx * dx + dy * dy
+    } ?: return null
+    return OcrTextRange(id, word.first, word.last + 1)
+}
+
 internal fun hitTestOcrBlock(blocks: List<OcrTextBlock>, contentPoint: Offset, frame: Rect): OcrTextBlock? {
     return blocks.firstOrNull { b ->
         val r = ocrBlockToRect(b, frame)
@@ -294,6 +355,9 @@ internal fun hitTestOcrBlock(blocks: List<OcrTextBlock>, contentPoint: Offset, f
         expanded.contains(contentPoint)
     }
 }
+
+internal fun hitTestOcrWord(blocks: List<OcrTextBlock>, contentPoint: Offset, frame: Rect): OcrTextRange? =
+    blocks.firstNotNullOfOrNull { it.wordRangeAtPoint(contentPoint, frame) }
 
 internal fun intersects(a: Rect, b: Rect): Boolean =
     a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
@@ -320,6 +384,55 @@ internal fun ocrRangeBetween(
     val hi = maxOf(i1, i2)
     return ordered.subList(lo, hi + 1).map { it.id }.toSet()
 }
+
+/** Returns a contiguous word selection, grouped back into precise ranges per PDF text line. */
+internal fun ocrWordRangesBetween(
+    blocks: List<OcrTextBlock>,
+    frame: Rect,
+    p1: Offset,
+    p2: Offset
+): List<OcrTextRange> {
+    if (blocks.isEmpty()) return emptyList()
+    val words = blocks.readingOrder().flatMap { block ->
+        block.wordRanges().map { word ->
+            val range = OcrTextRange(block.id, word.first, word.last + 1)
+            OcrWordHit(range, ocrTextRangeToRect(block, range, frame))
+        }
+    }
+    if (words.isEmpty()) return emptyList()
+    val i1 = words.nearestWordIndex(p1)
+    val i2 = words.nearestWordIndex(p2)
+    val lo = minOf(i1, i2)
+    val hi = maxOf(i1, i2)
+    return words.subList(lo, hi + 1)
+        .groupBy { it.range.blockId }
+        .values
+        .map { group ->
+            OcrTextRange(
+                blockId = group.first().range.blockId,
+                start = group.minOf { it.range.start },
+                end = group.maxOf { it.range.end }
+            )
+        }
+}
+
+private data class OcrWordHit(val range: OcrTextRange, val rect: Rect)
+
+private fun List<OcrWordHit>.nearestWordIndex(point: Offset): Int =
+    indices.minByOrNull { index ->
+        val rect = this[index].rect
+        val dx = when {
+            point.x < rect.left -> rect.left - point.x
+            point.x > rect.right -> point.x - rect.right
+            else -> 0f
+        }
+        val dy = when {
+            point.y < rect.top -> rect.top - point.y
+            point.y > rect.bottom -> point.y - rect.bottom
+            else -> 0f
+        }
+        dx * dx + dy * dy
+    } ?: 0
 
 /** Words sorted into reading order: grouped into lines by vertical overlap, then left-to-right. */
 private fun List<OcrTextBlock>.readingOrder(): List<OcrTextBlock> {
@@ -477,10 +590,12 @@ internal fun buildExportOverlays(
                 }
                 is PdfMarkup.TextBlockHighlightMarkup -> {
                     ocrBlocks.firstOrNull { it.id == markup.blockId }?.let { b ->
+                        val range = OcrTextRange(markup.blockId, markup.start, markup.end)
+                        val r = ocrTextRangeToRect(b, range, Rect(0f, 0f, 1f, 1f))
                         list.add(
                             ExportOverlay.RectShape(
-                                start = NormalizedPoint(b.left, b.top),
-                                end = NormalizedPoint(b.right, b.bottom),
+                                start = NormalizedPoint(r.left, r.top),
+                                end = NormalizedPoint(r.right, r.bottom),
                                 colorArgb = markup.color.toArgb(),
                                 alpha = markup.alpha,
                                 filled = true
@@ -490,11 +605,13 @@ internal fun buildExportOverlays(
                 }
                 is PdfMarkup.TextBlockLineMarkup -> {
                     ocrBlocks.firstOrNull { it.id == markup.blockId }?.let { b ->
-                        val y = if (markup.strikeThrough) (b.top + b.bottom) / 2f else b.bottom - (b.bottom - b.top) * 0.1f
+                        val range = OcrTextRange(markup.blockId, markup.start, markup.end)
+                        val r = ocrTextRangeToRect(b, range, Rect(0f, 0f, 1f, 1f))
+                        val y = if (markup.strikeThrough) r.center.y else r.bottom - (r.bottom - r.top) * 0.1f
                         list.add(
                             ExportOverlay.LineShape(
-                                start = NormalizedPoint(b.left, y),
-                                end = NormalizedPoint(b.right, y),
+                                start = NormalizedPoint(r.left, y),
+                                end = NormalizedPoint(r.right, y),
                                 colorArgb = markup.color.toArgb(),
                                 widthNorm = normDist(markup.width),
                                 alpha = markup.alpha,

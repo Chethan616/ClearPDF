@@ -59,6 +59,13 @@ data class OcrTextBlock(
     val charRights: FloatArray = FloatArray(0)
 )
 
+/** A word- or line-precise selection inside one extracted text block. [end] is exclusive. */
+data class OcrTextRange(
+    val blockId: String,
+    val start: Int,
+    val end: Int
+)
+
 /** A search hit as a normalized rect around the EXACT matched word(s), not the whole line. */
 data class FindMatch(
     val pageIndex: Int,
@@ -148,6 +155,7 @@ data class PdfViewerUiState(
     val ocrBlocksByPage: Map<Int, List<OcrTextBlock>> = emptyMap(),
     val ocrPagesInProgress: Set<Int> = emptySet(),
     val selectedOcrBlockIdsByPage: Map<Int, Set<String>> = emptyMap(),
+    val selectedOcrRangesByPage: Map<Int, List<OcrTextRange>> = emptyMap(),
     val isExporting: Boolean = false,
     val exportMessage: String? = null,
     val exportError: String? = null,
@@ -242,6 +250,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     ocrBlocksByPage = emptyMap(),
                     ocrPagesInProgress = emptySet(),
                     selectedOcrBlockIdsByPage = emptyMap(),
+                    selectedOcrRangesByPage = emptyMap(),
                     isExporting = false,
                     exportMessage = null,
                     exportError = null,
@@ -447,28 +456,80 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
     fun toggleOcrSelection(pageIndex: Int, blockId: String) {
         val current = _uiState.value
         val selectedByPage = current.selectedOcrBlockIdsByPage.toMutableMap()
+        val rangesByPage = current.selectedOcrRangesByPage.toMutableMap()
         val selected = (selectedByPage[pageIndex] ?: emptySet()).toMutableSet()
-        if (!selected.add(blockId)) selected.remove(blockId)
+        val ranges = (rangesByPage[pageIndex] ?: emptyList()).toMutableList()
+        if (!selected.add(blockId)) {
+            selected.remove(blockId)
+            ranges.removeAll { it.blockId == blockId }
+        } else {
+            val block = current.ocrBlocksByPage[pageIndex].orEmpty().firstOrNull { it.id == blockId }
+            if (block != null) ranges.add(block.fullTextRange())
+        }
         selectedByPage[pageIndex] = selected
-        _uiState.value = current.copy(selectedOcrBlockIdsByPage = selectedByPage)
+        rangesByPage[pageIndex] = ranges
+        _uiState.value = current.copy(
+            selectedOcrBlockIdsByPage = selectedByPage,
+            selectedOcrRangesByPage = rangesByPage
+        )
     }
 
     fun selectOcrBlocks(pageIndex: Int, blockIds: Set<String>, append: Boolean) {
         if (blockIds.isEmpty()) return
         val current = _uiState.value
+        val ranges = current.ocrBlocksByPage[pageIndex].orEmpty()
+            .filter { it.id in blockIds }
+            .map { it.fullTextRange() }
+        selectOcrRanges(pageIndex, ranges, append)
+    }
+
+    fun selectOcrRanges(pageIndex: Int, ranges: List<OcrTextRange>, append: Boolean) {
+        val current = _uiState.value
+        val blocks = current.ocrBlocksByPage[pageIndex].orEmpty().associateBy { it.id }
+        val clean = ranges.mapNotNull { range ->
+            val block = blocks[range.blockId] ?: return@mapNotNull null
+            val start = range.start.coerceIn(0, block.text.length)
+            val end = range.end.coerceIn(start, block.text.length)
+            if (end <= start) null else OcrTextRange(block.id, start, end)
+        }
+        if (clean.isEmpty()) return
+
+        val existing = if (append) current.selectedOcrRangesByPage[pageIndex].orEmpty() else emptyList()
+        val merged = (existing + clean)
+            .groupBy { it.blockId }
+            .values
+            .flatMap { blockRanges ->
+                val sorted = blockRanges.sortedBy { it.start }
+                buildList<OcrTextRange> {
+                    sorted.forEach { range ->
+                        val previous = lastOrNull()
+                        if (previous != null && range.start <= previous.end) {
+                            removeAt(lastIndex)
+                            add(previous.copy(end = maxOf(previous.end, range.end)))
+                        } else add(range)
+                    }
+                }
+            }
         val selectedByPage = current.selectedOcrBlockIdsByPage.toMutableMap()
-        val base = if (append) (selectedByPage[pageIndex] ?: emptySet()).toMutableSet()
-        else mutableSetOf()
-        base.addAll(blockIds)
-        selectedByPage[pageIndex] = base
-        _uiState.value = current.copy(selectedOcrBlockIdsByPage = selectedByPage)
+        selectedByPage[pageIndex] = merged.map { it.blockId }.toSet()
+        val rangesByPage = current.selectedOcrRangesByPage.toMutableMap()
+        rangesByPage[pageIndex] = merged
+        _uiState.value = current.copy(
+            selectedOcrBlockIdsByPage = selectedByPage,
+            selectedOcrRangesByPage = rangesByPage
+        )
     }
 
     fun clearOcrSelection(pageIndex: Int) {
         val current = _uiState.value
         val selectedByPage = current.selectedOcrBlockIdsByPage.toMutableMap()
+        val rangesByPage = current.selectedOcrRangesByPage.toMutableMap()
         selectedByPage.remove(pageIndex)
-        _uiState.value = current.copy(selectedOcrBlockIdsByPage = selectedByPage)
+        rangesByPage.remove(pageIndex)
+        _uiState.value = current.copy(
+            selectedOcrBlockIdsByPage = selectedByPage,
+            selectedOcrRangesByPage = rangesByPage
+        )
     }
 
     fun selectLine(pageIndex: Int, blockId: String) {
@@ -511,13 +572,19 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
 
     fun getSelectedOcrText(pageIndex: Int): String {
         val state = _uiState.value
-        val selected = state.selectedOcrBlockIdsByPage[pageIndex] ?: return ""
+        val blocks = state.ocrBlocksByPage[pageIndex].orEmpty()
+        val selected = state.selectedOcrRangesByPage[pageIndex].orEmpty()
         if (selected.isEmpty()) return ""
-        return state.ocrBlocksByPage[pageIndex]
-            .orEmpty()
-            .filter { block -> selected.contains(block.id) }
-            .sortedWith(compareBy({ it.top }, { it.left }))
-            .joinToString(" ") { it.text }
+        val byId = blocks.associateBy { it.id }
+        return selected
+            .sortedWith(compareBy({ byId[it.blockId]?.top ?: Float.MAX_VALUE }, { byId[it.blockId]?.left ?: Float.MAX_VALUE }, { it.start }))
+            .mapNotNull { range ->
+                val block = byId[range.blockId] ?: return@mapNotNull null
+                block.text.substring(range.start.coerceIn(0, block.text.length), range.end.coerceIn(0, block.text.length))
+                    .trim()
+                    .takeIf { it.isNotEmpty() }
+            }
+            .joinToString(" ")
             .trim()
     }
 
@@ -937,6 +1004,9 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         bitmaps.forEach { if (it != null && !it.isRecycled) it.recycle() }
     }
 }
+
+private fun OcrTextBlock.fullTextRange(): OcrTextRange =
+    OcrTextRange(id, 0, text.length)
 
 private fun PdfTextBlock.toOcrBlock() = OcrTextBlock(
     id = id, text = text, left = left, top = top, right = right, bottom = bottom,

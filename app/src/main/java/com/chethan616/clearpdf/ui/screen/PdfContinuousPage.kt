@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import com.chethan616.clearpdf.ui.viewmodel.FindMatch
 import com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock
+import com.chethan616.clearpdf.ui.viewmodel.OcrTextRange
 import kotlin.math.max
 import kotlin.math.min
 
@@ -77,6 +78,7 @@ internal fun PdfContinuousPage(
     marks: MutableList<PdfMarkup>,
     ocrBlocks: List<OcrTextBlock>,
     selectedOcrIds: Set<String>,
+    selectedOcrRanges: List<OcrTextRange>,
     findMatches: List<FindMatch>,
     currentMatchIndex: Int,
     showFindBar: Boolean,
@@ -93,11 +95,8 @@ internal fun PdfContinuousPage(
     onShowControls: () -> Unit,
     onActiveToolChanged: (PdfEditTool) -> Unit,
     onActiveImageIdChanged: (Long?) -> Unit,
-    onToggleOcrSelection: (String) -> Unit,
     onClearOcrSelection: () -> Unit,
-    onSelectLine: (String) -> Unit,
-    onSelectParagraph: (String) -> Unit,
-    onSelectOcrRange: (Set<String>) -> Unit,
+    onSelectOcrRange: (List<OcrTextRange>) -> Unit,
     onPlaceText: (Offset) -> Unit,
     onPlaceNote: (Offset) -> Unit,
     onEditAnnotation: (Long) -> Unit,
@@ -150,11 +149,13 @@ internal fun PdfContinuousPage(
         Canvas(Modifier.matchParentSize()) {
             val frame = Rect(0f, 0f, size.width, size.height)
 
-            selectedOcrIds.forEach { id ->
-                ocrBlocks.firstOrNull { it.id == id }?.let { b ->
-                    val r = ocrBlockToRect(b, frame)
-                    drawRect(Color(0xFF42A5F5).copy(0.28f), r.topLeft, r.size)
-                    drawRect(Color(0xFF1976D2), r.topLeft, r.size, style = Stroke(1.5f))
+            selectedOcrRanges.forEach { range ->
+                ocrBlocks.firstOrNull { it.id == range.blockId }?.let { b ->
+                    val r = expandedTextHighlightRect(ocrTextRangeToRect(b, range, frame), verticalScale = 1.35f)
+                    // Match the find bar's tight word geometry, with a little more vertical air so
+                    // the selected glyphs remain legible at normal phone sizes.
+                    drawRoundRect(Color(0xFF2F80ED).copy(0.62f), r.topLeft, r.size, CornerRadius((r.height * 0.14f).coerceIn(2f, 5f), (r.height * 0.14f).coerceIn(2f, 5f)))
+                    drawRoundRect(Color(0xFF60A5FA).copy(0.96f), r.topLeft, r.size, CornerRadius((r.height * 0.14f).coerceIn(2f, 5f), (r.height * 0.14f).coerceIn(2f, 5f)), style = Stroke(1.25f))
                 }
             }
 
@@ -178,10 +179,12 @@ internal fun PdfContinuousPage(
                         if (markup.arrowHead) drawArrow(markup.start, markup.end, markup.color.copy(markup.alpha), markup.width)
                         else drawLine(markup.color.copy(markup.alpha), markup.start, markup.end, markup.width)
                     is PdfMarkup.TextBlockHighlightMarkup -> ocrBlocks.firstOrNull { it.id == markup.blockId }?.let { b ->
-                        val r = ocrBlockToRect(b, frame); drawRect(markup.color.copy(markup.alpha), r.topLeft, r.size)
+                        val range = OcrTextRange(markup.blockId, markup.start, markup.end)
+                        val r = expandedTextHighlightRect(ocrTextRangeToRect(b, range, frame))
+                        drawRoundRect(markup.color.copy(markup.alpha), r.topLeft, r.size, CornerRadius((r.height * 0.14f).coerceIn(2f, 5f), (r.height * 0.14f).coerceIn(2f, 5f)))
                     }
                     is PdfMarkup.TextBlockLineMarkup -> ocrBlocks.firstOrNull { it.id == markup.blockId }?.let { b ->
-                        val r = ocrBlockToRect(b, frame)
+                        val r = ocrTextRangeToRect(b, OcrTextRange(markup.blockId, markup.start, markup.end), frame)
                         val y = if (markup.strikeThrough) r.center.y else r.bottom - r.height * 0.10f
                         drawLine(markup.color.copy(markup.alpha), Offset(r.left, y), Offset(r.right, y), markup.width)
                     }
@@ -276,13 +279,6 @@ internal fun PdfContinuousPage(
                     else -> Unit
                 }
             }
-            if (selDragStart != null && selDragEnd != null && activeTool == PdfEditTool.SelectText) {
-                val s = selDragStart!!; val e = selDragEnd!!
-                val r = Rect(min(s.x, e.x), min(s.y, e.y), max(s.x, e.x), max(s.y, e.y))
-                drawRect(Color(0xFFAB47BC).copy(0.20f), r.topLeft, r.size)
-                drawRect(Color(0xFFAB47BC), r.topLeft, r.size, style = Stroke(2f))
-            }
-
             if (showFindBar && findMatches.isNotEmpty()) {
                 val activeMatch = findMatches.getOrNull(currentMatchIndex)
                 findMatches.filter { it.pageIndex == page }.forEach { match ->
@@ -503,23 +499,23 @@ internal fun PdfContinuousPage(
                 .pointerInput(page, ocrBlocks) {
                     val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
                     detectTapGestures(
-                        onDoubleTap = { p -> hitTestOcrBlock(ocrBlocks, p, frame)?.let { onSelectLine(it.id) }; onInteraction() },
-                        onLongPress = { p -> hitTestOcrBlock(ocrBlocks, p, frame)?.let { onSelectParagraph(it.id) }; onInteraction() },
-                        onTap = { p -> val h = hitTestOcrBlock(ocrBlocks, p, frame); if (h != null) onToggleOcrSelection(h.id) else onClearOcrSelection(); onInteraction() }
+                        // A tap or double-tap lands on one word. Long-press follows the platform
+                        // text-selection convention: select that word and reveal the contextual
+                        // Copy / Highlight actions above it.
+                        onDoubleTap = { p -> hitTestOcrWord(ocrBlocks, p, frame)?.let { onSelectOcrRange(listOf(it)) }; onInteraction() },
+                        onLongPress = { p -> hitTestOcrWord(ocrBlocks, p, frame)?.let { onSelectOcrRange(listOf(it)) }; onInteraction() },
+                        onTap = { p -> hitTestOcrWord(ocrBlocks, p, frame)?.let { onSelectOcrRange(listOf(it)) } ?: onClearOcrSelection(); onInteraction() }
                     )
                 }
-                // Direct drag (no long-press wait): in Select Text mode the page doesn't scroll, so a
-                // drag is free to mean "sweep a selection". It selects the contiguous run of words
-                // between the finger's start and its current position, in reading order, and updates
-                // LIVE as you drag — so pulling across a line or a paragraph highlights every word it
-                // crosses instead of the tap's one-word-at-a-time. A plain tap has no drag slop, so
-                // tap / double-tap / long-press above still fire for single word / line / paragraph.
+                // Direct drag (no long-press wait): sweep a contiguous run of words in reading order
+                // and update the range live. The page stays in text-selection mode, while the parent
+                // viewer still receives two-finger pinch events for zoom.
                 .pointerInput(page, ocrBlocks) {
                     fun updateRange() {
                         val s = selDragStart; val e = selDragEnd
                         if (s == null || e == null || ocrBlocks.isEmpty()) return
                         val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
-                        onSelectOcrRange(ocrRangeBetween(ocrBlocks, frame, s, e))
+                        onSelectOcrRange(ocrWordRangesBetween(ocrBlocks, frame, s, e))
                     }
                     detectDragGestures(
                         onDragStart = { p -> selDragStart = p; selDragEnd = p; updateRange(); onInteraction() },
@@ -535,7 +531,11 @@ internal fun PdfContinuousPage(
         val csz = pageCanvasSizes[page]
         if (activeTool == PdfEditTool.SelectText && selectedOcrIds.isNotEmpty() && csz != null && csz.width > 0f) {
             val frame = Rect(0f, 0f, csz.width, csz.height)
-            val selRects = selectedOcrIds.mapNotNull { id -> ocrBlocks.firstOrNull { it.id == id }?.let { ocrBlockToRect(it, frame) } }
+            val selRects = selectedOcrRanges.mapNotNull { range ->
+                ocrBlocks.firstOrNull { it.id == range.blockId }?.let { ocrTextRangeToRect(it, range, frame) }
+            }.ifEmpty {
+                selectedOcrIds.mapNotNull { id -> ocrBlocks.firstOrNull { it.id == id }?.let { ocrBlockToRect(it, frame) } }
+            }
             if (selRects.isNotEmpty()) {
                 val density = LocalDensity.current
                 val selLeft = selRects.minOf { it.left }
