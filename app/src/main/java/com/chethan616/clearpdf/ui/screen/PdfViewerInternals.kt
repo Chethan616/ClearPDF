@@ -123,6 +123,9 @@ internal sealed class PdfMarkup {
             val d = distToSegment(p, start, end)
             d <= width.coerceAtLeast(16f)
         }
+        // OCR-anchored markups are hit-tested with the page's OCR geometry. Keep the
+        // geometry-free overload conservative so callers that do not have that geometry
+        // cannot accidentally select a whole page-sized annotation.
         is TextBlockHighlightMarkup -> false
         is TextBlockLineMarkup      -> false
         is ImageMarkup -> {
@@ -319,6 +322,68 @@ internal fun ocrTextRangeToRect(block: OcrTextBlock, range: OcrTextRange, frame:
         frame.left + block.charRights[end - 1] * frame.width,
         frame.top + block.bottom * frame.height
     )
+}
+
+/** Exact page-space bounds for an OCR-anchored markup. */
+internal fun PdfMarkup.textMarkupRangeRect(
+    blocks: List<OcrTextBlock>,
+    frame: Rect
+): Rect? = when (this) {
+    is PdfMarkup.TextBlockHighlightMarkup -> blocks.firstOrNull { it.id == blockId }?.let { block ->
+        expandedTextHighlightRect(
+            ocrTextRangeToRect(block, OcrTextRange(blockId, start, end), frame)
+        )
+    }
+    is PdfMarkup.TextBlockLineMarkup -> blocks.firstOrNull { it.id == blockId }?.let { block ->
+        ocrTextRangeToRect(block, OcrTextRange(blockId, start, end), frame)
+    }
+    else -> null
+}
+
+/** Baseline-aware y-position used by both the on-screen renderer and PDF export. */
+internal fun PdfMarkup.textMarkupLineY(rangeRect: Rect): Float? = when (this) {
+    is PdfMarkup.TextBlockLineMarkup -> if (strikeThrough) {
+        rangeRect.center.y
+    } else {
+        // PdfTextService exposes the glyph baseline as `bottom`. A small gap keeps the
+        // underline below descenders instead of cutting through the glyphs, as the old
+        // `bottom - 10%` placement did.
+        rangeRect.bottom + (rangeRect.height * 0.08f).coerceIn(1.5f, 6f)
+    }
+    else -> null
+}
+
+/** A forgiving touch target around a precise OCR markup, matching professional PDF tools. */
+internal fun PdfMarkup.textMarkupHitBounds(
+    blocks: List<OcrTextBlock>,
+    frame: Rect
+): Rect? {
+    val rangeRect = textMarkupRangeRect(blocks, frame) ?: return null
+    return when (this) {
+        is PdfMarkup.TextBlockHighlightMarkup -> rangeRect.inflate(8f)
+        is PdfMarkup.TextBlockLineMarkup -> {
+            val y = textMarkupLineY(rangeRect) ?: return null
+            val verticalTouch = max(14f, width * 3f)
+            Rect(
+                rangeRect.left - 12f,
+                y - verticalTouch,
+                rangeRect.right + 12f,
+                y + verticalTouch
+            )
+        }
+        else -> null
+    }
+}
+
+/** Hit-testing overload for OCR markups; other annotations retain their existing behavior. */
+internal fun PdfMarkup.hitTest(
+    point: Offset,
+    blocks: List<OcrTextBlock>,
+    frame: Rect
+): Boolean = when (this) {
+    is PdfMarkup.TextBlockHighlightMarkup,
+    is PdfMarkup.TextBlockLineMarkup -> textMarkupHitBounds(blocks, frame)?.contains(point) == true
+    else -> hitTest(point)
 }
 
 internal fun expandedTextHighlightRect(rect: Rect, verticalScale: Float = 1f): Rect {
@@ -655,7 +720,7 @@ internal fun buildExportOverlays(
                     ocrBlocks.firstOrNull { it.id == markup.blockId }?.let { b ->
                         val range = OcrTextRange(markup.blockId, markup.start, markup.end)
                         val r = ocrTextRangeToRect(b, range, Rect(0f, 0f, 1f, 1f))
-                        val y = if (markup.strikeThrough) r.center.y else r.bottom - (r.bottom - r.top) * 0.1f
+                        val y = markup.textMarkupLineY(r) ?: return@let
                         list.add(
                             ExportOverlay.LineShape(
                                 start = NormalizedPoint(r.left, y),

@@ -8,9 +8,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
@@ -233,7 +233,7 @@ internal fun PdfViewerBottomToolbar(
     // bottom — so the tool panels and the "Editor Tools" pill never move.
     Box(Modifier.fillMaxWidth()) {
     Column(
-        Modifier.fillMaxWidth().align(Alignment.BottomCenter),
+        Modifier.fillMaxWidth().align(Alignment.BottomCenter).zIndex(2f),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
 
@@ -265,7 +265,6 @@ internal fun PdfViewerBottomToolbar(
                         transformOrigin = TransformOrigin(0.5f, 1f)
                         translationY = (1f - reveal) * 8.dp.toPx()
                     }
-                    .clipToBounds()
                     .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
                     .viewerGlass(backdrop, glass).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -512,7 +511,7 @@ internal fun PdfViewerBottomToolbar(
                         transformOrigin = TransformOrigin(0.5f, 1f)
                         translationY = (1f - reveal) * 8.dp.toPx()
                     }
-                    .clipToBounds()
+                    .zIndex(1f)
             ) {
             if (docKind == DocKind.Ppt) {
                 // PowerPoint editing isn't available yet — a friendly placeholder instead of the
@@ -751,7 +750,7 @@ internal fun PdfViewerBottomToolbar(
             visible = selectorGate && !showFindBar && !showSignaturePad,
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(FaceHandoffMillis)),
-            modifier = Modifier.align(Alignment.BottomEnd)
+            modifier = Modifier.align(Alignment.BottomEnd).zIndex(3f)
         ) {
             ShareMorphButton(
                 backdrop = backdrop,
@@ -764,5 +763,3 @@ internal fun PdfViewerBottomToolbar(
         }
     }
 }
-
-

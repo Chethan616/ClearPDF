@@ -63,14 +63,15 @@ fun Modifier.viewerGlass(
 )
 
 /**
- * Rounded clip plus a soft, scroll-aware edge mask for a horizontally scrolling strip that rides on a
- * [viewerGlass] surface.
+ * Soft, scroll-aware edge mask for a horizontally scrolling strip that rides on a [viewerGlass]
+ * surface.
  *
  * **The bug this exists to kill.** `Modifier.horizontalScroll` clips to its node's *rectangular*
  * bounds, and [viewerGlass] only ever *draws* its rounded shape — `drawBackdrop` paints, it does not
  * clip. A scrolling row of chips on glass was therefore chopped by a straight vertical line sitting
- * inside the capsule's own curve: the one thing a floating glass control must never look like. With
- * this, chips slide in and out *behind* the container's curved ends instead.
+ * inside the capsule's own curve: the one thing a floating glass control must never look like. The
+ * mask below is a draw-time fade only — it deliberately does not hard-clip to the glass shape — so
+ * controls remain visually above the surface while they are being dragged.
  *
  * Apply it **inside** the glass and **outside** the scroll, with the padding moved to the far end:
  *
@@ -97,12 +98,13 @@ fun Modifier.carouselEdges(
     shape: Shape = ViewerGlassShape,
     fade: Dp = 18.dp
 ): Modifier = this
-    // One layer does both jobs. `Offscreen` is not decoration: it is what makes the `DstIn` below
-    // mask this strip rather than punch a hole through everything already on the canvas.
+    // Keep the edge fade isolated. `Offscreen` is not decoration: it is what makes the `DstIn` below
+    // mask this strip rather than punch a hole through everything already on the canvas. `clip`
+    // stays false on purpose; the glass panel owns the surface shape, while this scrolling content
+    // remains a floating layer that is not chopped by the panel's corners.
     .graphicsLayer {
         compositingStrategy = CompositingStrategy.Offscreen
-        clip = true
-        this.shape = shape
+        clip = false
     }
     .drawWithContent {
         drawContent()

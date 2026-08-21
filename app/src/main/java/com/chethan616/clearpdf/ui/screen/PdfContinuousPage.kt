@@ -187,8 +187,14 @@ internal fun PdfContinuousPage(
                     }
                     is PdfMarkup.TextBlockLineMarkup -> ocrBlocks.firstOrNull { it.id == markup.blockId }?.let { b ->
                         val r = ocrTextRangeToRect(b, OcrTextRange(markup.blockId, markup.start, markup.end), frame)
-                        val y = if (markup.strikeThrough) r.center.y else r.bottom - r.height * 0.10f
-                        drawLine(markup.color.copy(markup.alpha), Offset(r.left, y), Offset(r.right, y), markup.width)
+                        val y = markup.textMarkupLineY(r) ?: return@let
+                        drawLine(
+                            color = markup.color.copy(markup.alpha),
+                            start = Offset(r.left, y),
+                            end = Offset(r.right, y),
+                            strokeWidth = markup.width.coerceIn(2f, 4f),
+                            cap = StrokeCap.Round
+                        )
                     }
                     is PdfMarkup.ImageMarkup -> {
                         val r = Rect(min(markup.start.x, markup.end.x), min(markup.start.y, markup.end.y), max(markup.start.x, markup.end.x), max(markup.start.y, markup.end.y))
@@ -262,6 +268,30 @@ internal fun PdfContinuousPage(
                         }
                     }
                 }
+
+                // OCR markups are anchored to extracted text rather than freely movable
+                // geometry, so they get their own subtle focus ring instead of the generic
+                // resize frame. The precise range remains visible and the action bubble below
+                // supplies the delete affordance.
+                marks.getOrNull(selectedMarkupIndex)
+                    ?.takeIf { it is PdfMarkup.TextBlockHighlightMarkup || it is PdfMarkup.TextBlockLineMarkup }
+                    ?.textMarkupRangeRect(ocrBlocks, frame)
+                    ?.let { r ->
+                        val focus = Color(0xFF0A84FF).copy(0.9f)
+                        val bounds = if (marks[selectedMarkupIndex] is PdfMarkup.TextBlockLineMarkup) {
+                            val y = marks[selectedMarkupIndex].textMarkupLineY(r) ?: r.bottom
+                            Rect(r.left - 5f, y - 5f, r.right + 5f, y + 5f)
+                        } else {
+                            r.inflate(3f)
+                        }
+                        drawRoundRect(
+                            focus,
+                            bounds.topLeft,
+                            bounds.size,
+                            CornerRadius(6f, 6f),
+                            style = Stroke(2f)
+                        )
+                    }
             }
 
             if (activeTool == PdfEditTool.SelectText) {
@@ -343,7 +373,8 @@ internal fun PdfContinuousPage(
                     val selBounds = sel?.movableBounds()
                     if (selBounds != null && selBounds.inflate(30f).contains(down.position)) return@awaitEachGesture
 
-                    val idx = marks.indexOfLast { it.hitTest(down.position) }
+                    val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
+                    val idx = marks.indexOfLast { it.hitTest(down.position, ocrBlocks, frame) }
                     if (idx >= 0) {
                         val hit = marks[idx]
                         val up = waitForUpOrCancellation()
@@ -360,7 +391,9 @@ internal fun PdfContinuousPage(
                                 is PdfMarkup.RectMarkup,
                                 is PdfMarkup.OvalMarkup,
                                 is PdfMarkup.LineMarkup,
-                                is PdfMarkup.StrokeMarkup -> onSelectMarkup(idx)
+                                is PdfMarkup.StrokeMarkup,
+                                is PdfMarkup.TextBlockHighlightMarkup,
+                                is PdfMarkup.TextBlockLineMarkup -> onSelectMarkup(idx)
                                 else -> Unit
                             }
                             onShowControls()
@@ -447,9 +480,21 @@ internal fun PdfContinuousPage(
 
         if (activeTool == PdfEditTool.Eraser) {
             Box(Modifier.matchParentSize().pointerInput(page) {
-                detectTapGestures { p -> val idx = marks.indexOfLast { it.hitTest(p) }; if (idx >= 0) marks.removeAt(idx); onInteraction() }
+                detectTapGestures {
+                    p ->
+                    val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
+                    val idx = marks.indexOfLast { it.hitTest(p, ocrBlocks, frame) }
+                    if (idx >= 0) marks.removeAt(idx)
+                    onInteraction()
+                }
             }.pointerInput(page) {
-                detectDragGestures(onDrag = { ch, _ -> ch.consume(); val idx = marks.indexOfLast { it.hitTest(ch.position) }; if (idx >= 0) marks.removeAt(idx); onInteraction() })
+                detectDragGestures(onDrag = { ch, _ ->
+                    ch.consume()
+                    val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
+                    val idx = marks.indexOfLast { it.hitTest(ch.position, ocrBlocks, frame) }
+                    if (idx >= 0) marks.removeAt(idx)
+                    onInteraction()
+                })
             })
         }
 
@@ -711,6 +756,48 @@ internal fun PdfContinuousPage(
                     }
                 }
             }
+
+            // Text highlights, underlines, and strike-throughs are precise OCR ranges, not
+            // transformable shapes. When one is tapped, expose the same clear destructive action
+            // used by the other professional markup tools.
+            marks.getOrNull(selectedMarkupIndex)
+                ?.takeIf { it is PdfMarkup.TextBlockHighlightMarkup || it is PdfMarkup.TextBlockLineMarkup }
+                ?.textMarkupRangeRect(ocrBlocks, Rect(0f, 0f, csz.width, csz.height))
+                ?.let { rangeRect ->
+                    val selected = marks[selectedMarkupIndex]
+                    val anchorRect = if (selected is PdfMarkup.TextBlockLineMarkup) {
+                        val y = selected.textMarkupLineY(rangeRect) ?: rangeRect.bottom
+                        Rect(rangeRect.left, y - 4f, rangeRect.right, y + 4f)
+                    } else rangeRect
+                    val density = LocalDensity.current
+                    val gapPx = with(density) { 10.dp.toPx() }
+                    val barHpx = with(density) { 44.dp.toPx() }
+                    val barWpx = with(density) { 96.dp.toPx() }
+                    val placeBelow = anchorRect.top < barHpx + gapPx
+                    val by = (if (placeBelow) anchorRect.bottom + gapPx else anchorRect.top - barHpx - gapPx)
+                        .coerceIn(0f, (csz.height - barHpx).coerceAtLeast(0f))
+                    val bx = ((anchorRect.left + anchorRect.right) / 2f - barWpx / 2f)
+                        .coerceIn(0f, (csz.width - barWpx).coerceAtLeast(0f))
+
+                    Row(
+                        Modifier
+                            .offset { IntOffset(bx.roundToInt(), by.roundToInt()) }
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(Color(0xFF1C1F26).copy(0.97f))
+                            .border(1.dp, Color.White.copy(0.14f), RoundedCornerShape(22.dp))
+                            .padding(horizontal = 4.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BasicText(
+                            "Delete",
+                            style = TextStyle(Color(0xFFFF6B6B), 13.sp, FontWeight.SemiBold),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(18.dp))
+                                .clickable { onDeleteMarkup(selectedMarkupIndex) }
+                                .padding(horizontal = 16.dp, vertical = 9.dp)
+                        )
+                    }
+                }
         }
     }
 }
