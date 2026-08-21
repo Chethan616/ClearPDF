@@ -140,7 +140,11 @@ import kotlin.math.roundToInt
 fun PdfViewerScreen(
     backdrop: LayerBackdrop,
     viewModel: PdfViewerViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    // True when the caller (recents / external open / a tool's output) already handed us a document
+    // to load. In that case the viewer must NOT flash its "Open a PDF" picker while the pages render —
+    // it shows a loading curtain that the real document fades in behind. See [ViewerLoadingCurtain].
+    pendingLoad: Boolean = false
 ) {
     val state         by viewModel.uiState.collectAsState()
     val isDarkMode     = LocalIsDarkMode.current
@@ -411,6 +415,16 @@ fun PdfViewerScreen(
 
     // ── No-document state ─────────────────────────────────────────────────
     if (state.document == null) {
+        val askingPassword = state.passwordRequired && state.passwordUri != null
+        // A document is on its way in (recents / external / tool output) and nothing has gone wrong
+        // yet: show the loading curtain instead of the picker so the user never sees the "Open a PDF"
+        // card flash before their file appears. The identical curtain is held over the loaded viewer
+        // below until the first page is rendered, so the swap between these two branches is seamless.
+        val openingHandedDoc = !askingPassword && state.errorMessage == null && (state.isLoading || pendingLoad)
+        if (openingHandedDoc) {
+            ViewerLoadingCurtain(isLight = isLight)
+            return
+        }
         // The password prompt is an OVERLAY on this Box, not a third row inside the Column below.
         //
         // It used to be a sibling of the "Open a PDF" card in a `spacedBy(16.dp)` Column whose middle
@@ -462,7 +476,7 @@ fun PdfViewerScreen(
             }
 
             // ── Password prompt (in-window, so the glass samples the real backdrop) ──
-            val askingPassword = state.passwordRequired && state.passwordUri != null
+            // `askingPassword` is computed at the top of this branch.
 
             // Dimming scrim. Deliberately NOT tap-to-dismiss, unlike LiquidPageJumpPopup: there is
             // nothing behind this to go back to — dismissing would leave a locked document and an
@@ -1314,6 +1328,29 @@ fun PdfViewerScreen(
                 }
             }
         )
+
+        // ── Opening curtain ────────────────────────────────────────────────
+        // The very same dark curtain the no-document branch shows while a handed-in file loads, now
+        // held over the freshly-loaded viewer until page 1 has actually rendered — so the reader is
+        // never flashed a blank white page card. Because both branches paint the identical opaque
+        // fill and spinner, the hand-off between them is invisible; only when the first bitmap arrives
+        // does this fade away, letting the real document appear underneath. That is what makes tapping
+        // a recent read as "wait a beat, then the PDF fades in" instead of a hard cut to an empty page.
+        val firstPageRendered = state.pageBitmaps.getOrNull(0) != null
+        var revealDocument by remember { mutableStateOf(false) }
+        LaunchedEffect(firstPageRendered) {
+            if (firstPageRendered && !revealDocument) {
+                delay(140)          // let the page paint a frame before we lift the curtain
+                revealDocument = true
+            }
+        }
+        AnimatedVisibility(
+            visible  = !revealDocument,
+            exit     = fadeOut(tween(420, easing = androidx.compose.animation.core.FastOutSlowInEasing)),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            ViewerLoadingCurtain(isLight = isLight)
+        }
     }
 
     // ── Dialogs ───────────────────────────────────────────────────────────
@@ -1338,6 +1375,27 @@ fun PdfViewerScreen(
         )
     }
 
+}
+
+/**
+ * The plain dark "opening" screen shown while a document loads — a solid fill plus a single centred
+ * spinner. Deliberately opaque (no wallpaper behind) and identical in both the no-document branch and
+ * the loaded viewer's fade-out overlay, so the moment the document arrives and the branches swap the
+ * user sees no seam: the same spinner keeps spinning, then dissolves to reveal the first page.
+ */
+@Composable
+private fun ViewerLoadingCurtain(isLight: Boolean) {
+    val bg = if (isLight) Color(0xFF0A0E14) else Color(0xFF05070B)
+    Box(
+        Modifier.fillMaxSize().background(bg),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            color = Color(0xFF1976D2),
+            strokeWidth = 2.5.dp,
+            modifier = Modifier.size(34.dp)
+        )
+    }
 }
 
 /**

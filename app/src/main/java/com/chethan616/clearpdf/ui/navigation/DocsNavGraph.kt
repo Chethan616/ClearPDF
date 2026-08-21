@@ -491,7 +491,16 @@ fun DocsNavGraph(
                     vm.openPdf(context, targetUri)
                 }
             }
-            PdfViewerScreen(backdrop = backdrop, viewModel = vm, onBack = { navController.popBackStack() })
+            // We were handed a document to open (recents / external / a tool's output), so the viewer
+            // should show a loading curtain rather than flash its "Open a PDF" picker before the pages
+            // arrive. See PdfViewerScreen's [pendingLoad].
+            val hasPendingDoc = routeUri != null || incomingPdfUri != null
+            PdfViewerScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                pendingLoad = hasPendingDoc
+            )
         }
 
         composable(
