@@ -96,7 +96,8 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
     // share or a shortcut skips the tour and goes straight to the document — the flag is left unset,
     // so onboarding still appears on the next ordinary cold start rather than being lost.
     val needsOnboarding = remember {
-        !OnboardingManager.hasCompletedOnboarding(context) &&
+        // Shows on first launch and again after each app update (version-aware).
+        OnboardingManager.shouldShowOnboarding(context) &&
             shortcutRoute == null && incomingPdfUri == null
     }
     // The locale the Activity actually booted with. Onboarding changes `selectedLocale` in place for
