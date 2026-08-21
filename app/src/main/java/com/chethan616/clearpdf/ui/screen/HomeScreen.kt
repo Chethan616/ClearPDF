@@ -5,6 +5,7 @@ import android.net.Uri
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.Transition
@@ -23,6 +24,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.layout
+import kotlin.math.roundToInt
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -71,6 +75,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -106,6 +111,8 @@ import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.utils.DocKind
 import com.chethan616.clearpdf.utils.docKindOf
 import com.kyant.backdrop.backdrops.LayerBackdrop
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -121,7 +128,11 @@ fun HomeScreen(
     backdrop: LayerBackdrop,
     onNavigateToOpenPdf: () -> Unit,
     onNavigateToScan: () -> Unit,
-    onRecentFileSelected: (Uri) -> Unit
+    // The stored display name travels with the uri. Re-querying DISPLAY_NAME at tap time is a
+    // guess that fails exactly when it matters: a lapsed permission or a provider that answers with
+    // its own internal name sends a .docx down the plain-PDF route. Recents already knows what the
+    // file is called, so routing should ask recents.
+    onRecentFileSelected: (Uri, String) -> Unit
 ) {
     val homeRecentLimit = 5
     val isDarkMode = LocalIsDarkMode.current
@@ -132,6 +143,7 @@ fun HomeScreen(
     val redAccent = LiquidGlassColors.Red
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
+    val homeScope = rememberCoroutineScope()
 
     var recents by remember { mutableStateOf(RecentFilesManager.getRecents(context)) }
     var showAllRecents by remember { mutableStateOf(false) }
@@ -224,8 +236,13 @@ fun HomeScreen(
             item(key = "hero") {
                 AnimatedVisibility(
                     visible = !searchActive,
-                    enter = fadeIn(tween(220)) + expandVertically(tween(260)),
-                    exit = fadeOut(tween(160)) + shrinkVertically(tween(220))
+                    // Desync the fade from the height so the glass is invisible whenever its size is
+                    // moving — an alpha-0 liquidGlassPanel draws nothing, so the collapse can't show
+                    // its per-frame re-blur, and the recents panel's rise reads as a clean fade rather
+                    // than a shimmer. Open the height first, then fade in; fade out fast, then finish
+                    // shrinking unseen.
+                    enter = expandVertically(tween(240)) + fadeIn(tween(200, delayMillis = 110)),
+                    exit = fadeOut(tween(120)) + shrinkVertically(tween(240))
                 ) {
                     Column(
                         Modifier
@@ -422,15 +439,18 @@ fun HomeScreen(
                                     isLight = isLight,
                                     textColor = text,
                                     secondaryColor = sub,
-                                    onClick = { onRecentFileSelected(recent.uri) },
+                                    onClick = { onRecentFileSelected(recent.uri, recent.name) },
                                     onLongClick = { top, height ->
                                         selectedRecent = recent
                                         selectedRecentAnchorY = top
                                         selectedRecentRowHeight = height
                                     },
                                     onSwipeDelete = {
-                                        RecentFilesManager.removeRecent(context, recent.uri)
+                                        // Drop it from the list immediately (cheap, keyed rows), and
+                                        // persist off the main thread so the terminal relayout the
+                                        // removal triggers never blocks a frame during the exit.
                                         recents = recents.filterNot { it.uriString == recent.uriString }
+                                        homeScope.launch(Dispatchers.IO) { RecentFilesManager.removeRecent(context, recent.uri) }
                                     }
                                 )
                             }
@@ -488,7 +508,7 @@ fun HomeScreen(
                         actions = listOf(
                             GlassMenuAction(
                                 Icons.Rounded.FileOpen, stringResource(R.string.recents_open), Color(0xFF0088FF)
-                            ) { selectedRecent = null; onRecentFileSelected(recent.uri) },
+                            ) { selectedRecent = null; onRecentFileSelected(recent.uri, recent.name) },
                             GlassMenuAction(
                                 if (recent.pinned) Icons.Rounded.PushPin else Icons.Outlined.PushPin,
                                 stringResource(if (recent.pinned) R.string.recents_unpin else R.string.recents_pin),
@@ -717,6 +737,60 @@ private fun Transition<Boolean>.entranceModifier(index: Int, density: Float): Mo
     }
 }
 
+/** Fraction of the row width a swipe must cross to commit the delete. */
+private const val SwipeCommitFraction = 0.40f
+
+/**
+ * How "armed" a swipe of [travel] px looks on a row [width] px wide: 0 until the swipe is well
+ * underway, ramping to 1 right at [SwipeCommitFraction]. Drives the delete icon's scale.
+ */
+private fun armProgress(travel: Float, width: Float): Float {
+    if (width <= 0f) return 0f
+    val p = (travel / width).coerceIn(0f, 1f)
+    return ((p - (SwipeCommitFraction - 0.22f)) / 0.22f).coerceIn(0f, 1f)
+}
+
+/** Fraction of the row width over which the slab reaches its full red. */
+private const val RedRampFraction = 0.25f
+
+/** The pale red the slab starts on, so the first quarter of the swipe reads as a hint. */
+private val SwipeRedLight = Color(0xFFEF7B7B).copy(alpha = 0.55f)
+
+/** The committed red. Reached at [RedRampFraction] and held for the rest of the travel. */
+private val SwipeRedFull = Color(0xFFE53935)
+
+/**
+ * The slab colour for a swipe of [travel] px on a row [width] px wide.
+ *
+ * Separate from [armProgress] on purpose. The icon is allowed to hold back and then pop right at
+ * the commit point, but the colour is the thing you read first, and ramping it against a 0.40
+ * threshold meant the row stayed almost neutral through most of the gesture and then went red in a
+ * rush. Full red by a quarter of the width instead: pale while you are still deciding, unambiguous
+ * well before you have to commit, and flat afterwards so the last half of the travel does not keep
+ * shifting under the finger.
+ */
+private fun swipeRed(travel: Float, width: Float): Color {
+    if (width <= 0f) return SwipeRedLight
+    val t = (travel / (width * RedRampFraction)).coerceIn(0f, 1f)
+    return lerp(SwipeRedLight, SwipeRedFull, t)
+}
+
+/**
+ * Row geometry, deliberately **not** snapshot state.
+ *
+ * `onGloballyPositioned` fires for a row whenever it is re-placed, and a delete re-places every row
+ * below the one collapsing on every frame of the animation. Writing these into `mutableStateOf`
+ * therefore recomposed most of the list ~60 times a second for the length of the delete — each of
+ * those recompositions re-running `docKindOf`, the size/date formatting and the badge lookup for a
+ * row whose contents had not changed at all. Nothing observes these reactively: the long-press and
+ * the drag both read them at gesture time, long after they are set.
+ */
+private class RowMetrics {
+    var topY = 0f
+    var height = 0f
+    var width = 1f
+}
+
 /**
  * One recents entry. Liquid-glass press: no grey ripple; the row eases down with a soft
  * spring while held (like an Apple button), then springs back on release. It reports its
@@ -732,9 +806,7 @@ private fun RecentRow(
     onLongClick: (top: Float, height: Float) -> Unit,
     onSwipeDelete: () -> Unit
 ) {
-    var rowTopY by remember { mutableStateOf(0f) }
-    var rowHeightPx by remember { mutableStateOf(0f) }
-    var rowWidthPx by remember { mutableStateOf(1f) }
+    val metrics = remember { RowMetrics() }
     val rowInteraction = remember { MutableInteractionSource() }
     val rowPressed by rowInteraction.collectIsPressedAsState()
     val rowScale by animateFloatAsState(
@@ -745,17 +817,45 @@ private fun RecentRow(
     // Swipe-to-delete. Left only: a rightward drag has no meaning here, and allowing it would
     // just expose empty space behind the row.
     val swipeX = remember { Animatable(0f) }
+    // Runs 1 -> 0 after the row has slid off, so the gap below closes instead of snapping shut.
+    // These rows sit in a plain Column (not LazyItemScope), so `animateItem()` isn't available.
+    val collapse = remember { Animatable(1f) }
+    // Opacity of the row AND its red slab together.
+    //
+    // The old exit slid the card all the way off to `-width` and then closed the gap. That left the
+    // slab as the only thing on screen for the whole collapse — a bare red band shrinking while the
+    // rows underneath slid up past it, which is the overlap glitch. Fading the pair as one object
+    // means the red can never outlive the card it belongs to.
+    val exitAlpha = remember { Animatable(1f) }
     val scope = rememberCoroutineScope()
     val view = LocalView.current
 
     Box(
         Modifier
             .fillMaxWidth()
+            // `collapse` is read at MEASURE time, so the shrink invalidates layout without
+            // recomposing, and the curve is monotonic so it never overshoots into a negative height.
+            //
+            // This *does* knowingly break the no-animated-layout rule. The row itself is a plain
+            // background, but it sits inside the recents `liquidGlassPanel`, which wraps its
+            // children — so shrinking a row resizes the panel and re-runs its blur, lens and depth
+            // effect once per frame. It is bought deliberately: the alternative is the list snapping
+            // shut, and ~200 ms of re-blur on one panel is the cheapest way to avoid that. It is
+            // affordable only because everything else in the delete was made free — see [RowMetrics]
+            // for the recomposition storm that used to run alongside it.
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                val h = (placeable.height * collapse.value).roundToInt().coerceAtLeast(0)
+                layout(placeable.width, h) { placeable.place(0, 0) }
+            }
+            // Read inside the lambda, so the fade invalidates draw only. Wraps both the slab and
+            // the card, which is the whole point — see [exitAlpha].
+            .graphicsLayer { alpha = exitAlpha.value }
             .clip(RoundedCornerShape(16.dp))
             .onGloballyPositioned {
-                rowTopY = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero).y
-                rowHeightPx = it.size.height.toFloat()
-                rowWidthPx = it.size.width.toFloat().coerceAtLeast(1f)
+                metrics.topY = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero).y
+                metrics.height = it.size.height.toFloat()
+                metrics.width = it.size.width.toFloat().coerceAtLeast(1f)
             }
     ) {
         // The delete slab behind the row. Every read of `swipeX` here happens inside a draw
@@ -765,10 +865,9 @@ private fun RecentRow(
                 .matchParentSize()
                 .graphicsLayer { alpha = if (swipeX.value < 0f) 1f else 0f }
                 .drawBehind {
-                    // Deepens once the swipe is past the commit threshold, so the row tells you it
-                    // will delete before you let go.
-                    val armed = -swipeX.value > size.width * 0.40f
-                    drawRect(Color(0xFFE53935).copy(if (armed) 0.92f else 0.55f))
+                    // Pale for the first quarter of the travel, solid red from there on. See
+                    // [swipeRed] — the ramp is deliberately much earlier than the commit point.
+                    drawRect(swipeRed(-swipeX.value, size.width))
                 },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.End
@@ -776,7 +875,19 @@ private fun RecentRow(
             Icon(
                 Icons.Rounded.DeleteOutline,
                 stringResource(R.string.recents_swipe_delete),
-                Modifier.padding(end = 20.dp).size(22.dp),
+                Modifier
+                    .padding(end = 20.dp)
+                    .size(22.dp)
+                    // Reads `swipeX` inside the layer block, so the drag invalidates draw only.
+                    .graphicsLayer {
+                        val travel = -swipeX.value
+                        val w = metrics.width
+                        val t = armProgress(travel, w)
+                        val s = 0.82f + 0.33f * t
+                        scaleX = s; scaleY = s
+                        // Without this the icon is fully formed after one pixel of drag.
+                        alpha = (travel / (w * 0.12f)).coerceIn(0f, 1f)
+                    },
                 Color.White
             )
         }
@@ -795,30 +906,86 @@ private fun RecentRow(
                     interactionSource = rowInteraction,
                     indication = null,
                     onClick = onClick,
-                    onLongClick = { onLongClick(rowTopY, rowHeightPx) }
+                    onLongClick = { onLongClick(metrics.topY, metrics.height) }
                 )
                 // A pinned row is an explicit "keep this" — it doesn't swipe away.
                 .then(
-                    if (recent.pinned) Modifier else Modifier.pointerInput(rowWidthPx) {
+                    if (recent.pinned) Modifier else Modifier.pointerInput(Unit) {
+                        val velocityTracker = VelocityTracker()
+                        // Both live in the gesture scope, not in composition, so neither the arming
+                        // tick nor the drag itself recomposes the row.
+                        var wasArmed = false
+                        // The authoritative drag offset. Reading it back off `swipeX` instead was a
+                        // lag bug: `snapTo` is suspending, so it lands on the next dispatch, and
+                        // every pointer event that arrived in the same frame computed its target
+                        // from the same stale value — the row fell behind a fast finger.
+                        var offset = 0f
                         detectHorizontalDragGestures(
+                            onDragStart = {
+                                velocityTracker.resetTracking()
+                                wasArmed = false
+                                offset = swipeX.value
+                            },
                             onDragEnd = {
-                                if (-swipeX.value > rowWidthPx * 0.40f) {
+                                val vx = velocityTracker.calculateVelocity().x
+                                val commitAt = metrics.width * SwipeCommitFraction
+                                // Commit on distance OR on a fast flick. Requiring 40% of the row
+                                // every time made a quick, confident swipe spring back.
+                                if (-offset > commitAt || vx < -900f) {
                                     view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                                     scope.launch {
-                                        swipeX.animateTo(-rowWidthPx, tween(160, easing = FastOutSlowInEasing))
+                                        // 1. Settle to a definite armed position and STAY there. The
+                                        // card is still on screen, sitting on full red, so the
+                                        // delete is acknowledged before anything is taken away. A
+                                        // distance commit is already past this, so for those this
+                                        // is a no-op; a flick commit slides in to meet it.
+                                        val hold = minOf(offset, -metrics.width * SwipeCommitFraction)
+                                        swipeX.animateTo(hold, tween(120, easing = FastOutSlowInEasing))
+                                        // 2. Fade the card+slab out FAST and as one object, THEN
+                                        // collapse the now-invisible row to close the gap.
+                                        //
+                                        // The collapse resizes the recents `liquidGlassPanel`, which
+                                        // re-runs its blur+lens+depth shader EVERY frame it animates —
+                                        // and hiding the row (exitAlpha≈0) hides that visually but does
+                                        // NOT make the shader free, so a long spring tail was burning
+                                        // ~300ms of full-panel re-blur for sub-pixel height deltas: the
+                                        // visible lag. A short, tail-free tween keeps the gap-close
+                                        // smooth while shrinking that re-blur window to a handful of
+                                        // frames. `FastOutLinearInEasing` front-loads the motion so it
+                                        // reads as an immediate close, not a drawn-out shrink.
+                                        exitAlpha.animateTo(0f, tween(120, easing = FastOutLinearInEasing))
+                                        collapse.animateTo(0f, tween(120, easing = FastOutLinearInEasing))
+                                        // Row is zero-height and invisible by now, so the removal's
+                                        // relayout can't land mid-animation. Persistence itself is
+                                        // handed to IO inside onSwipeDelete.
                                         onSwipeDelete()
                                     }
                                 } else {
-                                    scope.launch { swipeX.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 500f)) }
+                                    scope.launch { swipeX.animateTo(0f, spring(dampingRatio = 0.68f, stiffness = 420f)) }
                                 }
                             },
                             onDragCancel = {
-                                scope.launch { swipeX.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 500f)) }
+                                scope.launch { swipeX.animateTo(0f, spring(dampingRatio = 0.68f, stiffness = 420f)) }
                             }
                         ) { change, dragAmount ->
                             // Consume horizontal only, so the LazyColumn keeps its vertical scroll.
                             change.consume()
-                            scope.launch { swipeX.snapTo((swipeX.value + dragAmount).coerceIn(-rowWidthPx, 0f)) }
+                            velocityTracker.addPosition(change.uptimeMillis, change.position)
+                            val width = metrics.width
+                            val commitAt = width * SwipeCommitFraction
+                            // Past the commit point the row gets heavier — further travel moves it
+                            // at a third speed. The threshold becomes something you feel through the
+                            // resistance rather than a number you cross blind.
+                            val resisted =
+                                if (-offset > commitAt && dragAmount < 0f) dragAmount * 0.32f else dragAmount
+                            offset = (offset + resisted).coerceIn(-width, 0f)
+                            val nowArmed = -offset > commitAt
+                            if (nowArmed != wasArmed) {
+                                wasArmed = nowArmed
+                                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            }
+                            val target = offset
+                            scope.launch { swipeX.snapTo(target) }
                         }
                     }
                 )
@@ -857,8 +1024,27 @@ private fun RecentRow(
                 BasicText("$timeStr$sizeStr$countStr", style = TextStyle(secondaryColor, 11.sp))
             }
 
+            // Pinned marker. A bare floating glyph read like a stray icon; contain it in the same
+            // kind of translucent tinted chip the rest of the app uses so it reads as an
+            // intentional status badge. The pin leans slightly, the way a real one sits.
             if (recent.pinned) {
-                Icon(Icons.Rounded.PushPin, stringResource(R.string.recents_unpin), Modifier.size(13.dp), Color(0xFFFF9500))
+                val pinOrange = Color(0xFFFF9500)
+                Box(
+                    Modifier
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(pinOrange.copy(alpha = if (isLight) 0.16f else 0.24f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Rounded.PushPin,
+                        stringResource(R.string.recents_unpin),
+                        Modifier
+                            .size(13.dp)
+                            .graphicsLayer { rotationZ = -30f },
+                        pinOrange
+                    )
+                }
             }
 
             Box(

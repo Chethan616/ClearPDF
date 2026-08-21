@@ -64,6 +64,12 @@ fun GlassTitlePill(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     surfaceColor: Color = Color.Unspecified,
+    /**
+     * Overrides the theme ink. Only the viewers need this: their chrome is picked from the *page's*
+     * luminance rather than the app theme, so on a white page in dark mode the label has to go dark
+     * while the rest of the app stays light-on-dark.
+     */
+    contentColor: Color = Color.Unspecified,
     /** Only the typeface may vary — size and weight stay at the viewer's 13 sp SemiBold. */
     fontFamily: FontFamily? = null,
     animateIn: Boolean = true
@@ -74,6 +80,7 @@ fun GlassTitlePill(
     } else {
         if (isDarkMode) Color(0xFF1E1E1E).copy(0.35f) else Color(0xFFFAFAFA).copy(0.35f)
     }
+    val resolvedInk = if (contentColor.isSpecified) contentColor else LiquidGlassColors.text(isDarkMode)
 
     var shown by remember { mutableStateOf(!animateIn) }
     LaunchedEffect(Unit) { shown = true }
@@ -101,7 +108,7 @@ fun GlassTitlePill(
         BasicText(
             text,
             style = TextStyle(
-                color = LiquidGlassColors.text(isDarkMode),
+                color = resolvedInk,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 fontFamily = fontFamily

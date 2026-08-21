@@ -1,8 +1,15 @@
 package com.chethan616.clearpdf.ui.components
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
@@ -27,10 +34,19 @@ import com.kyant.shapes.RoundedRectangle
  * Takes an explicit [color] rather than resolving the theme, so it is not `@Composable` and each
  * viewer passes the same `chromeGlass` its buttons already use.
  */
+/**
+ * The corner curve [viewerGlass] paints by default.
+ *
+ * Hoisted out of the default argument because anything that *clips* to a viewerGlass surface has to
+ * use the same curve — a clip and a paint that disagree by even a couple of dp reads as a chipped
+ * edge. See [carouselEdges].
+ */
+val ViewerGlassShape: Shape = RoundedRectangle(28f.dp)
+
 fun Modifier.viewerGlass(
     backdrop: Backdrop,
     color: Color,
-    shape: () -> Shape = { RoundedRectangle(28f.dp) }
+    shape: () -> Shape = { ViewerGlassShape }
 ): Modifier = drawBackdrop(
     backdrop = backdrop,
     shape = shape,
@@ -41,6 +57,74 @@ fun Modifier.viewerGlass(
     },
     onDrawSurface = { drawRect(color) }
 )
+
+/**
+ * Rounded clip plus a soft, scroll-aware edge mask for a horizontally scrolling strip that rides on a
+ * [viewerGlass] surface.
+ *
+ * **The bug this exists to kill.** `Modifier.horizontalScroll` clips to its node's *rectangular*
+ * bounds, and [viewerGlass] only ever *draws* its rounded shape — `drawBackdrop` paints, it does not
+ * clip. A scrolling row of chips on glass was therefore chopped by a straight vertical line sitting
+ * inside the capsule's own curve: the one thing a floating glass control must never look like. With
+ * this, chips slide in and out *behind* the container's curved ends instead.
+ *
+ * Apply it **inside** the glass and **outside** the scroll, with the padding moved to the far end:
+ *
+ * ```
+ * .viewerGlass(backdrop, glass)
+ * .carouselEdges(state)
+ * .horizontalScroll(state)
+ * .padding(horizontal = 12.dp, vertical = 10.dp)
+ * ```
+ *
+ * Two things about that order matter. The glass is drawn by the modifier to the *left*, so it is
+ * outside this layer and the capsule keeps its full opacity at the edges — only the chips fade.
+ * And padding after the scroll is *content* padding that travels with the content, so the first and
+ * last chips rest with the same inset as the gaps between them yet can still reach the true edge
+ * mid-scroll. Before the scroll it insets the viewport, which is what put the straight cut 12 dp in
+ * from the curve.
+ *
+ * The fade reads [state] inside the draw lambda, so scrolling invalidates draw only and never
+ * recomposes. It is absent at rest on the left, retires as you reach the right end, and is short
+ * ([fade] defaults to 18 dp) — a hint that there is more to the side, not a vignette.
+ */
+fun Modifier.carouselEdges(
+    state: ScrollState,
+    shape: Shape = ViewerGlassShape,
+    fade: Dp = 18.dp
+): Modifier = this
+    // One layer does both jobs. `Offscreen` is not decoration: it is what makes the `DstIn` below
+    // mask this strip rather than punch a hole through everything already on the canvas.
+    .graphicsLayer {
+        compositingStrategy = CompositingStrategy.Offscreen
+        clip = true
+        this.shape = shape
+    }
+    .drawWithContent {
+        drawContent()
+        val w = size.width
+        val fadePx = fade.toPx()
+        if (w <= fadePx * 2f) return@drawWithContent
+
+        val max = state.maxValue
+        // `maxValue` is Int.MAX_VALUE until the strip has been measured. Treated as "nothing to
+        // scroll", otherwise a row that fits flashes a trailing fade on its first frame.
+        val scrollable = max in 1..<Int.MAX_VALUE
+        val lead = if (scrollable) (state.value / fadePx).coerceIn(0f, 1f) else 0f
+        val trail = if (scrollable) ((max - state.value) / fadePx).coerceIn(0f, 1f) else 0f
+        if (lead == 0f && trail == 0f) return@drawWithContent
+
+        val edge = fadePx / w
+        drawRect(
+            Brush.horizontalGradient(
+                0f to Color.Black.copy(alpha = 1f - lead),
+                edge to Color.Black,
+                1f - edge to Color.Black,
+                1f to Color.Black.copy(alpha = 1f - trail)
+            ),
+            blendMode = BlendMode.DstIn
+        )
+    }
 
 /**
  * The neutral chrome tint the theme-driven viewers pair with [viewerGlass], so their panels and their

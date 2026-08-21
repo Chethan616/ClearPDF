@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Compress
@@ -94,7 +96,8 @@ fun SettingsScreen(
     hasCustomWallpaper: Boolean = false,
     onCustomWallpaperChanged: (String?) -> Unit = {},
     selectedLocale: String = "en",
-    onLocaleChanged: (String) -> Unit = {}
+    onLocaleChanged: (String) -> Unit = {},
+    onReplayOnboarding: () -> Unit = {}
 ) {
     val isLight = !isDarkMode
     val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
@@ -616,6 +619,36 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            // Replaying the tour also clears the completion flag (see the nav graph), so quitting
+            // the replay early does not leave it marked as seen-but-never-finished.
+            Spacer(Modifier.height(12.dp))
+            LiquidButton(
+                onClick = onReplayOnboarding,
+                backdrop = backdrop,
+                surfaceColor = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp), label)
+                    Column(Modifier.weight(1f)) {
+                        BasicText(
+                            stringResource(R.string.settings_replay_onboarding),
+                            style = TextStyle(text, 14.sp, fontWeight = FontWeight.SemiBold),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
+                        BasicText(
+                            stringResource(R.string.settings_replay_onboarding_desc),
+                            style = TextStyle(sub, 12.sp),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
         }
 
         // ── About & Open Source ──
@@ -804,6 +837,16 @@ private fun LicenseItem(
             BasicText(stringResource(R.string.settings_license_author, author), style = TextStyle(subColor, 12.sp))
         }
         BasicText(license, style = TextStyle(subColor, 11.sp))
-        BasicText(url, style = TextStyle(Color(0xFF0088FF), 11.sp))
+        val context = LocalContext.current
+        // Same blue URL text, now a tap target that opens the repo. No indication/ripple so the row
+        // looks exactly as before — only its behaviour changes.
+        BasicText(
+            url,
+            style = TextStyle(Color(0xFF0088FF), 11.sp),
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { openExternalLink(context, url) }
+        )
     }
 }

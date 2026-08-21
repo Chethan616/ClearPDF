@@ -72,6 +72,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -87,9 +88,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
+import com.chethan616.clearpdf.ui.components.GlassTitlePill
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.ShareMorphButton
+import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.components.viewerChromeGlass
 import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
@@ -97,9 +100,18 @@ import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.SpreadsheetViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.shapes.RoundedRectangle
 
 private val CELL_W = 132.dp
 private val CELL_H = 38.dp
+
+/**
+ * `liquidGlassPanel`'s own corner curve, restated so the scrolling grid can be clipped to it.
+ *
+ * The panel is read-only and its radius lives in a default argument, so this is a copy rather than
+ * a reference. Keep the two in step — a clip that disagrees with the paint reads as a chipped edge.
+ */
+private val GlassPanelShape: Shape = RoundedRectangle(28f.dp)
 
 /** The cell a tap selected, carried into the value/edit popup. */
 private data class CellRef(val row: Int, val col: Int, val value: String)
@@ -183,33 +195,38 @@ fun SpreadsheetViewerScreen(
             backdrop = backdrop,
             contentHorizontalPadding = 12.dp,
             headerHorizontalPadding = 12.dp,
-            // Header — the EXACT PDF-viewer top bar: back · centered liquid-glass pill · search.
-            // The pill shows "Sheet X / Y" and (for multi-sheet files) opens a sheet picker on tap.
-            // It is pinned over the grid and samples the content layer, so rows scroll *under* the
-            // chrome and refract through it rather than pushing it down the screen.
+            // Header — Home and Tools' trio, verbatim: back circle · centred [GlassTitlePill] ·
+            // search circle, 10 dp apart. The pill is the same widget carrying "ClearPDF" on Home,
+            // so the two can't drift apart; it shows "Sheet X / Y" and (for multi-sheet files) opens
+            // a sheet picker on tap. It is pinned over the grid and samples the content layer, so
+            // rows scroll *under* the chrome and refract through it rather than pushing it down.
             header = { headerBackdrop ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    LiquidIconButton(onClick = onBack, backdrop = headerBackdrop, surfaceColor = chromeGlass) {
+                    // No `surfaceColor` — Home's circles paint nothing of their own and are pure
+                    // refraction. The heavier `chromeGlass` tint that used to be here is still right
+                    // for the grid container below, but on floating chrome it read as a grey slab.
+                    LiquidIconButton(onClick = onBack, backdrop = headerBackdrop) {
                         Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
                     }
-                    Spacer(Modifier.weight(1f))
-                    LiquidButton(
-                        onClick = { if (sheets.size > 1) showSheetPicker = true },
-                        backdrop = headerBackdrop,
-                        surfaceColor = chromeGlass
-                    ) {
-                        BasicText(
-                            if (currentSheet != null) stringResource(R.string.viewer_sheet_of, idx + 1, sheets.size)
+                    // Weighted Box, not two weighted spacers — the two circles are both 40 dp, so
+                    // this is what actually centres the pill on the row, the way Home does it.
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        GlassTitlePill(
+                            text = if (currentSheet != null) stringResource(R.string.viewer_sheet_of, idx + 1, sheets.size)
                             else state.fileName.ifBlank { stringResource(R.string.viewer_title) },
-                            style = TextStyle(text, 13.sp, FontWeight.SemiBold)
+                            backdrop = headerBackdrop,
+                            // No overrides at all, exactly as Home calls it. Both defaults already
+                            // resolve to what this screen was passing by hand — the pill's own tint
+                            // is the theme's, and its ink is `LiquidGlassColors.text(isDark)`, which
+                            // is what `text` is here.
+                            onClick = if (sheets.size > 1) ({ showSheetPicker = true }) else null
                         )
                     }
-                    Spacer(Modifier.weight(1f))
-                    LiquidIconButton(onClick = { showSearch = true }, backdrop = headerBackdrop, surfaceColor = chromeGlass) {
+                    LiquidIconButton(onClick = { showSearch = true }, backdrop = headerBackdrop) {
                         Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), text)
                     }
                 }
@@ -223,17 +240,39 @@ fun SpreadsheetViewerScreen(
                     BasicText(state.error ?: "Empty spreadsheet", style = TextStyle(sub, 14.sp))
                 }
                 else -> {
-                    SheetGrid(
-                        sheet = currentSheet, isDark = isDark, text = text, sub = sub, accent = accent, zoom = zoom,
-                        listState = gridListState, matchSet = matchSet, currentCell = currentCell,
-                        onZoom = { z -> zoom = (zoom * z).coerceIn(0.7f, 2f) },
-                        onCellTap = { r, c, value ->
-                            selectedCell = CellRef(r, c, value)
-                            editingCell = false
-                            draft = value
-                        },
-                        modifier = Modifier.fillMaxSize().padding(contentPadding)
-                    )
+                    // The grid used to sit straight on the wallpaper: cells are mostly transparent,
+                    // so whatever photo was behind the app showed through the data. It now rides on
+                    // the same heavy glass the sheet picker and the page-jump dialog use — blur 8,
+                    // a 20x40 depth lens, highlight and inner shadow — which is the one place in
+                    // this app that stack is right outside a dialog, because this *is* a reading
+                    // surface that has to hold small text over an arbitrary backdrop.
+                    //
+                    // The tint is pushed well past `liquidGlassPanel`'s 40% default. At 40% a busy
+                    // wallpaper still reads through 11 sp cell text. 72% keeps the refraction and
+                    // the depth lens plainly visible while giving the type something to sit on.
+                    val sheetSurface =
+                        if (isDark) Color(0xFF15181E).copy(0.72f) else Color(0xFFF7F8FA).copy(0.72f)
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(contentPadding)
+                            .liquidGlassPanel(backdrop, uiSensor, containerColorOverride = sheetSurface)
+                            // `liquidGlassPanel` paints its shape but does not clip, and the grid
+                            // scrolls — without this the rows run out past the rounded corners.
+                            .clip(GlassPanelShape)
+                    ) {
+                        SheetGrid(
+                            sheet = currentSheet, isDark = isDark, text = text, sub = sub, accent = accent, zoom = zoom,
+                            listState = gridListState, matchSet = matchSet, currentCell = currentCell,
+                            onZoom = { z -> zoom = (zoom * z).coerceIn(0.7f, 2f) },
+                            onCellTap = { r, c, value ->
+                                selectedCell = CellRef(r, c, value)
+                                editingCell = false
+                                draft = value
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
         }
@@ -468,7 +507,9 @@ private fun SheetGrid(
     val colCount = sheet.columnCount.coerceAtLeast(1)
     val hScroll = rememberScrollState()   // shared → header + all rows scroll horizontally in sync
     val gridLine = if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.10f)
-    val headerBg = if (isDark) Color(0xFF23262E) else Color(0xFFF1F3F5)
+    // Translucent now that the grid sits on glass. An opaque header read as a solid slab pasted on
+    // top of the panel and cut the refraction dead across the first row.
+    val headerBg = if (isDark) Color.White.copy(0.07f) else Color.Black.copy(0.05f)
     val rowAlt = if (isDark) Color.White.copy(0.03f) else Color.Black.copy(0.02f)
     val matchBg = accent.copy(0.20f)
     val currentBg = accent.copy(0.48f)
@@ -491,7 +532,9 @@ private fun SheetGrid(
     }
 
     Column(
-        modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).border(1.dp, gridLine, RoundedCornerShape(12.dp))
+        // No clip/border of its own any more — the glass panel it now sits inside is the container,
+        // and a 12 dp rounded outline inside a 28 dp glass capsule read as a box within a box.
+        modifier.fillMaxSize()
             // Pinch-to-zoom (Apple-HIG). Only two-finger gestures are consumed, so single-finger
             // scrolling still passes through to the row/column scroll.
             .pointerInput(Unit) {
@@ -515,10 +558,38 @@ private fun SheetGrid(
             val fill = if (baseSum > 0.dp && baseSum < available) available / baseSum else 1f
             val colWidths = baseWidths.map { it * fill * zoom }
 
+            // Left edge of every column in dp, with the grid's total width parked at [colCount].
+            val starts = remember(colWidths) {
+                val out = ArrayList<Float>(colCount + 1)
+                var acc = 0f
+                for (w in colWidths) { out.add(acc); acc += w.value }
+                out.add(acc)
+                out
+            }
+            // Horizontal windowing. `LazyColumn` keeps the row count in check, but each row was an
+            // eager `Row` over *every* column — a 150-column workbook is ~3000 cell nodes on screen,
+            // each with its own background, border, click handler and text layout. That does not
+            // throw; it just wedges the frame loop long enough to look like the app has died, and
+            // on a big enough sheet it is an ANR. Only the columns intersecting the viewport are
+            // composed now; the skipped ones on either side become a single spacer each, so the
+            // scroll range and every column's x-position are unchanged.
+            val scrolledDp = with(androidx.compose.ui.platform.LocalDensity.current) { hScroll.value.toDp().value }
+            val window = remember(starts, scrolledDp, available) {
+                val right = scrolledDp + available.value
+                var first = 0
+                while (first < colCount - 1 && starts[first + 1] <= scrolledDp) first++
+                var last = first
+                while (last < colCount - 1 && starts[last + 1] < right) last++
+                first..last
+            }
+            val leadWidth = starts[window.first].dp
+            val tailWidth = (starts[colCount] - starts[window.last + 1]).dp
+
             Column(Modifier.fillMaxSize()) {
                 // Sticky column-letter header.
                 Row(Modifier.fillMaxWidth().background(headerBg).horizontalScroll(hScroll)) {
-                    for (c in 0 until colCount) {
+                    Spacer(Modifier.width(leadWidth))
+                    for (c in window) {
                         Box(
                             Modifier.width(colWidths[c]).heightIn(min = cellH).border(0.5.dp, gridLine).padding(horizontal = 8.dp),
                             contentAlignment = Alignment.CenterStart
@@ -526,11 +597,13 @@ private fun SheetGrid(
                             BasicText(colLetter(c), style = TextStyle(sub, headerSize, FontWeight.Bold))
                         }
                     }
+                    Spacer(Modifier.width(tailWidth))
                 }
                 LazyColumn(Modifier.fillMaxWidth().weight(1f), state = listState) {
                     itemsIndexed(sheet.rows) { rIdx, row ->
                         Row(Modifier.fillMaxWidth().horizontalScroll(hScroll)) {
-                            for (c in 0 until colCount) {
+                            Spacer(Modifier.width(leadWidth).heightIn(min = cellH))
+                            for (c in window) {
                                 val v = row.getOrElse(c) { "" }
                                 val isCurrent = currentCell?.first == rIdx && currentCell.second == c
                                 val cellBg = when {
@@ -550,6 +623,7 @@ private fun SheetGrid(
                                     BasicText(v, style = TextStyle(text, cellSize), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
+                            Spacer(Modifier.width(tailWidth))
                         }
                     }
                 }

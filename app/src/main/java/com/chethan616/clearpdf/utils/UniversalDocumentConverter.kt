@@ -145,6 +145,11 @@ object UniversalDocumentConverter {
 
         var headingLevel = 0
         var align = Layout.Alignment.ALIGN_NORMAL
+        var justify = false
+        // w:ind / w:spacing are in twips (1/20 pt). -1 = "not specified" so a real 0 still overrides.
+        var leftIndentTwips = 0
+        var spaceBeforeTwips = -1
+        var spaceAfterTwips = -1
         var bold = false
         var italic = false
         var underline = false
@@ -155,15 +160,31 @@ object UniversalDocumentConverter {
         var spans    = mutableListOf<Span>()
 
         fun flushPara() {
-            val text = paraBuf.toString().trim()
+            // trimEnd only — leading indentation and intentional spacing survive (Word carries some
+            // indent as literal runs, and trimming both ends flattened them). Real indent still comes
+            // from w:ind below.
+            val text = paraBuf.toString().trimEnd()
+            val leftIndentPt = leftIndentTwips / 20f
+            val spaceBefore = if (spaceBeforeTwips >= 0) spaceBeforeTwips / 20f else 0f
+            val spaceAfter = when {
+                spaceAfterTwips >= 0 -> spaceAfterTwips / 20f
+                headingLevel > 0     -> 10f
+                else                 -> 6f
+            }
             if (text.isNotEmpty()) {
                 val ssb = SpannableStringBuilder(text)
                 if (headingLevel > 0) ssb.setSpan(StyleSpan(Typeface.BOLD), 0, ssb.length, 0)
                 spans.forEach { s -> ssb.setSpan(s.span, s.start.coerceAtMost(ssb.length), s.end.coerceAtMost(ssb.length), 0) }
-                val spaceAfter = if (headingLevel > 0) 10f else 6f
-                result.add(DocBlock.Para(ssb, headingLevel = headingLevel, spaceAfter = spaceAfter, alignment = align))
+                result.add(DocBlock.Para(
+                    ssb, headingLevel = headingLevel, spaceAfter = spaceAfter, spaceBefore = spaceBefore,
+                    alignment = align, leftIndent = leftIndentPt, justify = justify
+                ))
+            } else {
+                // Blank paragraph → a blank line, so vertical spacing between blocks is preserved.
+                result.add(DocBlock.Para(SpannableStringBuilder(""), spaceAfter = 0f))
             }
             paraBuf.clear(); spans.clear(); headingLevel = 0; align = Layout.Alignment.ALIGN_NORMAL
+            justify = false; leftIndentTwips = 0; spaceBeforeTwips = -1; spaceAfterTwips = -1
             bold = false; italic = false; underline = false; runColor = 0; fontHalfPt = 0
         }
 
@@ -196,11 +217,23 @@ object UniversalDocumentConverter {
                             else                               -> 0
                         }
                     }
-                    // Paragraph alignment (left / center / right / justify→normal).
-                    "w:jc"    -> if (inParaProps) align = when (parser.getAttributeValue(null, "w:val")?.lowercase()) {
-                        "center"       -> Layout.Alignment.ALIGN_CENTER
-                        "right", "end" -> Layout.Alignment.ALIGN_OPPOSITE
-                        else           -> Layout.Alignment.ALIGN_NORMAL
+                    // Paragraph alignment. "both"/"distribute" = justified — kept left-aligned with the
+                    // justify flag so the renderer can space the words out (setJustificationMode).
+                    "w:jc"    -> if (inParaProps) when (parser.getAttributeValue(null, "w:val")?.lowercase()) {
+                        "center"             -> { align = Layout.Alignment.ALIGN_CENTER;   justify = false }
+                        "right", "end"       -> { align = Layout.Alignment.ALIGN_OPPOSITE; justify = false }
+                        "both", "distribute" -> { align = Layout.Alignment.ALIGN_NORMAL;   justify = true  }
+                        else                 -> { align = Layout.Alignment.ALIGN_NORMAL;   justify = false }
+                    }
+                    // Paragraph indent (twips). w:start is the LTR alias for w:left in newer files.
+                    "w:ind"   -> if (inParaProps) {
+                        (parser.getAttributeValue(null, "w:left") ?: parser.getAttributeValue(null, "w:start"))
+                            ?.toIntOrNull()?.let { leftIndentTwips = it.coerceAtLeast(0) }
+                    }
+                    // Explicit paragraph spacing before/after (twips) overrides the defaults.
+                    "w:spacing" -> if (inParaProps) {
+                        parser.getAttributeValue(null, "w:before")?.toIntOrNull()?.let { spaceBeforeTwips = it }
+                        parser.getAttributeValue(null, "w:after")?.toIntOrNull()?.let { spaceAfterTwips = it }
                     }
                     "w:r"     -> if (inPara) { inRun = true; bold = false; italic = false; underline = false; runColor = 0; fontHalfPt = 0 }
                     "w:rPr"   -> if (inRun) inRunProps = true
@@ -599,8 +632,14 @@ object UniversalDocumentConverter {
             val text: SpannableStringBuilder,
             val headingLevel: Int = 0,
             val spaceAfter: Float = 8f,
+            val spaceBefore: Float = 0f,
             val lineSpacingMult: Float = 1.25f,
-            val alignment: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL
+            val alignment: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL,
+            // Left indent in points (from w:ind) and whether the paragraph is justified (w:jc="both").
+            // These are what let indented / justified Word text keep its shape instead of collapsing
+            // flush-left.
+            val leftIndent: Float = 0f,
+            val justify: Boolean = false
         ) : DocBlock()
         data class Table(val rows: List<List<String>>) : DocBlock()
         data class ImageBlock(val bitmap: android.graphics.Bitmap) : DocBlock()
@@ -628,16 +667,28 @@ object UniversalDocumentConverter {
         for (block in blocks) {
             when (block) {
                 is DocBlock.Para -> {
-                    if (block.text.isEmpty()) { y += 8f; continue }
+                    // An empty paragraph is a blank line the author put there on purpose — keep it as
+                    // one line of vertical space instead of dropping it, so the document's spacing
+                    // survives the conversion.
+                    if (block.text.isEmpty()) { y += 13f; continue }
+                    y += block.spaceBefore
                     val paint = if (block.headingLevel > 0) headingPaint(block.headingLevel) else defaultPaint
-                    val layout = StaticLayout.Builder
-                        .obtain(block.text, 0, block.text.length, paint, TEXT_W)
+                    val indent = block.leftIndent.coerceIn(0f, TEXT_W - 40f)
+                    val width = (TEXT_W - indent).toInt().coerceAtLeast(40)
+                    val builder = StaticLayout.Builder
+                        .obtain(block.text, 0, block.text.length, paint, width)
                         .setAlignment(block.alignment)
                         .setLineSpacing(2f, block.lineSpacingMult)
                         .setIncludePad(false)
-                        .build()
+                    // Justified text (Word's "both") — only left-aligned runs can be justified.
+                    if (block.justify && block.alignment == Layout.Alignment.ALIGN_NORMAL &&
+                        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+                    ) {
+                        builder.setJustificationMode(Layout.JUSTIFICATION_MODE_INTER_WORD)
+                    }
+                    val layout = builder.build()
                     ensureRoom(layout.height.toFloat())
-                    canvas.save(); canvas.translate(MARGIN, y); layout.draw(canvas); canvas.restore()
+                    canvas.save(); canvas.translate(MARGIN + indent, y); layout.draw(canvas); canvas.restore()
                     y += layout.height + block.spaceAfter
                 }
                 is DocBlock.ImageBlock -> {

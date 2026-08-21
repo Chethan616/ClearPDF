@@ -2,11 +2,13 @@ package com.chethan616.clearpdf.ui.screen
 
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -82,10 +84,18 @@ import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.ShareMorphButton
+import com.chethan616.clearpdf.ui.components.carouselEdges
 import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.chethan616.clearpdf.utils.DocKind
 import com.kyant.backdrop.backdrops.LayerBackdrop
+
+/**
+ * How long one face (selector or sub-toolbar) takes to fade out before the other fades in. The
+ * fade-out tweens use the same value, so the incoming face starts exactly as the outgoing one lands
+ * at alpha 0 — a clean sequential cross-fade with no overlap.
+ */
+private const val FaceHandoffMillis = 150
 
 @Composable
 internal fun PdfViewerBottomToolbar(
@@ -107,9 +117,13 @@ internal fun PdfViewerBottomToolbar(
     selectedTextCount: Int,
     currentSelectedIds: Set<String>,
     activeIsSignature: Boolean,
-    // marks for undo/clear (current page)
-    currentPageMarks: MutableList<PdfMarkup>,
+    // Undo/clear are driven by the viewer's own history rather than by a list handed down here: the
+    // page the user is drawing on is NOT `firstVisibleItemIndex`, so a list picked by the toolbar
+    // was routinely the wrong one.
+    canUndo: Boolean,
     // callbacks
+    onUndo: () -> Unit,
+    onClearPage: () -> Unit,
     onSetActiveTool: (PdfEditTool) -> Unit,
     onToggleFindBar: () -> Unit,
     onShowSignaturePad: () -> Unit,
@@ -132,6 +146,10 @@ internal fun PdfViewerBottomToolbar(
     onOpenAnotherPdf: () -> Unit,
     onShareDocument: () -> Unit,
     onEditorOpenChanged: (Boolean) -> Unit = {},
+    // Same purpose as [onEditorOpenChanged]: a long-press on the share capsule is a gesture the
+    // viewer cannot see, so without this the 5s chrome auto-hide fires mid-hold and takes the button
+    // out from under the finger.
+    onShareHoldChanged: (Boolean) -> Unit = {},
     onRecolorSignature: (Long) -> Unit,
     backdrop: LayerBackdrop,
     uiSensor: UISensor,
@@ -146,9 +164,44 @@ internal fun PdfViewerBottomToolbar(
 ) {
     val accent = Color(0xFF1976D2)
 
+    // The floating pills paint nothing at all, exactly as Home's controls do: `LiquidIconButton` is
+    // called there with no `surfaceColor`, so its `onDrawSurface` is a no-op and the button is pure
+    // refraction. `drawRect(Color.Transparent)` is the same no-op for the `viewerGlass` surfaces
+    // here. The header's back and search circles already work this way; without this the Editor
+    // Tools pill, the tool row and the share capsule were the only chrome left carrying a tint, and
+    // sitting beside clear circles they read as slabs.
+    //
+    // `glass` is deliberately still used for the *panels* (the draw/OCR/image sub-toolbar and the
+    // export-feedback strip): those are dense rows of controls that need a plate to sit on, and they
+    // cover the document rather than floating over it.
+    val pillGlass = Color.Transparent
+
     val showDrawTools  = drawingToolActive
     val showOcrTools   = activeTool == PdfEditTool.SelectText || selectedTextCount > 0
     val showImageTools = activeTool == PdfEditTool.Image && activeImageId != null
+
+    // The two faces of the toolbar never share the screen: the SELECTOR face (the tool chips + the
+    // blue "Editor Tools" pill) and the SUB-TOOLBAR face (draw / OCR / image). `subActive` is the
+    // dimension that swaps them.
+    val subActive = showDrawTools || showOcrTools || showImageTools
+    // Apple-style hand-off. The old code removed the selector face INSTANTLY (ExitTransition.None)
+    // while the sub-toolbar faded in, so the two vanished/appeared on top of each other. Instead we
+    // run a tiny two-phase gate: the outgoing face fades fully out, and only THEN does the incoming
+    // face fade in — they never overlap in layout, which is also what used to make the sub-toolbar
+    // open on top and then visibly drop as the pill collapsed.
+    var selectorGate by remember { mutableStateOf(!subActive) }
+    var subGate by remember { mutableStateOf(subActive) }
+    LaunchedEffect(subActive) {
+        if (subActive) {
+            selectorGate = false                       // chips + Editor-Tools pill begin fading out
+            delay(FaceHandoffMillis.toLong())          // wait for them to clear
+            subGate = true                             // sub-toolbar fades in
+        } else {
+            subGate = false                            // sub-toolbar begins fading out
+            delay(FaceHandoffMillis.toLong())
+            selectorGate = true                        // chips + pill fade back in
+        }
+    }
 
     // Collapsed by default (just the "Editor Tools" pill + "Open PDF" circle). Tapping
     // the pill expands the tool set above it. Image selection auto-expands so its tools show.
@@ -173,7 +226,6 @@ internal fun PdfViewerBottomToolbar(
     // Both are bottom-anchored: when the capsule morphs taller than the column, the WRAPPER grows
     // (real layout height = strictly upward, no overflow/clip), while the column stays pinned to the
     // bottom — so the tool panels and the "Editor Tools" pill never move.
-    val shareRowVisible = !showDrawTools && !showOcrTools && !showImageTools && !showFindBar && !showSignaturePad
     Box(Modifier.fillMaxWidth()) {
     Column(
         Modifier.fillMaxWidth().align(Alignment.BottomCenter),
@@ -184,14 +236,31 @@ internal fun PdfViewerBottomToolbar(
         // Rises ABOVE the pinned main row with an Apple-style spring slide + fade.
         // Only this panel moves, so re-blur is confined to one surface.
         AnimatedVisibility(
-            visible = editorOpen && (showDrawTools || showOcrTools || showImageTools) && !showFindBar && !showSignaturePad,
-            // Grow UPWARD from the pinned "Editor Tools" bar (expandVertically from Bottom) so the
-            // bar never moves. Spring physics (not a linear tween) give the liquid Apple feel.
-            enter   = fadeIn(tween(200)) + expandVertically(spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessLow), expandFrom = Alignment.Bottom),
-            exit    = fadeOut(tween(140)) + shrinkVertically(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium), shrinkTowards = Alignment.Bottom)
+            // `subGate` is delayed by [FaceHandoffMillis] after a sub-tool becomes active, so the
+            // selector face has already faded out before this fades in — the two never coexist.
+            visible = subGate && editorOpen && !showFindBar && !showSignaturePad,
+            // Fade only for the LAYOUT (one measure), and a draw-time bottom-anchored `scaleY` unfurl
+            // for the motion — the same technique as the Editor-Tools reveal. `expandVertically` here
+            // re-measured this `viewerGlass` panel every frame and re-ran its blur + lens with it,
+            // which is why the reveal read as rigid/instant rather than liquid.
+            enter   = fadeIn(tween(200)),
+            exit    = fadeOut(tween(FaceHandoffMillis))
         ) {
+            val reveal by transition.animateFloat(
+                transitionSpec = {
+                    if (targetState == EnterExitState.Visible) spring(dampingRatio = 0.72f, stiffness = 300f)
+                    else spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)
+                },
+                label = "drawToolsReveal"
+            ) { if (it == EnterExitState.Visible) 1f else 0f }
             Column(
                 Modifier.fillMaxWidth()
+                    .graphicsLayer {
+                        scaleY = 0.9f + 0.1f * reveal
+                        transformOrigin = TransformOrigin(0.5f, 1f)
+                        translationY = (1f - reveal) * 8.dp.toPx()
+                    }
+                    .clipToBounds()
                     .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
                     .viewerGlass(backdrop, glass).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -209,8 +278,18 @@ internal fun PdfViewerBottomToolbar(
                         modifier = Modifier.size(40.dp)
                     ) { CloseCrossIcon(Modifier.size(13.dp), Color.White) }
                     Box(Modifier.width(1.dp).height(26.dp).background(fg.copy(0.14f)))
+                    // Same curved-edge treatment as the main Editor-Tools carousel: clip to the
+                    // rounded shape (not the scroll's straight rectangular edge) and fade the ends so
+                    // the pen / shapes / OCR buttons slide away behind the capsule curve instead of
+                    // being chopped by a hard vertical line. Content padding keeps the first/last
+                    // button spaced like the rest.
+                    val toolRowScroll = rememberScrollState()
                     Row(
-                        modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                        modifier = Modifier
+                            .weight(1f)
+                            .carouselEdges(toolRowScroll)
+                            .horizontalScroll(toolRowScroll)
+                            .padding(horizontal = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -246,13 +325,13 @@ internal fun PdfViewerBottomToolbar(
                                 }
                                 Box(Modifier.width(1.dp).height(26.dp).background(fg.copy(0.14f)))
                                 LiquidIconButton(
-                                    onClick  = { if (currentPageMarks.isNotEmpty()) currentPageMarks.removeAt(currentPageMarks.lastIndex) },
+                                    onClick  = onUndo,
                                     backdrop = backdrop,
                                     surfaceColor = chip,
                                     modifier = Modifier.size(40.dp)
-                                ) { Icon(Icons.Rounded.Undo, stringResource(R.string.viewer_undo), Modifier.size(19.dp), fg) }
+                                ) { Icon(Icons.Rounded.Undo, stringResource(R.string.viewer_undo), Modifier.size(19.dp), fg.copy(if (canUndo) 1f else 0.35f)) }
                                 LiquidIconButton(
-                                    onClick  = { currentPageMarks.clear() },
+                                    onClick  = onClearPage,
                                     backdrop = backdrop,
                                     surfaceColor = Color(0xFFC62828).copy(0.85f),
                                     modifier = Modifier.size(40.dp)
@@ -328,9 +407,16 @@ internal fun PdfViewerBottomToolbar(
                 }
 
                 // Attributes — stroke sizes (draw only) + colour beads on ONE line,
-                // so the toolbar stays compact instead of stacking rows.
+                // so the toolbar stays compact instead of stacking rows. Same curved-edge fade as the
+                // tool row above, so the colour beads disappear behind the capsule curve rather than a
+                // straight cut.
+                val attrRowScroll = rememberScrollState()
                 Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    Modifier
+                        .fillMaxWidth()
+                        .carouselEdges(attrRowScroll)
+                        .horizontalScroll(attrRowScroll)
+                        .padding(horizontal = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment     = Alignment.CenterVertically
                 ) {
@@ -398,14 +484,31 @@ internal fun PdfViewerBottomToolbar(
         // the editor is open. Hidden once a sub-tool is active (focused mode) so the
         // screen isn't stacked with panels — the sub-toolbar's ✕ returns here.
         AnimatedVisibility(
-            visible = editorOpen && !showDrawTools && !showOcrTools && !showFindBar && !showSignaturePad && activeImageId == null,
-            // Unfold UPWARD from the pinned bar (no slide) so the "Editor Tools" pill stays put.
-            // Spring = liquid feel.
-            enter   = fadeIn(tween(200)) + expandVertically(spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessLow), expandFrom = Alignment.Bottom),
-            // Instant exit → releases its layout space immediately so the sub-toolbar
-            // below never gets pushed up and then dropped ("stays top, then comes down").
-            exit    = ExitTransition.None
+            // Gated by `selectorGate`, which drops the instant a sub-tool becomes active — so the
+            // chips fade out FIRST and the sub-toolbar (held back by `subGate`) only fades in once
+            // this space is clear. The two faces no longer overlap, so a real fading exit is finally
+            // safe here: it can hold its layout space while it fades because nothing is fading in on
+            // top of it yet.
+            visible = selectorGate && editorOpen && !showFindBar && !showSignaturePad && activeImageId == null,
+            enter   = fadeIn(tween(200)),
+            exit    = fadeOut(tween(FaceHandoffMillis))
         ) {
+            val reveal by transition.animateFloat(
+                transitionSpec = {
+                    if (targetState == EnterExitState.Visible) spring(dampingRatio = 0.72f, stiffness = 300f)
+                    else spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)
+                },
+                label = "editorToolsReveal"
+            ) { if (it == EnterExitState.Visible) 1f else 0f }
+            Box(
+                Modifier
+                    .graphicsLayer {
+                        scaleY = 0.9f + 0.1f * reveal
+                        transformOrigin = TransformOrigin(0.5f, 1f)
+                        translationY = (1f - reveal) * 8.dp.toPx()
+                    }
+                    .clipToBounds()
+            ) {
             if (docKind == DocKind.Ppt) {
                 // PowerPoint editing isn't available yet — a friendly placeholder instead of the
                 // annotation tools (which don't map cleanly onto slides).
@@ -413,7 +516,7 @@ internal fun PdfViewerBottomToolbar(
                     Modifier
                         .fillMaxWidth()
                         .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                        .viewerGlass(backdrop, glass)
+                        .viewerGlass(backdrop, pillGlass)
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically
@@ -424,13 +527,17 @@ internal fun PdfViewerBottomToolbar(
             } else if (docKind == DocKind.Word) {
                 // Curated Word reading/markup set — Select Text, Highlight, Find. No PDF-centric
                 // shapes / add-image / text-box / note / eraser / sign.
+                val wordScroll = rememberScrollState()
                 Row(
                     Modifier
                         .fillMaxWidth()
                         .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                        .viewerGlass(backdrop, glass)
-                        .padding(horizontal = 12.dp, vertical = 10.dp)
-                        .horizontalScroll(rememberScrollState()),
+                        .viewerGlass(backdrop, pillGlass)
+                        // Clip to the capsule's own curve and soften the ends. See [carouselEdges]
+                        // for why the padding has to come after the scroll, not before it.
+                        .carouselEdges(wordScroll)
+                        .horizontalScroll(wordScroll)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -457,13 +564,18 @@ internal fun PdfViewerBottomToolbar(
                     }
                 }
             } else {
+            val toolScroll = rememberScrollState()
             Row(
                 Modifier
                     .fillMaxWidth()
                     .graphicsLayer { scaleX = toolCompress; transformOrigin = TransformOrigin(0f, 0.5f) }
-                    .viewerGlass(backdrop, glass)
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
-                    .horizontalScroll(rememberScrollState()),
+                    .viewerGlass(backdrop, pillGlass)
+                    // The chips are meant to disappear behind the capsule's curved ends. Without
+                    // this the scroll viewport clipped them with a straight vertical line inset
+                    // from the curve. See [carouselEdges] — the padding order is load-bearing.
+                    .carouselEdges(toolScroll)
+                    .horizontalScroll(toolScroll)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -536,6 +648,18 @@ internal fun PdfViewerBottomToolbar(
                     }
                 }
 
+                // Undo used to live only inside the draw strip, so placing a text box, a note, an
+                // image or a signature left nothing to undo with. The draw strip has its own copy,
+                // hence the exclusion here.
+                if (canUndo && !drawingToolActive) {
+                    LiquidButton(onClick = onUndo, backdrop = backdrop, surfaceColor = chip) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Rounded.Undo, null, Modifier.size(14.dp), fg)
+                            BasicText(stringResource(R.string.viewer_undo), style = TextStyle(fg, 12.sp, FontWeight.Medium))
+                        }
+                    }
+                }
+
                 if (drawingToolActive || activeTool == PdfEditTool.SelectText || activeTool == PdfEditTool.Image || activeTool == PdfEditTool.Eraser || activeTool == PdfEditTool.Text || activeTool == PdfEditTool.Note) {
                     LiquidIconButton(
                         onClick  = { onSetActiveTool(PdfEditTool.None) },
@@ -561,15 +685,18 @@ internal fun PdfViewerBottomToolbar(
                 }
             }
             }
+            }
         }
 
         // ── Collapsed home bar: one "Editor Tools" pill (expands the tools above it)
         // + a compact circular "Open another PDF" button. Hidden while a sub-tool is
         // active so that focused mode shows ONLY the sub-toolbar (one panel).
         AnimatedVisibility(
-            visible = !showDrawTools && !showOcrTools && !showImageTools && !showFindBar && !showSignaturePad,
+            // Same `selectorGate` as the tool chips above, so the blue "Editor Tools" pill fades out
+            // in lockstep with them — "both pills at the same time" — before the sub-toolbar arrives.
+            visible = selectorGate && !showFindBar && !showSignaturePad,
             enter   = fadeIn(tween(180)),
-            exit    = ExitTransition.None
+            exit    = fadeOut(tween(FaceHandoffMillis))
         ) {
             Row(
                 Modifier.fillMaxWidth(),
@@ -586,7 +713,7 @@ internal fun PdfViewerBottomToolbar(
                     },
                     backdrop = backdrop,
                     tint = if (editorOpen) accent else Color.Unspecified,
-                    surfaceColor = if (editorOpen) Color.Unspecified else glass,
+                    surfaceColor = if (editorOpen) Color.Unspecified else pillGlass,
                     modifier = Modifier.weight(1f)
                 ) {
                     Row(
@@ -614,18 +741,20 @@ internal fun PdfViewerBottomToolbar(
         // (not inside it) and bottom-anchored, morphing it taller grows only this wrapper Box
         // upward — the column (tool panels + pill) stays pinned to the base and never moves.
         AnimatedVisibility(
-            visible = shareRowVisible,
+            // Sits in the pill row's reserved slot, so it rides the same `selectorGate` and fades out
+            // alongside the pill instead of popping away on its own.
+            visible = selectorGate && !showFindBar && !showSignaturePad,
             enter = fadeIn(tween(180)),
-            exit = ExitTransition.None,
+            exit = fadeOut(tween(FaceHandoffMillis)),
             modifier = Modifier.align(Alignment.BottomEnd)
         ) {
             ShareMorphButton(
                 backdrop = backdrop,
-                glass = glass,
+                glass = pillGlass,
                 fg = fg,
                 onOpen = onOpenAnotherPdf,
                 onShare = onShareDocument,
-                onShareModeChanged = { shareActive = it }
+                onShareModeChanged = { shareActive = it; onShareHoldChanged(it) }
             )
         }
     }

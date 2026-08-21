@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDecay
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -27,7 +28,9 @@ import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +40,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
@@ -48,6 +52,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
@@ -115,6 +120,7 @@ import com.chethan616.clearpdf.ui.components.GlassTitlePill
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.ViewerChromeGlass
 import com.chethan616.clearpdf.ui.components.LiquidSaveSheet
+import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.components.viewerChromeGlass
 import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
@@ -123,9 +129,11 @@ import com.chethan616.clearpdf.ui.viewmodel.PdfViewerViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 @Composable
@@ -154,6 +162,10 @@ fun PdfViewerScreen(
     // True while the bottom "Editor Tools" panel is expanded — keeps the chrome from auto-hiding
     // so the user can browse tools without it disappearing.
     var editorToolsOpen     by rememberSaveable { mutableStateOf(false) }
+    // True for as long as the share capsule is held morphed open. Not saveable on purpose: a
+    // configuration change cancels the pointer gesture, so a persisted `true` would pin the chrome
+    // open forever with no finger left to release it.
+    var shareHolding        by remember { mutableStateOf(false) }
     var lastInteractionAtMs by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
     // Adobe-style single-axis reading: the viewer is vertical-only. Horizontal
     // panning is still allowed inside a zoomed page (handled in PdfContinuousPage).
@@ -165,6 +177,7 @@ fun PdfViewerScreen(
     var currentStrokeWidth  by rememberSaveable { mutableFloatStateOf(6f) }
     var activeImageId       by remember { mutableStateOf<Long?>(null) }
     var showSaveDialog      by rememberSaveable { mutableStateOf(false) }
+    var showShareDialog     by remember { mutableStateOf(false) }
     var showFindBar         by rememberSaveable { mutableStateOf(false) }
     var findQuery           by rememberSaveable { mutableStateOf("") }
     val findFocusRequester   = remember { FocusRequester() }
@@ -206,6 +219,14 @@ fun PdfViewerScreen(
 
     fun getPageMarks(page: Int): MutableList<PdfMarkup> =
         annotationsByPage.getOrPut(page) { mutableStateListOf() }
+
+    // Undo history: the page each added markup landed on, newest last. Undo pops the most recent
+    // entry and removes THAT page's last mark, so "undo" means the last thing the user actually
+    // did. The old behaviour removed the last mark of `listState.firstVisibleItemIndex`, which is
+    // the first *partially* visible page — usually a sliver of the previous page while you draw on
+    // the one filling the screen, so undo silently no-op'd on an empty list. The same trap is
+    // already documented for image placement at `activeImageLoc`.
+    val undoStack = remember { mutableStateListOf<Int>() }
 
     // Declared here (rather than lower) so the image/signature launchers below can place
     // annotations onto whichever page is under the viewport centre.
@@ -257,6 +278,32 @@ fun PdfViewerScreen(
         return page to Offset(frame.center.x, localY)
     }
 
+    /** Record that [page] just gained a markup, so undo can find it again. */
+    fun recordEdit(page: Int) { undoStack.add(page) }
+
+    /**
+     * Remove the most recently added markup, wherever it lives. Entries can go stale — the eraser
+     * and the shape editor delete marks without touching the stack — so pop past any page that has
+     * since been emptied. If the history is exhausted (or was never populated) fall back to the page
+     * under the viewport centre, which is the page the user is looking at.
+     */
+    fun undoLastEdit() {
+        while (undoStack.isNotEmpty()) {
+            val page = undoStack.removeAt(undoStack.lastIndex)
+            val marks = getPageMarks(page)
+            if (marks.isNotEmpty()) { marks.removeAt(marks.lastIndex); return }
+        }
+        val marks = getPageMarks(viewportPlacementTarget().first)
+        if (marks.isNotEmpty()) marks.removeAt(marks.lastIndex)
+    }
+
+    /** Clear every markup on the page under the viewport centre — the one the user can see. */
+    fun clearVisiblePage() {
+        val page = viewportPlacementTarget().first
+        getPageMarks(page).clear()
+        undoStack.removeAll { it == page }
+    }
+
     // Add a new image/signature centred at the viewport-target on the correct page, sized
     // to the page and clamped fully on-page. Shared by the image picker and signature pad.
     fun placeImageMarkup(bmp: Bitmap, isSignature: Boolean) {
@@ -276,6 +323,7 @@ fun PdfViewerScreen(
         val cy = center.y.coerceIn(h / 2f, (cs.height - h / 2f).coerceAtLeast(h / 2f))
         val id = System.nanoTime()
         marks.add(PdfMarkup.ImageMarkup(id, bmp, Offset(cx - w / 2f, cy - h / 2f), Offset(cx + w / 2f, cy + h / 2f), isSignature))
+        recordEdit(page)
         activeImageId = id; activeTool = PdfEditTool.Image; controlsVisible = true
     }
 
@@ -334,19 +382,21 @@ fun PdfViewerScreen(
         scale = 1f; offsetX = 0f
         activeTool = PdfEditTool.None
         selectedAnnoPage = null; selectedAnnoIndex = -1
-        annotationsByPage.clear(); pageCanvasSizes.clear(); pageBitmapSizes.clear()
+        annotationsByPage.clear(); undoStack.clear(); pageCanvasSizes.clear(); pageBitmapSizes.clear()
         viewModel.clearOcrSelection(state.currentPage); viewModel.clearExportFeedback()
         showFindBar = false; findQuery = ""; viewModel.clearSearch()
     }
 
-    LaunchedEffect(state.document, controlsVisible, controlsPinned, activeTool, editorToolsOpen, lastInteractionAtMs) {
-        if (state.document != null && controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && !editorToolsOpen) {
+    LaunchedEffect(state.document, controlsVisible, controlsPinned, activeTool, editorToolsOpen, shareHolding, lastInteractionAtMs) {
+        if (state.document != null && controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && !editorToolsOpen && !shareHolding) {
             val snap = lastInteractionAtMs
             // Comfortable auto-hide window; any interaction bumps lastInteractionAtMs and
-            // restarts this. It never fires while a tool is active (activeTool != None) OR while
-            // the Editor Tools panel is open, so browsing tools won't hide the chrome.
+            // restarts this. It never fires while a tool is active (activeTool != None), while
+            // the Editor Tools panel is open, or while the share capsule is held — a long-press
+            // produces no pointer events for the viewer to see, so without that last guard the
+            // chrome hid itself out from under the finger mid-gesture.
             delay(5000)
-            if (controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && !editorToolsOpen && snap == lastInteractionAtMs)
+            if (controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && !editorToolsOpen && !shareHolding && snap == lastInteractionAtMs)
                 controlsVisible = false
         }
     }
@@ -361,57 +411,88 @@ fun PdfViewerScreen(
 
     // ── No-document state ─────────────────────────────────────────────────
     if (state.document == null) {
-        Column(
-            Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Same trio as the loaded viewer's chrome: back circle · centered title pill · balancer.
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                LiquidIconButton(
-                    onClick = onBack,
-                    backdrop = backdrop,
-                    surfaceColor = Color.White.copy(0.08f)
-                ) {
-                    Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
-                }
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    GlassTitlePill(stringResource(R.string.viewer_title), backdrop)
-                }
-                Spacer(Modifier.size(40.dp))
-            }
+        // The password prompt is an OVERLAY on this Box, not a third row inside the Column below.
+        //
+        // It used to be a sibling of the "Open a PDF" card in a `spacedBy(16.dp)` Column whose middle
+        // section carried `weight(1f)`. So the moment the prompt and the keyboard were both up, the
+        // weighted section was squeezed and the card was chopped mid-sentence — the whole point of a
+        // password dialog is that the thing behind it stays intact.
+        Box(Modifier.fillMaxSize()) {
             Column(
-                Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+                Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(
-                    Modifier.fillMaxWidth().viewerGlass(backdrop, viewerChromeGlass(isDarkMode)).padding(28.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                // Same trio as the loaded viewer's chrome: back circle · centered title pill · balancer.
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(56.dp), accent)
-                    BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
-                    BasicText(stringResource(R.string.viewer_select_file), style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center))
-                    LiquidButton(onClick = { pdfPickerLauncher.launch(arrayOf("*/*")) }, backdrop = backdrop, tint = accent) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
-                            BasicText(stringResource(R.string.viewer_pick_pdf), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+                    // No `surfaceColor`, like Home's — this circle used to paint a white 8% wash that
+                    // nothing else in the app does.
+                    LiquidIconButton(onClick = onBack, backdrop = backdrop) {
+                        Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
+                    }
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        GlassTitlePill(stringResource(R.string.viewer_title), backdrop)
+                    }
+                    Spacer(Modifier.size(40.dp))
+                }
+                Column(
+                    Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().viewerGlass(backdrop, viewerChromeGlass(isDarkMode)).padding(28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(56.dp), accent)
+                        BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
+                        BasicText(stringResource(R.string.viewer_select_file), style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center))
+                        LiquidButton(onClick = { pdfPickerLauncher.launch(arrayOf("*/*")) }, backdrop = backdrop, tint = accent) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
+                                BasicText(stringResource(R.string.viewer_pick_pdf), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+                            }
                         }
                     }
+                    state.errorMessage?.let { BasicText(it, style = TextStyle(Color(0xFFD32F2F), 14.sp)) }
                 }
-                state.errorMessage?.let { BasicText(it, style = TextStyle(Color(0xFFD32F2F), 14.sp)) }
             }
+
+            // ── Password prompt (in-window, so the glass samples the real backdrop) ──
+            val askingPassword = state.passwordRequired && state.passwordUri != null
+
+            // Dimming scrim. Deliberately NOT tap-to-dismiss, unlike LiquidPageJumpPopup: there is
+            // nothing behind this to go back to — dismissing would leave a locked document and an
+            // empty screen. Back already exits the viewer.
             AnimatedVisibility(
-                visible = state.passwordRequired && state.passwordUri != null,
-                enter = fadeIn() + scaleIn(initialScale = 0.96f),
-                exit  = fadeOut() + scaleOut(targetScale = 0.98f),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).imePadding()
+                visible = askingPassword,
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(180)),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(0.45f)))
+            }
+
+            AnimatedVisibility(
+                visible = askingPassword,
+                // LiquidPageJumpPopup's entrance, verbatim, so the app has one dialog motion.
+                enter = fadeIn(tween(220)) +
+                    scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)),
+                exit = fadeOut(tween(140)) + scaleOut(targetScale = 0.9f, animationSpec = tween(150)),
+                modifier = Modifier.align(Alignment.Center).imePadding()
             ) {
                 Column(
-                    Modifier.fillMaxWidth().viewerGlass(backdrop, viewerChromeGlass(isDarkMode)).padding(16.dp),
+                    Modifier
+                        .widthIn(max = 340.dp)
+                        .fillMaxWidth(0.86f)
+                        // The heavy stack, not `viewerGlass`: this is a dialog over a scrim and needs
+                        // an edge of its own. No `containerColorOverride` — there is no page to sample
+                        // in this branch, so the theme tint is the right one.
+                        .liquidGlassPanel(backdrop, uiSensor)
+                        .padding(22.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     BasicText(stringResource(R.string.pdf_password_title), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
@@ -462,22 +543,49 @@ fun PdfViewerScreen(
     // chrome palette (glass surface + foreground) so text/icons are always legible:
     // dark ink on a light page, white ink on a dark page.
     //
-    // EXCEPT on a single-page document. That page is centred (see `Arrangement.Center` on the
-    // LazyColumn below), so the chrome floats over wide black bands rather than over the page, and
-    // sampling the page then picks the wrong palette: `chromeField` is only 6% alpha, so it sets no
-    // value of its own and every toolbar button just refracts the black beneath it — while its
-    // icon/label takes the *dark* foreground chosen from the white page. Dark on black is invisible.
-    // Pinning the dark branch is safe either way, since white-on-dark glass reads fine over both the
-    // black band and a white page (it is what every multi-page document already uses).
+    // Single-page documents used to be pinned to the dark branch. That was over-broad and is the
+    // reason the chrome looked stuck in dark mode: a converted .docx is usually one page, so *every*
+    // Word document and every one-page PDF got dark glass no matter the page or the theme.
+    //
+    // The reason for the pin was real, though. A lone page is centred (`Arrangement.Center` on the
+    // LazyColumn below), so the chrome can float over the near-black canvas rather than over the
+    // page — and at 66% the light surface set little value of its own, leaving buttons refracting
+    // black while their icons took the *dark* foreground chosen from the white page. The fix is to
+    // make the light surface actually opaque enough to stand on its own (78%, below) instead of
+    // throwing away a correct luminance reading. Dark ink on that holds up over the black band and
+    // over the page alike.
     val currentPageBitmap = state.pageBitmaps.getOrNull(currentPageIndex)
-    val isLightChrome = remember(currentPageBitmap, safePageCount) {
-        if (safePageCount == 1) false
-        else currentPageBitmap?.let { averageLuminance(it) > 0.60f } ?: false
+    // Whole-page luminance still drives the DIALOG panels (chromePanel / panelFg): those sit over a
+    // scrim on an opaque surface, not over the live document, so a single global reading is right.
+    // The floating BARS no longer use this — they sample the content directly behind each bar
+    // (topFg / bottomFg, computed once containerHeightPx is known, further down). That is what makes
+    // the icons dynamic per-region, kills the "doesn't flip until you scroll deep into page 3" lag,
+    // and tracks the zoomed region on a single page. The old single-page white-pin is gone with it —
+    // band sampling reads the dark letterbox as dark (→ white ink) on its own.
+    val isLightChrome = remember(currentPageBitmap) {
+        currentPageBitmap?.let { averageLuminance(it) > 0.60f } ?: false
     }
-    val chromeFg     = if (isLightChrome) Color(0xFF15171C) else Color.White
-    val chromeFgSoft = if (isLightChrome) Color(0xFF15171C).copy(0.62f) else Color.White.copy(0.62f)
-    val chromeGlass  = if (isLightChrome) Color(0xFFEFF1F4).copy(0.66f) else ViewerChromeGlass
-    val chromeField  = if (isLightChrome) Color.Black.copy(0.06f) else Color.White.copy(0.10f)
+    // Home's tint, verbatim — the same expression GlassTitlePill and GlassSearchPill resolve — but
+    // picked off the *page's* luminance instead of the theme, so a white scan in dark mode still gets
+    // the light surface.
+    //
+    // This used to be 0.78/0.62, roughly twice Home's weight, and it was painted onto controls Home
+    // leaves entirely clear: `LiquidIconButton` with no `surfaceColor` draws nothing at all in
+    // `onDrawSurface`, so Home's circles are pure refraction. Over a white page a 62% #12151C slab
+    // composites to about #6C6C6C, which is why the chrome read as grey blobs sitting *on* the
+    // document rather than as glass floating over it. The effect stack was never the difference —
+    // `LiquidIconButton` and `viewerGlass` both run vibrancy + blur 2 + lens 12x24 — only the tint was.
+    val chromeGlass  = if (isLightChrome) Color(0xFFFAFAFA).copy(0.35f) else Color(0xFF1E1E1E).copy(0.35f)
+    // Dialogs keep the old, heavier tint. They sit over a 45% black scrim and carry dense content, and
+    // the app's own rule is that the heavy stack stays reserved for them (see ViewerGlass's KDoc).
+    val chromePanel  = if (isLightChrome) Color(0xFFEFF1F4).copy(0.78f) else ViewerChromeGlass
+    // The dialogs' ink deliberately does *not* take the single-page pin above. Their surface is
+    // `chromePanel`, which is opaque enough to be its own background, so it is the panel the text has
+    // to contrast with — not the canvas. Pinning these to white alongside the floating chrome would
+    // put white text on a 78% white panel every time a one-page document happened to be light.
+    val panelFg      = if (isLightChrome) Color(0xFF15171C) else Color.White
+    val panelFgSoft  = if (isLightChrome) Color(0xFF15171C).copy(0.62f) else Color.White.copy(0.62f)
+    val chromeField  = if (isLightChrome) Color.Black.copy(0.10f) else Color.White.copy(0.10f)
 
     // The top visible page drives text extraction + bitmap caching.
     LaunchedEffect(listState) {
@@ -526,6 +634,64 @@ fun PdfViewerScreen(
         val renderWidthPx = with(LocalDensity.current) { maxWidth.roundToPx() }.coerceAtLeast(720)
 
         var containerHeightPx by remember { mutableStateOf(0) }
+
+        // ── Adaptive control ink, sampled per bar (Apple-style) ──────────────────────────────
+        // Each bar reads the luminance of the content *directly behind it*, so on a page that is a
+        // dark image up top and a white canvas below, the top bar goes white while the bottom toolbar
+        // goes dark — and both update the instant that content scrolls or zooms under them, not when
+        // the page becomes the first fully-visible item. Bands are in screen px; the content Box is
+        // scaled about a top origin with translationY = 0, so a screen Y maps to the LazyColumn's own
+        // coordinate as screenY / scale (see [bandLuminance]).
+        val topBandBottomPx = with(density) { 96.dp.toPx() }
+        val bottomBandDepthPx = with(density) { 140.dp.toPx() }
+        var topBarLight by remember { mutableStateOf(false) }
+        var bottomBarLight by remember { mutableStateOf(false) }
+        // Hysteresis: flip to light at 0.62, back to dark at 0.58, so a page hovering near the
+        // midpoint doesn't strobe while scrolling. The colour crossfade below smooths the flip
+        // itself. The sampling runs in a coroutine off `snapshotFlow`, so scrolling recomputes the
+        // luminance every frame but only an actual light/dark flip ever recomposes the chrome.
+        LaunchedEffect(containerHeightPx) {
+            snapshotFlow {
+                bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, 0f, topBandBottomPx)
+            }.collect { lum ->
+                if (lum > 0.62f) topBarLight = true else if (lum < 0.58f) topBarLight = false
+            }
+        }
+        LaunchedEffect(containerHeightPx) {
+            snapshotFlow {
+                val h = containerHeightPx.toFloat()
+                if (h <= 0f) 0f
+                else bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, h - bottomBandDepthPx, h)
+            }.collect { lum ->
+                if (lum > 0.62f) bottomBarLight = true else if (lum < 0.58f) bottomBarLight = false
+            }
+        }
+        val topFg by animateColorAsState(if (topBarLight) Color(0xFF15171C) else Color.White, tween(200), label = "topBarInk")
+        val bottomFg by animateColorAsState(if (bottomBarLight) Color(0xFF15171C) else Color.White, tween(200), label = "bottomBarInk")
+        val topFgSoft = topFg.copy(alpha = 0.62f)
+        val bottomFgSoft = bottomFg.copy(alpha = 0.62f)
+
+        // The find bar is the one control that does NOT sit at the screen edge: with the keyboard up
+        // it floats at the top of the IME, so the bottom-of-screen band (behind the keyboard) is the
+        // wrong reading for it. Sample the band directly above the IME instead, so its text and its
+        // prev/next/close icons adapt to the page content actually behind the search bar. When the
+        // keyboard is down the IME inset is 0 and this collapses to the same bottom band.
+        val imeInset = WindowInsets.ime
+        var findBarLight by remember { mutableStateOf(false) }
+        LaunchedEffect(containerHeightPx) {
+            snapshotFlow {
+                val h = containerHeightPx.toFloat()
+                if (h <= 0f) 0f
+                else {
+                    val bottom = (h - imeInset.getBottom(density)).coerceAtLeast(bottomBandDepthPx)
+                    bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, bottom - bottomBandDepthPx, bottom)
+                }
+            }.collect { lum ->
+                if (lum > 0.62f) findBarLight = true else if (lum < 0.58f) findBarLight = false
+            }
+        }
+        val findFg by animateColorAsState(if (findBarLight) Color(0xFF15171C) else Color.White, tween(200), label = "findBarInk")
+        val findFgSoft = findFg.copy(alpha = 0.62f)
 
         // ── Continuous vertical page column with document-level zoom/pan ─────
         // layerBackdrop + background live INSIDE this Box so the captured layer holds
@@ -656,6 +822,7 @@ fun PdfViewerScreen(
                                 pageCanvasSizes    = pageCanvasSizes,
                                 pageBitmapSizes    = pageBitmapSizes,
                                 onInteraction      = { lastInteractionAtMs = System.currentTimeMillis() },
+                                onMarkAdded        = { recordEdit(page) },
                                 onToggleControls   = { controlsVisible = !controlsVisible },
                                 onShowControls     = { controlsVisible = true },
                                 onActiveToolChanged     = { activeTool = it },
@@ -668,12 +835,14 @@ fun PdfViewerScreen(
                                 onPlaceText             = { pt ->
                                     val id = System.nanoTime()
                                     getPageMarks(page).add(PdfMarkup.TextBoxMarkup(id, pt, "", currentColor, 40f))
+                                    recordEdit(page)
                                     editingAnnoId = id; editingAnnoPage = page; editingAnnoIsNote = false; annotationDraft = ""
                                     activeTool = PdfEditTool.None; controlsVisible = true
                                 },
                                 onPlaceNote             = { pt ->
                                     val id = System.nanoTime()
                                     getPageMarks(page).add(PdfMarkup.NoteMarkup(id, pt, "", Color(0xFFFFC107)))
+                                    recordEdit(page)
                                     editingAnnoId = id; editingAnnoPage = page; editingAnnoIsNote = true; annotationDraft = ""
                                     activeTool = PdfEditTool.None; controlsVisible = true
                                 },
@@ -772,39 +941,54 @@ fun PdfViewerScreen(
                 exit     = fadeOut(tween(150)) + slideOutVertically { -it / 2 },
                 modifier = Modifier.align(Alignment.TopCenter)
             ) {
-                // Compact, balanced top toolbar: back · centered page pill · search.
-                // Page navigation lives in the right-edge scrubber + scroll, so no
-                // oversized prev/next controls cover the document.
+                // Home and Tools' header trio, verbatim: back circle · centred [GlassTitlePill] ·
+                // search circle, 10 dp apart. The pill is the same widget carrying "ClearPDF" on
+                // Home rather than a look-alike `LiquidButton`, so the two screens can't drift; only
+                // the palette differs, because the viewer picks its chrome from the *page's*
+                // luminance instead of the theme.
+                //
+                // Page navigation lives in the right-edge scrubber + scroll, so no oversized
+                // prev/next controls cover the document.
                 Row(
                     verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier              = Modifier.fillMaxWidth()
                 ) {
-                    LiquidIconButton(onClick = onBack, backdrop = contentBackdrop, surfaceColor = chromeGlass) {
-                        Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), chromeFg)
+                    // No `surfaceColor`, exactly as Home calls it: the circle paints nothing of its own
+                    // and is pure refraction. Only the icon's colour adapts to the page.
+                    LiquidIconButton(onClick = onBack, backdrop = contentBackdrop) {
+                        Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), topFg)
                     }
-                    Spacer(Modifier.weight(1f))
-                    LiquidButton(
-                        onClick      = { showPageJumpDialog = true },
-                        backdrop     = contentBackdrop,
-                        surfaceColor = chromeGlass
-                    ) {
-                        BasicText(
-                            stringResource(R.string.viewer_page_of, currentPageIndex + 1, safePageCount),
-                            style = TextStyle(chromeFg, 13.sp, FontWeight.SemiBold)
+                    // A weighted Box rather than two weighted spacers: the back circle and the
+                    // search circle are the same 40 dp, so this centres the pill on the row exactly
+                    // the way Home's header does, and a long "Page 100 / 1000" grows symmetrically.
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        GlassTitlePill(
+                            text = stringResource(R.string.viewer_page_of, currentPageIndex + 1, safePageCount),
+                            backdrop = contentBackdrop,
+                            onClick = { showPageJumpDialog = true },
+                            // Transparent, not omitted: omitting falls back to the theme's 0.35 tint,
+                            // and this pill sits between two circles that paint nothing at all, so any
+                            // tint at all makes it read as a slab bolted between two pieces of glass.
+                            // `drawRect(Color.Transparent)` is the same no-op `LiquidIconButton`
+                            // performs when it is given no `surfaceColor`.
+                            surfaceColor = Color.Transparent,
+                            contentColor = topFg,
+                            // The enclosing AnimatedVisibility already slides and fades the whole bar
+                            // in every time the chrome returns; the pill's own spring would stack on
+                            // top of that and read as a stutter. Same call the find bar makes.
+                            animateIn = false
                         )
                     }
-                    Spacer(Modifier.weight(1f))
                     LiquidIconButton(
                         onClick = {
                             showFindBar = !showFindBar
                             if (showFindBar) viewModel.triggerOcrForAllPages(context)
                             else { focusManager.clearFocus(); viewModel.clearSearch(); findQuery = "" }
                         },
-                        backdrop = contentBackdrop,
-                        surfaceColor = chromeGlass
+                        backdrop = contentBackdrop
                     ) {
-                        Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), chromeFg)
+                        Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), topFg)
                     }
                 }
             }
@@ -836,13 +1020,15 @@ fun PdfViewerScreen(
                     selectedTextCount  = state.selectedOcrBlockIdsByPage[currentPageIndex]?.size ?: 0,
                     currentSelectedIds = state.selectedOcrBlockIdsByPage[currentPageIndex].orEmpty(),
                     activeIsSignature  = activeItem?.isSignature == true,
-                    // Undo + all page-scoped edit actions must target the SYNCHRONOUS visible
-                    // page (currentPageIndex = listState.firstVisibleItemIndex), NOT the async
-                    // state.currentPage mirror updated via snapshotFlow. Drawing/placement inside
-                    // the LazyColumn item uses that same synchronous index, so keying the toolbar
-                    // to state.currentPage caused a transient mismatch right after open/scroll →
-                    // undo removed from the wrong (empty) page list and no-op'd on the first try.
-                    currentPageMarks   = getPageMarks(currentPageIndex),
+                    // Undo is history-driven, not page-driven. Two earlier attempts keyed it to a
+                    // page index — first `state.currentPage` (async, lagged behind the scroll), then
+                    // `listState.firstVisibleItemIndex` (the first *partially* visible page, which
+                    // while you draw is usually a sliver of the PREVIOUS page). Both removed from the
+                    // wrong, usually empty, list. There is no page index that reliably means "what
+                    // the user just did", so the viewer records each addition instead.
+                    canUndo            = undoStack.isNotEmpty() || annotationsByPage.any { it.value.isNotEmpty() },
+                    onUndo             = { undoLastEdit(); lastInteractionAtMs = System.currentTimeMillis() },
+                    onClearPage        = { clearVisiblePage(); lastInteractionAtMs = System.currentTimeMillis() },
                     onSetActiveTool    = { activeTool = it; if (it == PdfEditTool.None) activeImageId = null; selectedAnnoPage = null; selectedAnnoIndex = -1; viewModel.clearOcrSelection(currentPageIndex) },
                     onToggleFindBar    = {
                         showFindBar = !showFindBar
@@ -899,31 +1085,14 @@ fun PdfViewerScreen(
                     onOpenExportedFile = { state.lastExportedUri?.let { viewModel.openPdf(context, it) } },
                     onOpenAnotherPdf   = { pdfPickerLauncher.launch(arrayOf("*/*")) },
                     onEditorOpenChanged = { editorToolsOpen = it },
-                    onShareDocument    = {
-                        val uri = state.document?.uri
-                        if (uri != null) {
-                            // A file:// uri can't be handed to other apps directly; wrap it via
-                            // the app FileProvider. content:// uris share as-is.
-                            val shareUri = if (uri.scheme == "file") {
-                                runCatching {
-                                    androidx.core.content.FileProvider.getUriForFile(
-                                        context, "${context.packageName}.provider", java.io.File(uri.path!!)
-                                    )
-                                }.getOrNull() ?: uri
-                            } else uri
-                            val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                type = "application/pdf"
-                                putExtra(android.content.Intent.EXTRA_STREAM, shareUri)
-                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            runCatching {
-                                context.startActivity(
-                                    android.content.Intent.createChooser(send, null)
-                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                )
-                            }
-                        }
-                    },
+                    // Bumping the timestamp on RELEASE is half the fix: otherwise the hold ends and
+                    // the effect resumes a window that is already most of the way expired, so the
+                    // chrome blinks out a moment after the finger lifts.
+                    onShareHoldChanged = { shareHolding = it; lastInteractionAtMs = System.currentTimeMillis() },
+                    // Share now opens the export chooser instead of firing a PDF straight out — a
+                    // .docx used to always leave as the converted PDF, silently. The dialog lets the
+                    // user pick the original file vs a PDF (and encrypt the PDF). See ExportShareDialog.
+                    onShareDocument    = { showShareDialog = true },
                     onRecolorSignature = { cl ->
                         activeImageLoc()?.let { (pg, idx, sig) ->
                             if (sig.isSignature) getPageMarks(pg)[idx] = sig.copy(bitmap = recolorSignatureBitmap(sig.bitmap, Color(cl).toArgb()))
@@ -931,8 +1100,8 @@ fun PdfViewerScreen(
                     },
                     backdrop = contentBackdrop,
                     uiSensor = uiSensor,
-                    fg       = chromeFg,
-                    fgSoft   = chromeFgSoft,
+                    fg       = bottomFg,
+                    fgSoft   = bottomFgSoft,
                     glass    = chromeGlass,
                     chip     = chromeField,
                     docKind  = com.chethan616.clearpdf.utils.docKindOf(state.fileName)
@@ -958,8 +1127,8 @@ fun PdfViewerScreen(
                 focusRequester    = findFocusRequester,
                 backdrop          = contentBackdrop,
                 uiSensor          = uiSensor,
-                fg                = chromeFg,
-                fgSoft            = chromeFgSoft,
+                fg                = findFg,
+                fgSoft            = findFgSoft,
                 surface           = chromeGlass,
                 onQueryChange     = { q -> findQuery = q; viewModel.searchText(q) },
                 onPrevMatch       = { viewModel.prevMatch(); lastInteractionAtMs = System.currentTimeMillis() },
@@ -975,9 +1144,9 @@ fun PdfViewerScreen(
             pageCount    = safePageCount,
             backdrop     = contentBackdrop,
             uiSensor     = uiSensor,
-            fg           = chromeFg,
-            fgSoft       = chromeFgSoft,
-            surface      = chromeGlass,
+            fg           = panelFg,
+            fgSoft       = panelFgSoft,
+            surface      = chromePanel,
             field        = chromeField,
             onDismiss    = { showPageJumpDialog = false },
             onJumpToPage = { targetPage -> showPageJumpDialog = false; scrollToPage(targetPage) }
@@ -993,9 +1162,9 @@ fun PdfViewerScreen(
                 initialColor = editingAnnoColor,
                 backdrop = contentBackdrop,
                 uiSensor = uiSensor,
-                fg = chromeFg,
-                fgSoft = chromeFgSoft,
-                surface = chromeGlass,
+                fg = panelFg,
+                fgSoft = panelFgSoft,
+                surface = chromePanel,
                 field = chromeField,
                 onDismiss = {
                     getPageMarks(editingAnnoPage).removeAll { m -> matches(m) &&
@@ -1031,9 +1200,9 @@ fun PdfViewerScreen(
                     initialColor = shape.shapeColor(),
                     backdrop = contentBackdrop,
                     uiSensor = uiSensor,
-                    fg = chromeFg,
-                    fgSoft = chromeFgSoft,
-                    surface = chromeGlass,
+                    fg = panelFg,
+                    fgSoft = panelFgSoft,
+                    surface = chromePanel,
                     field = chromeField,
                     onColorChange = { c ->
                         val cur = list.getOrNull(editingShapeIndex)
@@ -1057,15 +1226,92 @@ fun PdfViewerScreen(
             initialFileName = state.document?.name?.substringBeforeLast('.')?.let { "${it}_Edited" } ?: "Document",
             backdrop        = contentBackdrop,
             uiSensor        = uiSensor,
-            fg              = chromeFg,
-            fgSoft          = chromeFgSoft,
-            surface         = chromeGlass,
+            fg              = panelFg,
+            fgSoft          = panelFgSoft,
+            surface         = chromePanel,
             field           = chromeField,
             onDismiss       = { showSaveDialog = false },
             onSave          = { fileName, overrideUri ->
                 showSaveDialog = false
                 val overlays = buildExportOverlays(annotationsByPage, state.ocrBlocksByPage, pageCanvasSizes, pageBitmapSizes)
                 if (overlays.isNotEmpty()) viewModel.exportEditedPdf(context, overlays, fileName, overrideUri)
+            }
+        )
+
+        // ── Share / export chooser ──
+        // Original vs PDF (with optional encryption). `originalExt` is null for a plain PDF, which
+        // collapses the dialog to just the encrypt toggle.
+        val shareExt = state.fileName.substringAfterLast('.', "").uppercase()
+        ExportShareDialog(
+            visible     = showShareDialog,
+            originalExt = if (shareExt.isNotBlank() && shareExt != "PDF") shareExt else null,
+            backdrop    = contentBackdrop,
+            uiSensor    = uiSensor,
+            fg          = panelFg,
+            fgSoft      = panelFgSoft,
+            surface     = chromePanel,
+            field       = chromeField,
+            onDismiss   = { showShareDialog = false },
+            onShare     = { format, encrypt, password ->
+                showShareDialog = false
+                viewerScope.launch {
+                    // All file work off the main thread: copy/encrypt, then hand a FileProvider uri to
+                    // the chooser. Everything lands in cacheDir/shared, which the app FileProvider
+                    // serves (file_paths.xml cache-path "/").
+                    val payload = withContext(Dispatchers.IO) {
+                        runCatching {
+                            fun wrap(u: android.net.Uri): android.net.Uri =
+                                if (u.scheme == "file")
+                                    androidx.core.content.FileProvider.getUriForFile(
+                                        context, "${context.packageName}.provider", java.io.File(u.path!!)
+                                    )
+                                else u
+                            val shareDir = java.io.File(context.cacheDir, "shared").apply { mkdirs() }
+                            when (format) {
+                                ShareFormat.ORIGINAL -> state.originalUri?.let { orig ->
+                                    // Mirror the original into our own storage so the target app can
+                                    // actually read it — a SAF uri from another provider can't be
+                                    // re-granted to a third app.
+                                    val safeName = state.fileName.ifBlank { "document.$shareExt" }
+                                        .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                                    val out = java.io.File(shareDir, "${System.currentTimeMillis()}_$safeName")
+                                    context.contentResolver.openInputStream(orig)?.use { input ->
+                                        out.outputStream().use { input.copyTo(it) }
+                                    } ?: return@runCatching null
+                                    androidx.core.content.FileProvider.getUriForFile(
+                                        context, "${context.packageName}.provider", out
+                                    ) to (context.contentResolver.getType(orig) ?: "application/octet-stream")
+                                }
+                                ShareFormat.PDF -> state.document?.uri?.let { pdf ->
+                                    if (encrypt && password.isNotBlank()) {
+                                        val out = java.io.File(shareDir, "protected_${System.currentTimeMillis()}.pdf")
+                                        val outUri = androidx.core.content.FileProvider.getUriForFile(
+                                            context, "${context.packageName}.provider", out
+                                        )
+                                        com.kyant.pdfcore.security.PdfSecurityService.encryptToUri(context, pdf, outUri, password)
+                                        outUri to "application/pdf"
+                                    } else {
+                                        wrap(pdf) to "application/pdf"
+                                    }
+                                }
+                            }
+                        }.getOrNull()
+                    }
+                    if (payload != null) {
+                        val (shareUri, mime) = payload
+                        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = mime
+                            putExtra(android.content.Intent.EXTRA_STREAM, shareUri)
+                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        runCatching {
+                            context.startActivity(
+                                android.content.Intent.createChooser(send, null)
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    }
+                }
             }
         )
     }
@@ -1099,6 +1345,79 @@ fun PdfViewerScreen(
  * resolution. Drives the viewer's adaptive chrome contrast (dark ink on light pages,
  * white ink on dark pages).
  */
+/**
+ * Perceptual luminance of a vertical slice `[fTop, fBottom]` (fractions of height) of [bitmap],
+ * sampled on a sparse 8x5 grid across the central 80% of the width. Deliberately uses `getPixel`
+ * on the live bitmap rather than `createScaledBitmap` so it is cheap enough to run per scroll frame.
+ * Central-width only: the far edges are usually margins that don't sit under a control.
+ */
+private fun regionLuminance(bitmap: Bitmap, fTop: Float, fBottom: Float): Float = runCatching {
+    val w = bitmap.width
+    val h = bitmap.height
+    if (w <= 0 || h <= 0) return@runCatching 0f
+    val y0 = (fTop.coerceIn(0f, 1f) * h).toInt().coerceIn(0, h - 1)
+    val y1 = (fBottom.coerceIn(0f, 1f) * h).toInt().coerceIn(y0 + 1, h)
+    val x0 = (w * 0.1f).toInt().coerceIn(0, w - 1)
+    val x1 = (w * 0.9f).toInt().coerceIn(x0 + 1, w)
+    val cols = 8
+    val rows = 5
+    var sum = 0.0
+    var n = 0
+    for (r in 0 until rows) {
+        val py = (y0 + (y1 - y0) * (r + 0.5f) / rows).toInt().coerceIn(0, h - 1)
+        for (c in 0 until cols) {
+            val px = (x0 + (x1 - x0) * (c + 0.5f) / cols).toInt().coerceIn(0, w - 1)
+            val p = bitmap.getPixel(px, py)
+            val rr = ((p shr 16) and 0xFF) / 255.0
+            val gg = ((p shr 8) and 0xFF) / 255.0
+            val bb = (p and 0xFF) / 255.0
+            sum += 0.299 * rr + 0.587 * gg + 0.114 * bb
+            n++
+        }
+    }
+    if (n == 0) 0f else (sum / n).toFloat()
+}.getOrDefault(0f)
+
+/**
+ * Average luminance of the document content behind a screen-space horizontal band
+ * `[screenTopPx, screenBottomPx]`, i.e. behind one of the floating bars.
+ *
+ * The content Box scales about a top origin with `translationY = 0`, and the LazyColumn's
+ * `visibleItemsInfo.offset` is already in list-local (unscaled, viewport-relative, centring-folded)
+ * coordinates — so a screen Y maps to list-local as `screenY / scale`. Each visible page item that
+ * intersects the band contributes its overlapping slice, weighted by how much of the band it covers.
+ * Returns 0 (→ dark → white ink) when the band sits over the empty letterbox with no page under it,
+ * which is exactly what a single unzoomed page's centred layout should read as behind its bars.
+ */
+private fun bandLuminance(
+    layoutInfo: LazyListLayoutInfo,
+    pageBitmaps: List<Bitmap?>,
+    scale: Float,
+    screenTopPx: Float,
+    screenBottomPx: Float
+): Float {
+    val s = scale.coerceAtLeast(0.01f)
+    val lTop = screenTopPx / s
+    val lBottom = screenBottomPx / s
+    var lum = 0.0
+    var weight = 0.0
+    for (item in layoutInfo.visibleItemsInfo) {
+        if (item.size <= 0) continue
+        val io = item.offset.toFloat()
+        val ib = io + item.size.toFloat()
+        val interTop = maxOf(io, lTop)
+        val interBottom = minOf(ib, lBottom)
+        val cover = interBottom - interTop
+        if (cover <= 0f) continue
+        val bmp = pageBitmaps.getOrNull(item.index) ?: continue
+        val fTop = (interTop - io) / item.size
+        val fBottom = (interBottom - io) / item.size
+        lum += regionLuminance(bmp, fTop, fBottom).toDouble() * cover
+        weight += cover.toDouble()
+    }
+    return if (weight <= 0.0) 0f else (lum / weight).toFloat()
+}
+
 private fun averageLuminance(bitmap: Bitmap): Float = runCatching {
     val w = 12
     val h = 16

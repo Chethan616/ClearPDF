@@ -64,6 +64,7 @@ import com.chethan616.clearpdf.ui.components.DocsBottomTabs
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.navigation.DocsNavGraph
+import com.chethan616.clearpdf.ui.navigation.ROUTE_ONBOARDING
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -89,6 +90,19 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
     val localizedContext = remember(context, selectedLocale) {
         com.chethan616.clearpdf.ui.utils.LocaleHelper.getLocalizedContext(context, selectedLocale)
     }
+
+    // Read ONCE. `setOnboardingComplete()` flips this mid-session, and re-reading it would swap the
+    // NavHost's start destination underneath a live back stack. A first launch that arrives via a
+    // share or a shortcut skips the tour and goes straight to the document — the flag is left unset,
+    // so onboarding still appears on the next ordinary cold start rather than being lost.
+    val needsOnboarding = remember {
+        !OnboardingManager.hasCompletedOnboarding(context) &&
+            shortcutRoute == null && incomingPdfUri == null
+    }
+    // The locale the Activity actually booted with. Onboarding changes `selectedLocale` in place for
+    // the flow's own strings, but the rest of the app was built by `attachBaseContext` against this
+    // one, so only a difference from *this* value justifies a restart at the end.
+    val bootLocale = remember { selectedLocale }
 
     var themeMode by rememberSaveable { mutableIntStateOf(AppSettingsManager.getThemeMode(context)) }
     var showWallpaper by rememberSaveable { mutableStateOf(AppSettingsManager.getShowWallpaper(context)) }
@@ -203,9 +217,10 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
             }
         }
 
-        // Handle app shortcut deep links
+        // Handle app shortcut deep links. Guarded on the gate so a shortcut can never fire on top of
+        // the tour — though `needsOnboarding` is already false whenever a shortcut is present.
         LaunchedEffect(shortcutRoute) {
-            if (shortcutRoute != null) {
+            if (shortcutRoute != null && !needsOnboarding) {
                 navController.navigate(shortcutRoute) { launchSingleTop = true }
             }
         }
@@ -300,7 +315,34 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                             localeSwitching = true
                         }
                     },
-                    incomingPdfUri = incomingPdfUri
+                    incomingPdfUri = incomingPdfUri,
+                    startDestination = if (needsOnboarding) ROUTE_ONBOARDING else "home",
+                    // In place: persist + update the hoisted state, which re-provides LocalResources
+                    // above, so every `stringResource` in the flow re-resolves. No recreate, or the
+                    // tour would relaunch at page one mid-flow.
+                    onOnboardingLocaleSelected = { code ->
+                        val normalized = com.chethan616.clearpdf.ui.utils.LocaleHelper.normalizeForUi(code)
+                        if (normalized != selectedLocale) {
+                            OnboardingManager.setSelectedLocale(context, normalized)
+                            selectedLocale = normalized
+                        }
+                    },
+                    onOnboardingFinished = {
+                        OnboardingManager.setOnboardingComplete(context)
+                        // Only now, and only if the choice actually differs from what
+                        // `attachBaseContext` built the app with, is a restart worth its cost — it
+                        // is what makes non-Compose strings (toasts, notifications) follow suit.
+                        if (selectedLocale != bootLocale) {
+                            com.chethan616.clearpdf.ui.utils.LocaleHelper.applyLocale(
+                                context = context,
+                                languageTag = selectedLocale,
+                                recreate = false,
+                                updateAppCompat = false
+                            )
+                            com.chethan616.clearpdf.ui.utils.LocaleHelper.markLocaleFadePending(context)
+                            localeSwitching = true
+                        }
+                    }
                 )
                 }
 

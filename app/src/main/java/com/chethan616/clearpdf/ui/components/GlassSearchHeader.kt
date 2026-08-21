@@ -397,7 +397,10 @@ fun GlassSectionLabel(text: String, modifier: Modifier = Modifier) {
     BasicText(
         text.uppercase(),
         style = TextStyle(
-            color = LiquidGlassColors.secondary(LocalIsDarkMode.current),
+            // Full-weight ink (black in light, white in dark) rather than the grouped-list grey —
+            // the Tools section headers (Organize / Convert / Edit / Optimize / Secure) read as
+            // proper titles this way instead of fading into the wallpaper.
+            color = LiquidGlassColors.text(LocalIsDarkMode.current),
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 0.8.sp

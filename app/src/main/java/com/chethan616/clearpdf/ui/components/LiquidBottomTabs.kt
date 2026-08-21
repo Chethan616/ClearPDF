@@ -169,7 +169,12 @@ fun LiquidBottomTabs(
                     shape = { Capsule },
                     effects = {
                         vibrancy()
-                        blur(8f.dp.toPx())
+                        // Half the original 8 dp. This is the tab bar's own surface only — the
+                        // selection capsule below draws through `tabsBackdrop`, which keeps its
+                        // own blur, so softening the bar does not soften the slider riding on it.
+                        // The lens is untouched: at 24x24 it is what gives the bar its edge, and
+                        // dropping the blur without it would flatten the whole capsule.
+                        blur(4f.dp.toPx())
                         lens(24f.dp.toPx(), 24f.dp.toPx())
                     },
                     layerBlock = {

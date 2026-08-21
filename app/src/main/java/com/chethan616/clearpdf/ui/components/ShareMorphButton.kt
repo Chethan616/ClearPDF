@@ -1,8 +1,9 @@
 package com.chethan616.clearpdf.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -62,6 +63,19 @@ import com.kyant.shapes.Capsule
  * and forces `drawBackdrop` to re-run its blur and lens at a new size. Damping here is a performance
  * fix as much as a visual one.
  */
+/** The blue builds on this rather than on the finger's raw travel. See the call site for why. */
+private val TintRamp = CubicBezierEasing(0.45f, 0f, 0.55f, 1f)
+
+/**
+ * Ceiling on the blue's opacity, so the armed capsule is still glass and not paint.
+ *
+ * Not lower than this. The icons on top are white, and the backdrop here is usually a white PDF
+ * page — every point of transparency lightens the blue toward the page and costs icon contrast.
+ * 0.82 leaves the refraction clearly visible while landing close to the contrast the old opaque
+ * fill had.
+ */
+private const val MaxTintAlpha = 0.82f
+
 @Composable
 fun ShareMorphButton(
     backdrop: LayerBackdrop,
@@ -114,11 +128,41 @@ fun ShareMorphButton(
     )
 
     val progress = (-dragUp / thresholdPx).coerceIn(0f, 1f)
-    // Raw drag distance tracks the finger 1:1, which makes the blue arrive abruptly. Easing it lets
-    // the tint build gently and settle right as the gesture arms.
-    val eased = FastOutSlowInEasing.transform(progress)
+    // A symmetric S-curve, not [FastOutSlowInEasing]. Fast-out-slow-in front-loads — it is already
+    // past 0.9 at 80% of the travel — so the blue rushed in over the first few millimetres and then
+    // sat there, which made the tint feel like a state the capsule flipped into rather than
+    // something the gesture was building. This starts gently, does its work through the middle of
+    // the swipe, and eases into the commit.
+    val easedDrag = TintRamp.transform(progress)
     val armed = progress >= 1f
-    val surface = lerp(glass, blue, eased)
+    // Reading the finger position straight into the colour had two problems: it jittered with every
+    // pointer sample on the way up, and on release `dragUp` resets to 0 in one frame, so the blue
+    // vanished instantly instead of receding with the capsule. The spring smooths both. It is
+    // deliberately softer than a tracking spring would be (Medium/1500 chased the finger closely
+    // enough to reintroduce the jitter) — the slight lag is what makes the colour read as fading in.
+    // Colour is a draw-time property, so this costs a paint, not a re-measure.
+    val eased by animateFloatAsState(
+        if (armed) 1f else easedDrag,
+        spring(dampingRatio = 1f, stiffness = 320f),
+        label = "shareMorphTint"
+    )
+    // Arming brightens the blue rather than just reaching the end of the ramp, so the commit point
+    // is visible and not only felt through the haptic.
+    val tint by animateColorAsState(
+        if (armed) Color(0xFF4AA8FF) else blue,
+        tween(240, easing = FastOutSlowInEasing),
+        label = "shareMorphArmed"
+    )
+    // Note the alpha cap. Lerping all the way to an opaque blue turned the capsule into a flat
+    // painted pill at the top of the gesture — the one moment the material should be most obviously
+    // alive. Held under 1 it stays a tint *through* the glass: the backdrop still refracts, and the
+    // colour reads as the surface picking up blue rather than the surface being replaced by it.
+    // The viewer passes a fully clear [glass] so the idle capsule is pure refraction like Home's
+    // circles. `Color.Transparent` is transparent *black*, though, and Compose interpolates colour
+    // and alpha together — ramping from it smeared the middle of the swipe through a muddy navy.
+    // Starting from the tint's own hue at zero alpha keeps the ramp blue the whole way up.
+    val base = if (glass.alpha == 0f) tint.copy(alpha = 0f) else glass
+    val surface = lerp(base, tint.copy(alpha = MaxTintAlpha), eased)
 
     // Fire exactly once on the false→true edge. Keying the effect on `armed` alone also fired on
     // first composition and again on disarm.

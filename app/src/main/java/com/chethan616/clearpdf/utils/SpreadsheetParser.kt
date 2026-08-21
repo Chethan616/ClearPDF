@@ -16,28 +16,52 @@ import java.util.zip.ZipInputStream
  */
 object SpreadsheetParser {
 
+    /** Widest row this parser will materialise. See the note at the `"c"` end-tag. */
+    private const val MaxColumns = 1024
+
     data class Sheet(val name: String, val rows: List<List<String>>) {
         /** Widest row → number of columns to render. */
         val columnCount: Int get() = rows.maxOfOrNull { it.size } ?: 0
     }
 
-    fun parse(context: Context, uri: Uri): List<Sheet> {
+    /**
+     * Never throws. Every failure — no such file, a revoked URI permission, a corrupt archive, a
+     * workbook too large for the heap — comes back as an empty list, which the caller renders as
+     * "Couldn't read this spreadsheet."
+     *
+     * The `runCatching` used to wrap only [parseXlsx]/[parseXls], leaving `openInputStream` and the
+     * whole-file read outside it. Those are the two calls most likely to fail (a `SecurityException`
+     * when a picked URI's grant has lapsed, an `OutOfMemoryError` on a big workbook), and because
+     * the caller invokes this from `viewModelScope.launch`, anything escaping here took the process
+     * down rather than showing the error state.
+     */
+    fun parse(context: Context, uri: Uri): List<Sheet> = runCatching {
         val name = queryName(context, uri).lowercase()
-        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return emptyList()
-        return when {
-            name.endsWith(".xls") -> runCatching { parseXls(bytes) }.getOrDefault(emptyList())
-            else -> runCatching { parseXlsx(bytes) }.getOrDefault(emptyList())
+        if (name.endsWith(".xls")) {
+            // POI's HSSF reader wants the file in hand; there is no streaming path for it.
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            if (bytes == null) emptyList() else parseXls(bytes)
+        } else {
+            context.contentResolver.openInputStream(uri)?.use { parseXlsx(it) } ?: emptyList()
         }
-    }
+    }.getOrDefault(emptyList())
 
     // ── XLSX (Office Open XML) ───────────────────────────────────────────────────
 
-    fun parseXlsx(bytes: ByteArray): List<Sheet> {
+    fun parseXlsx(bytes: ByteArray): List<Sheet> = bytes.inputStream().use { parseXlsx(it) }
+
+    fun parseXlsx(source: InputStream): List<Sheet> {
         val entries = HashMap<String, ByteArray>()
-        ZipInputStream(bytes.inputStream()).use { zip ->
+        ZipInputStream(source).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
-                entries[entry.name] = zip.readBytes()
+                // Only the four things below are ever read again. Keeping the rest was the single
+                // biggest allocation in this parser: `xl/media/*` (embedded images, already the
+                // bulk of many workbooks) and `xl/calcChain.xml` (one node per formula cell, often
+                // larger than the sheets themselves) were being decompressed into the heap in full
+                // and never touched. Skipping them is what keeps a mid-size workbook off the OOM
+                // line, since every entry kept here stays reachable until parsing finishes.
+                if (isNeeded(entry.name)) entries[entry.name] = zip.readBytes()
             }
         }
         val sharedStrings = entries["xl/sharedStrings.xml"]?.let { parseSharedStrings(it.inputStream()) } ?: emptyList()
@@ -150,7 +174,12 @@ object SpreadsheetParser {
                     "c" -> {
                         val raw = cellBuf.toString()
                         val value = if (cellType == "s") sharedStrings.getOrElse(raw.trim().toIntOrNull() ?: -1) { raw } else raw
-                        if (value.isNotEmpty()) rowCells[cellCol] = value
+                        // The column cap is what stops one malformed `r` ref from sizing the whole
+                        // sheet: the row is materialised as a dense `0..maxKey` list, so a single
+                        // cell claiming to be at XFD would allocate 16384 strings for every row in
+                        // the file. Excel's own classic limit is 256; past this a phone grid is not
+                        // a usable way to read the data anyway.
+                        if (value.isNotEmpty() && cellCol in 0 until MaxColumns) rowCells[cellCol] = value
                         nextAutoCol = cellCol + 1
                         inVal = false
                     }
@@ -182,6 +211,19 @@ object SpreadsheetParser {
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────
+
+    /**
+     * The zip entries this parser actually reads. Matched by suffix rather than by exact path
+     * because a few producers write the part names with a leading slash or a non-`xl/` package
+     * root, and a workbook that opens fine in Excel should not come up blank here.
+     */
+    private fun isNeeded(entryName: String): Boolean {
+        val n = entryName.removePrefix("/")
+        return n.endsWith("workbook.xml") ||
+            n.endsWith("workbook.xml.rels") ||
+            n.endsWith("sharedStrings.xml") ||
+            (n.contains("worksheets/") && n.endsWith(".xml"))
+    }
 
     private fun newParser(stream: InputStream): XmlPullParser = Xml.newPullParser().apply {
         setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)

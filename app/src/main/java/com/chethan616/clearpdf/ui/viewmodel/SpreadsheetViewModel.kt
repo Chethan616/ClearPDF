@@ -32,11 +32,21 @@ class SpreadsheetViewModel : ViewModel() {
     val state = _state.asStateFlow()
     private var started = false
 
+    /**
+     * Opening a spreadsheet must not be able to kill the app. Everything below runs inside
+     * `viewModelScope.launch`, where an escaping exception is uncaught and fatal — and three of the
+     * calls here talk to a `ContentProvider` the app does not own (`query`, `openInputStream`) or
+     * to shared preferences, any of which can throw on a URI whose grant has lapsed. Each step is
+     * therefore individually guarded and degrades to the on-screen error state instead.
+     */
     fun load(context: Context, uri: Uri) {
         if (started) return
         started = true
         viewModelScope.launch {
-            val name = withContext(Dispatchers.IO) { queryName(context, uri) }
+            val name = withContext(Dispatchers.IO) {
+                runCatching { queryName(context, uri) }.getOrNull()
+                    ?: uri.lastPathSegment ?: "Spreadsheet"
+            }
             val (sheets, localUri) = withContext(Dispatchers.IO) {
                 // Mirror to app cache so the file stays readable when reopened from recents (a picked
                 // content:// URI may lose permission later), then parse from the local copy.
@@ -49,15 +59,22 @@ class SpreadsheetViewModel : ViewModel() {
                 UiState(fileName = name, fileUri = localUri, sheets = sheets, isLoading = false)
             }
             if (sheets.isNotEmpty()) withContext(Dispatchers.IO) {
-                RecentFilesManager.addRecent(
-                    context,
-                    RecentFile(
-                        name = name,
-                        uriString = localUri.toString(),
-                        timestamp = System.currentTimeMillis(),
-                        pageCount = sheets.size
+                // The picked uri, not `localUri`. The mirror gets a fresh `System.currentTimeMillis()`
+                // filename on every open, so keying recents on it meant `addRecent` could never
+                // recognise a repeat and one spreadsheet accumulated a row per open. The mirror is a
+                // cache artifact; the document's identity is the uri the user chose. Re-opening from
+                // recents re-mirrors, which is what the mirror is for.
+                runCatching {
+                    RecentFilesManager.addRecent(
+                        context,
+                        RecentFile(
+                            name = name,
+                            uriString = uri.toString(),
+                            timestamp = System.currentTimeMillis(),
+                            pageCount = sheets.size
+                        )
                     )
-                )
+                }
             }
         }
     }

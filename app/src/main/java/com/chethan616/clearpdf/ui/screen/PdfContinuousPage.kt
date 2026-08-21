@@ -87,6 +87,8 @@ internal fun PdfContinuousPage(
     pageCanvasSizes: SnapshotStateMap<Int, Size>,
     pageBitmapSizes: SnapshotStateMap<Int, Size>,
     onInteraction: () -> Unit,
+    /** A stroke/shape just landed on this page. Feeds the viewer's undo history. */
+    onMarkAdded: () -> Unit = {},
     onToggleControls: () -> Unit,
     onShowControls: () -> Unit,
     onActiveToolChanged: (PdfEditTool) -> Unit,
@@ -419,6 +421,7 @@ internal fun PdfContinuousPage(
                     onDrag = { ch, _ -> ch.consume(); if (freehand) draftPoints = draftPoints + ch.position else draftRectEnd = ch.position },
                     onDragCancel = { draftPoints = emptyList(); draftRectStart = null; draftRectEnd = null },
                     onDragEnd = {
+                        val before = marks.size
                         when (activeTool) {
                             PdfEditTool.Draw      -> if (draftPoints.size > 1) marks.add(PdfMarkup.StrokeMarkup(draftPoints, currentColor, currentStrokeWidth, 0.95f))
                             PdfEditTool.Highlight -> if (draftPoints.size > 1) marks.add(PdfMarkup.StrokeMarkup(draftPoints, currentColor, currentStrokeWidth * 3.5f, 0.32f))
@@ -428,6 +431,9 @@ internal fun PdfContinuousPage(
                             PdfEditTool.Arrow     -> draftRectStart?.let { s -> draftRectEnd?.let { e -> marks.add(PdfMarkup.LineMarkup(s, e, currentColor, currentStrokeWidth, 1f, true)) } }
                             else -> Unit
                         }
+                        // Every branch above is conditional (a tap with <2 points adds nothing), so
+                        // compare sizes rather than assuming the drag produced a mark.
+                        if (marks.size > before) onMarkAdded()
                         draftPoints = emptyList(); draftRectStart = null; draftRectEnd = null
                     }
                 )

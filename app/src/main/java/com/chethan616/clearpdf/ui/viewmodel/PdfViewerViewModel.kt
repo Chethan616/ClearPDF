@@ -134,6 +134,10 @@ data class PdfViewerUiState(
     val passwordUri: Uri? = null,
     val pageBitmaps: List<Bitmap?> = emptyList(),
     val document: PdfDocument? = null,
+    // The uri the user actually opened — a plain PDF's own uri, or the ORIGINAL .docx/.pptx for a
+    // converted document (unlike [document].uri, which is the converted temp PDF). Lets Share offer
+    // "export as the original file" vs "export as PDF".
+    val originalUri: Uri? = null,
     val sizeBytes: Long = -1,
     val ocrBlocksByPage: Map<Int, List<OcrTextBlock>> = emptyMap(),
     val ocrPagesInProgress: Set<Int> = emptySet(),
@@ -202,7 +206,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                         else -> uri
                     }
                 }
-                val (doc, openedUri) = withContext(Dispatchers.IO) {
+                val (doc, _) = withContext(Dispatchers.IO) {
                     openDocumentWithFallback(context, sourceUri)
                 }
                 val displayName = queryFileName(context, uri) ?: doc.name
@@ -215,6 +219,9 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     passwordAttemptFailed = false,
                     passwordUri = null,
                     document = doc,
+                    // The original selection, so Share can offer the source file itself. For a
+                    // password-opened PDF this is still the encrypted original the user picked.
+                    originalUri = uri,
                     sizeBytes = doc.sizeBytes,
                     pageBitmaps = List(doc.pageCount) { null },
                     ocrBlocksByPage = emptyMap(),
@@ -225,9 +232,24 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     exportError = null,
                     lastExportedUri = null
                 )
+                // The ORIGINAL uri, deliberately — not `openedUri`.
+                //
+                // `openedUri` is whatever we ended up rendering: for a plain PDF that is the same
+                // file, but for a .docx/.pptx it is the converted temp PDF, and for an unreadable
+                // descriptor it is a timestamped mirror in app storage. Storing that broke recents
+                // three ways at once. The entry carried the original *name* ("report.docx") beside a
+                // converted *uri*, so tapping it re-queried DISPLAY_NAME off the temp file and got
+                // the converter's own name back — the "unknown.pdf" bug. `docKindOf` then read that
+                // name and routed a Word document to the plain PDF path. And because every open
+                // minted a fresh temp file with a fresh uri, `addRecent`'s dedupe never matched, so
+                // opening one file five times left five rows.
+                //
+                // The original uri is the identity of the thing the user opened. Re-opening from
+                // recents re-runs the conversion, which is correct: the converted file is a cache
+                // artifact, not the document.
                 RecentFilesManager.addRecent(context, RecentFile(
                     name = displayName,
-                    uriString = openedUri.toString(),
+                    uriString = uri.toString(),
                     timestamp = System.currentTimeMillis(),
                     pageCount = doc.pageCount,
                     sizeBytes = doc.sizeBytes

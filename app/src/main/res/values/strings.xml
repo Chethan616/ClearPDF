@@ -18,6 +18,8 @@
     <string name="onboarding_language_title">Choose your language</string>
     <string name="onboarding_language_subtitle">Personalize your experience</string>
     <string name="onboarding_language_label">Language</string>
+    <string name="onboarding_appearance_title">Make it yours</string>
+    <string name="onboarding_appearance_subtitle">Pick a theme and a background. Change both any time in Settings.</string>
     <string name="onboarding_files_title">Open anything</string>
     <string name="onboarding_files_subtitle">PDFs, docs, sheets, slides, images &amp; more</string>
     <string name="onboarding_features_title">Powerful tools</string>
@@ -25,6 +27,9 @@
     <string name="onboarding_cta_continue">Continue</string>
     <string name="onboarding_cta_get_started">Get Started</string>
     <string name="onboarding_step">%1$d of %2$d</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="settings_replay_onboarding">Watch intro again</string>
+    <string name="settings_replay_onboarding_desc">Replay the welcome tour</string>
 
     <!-- Home Screen -->
     <string name="home_title">ClearPDF</string>
@@ -221,6 +226,16 @@
     <string name="viewer_page_label">Page</string>
     <string name="viewer_go">Go</string>
     <string name="viewer_ocr">OCR (%1$d)</string>
+
+    <!-- Share / export dialog -->
+    <string name="viewer_share_title">Share</string>
+    <string name="viewer_share_format">Format</string>
+    <string name="viewer_share_encrypt">Encrypt with password</string>
+    <string name="viewer_share_password_hint">Password</string>
+    <string name="viewer_share_button">Share</string>
+    <string name="viewer_share_pdf">PDF</string>
+    <string name="viewer_share_normal">Normal</string>
+    <string name="viewer_share_encrypted">Encrypted</string>
 
     <!-- Signature Pad -->
     <string name="sig_draw_title">Draw your signature</string>

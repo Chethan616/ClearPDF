@@ -1,7 +1,10 @@
 package com.chethan616.clearpdf.ui.screen
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -12,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,8 +30,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,22 +49,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.DestructiveGlassButton
+import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 /**
  * Page-jump popup rendered **in-window** (not a [Dialog]) so the liquid-glass panel
@@ -266,6 +288,282 @@ internal fun AnnotationEditorDialog(
                         }
                         LiquidButton(onClick = { onSave(text, color) }, backdrop = backdrop, tint = Color(0xFF1976D2)) {
                             BasicText(stringResource(R.string.anno_save), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Which file the viewer's Share action should hand off. */
+internal enum class ShareFormat { ORIGINAL, PDF }
+
+/**
+ * Share/export chooser, rendered in-window in the same glass family as [LiquidPageJumpPopup]. For a
+ * converted document (a .docx opened as a PDF) it offers the original file *or* a PDF via a bouncy
+ * [LiquidGlassDropdown]; when PDF is the target it can encrypt with a password. A plain PDF skips the
+ * format row and just offers the encrypt toggle.
+ *
+ * The dialog only collects intent — the actual file work (encrypt, wrap, chooser) happens off the UI
+ * thread in the caller.
+ */
+@Composable
+internal fun ExportShareDialog(
+    visible: Boolean,
+    // Uppercase token for the original file when it isn't a PDF (e.g. "DOCX"); null for a plain PDF.
+    originalExt: String?,
+    backdrop: LayerBackdrop,
+    uiSensor: UISensor,
+    fg: Color,
+    fgSoft: Color,
+    surface: Color,
+    field: Color,
+    onDismiss: () -> Unit,
+    onShare: (format: ShareFormat, encrypt: Boolean, password: String) -> Unit
+) {
+    // Keyed on `visible` so every open starts fresh.
+    var formatIndex by remember(visible) { mutableStateOf(0) }
+    var encrypt by remember(visible) { mutableStateOf(false) }
+    var password by remember(visible) { mutableStateOf("") }
+    var dropdownOpen by remember(visible) { mutableStateOf(false) }
+    val passwordFocus = remember { FocusRequester() }
+    val density = LocalDensity.current
+
+    val pdfOnly = originalExt == null
+    val pdfSelected = pdfOnly || formatIndex == 1
+    val canShare = !(pdfSelected && encrypt && password.isBlank())
+    val options = if (pdfOnly) emptyList() else listOf(originalExt, stringResource(R.string.viewer_share_pdf))
+
+    // Trigger anchor in the dialog Box's coordinate space, so the dropdown menu is an OVERLAY that
+    // never grows the glass panel. Growing that panel re-runs its blur+lens every frame — the exact
+    // "expand/minimize lag" being fixed here.
+    var boxWin by remember { mutableStateOf(Offset.Zero) }
+    var trigWin by remember { mutableStateOf(Offset.Zero) }
+    var trigSize by remember { mutableStateOf(IntSize.Zero) }
+
+    val chevron by animateFloatAsState(if (dropdownOpen) 180f else 0f, GlassMotion.morph(), label = "shareDropChevron")
+
+    LaunchedEffect(encrypt, pdfSelected) {
+        if (encrypt && pdfSelected) { delay(120); runCatching { passwordFocus.requestFocus() } }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(180)),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(0.45f))
+                    .pointerInput(Unit) { detectTapGestures { onDismiss() } }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(220)) +
+                    scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)),
+            exit = fadeOut(tween(140)) + scaleOut(targetScale = 0.9f, animationSpec = tween(150)),
+            modifier = Modifier.align(Alignment.Center).imePadding()
+        ) {
+            Box(
+                Modifier
+                    .widthIn(max = 340.dp)
+                    .fillMaxWidth(0.86f)
+                    .onGloballyPositioned { boxWin = it.positionInWindow() }
+            ) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .liquidGlassPanel(backdrop, uiSensor, surface)
+                        .padding(22.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    BasicText(
+                        stringResource(R.string.viewer_share_title),
+                        style = TextStyle(fg, 17.sp, fontWeight = FontWeight.Bold)
+                    )
+
+                    if (!pdfOnly) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            BasicText(
+                                stringResource(R.string.viewer_share_format),
+                                style = TextStyle(fgSoft, 12.sp, fontWeight = FontWeight.Medium)
+                            )
+                            // Trigger only — the menu is drawn as a dialog overlay below (so the panel
+                            // never resizes). Reports its window position + size to anchor that menu.
+                            LiquidButton(
+                                onClick = { dropdownOpen = !dropdownOpen },
+                                backdrop = backdrop,
+                                surfaceColor = field,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onGloballyPositioned { trigWin = it.positionInWindow(); trigSize = it.size }
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    BasicText(
+                                        options.getOrElse(formatIndex) { "" },
+                                        style = TextStyle(fg, 14.sp, fontWeight = FontWeight.SemiBold)
+                                    )
+                                    Icon(
+                                        Icons.Rounded.KeyboardArrowDown,
+                                        null,
+                                        Modifier.size(20.dp).graphicsLayer { rotationZ = chevron },
+                                        fgSoft
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (pdfSelected) {
+                        // Segmented Normal | Encrypted. Deterministic — a plain tap on `LiquidToggle`
+                        // fires both its clickable and its drag-stop, cancelling out, so it could get
+                        // stuck on and never prompt for a password. Two buttons set a definite value.
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            listOf(false to R.string.viewer_share_normal, true to R.string.viewer_share_encrypted)
+                                .forEach { (enc, labelRes) ->
+                                    val sel = encrypt == enc
+                                    LiquidButton(
+                                        onClick = { encrypt = enc },
+                                        backdrop = backdrop,
+                                        tint = if (sel) Color(0xFF1976D2) else Color.Unspecified,
+                                        surfaceColor = if (sel) Color.Unspecified else field,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        BasicText(
+                                            stringResource(labelRes),
+                                            style = TextStyle(if (sel) Color.White else fg, 13.sp, fontWeight = FontWeight.SemiBold),
+                                            modifier = Modifier.padding(vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                        }
+                        if (encrypt) {
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(field)
+                                    .border(1.dp, fg.copy(0.18f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                            ) {
+                                if (password.isEmpty()) {
+                                    BasicText(
+                                        stringResource(R.string.viewer_share_password_hint),
+                                        style = TextStyle(fgSoft, 14.sp)
+                                    )
+                                }
+                                BasicTextField(
+                                    value = password,
+                                    onValueChange = { password = it },
+                                    singleLine = true,
+                                    textStyle = TextStyle(fg, 14.sp),
+                                    cursorBrush = SolidColor(fg),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                    modifier = Modifier.fillMaxWidth().focusRequester(passwordFocus)
+                                )
+                            }
+                        }
+                    }
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                    ) {
+                        LiquidButton(onClick = onDismiss, backdrop = backdrop, surfaceColor = field) {
+                            BasicText(stringResource(R.string.cancel), style = TextStyle(fg, 13.sp, FontWeight.Medium))
+                        }
+                        LiquidButton(
+                            onClick = {
+                                if (canShare) onShare(
+                                    if (pdfSelected) ShareFormat.PDF else ShareFormat.ORIGINAL,
+                                    encrypt && pdfSelected,
+                                    password
+                                )
+                            },
+                            backdrop = backdrop,
+                            tint = if (canShare) Color(0xFF1976D2) else Color(0xFF1976D2).copy(0.4f)
+                        ) {
+                            BasicText(stringResource(R.string.viewer_share_button), style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.Bold))
+                        }
+                    }
+                }
+
+                // Tap-outside catcher for an open dropdown. `matchParentSize` reads the panel's size
+                // without contributing to it, so it doesn't grow the dialog.
+                if (dropdownOpen) {
+                    Box(
+                        Modifier
+                            .matchParentSize()
+                            .pointerInput(Unit) { detectTapGestures { dropdownOpen = false } }
+                    )
+                }
+
+                // Dropdown menu overlay — anchored under the trigger, drawn last (on top), and NOT
+                // wrapped by the glass panel, so opening/closing it costs nothing on the panel. The
+                // bounce is all draw-time (a `pop()` spring driving alpha + a translationY overshoot +
+                // a small scaleY grow), so the menu's own glass never re-blurs while it springs.
+                if (!pdfOnly && (dropdownOpen || trigSize != IntSize.Zero)) {
+                    val menuOffset = IntOffset(
+                        (trigWin.x - boxWin.x).roundToInt(),
+                        (trigWin.y - boxWin.y).roundToInt() + trigSize.height + with(density) { 6.dp.roundToPx() }
+                    )
+                    val menuWidth = with(density) { trigSize.width.toDp() }
+                    AnimatedVisibility(
+                        visible = dropdownOpen,
+                        enter = fadeIn(tween(110)),
+                        exit = fadeOut(tween(90)),
+                        modifier = Modifier.align(Alignment.TopStart).offset { menuOffset }.zIndex(1f)
+                    ) {
+                        val reveal by transition.animateFloat(
+                            transitionSpec = {
+                                if (targetState == EnterExitState.Visible) GlassMotion.pop() else GlassMotion.settle()
+                            },
+                            label = "shareMenuReveal"
+                        ) { if (it == EnterExitState.Visible) 1f else 0f }
+                        Column(
+                            Modifier
+                                .width(menuWidth)
+                                .graphicsLayer {
+                                    alpha = reveal.coerceIn(0f, 1f)
+                                    translationY = (1f - reveal) * (-14.dp.toPx())
+                                    scaleY = 0.9f + 0.1f * reveal
+                                    transformOrigin = TransformOrigin(0.5f, 0f)
+                                }
+                                .liquidGlassPanel(backdrop, uiSensor, field)
+                                .padding(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            options.forEachIndexed { i, opt ->
+                                val selected = i == formatIndex
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) { formatIndex = i; dropdownOpen = false }
+                                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    BasicText(
+                                        opt,
+                                        style = TextStyle(fg, 14.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)
+                                    )
+                                    if (selected) Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), fg)
+                                }
+                            }
                         }
                     }
                 }

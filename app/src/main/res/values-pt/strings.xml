@@ -18,6 +18,8 @@
     <string name="onboarding_language_title">Escolha seu idioma</string>
     <string name="onboarding_language_subtitle">Personalize sua experi&#234;ncia</string>
     <string name="onboarding_language_label">Idioma</string>
+    <string name="onboarding_appearance_title">Deixe do seu jeito</string>
+    <string name="onboarding_appearance_subtitle">Escolha um tema e um plano de fundo. Mude quando quiser nas Configura&#231;&#245;es.</string>
     <string name="onboarding_files_title">Abra qualquer arquivo</string>
     <string name="onboarding_files_subtitle">PDFs, documentos, planilhas, apresenta&#231;&#245;es, imagens e muito mais</string>
     <string name="onboarding_features_title">Ferramentas poderosas</string>
@@ -28,6 +30,9 @@
     <string name="onboarding_cta_continue">Continuar</string>
     <string name="onboarding_cta_get_started">Come&#231;ar</string>
     <string name="onboarding_step">%1$d de %2$d</string>
+    <string name="onboarding_skip">Pular</string>
+    <string name="settings_replay_onboarding">Ver introdu&#231;&#227;o novamente</string>
+    <string name="settings_replay_onboarding_desc">Repetir o tour de boas-vindas</string>
 
     <!-- Home Screen -->
     <string name="home_title">ClearPDF</string>
@@ -292,6 +297,16 @@
     <string name="viewer_page_label">P&#225;gina</string>
     <string name="viewer_go">Ir</string>
     <string name="viewer_ocr">OCR (%1$d)</string>
+
+    <!-- Share / export dialog -->
+    <string name="viewer_share_title">Compartilhar</string>
+    <string name="viewer_share_format">Formato</string>
+    <string name="viewer_share_encrypt">Criptografar com senha</string>
+    <string name="viewer_share_password_hint">Senha</string>
+    <string name="viewer_share_button">Compartilhar</string>
+    <string name="viewer_share_pdf">PDF</string>
+    <string name="viewer_share_normal">Normal</string>
+    <string name="viewer_share_encrypted">Criptografado</string>
     <string name="tool_merge_description">Selecione dois ou mais PDFs para mesclar em um</string>
     <string name="tool_split_description">Escolha um modo e execute uma a&#231;&#227;o principal clara.</string>
     <string name="files_selected">%1$d arquivos selecionados</string>
