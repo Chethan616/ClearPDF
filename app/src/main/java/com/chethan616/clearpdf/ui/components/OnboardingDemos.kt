@@ -1,11 +1,14 @@
 package com.chethan616.clearpdf.ui.components
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.lerp as lerpColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,6 +52,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -204,12 +208,11 @@ fun DemoDocumentOpen(isActive: Boolean, backdrop: Backdrop, glass: Color, ink: C
         progress.animateTo(1f, tween(2200, easing = LinearEasing))
     }
 
-    // Once assembled, the book settles into PDF red — the app's primary format, the one the six
-    // flying sheets resolve into — instead of the neutral frost it wore before. Blended off the
-    // theme glass so it stays a translucent surface rather than a flat red card; the text lines
-    // pick up the same red so the page reads as one coloured object.
-    val bookGlass = androidx.compose.ui.graphics.lerp(glass, LiquidGlassColors.Red, 0.30f)
-    val bookInk = LiquidGlassColors.Red
+    // The assembled book stays neutral glass so the CONTENT can carry the colour: each of its lines
+    // is tinted by one of the six formats that flew in, in the same order they landed, so the book
+    // visibly reads as "made of" the PDF/DOC/XLS/PPT/IMG/TXT sheets that assembled it rather than
+    // collapsing to a single red.
+    val bookGlass = glass
 
     Box(
         Modifier
@@ -268,15 +271,21 @@ fun DemoDocumentOpen(isActive: Boolean, backdrop: Backdrop, glass: Color, ink: C
                     scaleX = s
                     scaleY = s
                 }
-                .viewerGlass(backdrop, bookGlass, shape = { RoundedRectangle(16f.dp) })
+                // withShadow = false: this book is the one surface on page 1, and its drop shadow used
+                // to snap in the instant the assembled book reached full opacity. Page 1 shows no
+                // shadow at all now — see [viewerGlass]'s `withShadow`.
+                .viewerGlass(backdrop, bookGlass, shape = { RoundedRectangle(16f.dp) }, withShadow = false)
                 .padding(horizontal = 15.dp, vertical = 17.dp),
             contentAlignment = Alignment.TopStart
         ) {
             // Content arrives once the book has: the last beat, so the sequence ends on something
-            // legible rather than on the stack merely stopping.
+            // legible rather than on the stack merely stopping. Each line wears the colour of the
+            // format sheet at its position — in [DemoKinds] order — so the finished book carries all
+            // six colours that formed it, laid down one after another.
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 val widths = listOf(0.85f, 1f, 0.72f, 0.94f, 0.6f, 0.88f, 0.45f)
                 widths.forEachIndexed { idx, w ->
+                    val lineTint = DemoKinds[idx % DemoKinds.size].tint
                     Box(
                         Modifier
                             .fillMaxWidth(w)
@@ -291,7 +300,7 @@ fun DemoDocumentOpen(isActive: Boolean, backdrop: Backdrop, glass: Color, ink: C
                                 scaleX = t
                             }
                             .clip(RoundedCornerShape(3.dp))
-                            .background(bookInk.copy(if (idx == 0) 0.55f else 0.28f))
+                            .background(lineTint.copy(if (idx == 0) 0.85f else 0.62f))
                     )
                 }
             }
@@ -334,76 +343,109 @@ private fun OrbitSheet(tint: Color, modifier: Modifier) {
 // ── Page 3 · Open anything ──────────────────────────────────────────────────────────────────────
 
 /**
- * "Open anything", restyled to match page 5's feature panel: one `viewerGlass` panel holding a column
- * of rows, each a coloured icon tile beside the format name and its file extensions — the same
- * leading-visual + title + subtext rhythm [FeatureRows] uses, rather than the old bare grid of chips.
+ * "Open anything" as ONE liquid-glass document that becomes each format in turn, rather than a static
+ * list of rows. A single [viewerGlass] card holds a big format icon, the format name and its
+ * extensions, and a few tinted "content" lines — and it cross-fades from PDF → Word → Excel → PPT →
+ * Image on a loop, the whole card re-tinting toward each format's colour as it goes. It reads as the
+ * same reader opening anything you hand it, which is the promise the page is making, and it does it
+ * with the app's real glass instead of a generic chip grid.
  *
- * Rows cascade in on [EaseOutBack] with a per-index stagger (draw-time only — the panel behind never
- * re-measures). Names reuse the localized recents category strings; extensions are literal, so this
- * adds no translated copy.
+ * One glass surface (not five), so it costs a single blur+lens pass; only the flat inner content
+ * cross-fades. Names reuse the localized recents category strings; extensions are literal.
  */
 @Composable
 fun DemoFileKinds(isActive: Boolean, backdrop: Backdrop, glass: Color, ink: Color, inkSoft: Color) {
-    val p = rememberDemoLoop(isActive, riseMs = 760, holdMs = 1500L)
+    data class KindCard(val icon: ImageVector, val tint: Color, val name: String, val ext: String)
+    val cards = listOf(
+        KindCard(Icons.Rounded.PictureAsPdf, LiquidGlassColors.Red,    stringResource(R.string.recents_filter_pdf),   ".pdf"),
+        KindCard(Icons.Rounded.Description,  LiquidGlassColors.Blue,   stringResource(R.string.recents_filter_word),  ".doc · .docx"),
+        KindCard(Icons.Rounded.GridOn,       LiquidGlassColors.Green,  stringResource(R.string.recents_filter_excel), ".xls · .xlsx"),
+        KindCard(Icons.Rounded.Slideshow,    LiquidGlassColors.Orange, stringResource(R.string.recents_filter_ppt),   ".ppt · .pptx"),
+        KindCard(Icons.Rounded.Image,        LiquidGlassColors.Purple, stringResource(R.string.recents_filter_image), ".jpg · .png")
+    )
 
-    data class KindRow(val icon: ImageVector, val tint: Color, val name: String, val ext: String)
-    val rows = listOf(
-        KindRow(Icons.Rounded.PictureAsPdf, LiquidGlassColors.Red,    stringResource(R.string.recents_filter_pdf),   ".pdf"),
-        KindRow(Icons.Rounded.Description,  LiquidGlassColors.Blue,   stringResource(R.string.recents_filter_word),  ".doc · .docx"),
-        KindRow(Icons.Rounded.GridOn,       LiquidGlassColors.Green,  stringResource(R.string.recents_filter_excel), ".xls · .xlsx"),
-        KindRow(Icons.Rounded.Slideshow,    LiquidGlassColors.Orange, stringResource(R.string.recents_filter_ppt),   ".ppt · .pptx"),
-        KindRow(Icons.Rounded.Image,        LiquidGlassColors.Purple, stringResource(R.string.recents_filter_image), ".jpg · .png")
+    // Advance the format on a dwell loop; reset to the first when the page is left so it always opens
+    // on PDF. Gated on `isActive` like every other demo — see the file header.
+    var index by remember { mutableIntStateOf(0) }
+    LaunchedEffect(isActive) {
+        if (!isActive) { index = 0; return@LaunchedEffect }
+        delay(500)
+        while (true) {
+            delay(1500)
+            index = (index + 1) % cards.size
+        }
+    }
+    val current = cards[index]
+
+    // The card tint eases toward the active format's colour, so the glass itself carries the change
+    // even between the content cross-fades. A soft blend, so it stays glass rather than a colour swatch.
+    val cardTint by animateColorAsState(
+        lerpColor(glass, current.tint, 0.16f),
+        tween(560, easing = FastOutSlowInEasing),
+        label = "fileCardTint"
     )
 
     Column(
         Modifier
-            .fillMaxWidth()
-            .viewerGlass(backdrop, glass, shape = { RoundedRectangle(28f.dp) })
-            .padding(vertical = 14.dp, horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .width(212.dp)
+            .viewerGlass(backdrop, cardTint, shape = { RoundedRectangle(26f.dp) })
+            .padding(22.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        rows.forEachIndexed { index, kind ->
-            // One shared clock, re-mapped per row for the stagger — same as the tile cascade, but on
-            // full rows. Draw-time (alpha / translation / scale) only.
-            val head = index * 0.10f
-            val local = ((p - head) / (1f - head).coerceAtLeast(0.001f)).coerceIn(0f, 1f)
-            val eased = EaseOutBack.transform(local)
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        alpha = local
-                        translationX = lerp(16f, 0f, eased) * density
-                    },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+        // The whole inner content cross-fades as one, so the icon, the name and the tinted lines all
+        // turn over together. The glass card behind is outside the fade and never re-measures.
+        Crossfade(
+            targetState = index,
+            animationSpec = tween(460, easing = FastOutSlowInEasing),
+            label = "fileKind"
+        ) { i ->
+            val k = cards[i]
+            Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Box(
                     Modifier
-                        .size(44.dp)
-                        .graphicsLayer {
-                            val s = lerp(0.86f, 1f, eased)
-                            scaleX = s; scaleY = s
-                        }
-                        .clip(RoundedCornerShape(13.dp))
-                        .background(kind.tint.copy(0.90f)),
+                        .size(76.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(k.tint.copy(0.92f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(kind.icon, null, Modifier.size(23.dp), Color.White)
+                    Icon(k.icon, null, Modifier.size(40.dp), Color.White)
                 }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(
+                    Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
                     BasicText(
-                        kind.name,
-                        style = TextStyle(ink, 15.sp, fontWeight = FontWeight.SemiBold),
+                        k.name,
+                        style = TextStyle(ink, 19.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    )
+                    BasicText(
+                        k.ext,
+                        style = TextStyle(inkSoft, 13.sp, textAlign = TextAlign.Center),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    BasicText(
-                        kind.ext,
-                        style = TextStyle(inkSoft, 12.5.sp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                }
+                // A few "content" lines in the format's own colour, so the card reads as a document of
+                // that kind rather than just an icon.
+                Column(
+                    Modifier.fillMaxWidth().padding(top = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    listOf(1f, 0.82f, 0.92f, 0.6f).forEach { w ->
+                        Box(
+                            Modifier
+                                .fillMaxWidth(w)
+                                .height(5.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(k.tint.copy(0.45f))
+                        )
+                    }
                 }
             }
         }

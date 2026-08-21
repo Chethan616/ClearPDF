@@ -81,7 +81,14 @@ class PdfViewerImpl : PdfViewer {
             val renderer = renderers[document.uri] ?: return null
             if (pageIndex < 0 || pageIndex >= renderer.pageCount) return null
 
-            val page = renderer.openPage(pageIndex)
+            // `openPage` is a native call that can fail on a page some producers (e.g. a PdfBox-
+            // decrypted copy) emit in a form pdfium dislikes; treat any failure as "no bitmap".
+            val page = try {
+                renderer.openPage(pageIndex)
+            } catch (t: Throwable) {
+                return@withLock null
+            }
+            var bitmap: Bitmap? = null
             try {
                 val rotation = ((rotationDegrees % 360) + 360) % 360
                 val swap = rotation == 90 || rotation == 270
@@ -95,7 +102,7 @@ class PdfViewerImpl : PdfViewer {
                 val targetW = width.coerceAtLeast(1)
                 val targetH = (targetW * (dispH / dispW)).toInt().coerceAtLeast(1)
 
-                val bitmap = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888)
+                bitmap = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888)
                 bitmap.eraseColor(android.graphics.Color.WHITE)
 
                 // Map the source page into the (possibly rotated) target bitmap.
@@ -115,7 +122,12 @@ class PdfViewerImpl : PdfViewer {
 
                 page.render(bitmap, null, matrix, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                 bitmap
-            } catch (e: Exception) {
+            } catch (t: Throwable) {
+                // Catch Throwable, not just Exception: a large page can throw OutOfMemoryError from
+                // Bitmap.createBitmap, which is an Error — the old `catch (Exception)` let it escape and
+                // crash the app mid-scroll (worst on big / decrypted PDFs). Free any partial bitmap so a
+                // failed render doesn't itself leak the memory that caused the failure.
+                bitmap?.recycle()
                 null
             } finally {
                 runCatching { page.close() }

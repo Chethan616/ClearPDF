@@ -756,6 +756,13 @@ private fun Transition<Boolean>.entranceModifier(index: Int, density: Float): Mo
     return Modifier.graphicsLayer {
         this.alpha = alpha
         translationY = offsetY * density
+        // Modulate alpha per draw-op instead of compositing to an offscreen buffer. The glass panels
+        // carry a soft `drawBackdrop` shadow that extends BEYOND their bounds; an offscreen layer
+        // (the default when alpha < 1) clips that overspill, so the shadow stayed invisible through
+        // the whole fade and then snapped in at full strength the instant alpha reached 1 and the
+        // offscreen switched off. Modulating avoids the buffer entirely, so the shadow fades in with
+        // its container — the way the Tools screen's panels already come in.
+        compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
     }
 }
 

@@ -71,7 +71,6 @@ import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.UploadFile
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -115,6 +114,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
+import com.chethan616.clearpdf.ui.components.DecryptingAnimation
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.GlassTitlePill
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
@@ -422,7 +422,17 @@ fun PdfViewerScreen(
         // below until the first page is rendered, so the swap between these two branches is seamless.
         val openingHandedDoc = !askingPassword && state.errorMessage == null && (state.isLoading || pendingLoad)
         if (openingHandedDoc) {
-            ViewerLoadingCurtain(isLight = isLight)
+            Box(Modifier.fillMaxSize()) {
+                ViewerLoadingCurtain(isLight = isLight)
+                // While a password PDF is actually being unlocked, play the padlock "decrypting"
+                // animation over the fill (styled after the onboarding page-5 demos). Plain opening
+                // fills (a normal load) show nothing extra — a lock would be misleading there.
+                if (state.decrypting) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        DecryptingAnimation(backdrop = backdrop)
+                    }
+                }
+            }
             return
         }
         // The password prompt is an OVERLAY on this Box, not a third row inside the Column below.
@@ -845,7 +855,9 @@ fun PdfViewerScreen(
                                 onClearOcrSelection     = { viewModel.clearOcrSelection(page) },
                                 onSelectLine            = { viewModel.selectLine(page, it) },
                                 onSelectParagraph       = { viewModel.selectParagraph(page, it) },
-                                onSelectOcrRange        = { viewModel.selectOcrBlocks(page, it, append = true) },
+                                // Replace (not append): a drag defines the whole selection live, so as
+                                // the finger shrinks the range the deselected words must drop out too.
+                                onSelectOcrRange        = { viewModel.selectOcrBlocks(page, it, append = false) },
                                 onPlaceText             = { pt ->
                                     val id = System.nanoTime()
                                     getPageMarks(page).add(PdfMarkup.TextBoxMarkup(id, pt, "", currentColor, 40f))
@@ -1378,24 +1390,17 @@ fun PdfViewerScreen(
 }
 
 /**
- * The plain dark "opening" screen shown while a document loads — a solid fill plus a single centred
- * spinner. Deliberately opaque (no wallpaper behind) and identical in both the no-document branch and
- * the loaded viewer's fade-out overlay, so the moment the document arrives and the branches swap the
- * user sees no seam: the same spinner keeps spinning, then dissolves to reveal the first page.
+ * A plain opaque fill shown while a handed-in document loads — no spinner, no indicator, nothing to
+ * look at. It exists only so that (a) the "Open a PDF" picker never flashes before the pages arrive,
+ * and (b) the loaded viewer can fade in from behind it. It's identical in the no-document branch and
+ * the loaded overlay, so the branch swap is seamless; when the first page is ready the overlay simply
+ * fades out (see the AnimatedVisibility that hosts it) to reveal the PDF. That fade is the whole
+ * "opening" animation — deliberately just a dissolve.
  */
 @Composable
 private fun ViewerLoadingCurtain(isLight: Boolean) {
     val bg = if (isLight) Color(0xFF0A0E14) else Color(0xFF05070B)
-    Box(
-        Modifier.fillMaxSize().background(bg),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator(
-            color = Color(0xFF1976D2),
-            strokeWidth = 2.5.dp,
-            modifier = Modifier.size(34.dp)
-        )
-    }
+    Box(Modifier.fillMaxSize().background(bg))
 }
 
 /**

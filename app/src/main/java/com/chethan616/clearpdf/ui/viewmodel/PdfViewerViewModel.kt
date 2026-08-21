@@ -32,6 +32,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -128,6 +130,10 @@ data class PdfViewerUiState(
     val pageCount: Int = 0,
     val currentPage: Int = 0,
     val isLoading: Boolean = false,
+    // True while a password-protected PDF is being unlocked + loaded, so the viewer can show the
+    // padlock "decrypting" animation instead of the plain opening fill. Cleared on every terminal
+    // outcome (opened / wrong password / error).
+    val decrypting: Boolean = false,
     val errorMessage: String? = null,
     val passwordRequired: Boolean = false,
     val passwordAttemptFailed: Boolean = false,
@@ -160,6 +166,12 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
     private val renderedPageWidths = mutableMapOf<Int, Int>()
     private val textLoadingPages = mutableSetOf<Int>()
 
+    // Text extraction loads the ENTIRE document with PdfBox per page (PdfTextService.extractPage), so
+    // several pages extracting at once — the eager first-pages pass, or a fast scroll — stack multiple
+    // full-document copies in RAM and can OOM a large / decrypted PDF. This serializes them to one at a
+    // time, capping the peak to a single in-flight copy. Pages still extract lazily; they just queue.
+    private val textExtractionMutex = Mutex()
+
     private val textService = PdfServiceLocator.pdfTextService
 
     companion object {
@@ -176,6 +188,8 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         textLoadingPages.clear()
         _uiState.value = _uiState.value.copy(
             isLoading = true,
+            // A supplied password means this call is the actual unlock → drive the decrypt animation.
+            decrypting = password != null,
             errorMessage = null,
             document = null,
             pageBitmaps = emptyList(),
@@ -215,6 +229,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     pageCount = doc.pageCount,
                     currentPage = 0,
                     isLoading = false,
+                    decrypting = false,
                     passwordRequired = false,
                     passwordAttemptFailed = false,
                     passwordUri = null,
@@ -264,6 +279,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
             } catch (e: PdfSecurityService.PasswordRequiredException) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
+                    decrypting = false,
                     passwordRequired = true,
                     passwordAttemptFailed = password != null,
                     passwordUri = uri,
@@ -272,6 +288,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
             } catch (_: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
+                    decrypting = false,
                     errorMessage = context.getString(R.string.viewer_open_failed)
                 )
             }
@@ -345,7 +362,10 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         viewModelScope.launch {
             try {
                 val bitmap = withContext(AppDispatchers.pdf) {
-                    openPdfUseCase.renderPage(doc, pageIndex, renderWidth)
+                    // Guard the whole render — a large page can OOM (an Error, not an Exception), and
+                    // this coroutine has only a finally, so an uncaught throwable here crashed the app
+                    // mid-scroll. Returning null instead just leaves the page as a spinner placeholder.
+                    runCatching { openPdfUseCase.renderPage(doc, pageIndex, renderWidth) }.getOrNull()
                 }
                 val currentState = _uiState.value
                 if (currentState.document?.uri != documentUri) return@launch
@@ -387,9 +407,12 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
 
         viewModelScope.launch {
             val blocks = withContext(Dispatchers.IO) {
-                runCatching {
-                    textService.extractPage(context, doc.uri, pageIndex)
-                }.getOrElse { emptyList() }
+                // One full-document PdfBox parse at a time — see [textExtractionMutex].
+                textExtractionMutex.withLock {
+                    runCatching {
+                        textService.extractPage(context, doc.uri, pageIndex)
+                    }.getOrElse { emptyList() }
+                }
             }
             val current = _uiState.value
             if (current.document?.uri != doc.uri) {

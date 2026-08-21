@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.CloseCrossIcon
+import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.ShareMorphButton
@@ -212,7 +213,11 @@ internal fun PdfViewerBottomToolbar(
     var shareActive by remember { mutableStateOf(false) }
     val toolCompress by animateFloatAsState(
         if (shareActive) 0.84f else 1f,
-        spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow),
+        // Bounce, matching the share capsule's own morph — both now run on GlassMotion.morph(), so the
+        // pill springs shut (and back open) with the same weight the cylinder has instead of deflating
+        // limply beside it. Safe to overshoot because this drives `scaleX`, a DRAW-time property: no
+        // per-frame re-measure of the glass, unlike a width/height spring (see GlassMotion's KDoc).
+        GlassMotion.morph(),
         label = "toolCompress"
     )
     // Tell the viewer when the Editor Tools panel is open so it won't auto-hide the chrome.

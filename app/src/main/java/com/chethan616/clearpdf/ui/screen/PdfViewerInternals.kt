@@ -298,6 +298,60 @@ internal fun hitTestOcrBlock(blocks: List<OcrTextBlock>, contentPoint: Offset, f
 internal fun intersects(a: Rect, b: Rect): Boolean =
     a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
 
+/**
+ * The contiguous run of words between two content points, **in reading order** — a real text
+ * selection rather than a rectangular marquee. Words are ordered top-to-bottom and left-to-right
+ * within a line (lines grouped by vertical overlap); each point snaps to its nearest word, and every
+ * word from the earlier position to the later one is returned. This is what lets a drag select a
+ * whole sentence or paragraph the way selecting text on a page should, instead of one word at a time.
+ */
+internal fun ocrRangeBetween(
+    blocks: List<OcrTextBlock>,
+    frame: Rect,
+    p1: Offset,
+    p2: Offset
+): Set<String> {
+    if (blocks.isEmpty()) return emptySet()
+    val ordered = blocks.readingOrder()
+    val i1 = ordered.nearestBlockIndex(frame, p1)
+    val i2 = ordered.nearestBlockIndex(frame, p2)
+    if (i1 < 0 || i2 < 0) return emptySet()
+    val lo = minOf(i1, i2)
+    val hi = maxOf(i1, i2)
+    return ordered.subList(lo, hi + 1).map { it.id }.toSet()
+}
+
+/** Words sorted into reading order: grouped into lines by vertical overlap, then left-to-right. */
+private fun List<OcrTextBlock>.readingOrder(): List<OcrTextBlock> {
+    if (isEmpty()) return this
+    val avgH = map { it.bottom - it.top }.average().toFloat().coerceAtLeast(0.001f)
+    val gap = avgH * 0.6f
+    val lines = mutableListOf<MutableList<OcrTextBlock>>()
+    for (b in sortedBy { it.top }) {
+        val last = lines.lastOrNull()
+        val cy = (b.top + b.bottom) / 2f
+        val lastCy = last?.first()?.let { (it.top + it.bottom) / 2f }
+        if (last == null || lastCy == null || cy - lastCy > gap) lines.add(mutableListOf(b))
+        else last.add(b)
+    }
+    return lines.flatMap { line -> line.sortedBy { it.left } }
+}
+
+/** Index of the word containing [p], else the nearest word by centre distance. -1 if empty. */
+private fun List<OcrTextBlock>.nearestBlockIndex(frame: Rect, p: Offset): Int {
+    forEachIndexed { i, b -> if (ocrBlockToRect(b, frame).contains(p)) return i }
+    var best = -1
+    var bestD = Float.MAX_VALUE
+    forEachIndexed { i, b ->
+        val r = ocrBlockToRect(b, frame)
+        val dx = (r.left + r.right) / 2f - p.x
+        val dy = (r.top + r.bottom) / 2f - p.y
+        val d = dx * dx + dy * dy
+        if (d < bestD) { bestD = d; best = i }
+    }
+    return best
+}
+
 internal fun distToSegment(p: Offset, a: Offset, b: Offset): Float {
     val l2 = (b - a).getDistanceSq()
     if (l2 == 0f) return (p - a).getDistance()

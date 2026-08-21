@@ -46,7 +46,10 @@ val ViewerGlassShape: Shape = RoundedRectangle(28f.dp)
 fun Modifier.viewerGlass(
     backdrop: Backdrop,
     color: Color,
-    shape: () -> Shape = { ViewerGlassShape }
+    shape: () -> Shape = { ViewerGlassShape },
+    // Off for surfaces that must NOT cast a drop shadow — e.g. the onboarding page-1 book, whose
+    // shadow otherwise snapped in the moment the assembled book reached full opacity.
+    withShadow: Boolean = true
 ): Modifier = drawBackdrop(
     backdrop = backdrop,
     shape = shape,
@@ -55,6 +58,7 @@ fun Modifier.viewerGlass(
         blur(2f.dp.toPx())
         lens(12f.dp.toPx(), 24f.dp.toPx())
     },
+    shadow = if (withShadow) ({ com.kyant.backdrop.shadow.Shadow.Default }) else null,
     onDrawSurface = { drawRect(color) }
 )
 

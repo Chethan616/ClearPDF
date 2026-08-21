@@ -508,18 +508,24 @@ internal fun PdfContinuousPage(
                         onTap = { p -> val h = hitTestOcrBlock(ocrBlocks, p, frame); if (h != null) onToggleOcrSelection(h.id) else onClearOcrSelection(); onInteraction() }
                     )
                 }
+                // Direct drag (no long-press wait): in Select Text mode the page doesn't scroll, so a
+                // drag is free to mean "sweep a selection". It selects the contiguous run of words
+                // between the finger's start and its current position, in reading order, and updates
+                // LIVE as you drag — so pulling across a line or a paragraph highlights every word it
+                // crosses instead of the tap's one-word-at-a-time. A plain tap has no drag slop, so
+                // tap / double-tap / long-press above still fire for single word / line / paragraph.
                 .pointerInput(page, ocrBlocks) {
-                    detectDragGesturesAfterLongPress(
-                        onDragStart = { p -> selDragStart = p; selDragEnd = p; onInteraction() },
-                        onDrag = { ch, _ -> ch.consume(); selDragEnd = ch.position; onInteraction() },
+                    fun updateRange() {
+                        val s = selDragStart; val e = selDragEnd
+                        if (s == null || e == null || ocrBlocks.isEmpty()) return
+                        val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
+                        onSelectOcrRange(ocrRangeBetween(ocrBlocks, frame, s, e))
+                    }
+                    detectDragGestures(
+                        onDragStart = { p -> selDragStart = p; selDragEnd = p; updateRange(); onInteraction() },
+                        onDrag = { ch, _ -> ch.consume(); selDragEnd = ch.position; updateRange(); onInteraction() },
                         onDragCancel = { selDragStart = null; selDragEnd = null },
-                        onDragEnd = {
-                            val s = selDragStart; val e = selDragEnd; selDragStart = null; selDragEnd = null
-                            if (s == null || e == null || ocrBlocks.isEmpty()) return@detectDragGesturesAfterLongPress
-                            val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
-                            val marquee = Rect(min(s.x, e.x), min(s.y, e.y), max(s.x, e.x), max(s.y, e.y))
-                            onSelectOcrRange(ocrBlocks.filter { intersects(marquee, ocrBlockToRect(it, frame)) }.map { it.id }.toSet())
-                        }
+                        onDragEnd = { selDragStart = null; selDragEnd = null }
                     )
                 }
             )
@@ -536,9 +542,16 @@ internal fun PdfContinuousPage(
                 val selTop = selRects.minOf { it.top }
                 val selRight = selRects.maxOf { it.right }
                 val selBottom = selRects.maxOf { it.bottom }
+                // Is any selected word already carrying a highlight? If so the pill gains a Remove
+                // action — this is the fix for "tap a highlight again and there's no delete, only
+                // copy/highlight". The selection and the highlight live in two different models (OCR
+                // selection vs. the page's markup list), so we cross-reference by block id.
+                val selectionHasHighlight = selectedOcrIds.any { id ->
+                    marks.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == id }
+                }
                 val gapPx = with(density) { 8.dp.toPx() }
                 val bubbleHpx = with(density) { 44.dp.toPx() }
-                val bubbleWpx = with(density) { 150.dp.toPx() }
+                val bubbleWpx = with(density) { (if (selectionHasHighlight) 226.dp else 150.dp).toPx() }
                 // Flip below the selection when it's too close to the page top.
                 val placeBelow = selTop < bubbleHpx + gapPx
                 val by = (if (placeBelow) selBottom + gapPx else selTop - bubbleHpx - gapPx).coerceIn(0f, (csz.height - bubbleHpx).coerceAtLeast(0f))
@@ -563,13 +576,29 @@ internal fun PdfContinuousPage(
                     )
                     Box(Modifier.width(1.dp).height(20.dp).background(Color.White.copy(0.14f)))
                     BasicText(
-                        "Highlight",
+                        if (selectionHasHighlight) "Recolor" else "Highlight",
                         style = TextStyle(Color(0xFFFFCC33), 13.sp, FontWeight.SemiBold),
                         modifier = Modifier
                             .clip(RoundedCornerShape(18.dp))
                             .clickable { onHighlightSelection() }
                             .padding(horizontal = 16.dp, vertical = 9.dp)
                     )
+                    if (selectionHasHighlight) {
+                        Box(Modifier.width(1.dp).height(20.dp).background(Color.White.copy(0.14f)))
+                        BasicText(
+                            "Delete",
+                            style = TextStyle(Color(0xFFFF6B6B), 13.sp, FontWeight.SemiBold),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(18.dp))
+                                .clickable {
+                                    // Drop every highlight sitting on a selected word, then clear the
+                                    // selection so the pill dismisses.
+                                    marks.removeAll { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId in selectedOcrIds }
+                                    onClearOcrSelection()
+                                }
+                                .padding(horizontal = 16.dp, vertical = 9.dp)
+                        )
+                    }
                 }
             }
         }
