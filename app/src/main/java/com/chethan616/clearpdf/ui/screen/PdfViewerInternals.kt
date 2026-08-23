@@ -529,6 +529,62 @@ internal fun ocrWordRangesBetween(
         }
 }
 
+/**
+ * Character-precise contiguous selection between two content points — the granularity the
+ * native Android text selector uses. Every extracted glyph box (per-character metrics) becomes a
+ * hit target; the run from the character nearest [p1] to the one nearest [p2], in reading order,
+ * is returned as merged per-line ranges. Falls back to word granularity for lines that expose no
+ * per-character metrics so selection never dead-ends.
+ */
+internal fun ocrCharRangesBetween(
+    blocks: List<OcrTextBlock>,
+    frame: Rect,
+    p1: Offset,
+    p2: Offset
+): List<OcrTextRange> {
+    if (blocks.isEmpty()) return emptyList()
+    val chars = ArrayList<OcrCharHit>()
+    blocks.readingOrder().forEach { block ->
+        val n = minOf(block.charLefts.size, block.charRights.size, block.text.length)
+        val top = frame.top + block.top * frame.height
+        val bottom = frame.top + block.bottom * frame.height
+        for (i in 0 until n) {
+            val l = frame.left + block.charLefts[i] * frame.width
+            val r = frame.left + block.charRights[i] * frame.width
+            chars.add(OcrCharHit(block.id, i, Rect(min(l, r), top, max(l, r), bottom)))
+        }
+    }
+    // No glyph metrics on this page (image-only OCR) → keep the proven word sweep.
+    if (chars.isEmpty()) return ocrWordRangesBetween(blocks, frame, p1, p2)
+    val i1 = chars.nearestCharIndex(p1)
+    val i2 = chars.nearestCharIndex(p2)
+    val lo = min(i1, i2)
+    val hi = max(i1, i2)
+    // Each block's glyphs are emitted contiguously, so a contiguous slice yields one clean
+    // [start, end) range per block — exactly what the highlight / copy models expect.
+    return chars.subList(lo, hi + 1)
+        .groupBy { it.blockId }
+        .map { (id, hits) -> OcrTextRange(id, hits.minOf { it.charIndex }, hits.maxOf { it.charIndex } + 1) }
+}
+
+private data class OcrCharHit(val blockId: String, val charIndex: Int, val rect: Rect)
+
+private fun List<OcrCharHit>.nearestCharIndex(point: Offset): Int =
+    indices.minByOrNull { index ->
+        val rect = this[index].rect
+        val dx = when {
+            point.x < rect.left -> rect.left - point.x
+            point.x > rect.right -> point.x - rect.right
+            else -> 0f
+        }
+        val dy = when {
+            point.y < rect.top -> rect.top - point.y
+            point.y > rect.bottom -> point.y - rect.bottom
+            else -> 0f
+        }
+        dx * dx + dy * dy
+    } ?: 0
+
 private data class OcrWordHit(val range: OcrTextRange, val rect: Rect)
 
 private fun List<OcrWordHit>.nearestWordIndex(point: Offset): Int =

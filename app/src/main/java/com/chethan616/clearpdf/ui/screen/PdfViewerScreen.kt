@@ -913,10 +913,19 @@ fun PdfViewerScreen(
                                 onHighlightSelection = {
                                     val m = getPageMarks(page)
                                     selectedTextRanges(page).forEach { range ->
-                                        if (!m.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end })
-                                            m.add(PdfMarkup.TextBlockHighlightMarkup(range.blockId, Color(currentColorLong), 0.38f, range.start, range.end))
+                                        // Recolor semantics: drop any highlight already covering this exact
+                                        // range so a re-tap replaces the colour instead of stacking layers.
+                                        m.removeAll { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end }
+                                        m.add(PdfMarkup.TextBlockHighlightMarkup(range.blockId, Color(currentColorLong), 0.38f, range.start, range.end))
                                     }
-                                    viewModel.clearOcrSelection(page)
+                                    // Keep the selection live so the pill immediately offers Recolor / Delete —
+                                    // this is the fix for "after highlighting there's no delete option".
+                                    lastInteractionAtMs = System.currentTimeMillis()
+                                },
+                                onSelectAll = {
+                                    val ids = state.ocrBlocksByPage[page].orEmpty().map { it.id }.toSet()
+                                    if (ids.isNotEmpty()) viewModel.selectOcrBlocks(page, ids, append = false)
+                                    lastInteractionAtMs = System.currentTimeMillis()
                                 }
                             )
                         }

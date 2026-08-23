@@ -6,6 +6,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.magnifier
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -53,6 +54,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,13 +108,18 @@ internal fun PdfContinuousPage(
     onSelectMarkup: (Int) -> Unit = {},
     onDeleteMarkup: (Int) -> Unit = {},
     onCopySelection: () -> Unit = {},
-    onHighlightSelection: () -> Unit = {}
+    onHighlightSelection: () -> Unit = {},
+    onSelectAll: () -> Unit = {}
 ) {
     var draftPoints    by remember(page, activeTool) { mutableStateOf<List<Offset>>(emptyList()) }
     var draftRectStart by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
     var draftRectEnd   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
     var selDragStart   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
     var selDragEnd     by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
+    // Live focus point for the native magnifier loupe. Offset.Unspecified hides it; while a
+    // selection drag is in flight it tracks the finger so text stays legible under the fingertip,
+    // exactly like the platform text selector.
+    var magnifierFocus by remember(page, activeTool) { mutableStateOf(Offset.Unspecified) }
     val selectionHandleDiameterPx = with(LocalDensity.current) { 32.dp.toPx() }
     val selectionHandleHitRadiusPx = with(LocalDensity.current) { 30.dp.toPx() }
 
@@ -127,6 +134,15 @@ internal fun PdfContinuousPage(
             .padding(vertical = 6.dp)
             .then(if (bitmap == null) Modifier.aspectRatio(1f / 1.414f) else Modifier)
             .background(Color(0xFF15181E))
+            // Native platform loupe (Android 9+). Inactive — and a no-op on older devices —
+            // whenever the focus point is Unspecified, so it costs nothing outside a drag.
+            .magnifier(
+                sourceCenter = { magnifierFocus },
+                zoom = 1.5f,
+                size = DpSize(112.dp, 64.dp),
+                cornerRadius = 32.dp,
+                elevation = 4.dp
+            )
             .onSizeChanged { sz ->
                 pageCanvasSizes[page] = Size(sz.width.toFloat(), sz.height.toFloat())
                 if (bitmap != null) pageBitmapSizes[page] = Size(bitmap.width.toFloat(), bitmap.height.toFloat())
@@ -569,7 +585,10 @@ internal fun PdfContinuousPage(
                         val s = selDragStart; val e = selDragEnd
                         if (s == null || e == null || ocrBlocks.isEmpty()) return
                         val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
-                        onSelectOcrRange(ocrWordRangesBetween(ocrBlocks, frame, s, e))
+                        // Character-precise sweep (native granularity) — extends smoothly across
+                        // words, lines and paragraphs instead of snapping a whole word at a time.
+                        onSelectOcrRange(ocrCharRangesBetween(ocrBlocks, frame, s, e))
+                        magnifierFocus = e
                     }
 
                     // Do not use detectDragGestures here: it commits to a one-finger drag before
@@ -605,6 +624,7 @@ internal fun PdfContinuousPage(
                                 }
                                 selDragStart = null
                                 selDragEnd = null
+                                magnifierFocus = Offset.Unspecified
                             } else if (!multiTouch) {
                                 val change = event.changes.firstOrNull { it.id == pointerId }
                                 if (change != null) {
@@ -626,6 +646,7 @@ internal fun PdfContinuousPage(
                         } while (event.changes.any { it.pressed })
                         selDragStart = null
                         selDragEnd = null
+                        magnifierFocus = Offset.Unspecified
                     }
                 }
             )
@@ -655,7 +676,7 @@ internal fun PdfContinuousPage(
                 }
                 val gapPx = with(density) { 8.dp.toPx() }
                 val bubbleHpx = with(density) { 44.dp.toPx() }
-                val bubbleWpx = with(density) { (if (selectionHasHighlight) 226.dp else 150.dp).toPx() }
+                val bubbleWpx = with(density) { (if (selectionHasHighlight) 372.dp else 296.dp).toPx() }
                 // Flip below the selection when it's too close to the page top.
                 val placeBelow = selTop < bubbleHpx + gapPx
                 val by = (if (placeBelow) selBottom + gapPx else selTop - bubbleHpx - gapPx).coerceIn(0f, (csz.height - bubbleHpx).coerceAtLeast(0f))
@@ -676,6 +697,15 @@ internal fun PdfContinuousPage(
                         modifier = Modifier
                             .clip(RoundedCornerShape(18.dp))
                             .clickable { onCopySelection(); onClearOcrSelection() }
+                            .padding(horizontal = 16.dp, vertical = 9.dp)
+                    )
+                    Box(Modifier.width(1.dp).height(20.dp).background(Color.White.copy(0.14f)))
+                    BasicText(
+                        "Select all",
+                        style = TextStyle(Color.White, 13.sp, FontWeight.SemiBold),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(18.dp))
+                            .clickable { onSelectAll() }
                             .padding(horizontal = 16.dp, vertical = 9.dp)
                     )
                     Box(Modifier.width(1.dp).height(20.dp).background(Color.White.copy(0.14f)))
