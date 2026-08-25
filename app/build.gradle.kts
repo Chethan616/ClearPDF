@@ -76,6 +76,20 @@ android {
     buildFeatures {
         compose = true
     }
+    // Bundling on-device OCR (bundled ML Kit + Tesseract4Android) added native .so libs for
+    // 4 CPU architectures; without splitting, every install carries all 4. This produces one
+    // APK per ABI (~1/4 the native-lib weight each) plus a universal fallback for sideloading.
+    // Play Store distribution via an Android App Bundle (`./gradlew bundleRelease`) already does
+    // this automatically and needs no config here — this `splits` block only matters for raw
+    // APK builds/installs (`assembleDebug`/`assembleRelease`, `installDebug`, sideloading).
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = true
+        }
+    }
     packaging {
         resources {
             excludes += arrayOf(
@@ -128,6 +142,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(project(":backdrop"))
     implementation(project(":pdf-core"))
+    implementation(project(":ocr-core"))
     // Apache POI provides legacy .doc/.xls/.ppt text extraction. It is Apache-2.0
     // licensed; see THIRD_PARTY_NOTICES.md for redistribution requirements.
     implementation("org.apache.poi:poi:3.17")

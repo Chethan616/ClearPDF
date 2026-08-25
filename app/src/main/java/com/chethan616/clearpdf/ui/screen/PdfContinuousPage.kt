@@ -13,7 +13,9 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
@@ -23,9 +25,19 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.FormatUnderlined
+import androidx.compose.material.icons.rounded.Highlight
+import androidx.compose.material.icons.rounded.SelectAll
+import androidx.compose.material.icons.rounded.StrikethroughS
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +59,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -64,6 +77,22 @@ import com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock
 import com.chethan616.clearpdf.ui.viewmodel.OcrTextRange
 import kotlin.math.max
 import kotlin.math.min
+
+/** One icon+label action in the stock-style text-selection menu (Acrobat/Drive look). */
+@Composable
+private fun SelectionMenuItem(icon: ImageVector, label: String, tint: Color, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .width(52.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(icon, label, Modifier.size(20.dp), tint)
+        BasicText(label, style = TextStyle(tint, 10.sp, FontWeight.Medium), maxLines = 1)
+    }
+}
 
 /**
  * A single page inside the continuous (Adobe-style) vertical viewer.
@@ -109,6 +138,9 @@ internal fun PdfContinuousPage(
     onDeleteMarkup: (Int) -> Unit = {},
     onCopySelection: () -> Unit = {},
     onHighlightSelection: () -> Unit = {},
+    onUnderlineSelection: () -> Unit = {},
+    onStrikeSelection: () -> Unit = {},
+    onSetColorLong: (Long) -> Unit = {},
     onSelectAll: () -> Unit = {}
 ) {
     var draftPoints    by remember(page, activeTool) { mutableStateOf<List<Offset>>(emptyList()) }
@@ -170,10 +202,10 @@ internal fun PdfContinuousPage(
             selectedOcrRanges.forEach { range ->
                 ocrBlocks.firstOrNull { it.id == range.blockId }?.let { b ->
                     val r = expandedTextHighlightRect(ocrTextRangeToRect(b, range, frame), verticalScale = 1.35f)
-                    // Match the reference's soft cyan fill: no border, no font changes, and
-                    // enough vertical air for ascenders/descenders without covering other lines.
+                    // Stock-Android text-selection look: a subtle translucent band in the same
+                    // blue as the selection handles (#4285F4), not an opaque saturated cyan block.
                     val radius = (r.height * 0.14f).coerceIn(2f, 5f)
-                    drawRoundRect(Color(0xFF9ADBF0).copy(0.82f), r.topLeft, r.size, CornerRadius(radius, radius))
+                    drawRoundRect(Color(0xFF4285F4).copy(0.28f), r.topLeft, r.size, CornerRadius(radius, radius))
                 }
             }
 
@@ -312,8 +344,16 @@ internal fun PdfContinuousPage(
 
             if (activeTool == PdfEditTool.SelectText) {
                 ocrSelectionHandleAnchors(ocrBlocks, selectedOcrRanges, frame)?.let { (start, end) ->
-                    drawTextSelectionHandle(start, selectionHandleDiameterPx)
-                    drawTextSelectionHandle(end, selectionHandleDiameterPx)
+                    // Size each handle off its own line's rendered height, clamped to a sane
+                    // touch-target range, instead of a fixed dp that ignores the page's current
+                    // zoom/fit-width scale (see ocrSelectionHandleLineHeights doc).
+                    val (startLineH, endLineH) = ocrSelectionHandleLineHeights(ocrBlocks, selectedOcrRanges, frame)
+                        ?: (selectionHandleDiameterPx to selectionHandleDiameterPx)
+                    // DrawScope is itself a Density, so dp -> px works directly here.
+                    val minPx = 14.dp.toPx()
+                    val maxPx = 30.dp.toPx()
+                    drawTextSelectionHandle(start, (startLineH * 1.1f).coerceIn(minPx, maxPx))
+                    drawTextSelectionHandle(end, (endLineH * 1.1f).coerceIn(minPx, maxPx))
                 }
             }
 
@@ -675,63 +715,74 @@ internal fun PdfContinuousPage(
                     marks.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == id }
                 }
                 val gapPx = with(density) { 8.dp.toPx() }
-                val bubbleHpx = with(density) { 44.dp.toPx() }
-                val bubbleWpx = with(density) { (if (selectionHasHighlight) 372.dp else 296.dp).toPx() }
+                val bubbleHpx = with(density) { 148.dp.toPx() }
+                val itemCount = if (selectionHasHighlight) 6 else 5
+                val bubbleWpx = with(density) { (itemCount * 60).dp.toPx() }
                 // Flip below the selection when it's too close to the page top.
                 val placeBelow = selTop < bubbleHpx + gapPx
                 val by = (if (placeBelow) selBottom + gapPx else selTop - bubbleHpx - gapPx).coerceIn(0f, (csz.height - bubbleHpx).coerceAtLeast(0f))
                 val bx = ((selLeft + selRight) / 2f - bubbleWpx / 2f).coerceIn(0f, (csz.width - bubbleWpx).coerceAtLeast(0f))
 
-                Row(
+                // Icon-menu look (Acrobat/Drive-style), not a pill of coloured text: a plain
+                // dark card, one icon+label column per action, neutral colour throughout except
+                // the active/applied state and the destructive action.
+                val menuFg = Color(0xFFCCCCCC)
+                Column(
                     Modifier
                         .offset { IntOffset(bx.roundToInt(), by.roundToInt()) }
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(Color(0xFF1C1F26).copy(0.97f))
-                        .border(1.dp, Color.White.copy(0.14f), RoundedCornerShape(22.dp))
-                        .padding(horizontal = 4.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0xFF232629))
+                        .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(14.dp))
                 ) {
-                    BasicText(
-                        "Copy",
-                        style = TextStyle(Color.White, 13.sp, FontWeight.SemiBold),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(18.dp))
-                            .clickable { onCopySelection(); onClearOcrSelection() }
-                            .padding(horizontal = 16.dp, vertical = 9.dp)
-                    )
-                    Box(Modifier.width(1.dp).height(20.dp).background(Color.White.copy(0.14f)))
-                    BasicText(
-                        "Select all",
-                        style = TextStyle(Color.White, 13.sp, FontWeight.SemiBold),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(18.dp))
-                            .clickable { onSelectAll() }
-                            .padding(horizontal = 16.dp, vertical = 9.dp)
-                    )
-                    Box(Modifier.width(1.dp).height(20.dp).background(Color.White.copy(0.14f)))
-                    BasicText(
-                        if (selectionHasHighlight) "Recolor" else "Highlight",
-                        style = TextStyle(Color(0xFFFFCC33), 13.sp, FontWeight.SemiBold),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(18.dp))
-                            .clickable { onHighlightSelection() }
-                            .padding(horizontal = 16.dp, vertical = 9.dp)
-                    )
-                    if (selectionHasHighlight) {
-                        Box(Modifier.width(1.dp).height(20.dp).background(Color.White.copy(0.14f)))
-                        BasicText(
-                            "Delete",
-                            style = TextStyle(Color(0xFFFF6B6B), 13.sp, FontWeight.SemiBold),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(18.dp))
-                                .clickable {
-                                    // Drop every highlight sitting on a selected word, then clear the
-                                    // selection so the pill dismisses.
-                                    marks.removeAll { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId in selectedOcrIds }
-                                    onClearOcrSelection()
-                                }
-                                .padding(horizontal = 16.dp, vertical = 9.dp)
-                        )
+                    Row(
+                        Modifier
+                            .padding(horizontal = 4.dp, vertical = 6.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SelectionMenuItem(Icons.Rounded.ContentCopy, "Copy", menuFg) {
+                            onCopySelection(); onClearOcrSelection()
+                        }
+                        SelectionMenuItem(Icons.Rounded.SelectAll, "Select all", menuFg) { onSelectAll() }
+                        SelectionMenuItem(
+                            Icons.Rounded.Highlight,
+                            if (selectionHasHighlight) "Recolor" else "Highlight",
+                            if (selectionHasHighlight) currentColor else menuFg
+                        ) { onHighlightSelection() }
+                        SelectionMenuItem(Icons.Rounded.FormatUnderlined, "Underline", menuFg) { onUnderlineSelection() }
+                        SelectionMenuItem(Icons.Rounded.StrikethroughS, "Strike", menuFg) { onStrikeSelection() }
+                        if (selectionHasHighlight) {
+                            SelectionMenuItem(Icons.Rounded.Delete, "Delete", Color(0xFFEF5350)) {
+                                // Drop every highlight sitting on a selected word, then clear the
+                                // selection so the menu dismisses.
+                                marks.removeAll { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId in selectedOcrIds }
+                                onClearOcrSelection()
+                            }
+                        }
+                    }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(0.08f)))
+                    Row(
+                        Modifier
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        editorPalette.forEach { c ->
+                            val isSel = c.value == currentColor.value
+                            Box(
+                                Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .background(c)
+                                    .border(
+                                        width = if (isSel) 2.dp else 0.dp,
+                                        color = Color.White.copy(0.85f),
+                                        shape = CircleShape
+                                    )
+                                    .clickable { onSetColorLong(c.value.toLong()) }
+                            )
+                        }
                     }
                 }
             }
@@ -802,7 +853,7 @@ internal fun PdfContinuousPage(
                     val density = LocalDensity.current
                     val gapPx = with(density) { 10.dp.toPx() }
                     val barHpx = with(density) { 44.dp.toPx() }
-                    val barWpx = with(density) { 96.dp.toPx() }
+                    val barWpx = with(density) { 176.dp.toPx() }
                     val placeBelow = anchorRect.top < barHpx + gapPx
                     val by = (if (placeBelow) anchorRect.bottom + gapPx else anchorRect.top - barHpx - gapPx)
                         .coerceIn(0f, (csz.height - barHpx).coerceAtLeast(0f))
@@ -812,19 +863,29 @@ internal fun PdfContinuousPage(
                     Row(
                         Modifier
                             .offset { IntOffset(bx.roundToInt(), by.roundToInt()) }
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(Color(0xFF1C1F26).copy(0.97f))
-                            .border(1.dp, Color.White.copy(0.14f), RoundedCornerShape(22.dp))
-                            .padding(horizontal = 4.dp, vertical = 3.dp),
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF232629))
+                            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 2.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Same Edit affordance as shapes/text/notes — opens the shared recolor
+                        // popover (ShapeEditorPopup handles highlight/underline/strike too).
+                        BasicText(
+                            "Edit",
+                            style = TextStyle(Color(0xFFECECEC), 13.sp, FontWeight.Medium),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { onEditShape(selectedMarkupIndex) }
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                        )
                         BasicText(
                             "Delete",
-                            style = TextStyle(Color(0xFFFF6B6B), 13.sp, FontWeight.SemiBold),
+                            style = TextStyle(Color(0xFFEF5350), 13.sp, FontWeight.Medium),
                             modifier = Modifier
-                                .clip(RoundedCornerShape(18.dp))
+                                .clip(RoundedCornerShape(6.dp))
                                 .clickable { onDeleteMarkup(selectedMarkupIndex) }
-                                .padding(horizontal = 16.dp, vertical = 9.dp)
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
                         )
                     }
                 }

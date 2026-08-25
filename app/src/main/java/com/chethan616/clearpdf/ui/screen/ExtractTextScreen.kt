@@ -163,10 +163,52 @@ fun ExtractTextScreen(
             }
             state.errorMessage?.let { BasicText(it, style = TextStyle(Color(0xFFFFB300), 12.sp)) }
 
+            if (state.canRecognize && !state.isRecognizing) {
+                LiquidButton(
+                    onClick = { viewModel.recognizeText(context) },
+                    backdrop = backdrop,
+                    tint = accent,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    BasicText(stringResource(R.string.extract_recognize_text), style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
+                }
+            }
+            if (state.canMakeSearchable) {
+                LiquidButton(
+                    onClick = { viewModel.makeSearchablePdf(context) },
+                    backdrop = backdrop,
+                    tint = Color(0xFF2E7D32),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (state.isSavingSearchable) {
+                        CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                    } else {
+                        BasicText(stringResource(R.string.extract_make_searchable), style = TextStyle(Color.White, 14.sp, FontWeight.Medium))
+                    }
+                }
+            }
+            if (state.searchableOutputUri != null) {
+                BasicText(
+                    stringResource(R.string.extract_searchable_saved, state.searchableSavedLabel.orEmpty()),
+                    style = TextStyle(Color(0xFF2E7D32), 12.sp)
+                )
+            }
+
             Box(Modifier.fillMaxWidth().weight(1f).liquidGlassPanel(backdrop, uiSensor).padding(14.dp)) {
                 when {
                     state.isExtracting -> Box(Modifier.fillMaxSize(), Alignment.Center) {
                         CircularProgressIndicator(color = accent, strokeWidth = 2.dp)
+                    }
+                    state.isRecognizing -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            CircularProgressIndicator(color = accent, strokeWidth = 2.dp)
+                            val progress = state.recognizeProgress
+                            BasicText(
+                                if (progress != null) stringResource(R.string.extract_recognizing, progress.first + 1, progress.second)
+                                else stringResource(R.string.extract_recognize_text),
+                                style = TextStyle(sub, 12.sp)
+                            )
+                        }
                     }
                     state.text.isNotEmpty() -> SelectionContainer(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                         BasicText(state.text, style = TextStyle(text, 14.sp))

@@ -25,6 +25,7 @@ import com.chethan616.clearpdf.ui.utils.AppDispatchers
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.chethan616.clearpdf.utils.UniversalDocumentConverter
 import com.kyant.pdfcore.model.PdfDocument
+import com.kyant.pdfcore.raster.PdfRasterizer
 import com.kyant.pdfcore.security.PdfSecurityService
 import com.kyant.pdfcore.text.PdfTextBlock
 import kotlinx.coroutines.Dispatchers
@@ -415,12 +416,19 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         )
 
         viewModelScope.launch {
-            val blocks = withContext(Dispatchers.IO) {
+            val blocks = withContext(AppDispatchers.pdf) {
                 // One full-document PdfBox parse at a time — see [textExtractionMutex].
-                textExtractionMutex.withLock {
+                val pdfBlocks = textExtractionMutex.withLock {
                     runCatching {
                         textService.extractPage(context, doc.uri, pageIndex)
                     }.getOrElse { emptyList() }
+                }
+                if (pdfBlocks.isNotEmpty()) {
+                    pdfBlocks.map { it.toOcrBlock() }
+                } else {
+                    // No digital text layer (scanned/image-only page) — fall back to
+                    // on-device OCR, cached to disk so re-opening the doc is instant.
+                    loadOcrFallbackBlocks(context, doc, pageIndex)
                 }
             }
             val current = _uiState.value
@@ -429,12 +437,29 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                 return@launch
             }
             val updated = current.ocrBlocksByPage.toMutableMap()
-            updated[pageIndex] = blocks.map { it.toOcrBlock() }
+            updated[pageIndex] = blocks
             textLoadingPages.remove(pageIndex)
             _uiState.value = current.copy(
                 ocrBlocksByPage = updated,
                 ocrPagesInProgress = textLoadingPages.toSet()
             )
+        }
+    }
+
+    /** Rasterizes [pageIndex] and runs it through [PdfServiceLocator.ocrService], reading/writing the disk cache. */
+    private suspend fun loadOcrFallbackBlocks(context: Context, doc: PdfDocument, pageIndex: Int): List<OcrTextBlock> {
+        OcrPageCache.read(context, doc, pageIndex)?.let { return it }
+        val bitmap = runCatching {
+            PdfRasterizer.rasterizePageBitmap(context, doc.uri, pageIndex)
+        }.getOrNull() ?: return emptyList()
+        return try {
+            val result = runCatching { PdfServiceLocator.ocrService.recognize(context, bitmap) }.getOrNull()
+                ?: return emptyList()
+            val blocks = groupOcrWordsIntoBlocks(result.words, pageIndex)
+            OcrPageCache.write(context, doc, pageIndex, blocks)
+            blocks
+        } finally {
+            if (!bitmap.isRecycled) bitmap.recycle()
         }
     }
 

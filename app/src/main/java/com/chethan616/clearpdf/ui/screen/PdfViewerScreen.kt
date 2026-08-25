@@ -558,6 +558,12 @@ fun PdfViewerScreen(
     val safePageCount = state.pageCount.coerceAtLeast(1)
     val viewerScope   = rememberCoroutineScope()
     val currentPageIndex = listState.firstVisibleItemIndex.coerceIn(0, safePageCount - 1)
+    // The bottom SelectText toolbar must act on whichever page actually holds the current OCR
+    // selection, not the viewport-derived currentPageIndex — otherwise scrolling after selecting
+    // (or the selection sitting on a page whose bottom sliver is visible, not its top) makes
+    // Highlight/Underline/Strike/Copy silently target the wrong page's empty selection.
+    val selectionPageIndex = state.selectedOcrRangesByPage.entries
+        .firstOrNull { it.value.isNotEmpty() }?.key ?: currentPageIndex
 
     // Live backdrop that captures the ACTUAL rendered page column (dark bg + PDF
     // pages), so the glass chrome reflects real content instead of the static
@@ -917,11 +923,33 @@ fun PdfViewerScreen(
                                         // range so a re-tap replaces the colour instead of stacking layers.
                                         m.removeAll { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end }
                                         m.add(PdfMarkup.TextBlockHighlightMarkup(range.blockId, Color(currentColorLong), 0.38f, range.start, range.end))
+                                        recordEdit(page)
                                     }
                                     // Keep the selection live so the pill immediately offers Recolor / Delete —
                                     // this is the fix for "after highlighting there's no delete option".
                                     lastInteractionAtMs = System.currentTimeMillis()
                                 },
+                                onUnderlineSelection = {
+                                    val m = getPageMarks(page)
+                                    selectedTextRanges(page).forEach { range ->
+                                        if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end && !it.strikeThrough }) {
+                                            m.add(PdfMarkup.TextBlockLineMarkup(range.blockId, Color(currentColorLong), 3f, 1f, false, range.start, range.end))
+                                            recordEdit(page)
+                                        }
+                                    }
+                                    lastInteractionAtMs = System.currentTimeMillis()
+                                },
+                                onStrikeSelection = {
+                                    val m = getPageMarks(page)
+                                    selectedTextRanges(page).forEach { range ->
+                                        if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end && it.strikeThrough }) {
+                                            m.add(PdfMarkup.TextBlockLineMarkup(range.blockId, Color(currentColorLong), 3f, 1f, true, range.start, range.end))
+                                            recordEdit(page)
+                                        }
+                                    }
+                                    lastInteractionAtMs = System.currentTimeMillis()
+                                },
+                                onSetColorLong = { currentColorLong = it },
                                 onSelectAll = {
                                     val ids = state.ocrBlocksByPage[page].orEmpty().map { it.id }.toSet()
                                     if (ids.isNotEmpty()) viewModel.selectOcrBlocks(page, ids, append = false)
@@ -1092,31 +1120,34 @@ fun PdfViewerScreen(
                         if (ids.isNotEmpty()) viewModel.selectOcrBlocks(currentPageIndex, ids, false)
                     },
                     onCopyText         = {
-                        viewModel.getSelectedOcrText(currentPageIndex).takeIf { it.isNotBlank() }
+                        viewModel.getSelectedOcrText(selectionPageIndex).takeIf { it.isNotBlank() }
                             ?.let { clipboard.setText(AnnotatedString(it)) }
                     },
                     onHighlightSelected = {
-                        val m = getPageMarks(currentPageIndex)
-                        selectedTextRanges(currentPageIndex).forEach { range ->
+                        val m = getPageMarks(selectionPageIndex)
+                        selectedTextRanges(selectionPageIndex).forEach { range ->
                             if (!m.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end })
                                 m.add(PdfMarkup.TextBlockHighlightMarkup(range.blockId, Color(currentColorLong), 0.38f, range.start, range.end))
+                            recordEdit(selectionPageIndex)
                         }
                     },
                     onUnderlineSelected = {
-                        val m = getPageMarks(currentPageIndex)
-                        selectedTextRanges(currentPageIndex).forEach { range ->
+                        val m = getPageMarks(selectionPageIndex)
+                        selectedTextRanges(selectionPageIndex).forEach { range ->
                             if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end && !it.strikeThrough })
                                 m.add(PdfMarkup.TextBlockLineMarkup(range.blockId, Color(currentColorLong), 3f, 1f, false, range.start, range.end))
+                            recordEdit(selectionPageIndex)
                         }
                     },
                     onStrikeSelected    = {
-                        val m = getPageMarks(currentPageIndex)
-                        selectedTextRanges(currentPageIndex).forEach { range ->
+                        val m = getPageMarks(selectionPageIndex)
+                        selectedTextRanges(selectionPageIndex).forEach { range ->
                             if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end && it.strikeThrough })
                                 m.add(PdfMarkup.TextBlockLineMarkup(range.blockId, Color(currentColorLong), 3f, 1f, true, range.start, range.end))
+                            recordEdit(selectionPageIndex)
                         }
                     },
-                    onClearTextSelection = { viewModel.clearOcrSelection(currentPageIndex) },
+                    onClearTextSelection = { viewModel.clearOcrSelection(selectionPageIndex) },
                     onSetColorLong   = { currentColorLong = it },
                     onSetStrokeWidth = { currentStrokeWidth = it },
                     onDismissExportFeedback = { viewModel.clearExportFeedback() },
@@ -1233,7 +1264,7 @@ fun PdfViewerScreen(
         editingShapePage?.let { shapePage ->
             val list = getPageMarks(shapePage)
             val shape = list.getOrNull(editingShapeIndex)
-            if (shape != null && shape.isShape()) {
+            if (shape != null && shape.isRecolorable()) {
                 ShapeEditorPopup(
                     initialColor = shape.shapeColor(),
                     backdrop = contentBackdrop,
@@ -1244,7 +1275,7 @@ fun PdfViewerScreen(
                     field = chromeField,
                     onColorChange = { c ->
                         val cur = list.getOrNull(editingShapeIndex)
-                        if (cur != null && cur.isShape()) list[editingShapeIndex] = cur.recolored(c)
+                        if (cur != null && cur.isRecolorable()) list[editingShapeIndex] = cur.recolored(c)
                         lastInteractionAtMs = System.currentTimeMillis()
                     },
                     onDelete = {

@@ -656,7 +656,11 @@ fun DocsNavGraph(
                 factory = object : ViewModelProvider.Factory {
                     @Suppress("UNCHECKED_CAST")
                     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-                        ExtractTextViewModel(PdfServiceLocator.pdfConverter) as T
+                        ExtractTextViewModel(
+                            PdfServiceLocator.pdfConverter,
+                            PdfServiceLocator.ocrService,
+                            PdfServiceLocator.pdfViewer
+                        ) as T
                 }
             )
             ExtractTextScreen(

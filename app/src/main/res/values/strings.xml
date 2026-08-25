@@ -502,7 +502,11 @@
     <string name="create_failed">Failed to create PDF.</string>
     <string name="compression_success">Compressed: %1$dKB -&gt; %2$dKB (%3$d%% smaller)\nSaved to %4$s</string>
     <string name="compression_failed">Compression failed.</string>
-    <string name="extract_no_selectable_text">No selectable text found. This PDF may be a scan or image - try the scanner OCR instead.</string>
+    <string name="extract_no_selectable_text">No selectable text found. This PDF looks like a scan or image — tap Recognize Text to run on-device OCR.</string>
+    <string name="extract_recognize_text">Recognize Text (OCR)</string>
+    <string name="extract_recognizing">Recognizing text… (%1$d/%2$d)</string>
+    <string name="extract_make_searchable">Save as Searchable PDF</string>
+    <string name="extract_searchable_saved">Saved searchable PDF · %1$s</string>
     <string name="text_extraction_failed">Text extraction failed.</string>
     <string name="organize_open_failed">Could not open PDF.</string>
     <string name="organize_cannot_delete_all">Cannot delete every page.</string>

@@ -421,7 +421,11 @@
     <string name="create_failed">Falha ao criar o PDF.</string>
     <string name="compression_success">Comprimido: %1$dKB -&gt; %2$dKB (%3$d%% menor)\nSalvo em %4$s</string>
     <string name="compression_failed">Falha ao comprimir.</string>
-    <string name="extract_no_selectable_text">Nenhum texto selecionável encontrado. Este PDF pode ser uma digitalização ou imagem - tente o OCR do scanner.</string>
+    <string name="extract_no_selectable_text">Nenhum texto selecionável encontrado. Este PDF parece ser uma digitalização ou imagem — toque em Reconhecer Texto para OCR no dispositivo.</string>
+    <string name="extract_recognize_text">Reconhecer Texto (OCR)</string>
+    <string name="extract_recognizing">Reconhecendo texto… (%1$d/%2$d)</string>
+    <string name="extract_make_searchable">Salvar como PDF Pesquisável</string>
+    <string name="extract_searchable_saved">PDF pesquisável salvo · %1$s</string>
     <string name="text_extraction_failed">Falha ao extrair o texto.</string>
     <string name="organize_open_failed">Não foi possível abrir o PDF.</string>
     <string name="organize_cannot_delete_all">Não é possível excluir todas as páginas.</string>

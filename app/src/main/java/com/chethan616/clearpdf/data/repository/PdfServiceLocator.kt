@@ -16,6 +16,8 @@ import com.kyant.pdfcore.viewer.PdfViewer
 import com.kyant.pdfcore.viewer.PdfViewerImpl
 import com.kyant.pdfcore.text.PdfTextService
 import com.kyant.pdfcore.text.PdfTextServiceImpl
+import com.kyant.ocrcore.OcrService
+import com.kyant.ocrcore.OcrServiceImpl
 
 object PdfServiceLocator {
     val pdfViewer: PdfViewer by lazy { PdfViewerImpl() }
@@ -26,4 +28,6 @@ object PdfServiceLocator {
     val pdfEditor: PdfEditor by lazy { PdfEditorImpl() }
     val pdfConverter: PdfConverter by lazy { PdfConverterImpl() }
     val pdfTextService: PdfTextService by lazy { PdfTextServiceImpl() }
+    /** Fully on-device OCR — ML Kit primary, Tesseract4Android fallback. No network access. */
+    val ocrService: OcrService by lazy { OcrServiceImpl() }
 }
