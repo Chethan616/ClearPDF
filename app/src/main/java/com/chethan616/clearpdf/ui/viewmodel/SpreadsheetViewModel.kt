@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.chethan616.clearpdf.data.repository.LocalDocumentMirror
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.utils.SpreadsheetParser
@@ -43,14 +44,26 @@ class SpreadsheetViewModel : ViewModel() {
         if (started) return
         started = true
         viewModelScope.launch {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
             val name = withContext(Dispatchers.IO) {
                 runCatching { queryName(context, uri) }.getOrNull()
+                    ?: RecentFilesManager.getRecents(context).firstOrNull { it.uriString == uri.toString() }?.name
                     ?: uri.lastPathSegment ?: "Spreadsheet"
             }
             val (sheets, localUri) = withContext(Dispatchers.IO) {
-                // Mirror to app cache so the file stays readable when reopened from recents (a picked
-                // content:// URI may lose permission later), then parse from the local copy.
-                val local = runCatching { mirrorToCache(context, uri, name) }.getOrDefault(uri)
+                // `uri` may be a share-intent grant on the way to being revoked — see
+                // `LocalDocumentMirror`'s doc comment for why that turns "opened once" into
+                // "Couldn't read this spreadsheet." the next time it's tapped from Recents.
+                // `readable` is `uri` itself when still good, or a durable local copy saved the
+                // first time it was.
+                val extension = name.substringAfterLast('.', "xlsx").lowercase()
+                val readable = LocalDocumentMirror.resolve(context, uri, extension)
+                // Mirror to app cache too, purely so the working copy for THIS session survives a
+                // revoked grant appearing mid-session (e.g. the sender's task finishes while the
+                // sheet is open) without touching `readable` again.
+                val local = runCatching { mirrorToCache(context, readable, name) }.getOrDefault(readable)
                 SpreadsheetParser.parse(context, local) to local
             }
             _state.value = if (sheets.isEmpty()) {

@@ -1,0 +1,70 @@
+<!doctype html>
+<!--
+  Offscreen host page for the .docx viewer.
+
+  Loaded from file:///android_asset/docx/, never from the network — and the app declares no
+  INTERNET permission at all, so the WebView running this page is sandboxed from the network by
+  the OS regardless of what any script tries. Both libraries below are vendored beside this file.
+
+  docx-preview  — Apache-2.0, https://github.com/VolodymyrBaydalka/docxjs
+  JSZip         — MIT (dual MIT/GPLv3; used under MIT), https://github.com/Stuk/jszip
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<script src="jszip.min.js"></script>
+<script src="docx-preview.min.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: #fff; }
+
+  /* docx-preview emits one <section class="docx"> per page it can identify — that is, at explicit
+     and section breaks, since it does not reflow-paginate. Forcing a page break after each one
+     keeps those authored breaks landing on real PDF pages; the print pipeline flows whatever
+     overruns, which is the part docx-preview leaves to the renderer. */
+  section.docx { break-after: page; page-break-after: always; }
+  section.docx:last-child { break-after: auto; page-break-after: auto; }
+
+  /* The section's own margins are already applied as padding by docx-preview, and the PDF page is
+     built at the document's real page size, so nothing here may add a second margin. */
+  @page { margin: 0; }
+</style>
+</head>
+<body>
+<div id="container"></div>
+<script>
+  function renderDocx(base64) {
+    try {
+      var binary = atob(base64);
+      var bytes = new Uint8Array(binary.length);
+      for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+      docx.renderAsync(bytes.buffer, document.getElementById('container'), null, {
+        className: 'docx',
+        // No outer wrapper: its grey page-surround is a screen affordance and would print as a
+        // grey border around every page.
+        inWrapper: false,
+        ignoreWidth: false,
+        // Let a page box grow to its content instead of clipping it. Content that overruns the
+        // authored page is then carried onto the next PDF page by the print pagination rather
+        // than being silently cut off.
+        ignoreHeight: true,
+        breakPages: true,
+        renderHeaders: true,
+        renderFooters: true,
+        renderFootnotes: true,
+        renderEndnotes: true,
+        // Data URIs rather than blob: object URLs — a blob URL is revoked with its document and
+        // has been unreliable across the print snapshot.
+        useBase64URL: true
+      }).then(function () {
+        AndroidDocx.onRendered();
+      }).catch(function (e) {
+        AndroidDocx.onFailed(String(e));
+      });
+    } catch (e) {
+      AndroidDocx.onFailed(String(e));
+    }
+  }
+</script>
+</body>
+</html>

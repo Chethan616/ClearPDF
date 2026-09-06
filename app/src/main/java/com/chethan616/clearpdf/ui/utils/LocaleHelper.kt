@@ -45,7 +45,11 @@ object LocaleHelper {
 
     private fun normalizeLanguageTag(languageTag: String): String {
         val locale = Locale.forLanguageTag(languageTag.replace('_', '-'))
-        return if (locale.language.equals("pt", ignoreCase = true)) "pt-BR" else "en"
+        return when {
+            locale.language.equals("pt", ignoreCase = true) -> "pt-BR"
+            locale.language.equals("es", ignoreCase = true) -> "es"
+            else -> "en"
+        }
     }
 
     fun normalizeForUi(languageTag: String): String = normalizeLanguageTag(languageTag)
@@ -99,6 +103,7 @@ object LocaleHelper {
     fun getLanguageDisplayName(languageTag: String): String {
         return when (normalizeLanguageTag(languageTag)) {
             "pt-BR", "pt" -> "Português (Brasil)"
+            "es" -> "Español"
             "en" -> "English"
             else -> "English"
         }

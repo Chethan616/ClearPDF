@@ -69,10 +69,12 @@ object RecentFilesManager {
     }
 
     fun clearRecents(context: Context) {
+        getRecents(context).forEach { LocalDocumentMirror.forget(context, it.uri) }
         prefs(context).edit().remove(KEY_RECENTS).apply()
     }
 
     fun removeRecent(context: Context, uri: Uri) {
+        LocalDocumentMirror.forget(context, uri)
         val remaining = getRecents(context).filterNot { it.uriString == uri.toString() }
         prefs(context).edit().apply {
             if (remaining.isEmpty()) {

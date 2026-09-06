@@ -149,6 +149,10 @@ internal sealed class PdfMarkup {
 internal fun PdfMarkup.isShape(): Boolean = this is PdfMarkup.StrokeMarkup ||
     this is PdfMarkup.RectMarkup || this is PdfMarkup.OvalMarkup || this is PdfMarkup.LineMarkup
 
+/** Anything [ShapeEditorPopup] can recolour — shapes plus OCR-anchored highlight/underline/strike. */
+internal fun PdfMarkup.isRecolorable(): Boolean = isShape() ||
+    this is PdfMarkup.TextBlockHighlightMarkup || this is PdfMarkup.TextBlockLineMarkup
+
 /** Markups that support the generic select → move / resize transform (everything the user
  *  places freely, except images which have their own dedicated toolbar path). */
 internal fun PdfMarkup.isTransformable(): Boolean = this is PdfMarkup.StrokeMarkup ||
@@ -227,6 +231,8 @@ internal fun PdfMarkup.shapeColor(): Color = when (this) {
     is PdfMarkup.RectMarkup   -> color
     is PdfMarkup.OvalMarkup   -> color
     is PdfMarkup.LineMarkup   -> color
+    is PdfMarkup.TextBlockHighlightMarkup -> color
+    is PdfMarkup.TextBlockLineMarkup      -> color
     else -> Color(0xFF1976D2)
 }
 
@@ -235,6 +241,8 @@ internal fun PdfMarkup.recolored(c: Color): PdfMarkup = when (this) {
     is PdfMarkup.RectMarkup   -> copy(color = c)
     is PdfMarkup.OvalMarkup   -> copy(color = c)
     is PdfMarkup.LineMarkup   -> copy(color = c)
+    is PdfMarkup.TextBlockHighlightMarkup -> copy(color = c)
+    is PdfMarkup.TextBlockLineMarkup      -> copy(color = c)
     else -> this
 }
 
@@ -418,6 +426,32 @@ internal fun ocrSelectionHandleAnchors(
         verticalScale = 1.35f
     )
     return Offset(firstRect.left, firstRect.bottom) to Offset(lastRect.right, lastRect.bottom)
+}
+
+/**
+ * Rendered line height (in the same canvas-local pixels as [ocrSelectionHandleAnchors]'s
+ * anchors) for the first/last selected line. The page is drawn at whatever zoom/fit-width
+ * scale is currently active, so a FIXED dp handle size looks tiny at 200% zoom and gigantic
+ * at fit-width (a full page's line height can be under 20px there) — handles must scale with
+ * the text they're anchored to, exactly like the platform text selector's do.
+ */
+internal fun ocrSelectionHandleLineHeights(
+    blocks: List<OcrTextBlock>,
+    ranges: List<OcrTextRange>,
+    frame: Rect
+): Pair<Float, Float>? {
+    if (ranges.isEmpty()) return null
+    val blocksById = blocks.associateBy { it.id }
+    val ordered = ranges.sortedWith(
+        compareBy<OcrTextRange>(
+            { blocksById[it.blockId]?.top ?: Float.MAX_VALUE },
+            { blocksById[it.blockId]?.left ?: Float.MAX_VALUE },
+            { it.start }
+        )
+    )
+    val firstBlock = blocksById[ordered.first().blockId] ?: return null
+    val lastBlock = blocksById[ordered.last().blockId] ?: return null
+    return (firstBlock.bottom - firstBlock.top) * frame.height to (lastBlock.bottom - lastBlock.top) * frame.height
 }
 
 /** Custom organic handle used by the PDF selection layer; deliberately not a platform handle. */

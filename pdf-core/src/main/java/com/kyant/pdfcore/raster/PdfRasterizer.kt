@@ -86,6 +86,31 @@ object PdfRasterizer {
         return results
     }
 
+    /**
+     * Renders a single page straight to an in-memory [Bitmap] (no file/FileProvider round-trip).
+     * Used to feed on-device OCR, which only needs the pixels, not a shareable image.
+     *
+     * @param dpi target render density; higher improves OCR accuracy on small text at some cost
+     *   to speed — 200 is a reasonable OCR-quality default (vs. 150 for the export path above).
+     */
+    fun rasterizePageBitmap(context: Context, source: Uri, pageIndex: Int, dpi: Int = 200): Bitmap? {
+        val pfd = context.contentResolver.openFileDescriptor(source, "r") ?: return null
+        return pfd.use { descriptor ->
+            PdfRenderer(descriptor).use { renderer ->
+                if (pageIndex !in 0 until renderer.pageCount) return@use null
+                renderer.openPage(pageIndex).use { page ->
+                    val scale = dpi / 72f
+                    val w = (page.width * scale).toInt().coerceAtLeast(1)
+                    val h = (page.height * scale).toInt().coerceAtLeast(1)
+                    val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                    bitmap.eraseColor(Color.WHITE)
+                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    bitmap
+                }
+            }
+        }
+    }
+
     /** Persist all rendered pages to the shared Pictures collection via MediaStore. */
     fun exportToGallery(context: Context, pages: List<RasterPage>, format: ImageFormat, albumName: String = "ClearPDF"): Int {
         var saved = 0

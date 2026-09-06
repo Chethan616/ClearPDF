@@ -367,20 +367,22 @@ internal fun PdfViewerBottomToolbar(
                             }
 
                             showOcrTools -> {
+                                // Plain, native-menu-style neutral buttons — no per-action rainbow
+                                // tinting — matching the in-context selection toolbar's look.
                                 LiquidButton(onClick = onSelectAllText, backdrop = backdrop, surfaceColor = chip) {
                                     BasicText(stringResource(R.string.viewer_select_all), style = TextStyle(fg, 12.sp, FontWeight.Medium))
                                 }
-                                LiquidButton(onClick = onCopyText, backdrop = backdrop, tint = Color(0xFF7E57C2)) {
-                                    BasicText(stringResource(R.string.copy), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
+                                LiquidButton(onClick = onCopyText, backdrop = backdrop, surfaceColor = chip) {
+                                    BasicText(stringResource(R.string.copy), style = TextStyle(fg, 12.sp, FontWeight.Medium))
                                 }
-                                LiquidButton(onClick = onHighlightSelected, backdrop = backdrop, tint = Color(0xFFFFB300)) {
-                                    BasicText(stringResource(R.string.viewer_highlight), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
+                                LiquidButton(onClick = onHighlightSelected, backdrop = backdrop, surfaceColor = chip) {
+                                    BasicText(stringResource(R.string.viewer_highlight), style = TextStyle(fg, 12.sp, FontWeight.Medium))
                                 }
-                                LiquidButton(onClick = onUnderlineSelected, backdrop = backdrop, tint = Color(0xFF4CAF50)) {
-                                    BasicText(stringResource(R.string.viewer_underline), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
+                                LiquidButton(onClick = onUnderlineSelected, backdrop = backdrop, surfaceColor = chip) {
+                                    BasicText(stringResource(R.string.viewer_underline), style = TextStyle(fg, 12.sp, FontWeight.Medium))
                                 }
-                                LiquidButton(onClick = onStrikeSelected, backdrop = backdrop, tint = Color(0xFFEF5350)) {
-                                    BasicText(stringResource(R.string.viewer_strike), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
+                                LiquidButton(onClick = onStrikeSelected, backdrop = backdrop, surfaceColor = chip) {
+                                    BasicText(stringResource(R.string.viewer_strike), style = TextStyle(fg, 12.sp, FontWeight.Medium))
                                 }
                                 LiquidButton(onClick = onClearTextSelection, backdrop = backdrop, surfaceColor = chip) {
                                     BasicText(stringResource(R.string.viewer_clear), style = TextStyle(fg, 12.sp, FontWeight.Medium))

@@ -48,9 +48,9 @@ object UniversalDocumentConverter {
         return when {
             mimeType.startsWith("image/") || name.endsWithAny(".png", ".jpg", ".jpeg", ".webp", ".bmp", ".heic") ->
                 convertImageToPdf(context, sourceUri)
-            name.endsWith(".docx") -> convertZipXmlToPdf(context, sourceUri, DocFlavor.DOCX)
+            name.endsWith(".docx") -> convertDocxToPdf(context, sourceUri)
             name.endsWith(".xlsx") -> convertZipXmlToPdf(context, sourceUri, DocFlavor.XLSX)
-            name.endsWith(".pptx") -> convertZipXmlToPdf(context, sourceUri, DocFlavor.PPTX)
+            name.endsWith(".pptx") -> convertPptxToPdf(context, sourceUri)
             name.endsWith(".odt")  -> convertZipXmlToPdf(context, sourceUri, DocFlavor.ODT)
             name.endsWith(".doc")  -> convertLegacyWordToPdf(context, sourceUri)
             name.endsWith(".xls")  -> convertLegacyXlsToPdf(context, sourceUri)
@@ -108,6 +108,32 @@ object UniversalDocumentConverter {
     }
 
     // ── DOCX ───────────────────────────────────────────────────────────────────
+
+    /**
+     * Word documents get real layout from [DocxWebRenderer] when the device can provide it, and
+     * fall back to [parseDocx]'s reflow when it can't.
+     *
+     * The reflow re-lays Word content onto a fixed A4 page with this file's own margins and fonts;
+     * it reads well but is not the author's document. The renderer instead lays the .docx out with
+     * `docx-preview` in an offscreen WebView and prints that, which keeps the document's real page
+     * size, margins, tables, headers and footers. It costs ~48 KB of assets rather than the tens of
+     * megabytes a native Office engine would.
+     *
+     * The fallback is not decoration: the print path leans on driving a `PrintDocumentAdapter`
+     * directly, and if that is unavailable on a device, .docx must keep opening exactly as it did
+     * before rather than failing.
+     */
+    private fun convertDocxToPdf(context: Context, sourceUri: Uri): Uri {
+        val bytes = context.contentResolver.openInputStream(sourceUri)?.use { it.readBytes() }
+            ?: throw IllegalStateException("Cannot open file")
+
+        val dir = File(context.cacheDir, "converted_pdfs").also { it.mkdirs() }
+        val rendered = File(dir, "Docx_${System.currentTimeMillis()}.pdf")
+        val ok = runCatching { DocxWebRenderer.render(context, bytes, rendered) }.getOrDefault(false)
+        if (ok) return Uri.fromFile(rendered)
+
+        return writePdf(context, renderBlocks(parseDocx(bytes), bodyPaint()), "Docx")
+    }
 
     private fun parseDocx(bytes: ByteArray): List<DocBlock> {
         // Read the whole package so we can resolve inline images (drawing → r:embed → rels → media).
@@ -289,67 +315,26 @@ object UniversalDocumentConverter {
 
     // ── XLSX ───────────────────────────────────────────────────────────────────
 
+    /**
+     * Delegates to [SpreadsheetParser], which is the same reader the interactive spreadsheet viewer
+     * uses. This file used to carry a second, simpler copy of the .xlsx parser, and the two drifted:
+     * the copy here knew nothing about `xl/styles.xml` or hidden columns, so exporting a workbook to
+     * PDF printed date cells as their raw serial numbers and printed helper columns the author had
+     * hidden. One parser means the exported PDF and the on-screen grid can no longer disagree.
+     */
     private fun parseXlsx(bytes: ByteArray): List<DocBlock> {
-        // Read the whole package once so we can resolve workbook order + real sheet names via the
-        // rels — instead of guessing from the zip's arbitrary entry order.
-        val entries = HashMap<String, ByteArray>()
-        ZipInputStream(bytes.inputStream()).use { zip ->
-            while (true) {
-                val entry = zip.nextEntry ?: break
-                entries[entry.name] = zip.readBytes()
-            }
-        }
-        val sharedStrings = entries["xl/sharedStrings.xml"]?.let { parseSharedStrings(it.inputStream()) } ?: emptyList()
-
-        // Workbook defines sheets in TAB order with their names + an r:id → the rels map that r:id
-        // to the actual sheetN.xml file. This gives correct order AND the human sheet name.
-        val workbookSheets = parseWorkbookSheets(entries["xl/workbook.xml"])          // (name, rId) in tab order
-        val rels = parseRels(entries["xl/_rels/workbook.xml.rels"])                   // rId → "worksheets/sheetN.xml"
-        val ordered: List<Pair<String, ByteArray>> = if (workbookSheets.isNotEmpty()) {
-            workbookSheets.mapNotNull { (name, rId) ->
-                val target = rels[rId] ?: return@mapNotNull null
-                val path = if (target.startsWith("/")) target.drop(1) else "xl/${target.removePrefix("/")}"
-                entries[path]?.let { name to it }
-            }
-        } else {
-            // Fallback: every worksheet by numeric index, generic "Sheet N" names.
-            entries.keys.filter { it.startsWith("xl/worksheets/sheet") && it.endsWith(".xml") }
-                .sortedBy { Regex("sheet(\\d+)\\.xml").find(it)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: Int.MAX_VALUE }
-                .map { (Regex("sheet(\\d+)").find(it)?.groupValues?.getOrNull(1)?.let { n -> "Sheet $n" } ?: "Sheet") to entries[it]!! }
-        }
-
+        val sheets = runCatching { SpreadsheetParser.parseXlsx(bytes) }.getOrDefault(emptyList())
         val result = mutableListOf<DocBlock>()
-        for ((name, xml) in ordered) {
-            val rows = parseWorksheetRows(xml.inputStream(), sharedStrings)
-            if (rows.isEmpty()) continue
+        for (sheet in sheets) {
+            if (sheet.rows.isEmpty()) continue
             // A labelled header for each sheet so a multi-sheet workbook reads as clearly separated
             // sections instead of one anonymous run of tables.
-            val header = SpannableStringBuilder(name)
+            val header = SpannableStringBuilder(sheet.name)
             header.setSpan(StyleSpan(Typeface.BOLD), 0, header.length, 0)
             result.add(DocBlock.Para(header, headingLevel = 1, spaceAfter = 6f))
-            result.add(DocBlock.Table(rows))
+            result.add(DocBlock.Table(sheet.rows))
         }
         return result.ifEmpty { listOf(DocBlock.Para(SpannableStringBuilder("(empty spreadsheet)"))) }
-    }
-
-    /** Sheets in workbook (tab) order as (name, relationshipId). */
-    private fun parseWorkbookSheets(bytes: ByteArray?): List<Pair<String, String>> {
-        if (bytes == null) return emptyList()
-        val out = mutableListOf<Pair<String, String>>()
-        val parser = Xml.newPullParser().apply {
-            setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
-            setInput(bytes.inputStream(), "UTF-8")
-        }
-        var event = parser.eventType
-        while (event != XmlPullParser.END_DOCUMENT) {
-            if (event == XmlPullParser.START_TAG && parser.name == "sheet") {
-                val name = parser.getAttributeValue(null, "name") ?: "Sheet"
-                val rId = parser.getAttributeValue(null, "r:id") ?: parser.getAttributeValue(null, "id") ?: ""
-                out.add(name to rId)
-            }
-            event = parser.next()
-        }
-        return out
     }
 
     /** "#RRGGBB" / "RRGGBB" / "auto" → ARGB int, or 0 (sentinel = none) when absent/invalid. */
@@ -378,92 +363,23 @@ object UniversalDocumentConverter {
         return out
     }
 
-    private fun parseSharedStrings(stream: InputStream): List<String> {
-        val strings = mutableListOf<String>()
-        val parser = Xml.newPullParser().apply {
-            setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
-            setInput(stream, "UTF-8")
-        }
-        var inT = false
-        val buf = StringBuilder()
-        var event = parser.eventType
-        while (event != XmlPullParser.END_DOCUMENT) {
-            when (event) {
-                XmlPullParser.START_TAG -> if (parser.name == "si") buf.clear()
-                                           else if (parser.name == "t") inT = true
-                XmlPullParser.END_TAG   -> if (parser.name == "si") { strings.add(buf.toString()); inT = false }
-                                           else if (parser.name == "t") inT = false
-                XmlPullParser.TEXT      -> if (inT) buf.append(parser.text)
-            }
-            event = parser.next()
-        }
-        return strings
-    }
-
-    /** Converts a spreadsheet column reference ("A", "B", … "AA") from a cell ref like "AB12" to a
-     *  0-based column index. Returns -1 if there are no leading letters. */
-    private fun colIndexFromRef(ref: String?): Int {
-        if (ref.isNullOrEmpty()) return -1
-        var idx = 0
-        var sawLetter = false
-        for (ch in ref) {
-            val up = ch.uppercaseChar()
-            if (up in 'A'..'Z') { idx = idx * 26 + (up - 'A' + 1); sawLetter = true } else break
-        }
-        return if (sawLetter) idx - 1 else -1
-    }
-
-    private fun parseWorksheetRows(stream: InputStream, sharedStrings: List<String>): List<List<String>> {
-        val rows = mutableListOf<List<String>>()
-        val parser = Xml.newPullParser().apply {
-            setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
-            setInput(stream, "UTF-8")
-        }
-        // Place every cell at its REAL column index (from the r="C5" ref) so omitted/empty cells —
-        // which OOXML simply leaves out — don't shift the rest of the row left. That left-shift was
-        // the main reason spreadsheet values looked "missing" or landed under the wrong header here.
-        var rowCells = sortedMapOf<Int, String>()
-        var cellType = ""
-        var cellCol = 0
-        var nextAutoCol = 0
-        var inVal = false           // inside <v> (value) or inline <t> (inline string text)
-        val cellBuf = StringBuilder()
-
-        var event = parser.eventType
-        while (event != XmlPullParser.END_DOCUMENT) {
-            when (event) {
-                XmlPullParser.START_TAG -> when (parser.name) {
-                    "row" -> { rowCells = sortedMapOf(); nextAutoCol = 0 }
-                    "c"   -> {
-                        cellType = parser.getAttributeValue(null, "t") ?: ""
-                        cellCol = colIndexFromRef(parser.getAttributeValue(null, "r")).let { if (it >= 0) it else nextAutoCol }
-                        inVal = false; cellBuf.clear()
-                    }
-                    "v", "t" -> inVal = true    // <t> here = an inline-string cell (<is><t>…)
-                }
-                XmlPullParser.END_TAG -> when (parser.name) {
-                    "row" -> if (rowCells.isNotEmpty()) {
-                        val maxC = rowCells.lastKey()
-                        rows.add((0..maxC).map { rowCells[it] ?: "" })
-                    }
-                    "c"   -> {
-                        val raw = cellBuf.toString()
-                        val value = if (cellType == "s") sharedStrings.getOrElse(raw.trim().toIntOrNull() ?: -1) { raw } else raw
-                        if (value.isNotEmpty()) rowCells[cellCol] = value
-                        nextAutoCol = cellCol + 1
-                        inVal = false
-                    }
-                    "v", "t" -> inVal = false
-                }
-                XmlPullParser.TEXT -> if (inVal) cellBuf.append(parser.text)
-            }
-            event = parser.next()
-            if (rows.size > 5000) break
-        }
-        return rows
-    }
-
     // ── PPTX ───────────────────────────────────────────────────────────────────
+
+    /**
+     * A presentation gets one landscape page per slide, laid out by [PptxRenderer].
+     *
+     * [parsePptx] below is kept as the fallback for a package the renderer can't make sense of — a
+     * missing `presentation.xml`, a producer that writes a shape tree we don't recognise. Its output
+     * is a plain text outline, which is a poor presentation but is still readable, and is strictly
+     * better than handing back a blank document.
+     */
+    private fun convertPptxToPdf(context: Context, sourceUri: Uri): Uri {
+        val bytes = context.contentResolver.openInputStream(sourceUri)?.use { it.readBytes() }
+            ?: throw IllegalStateException("Cannot open file")
+        val rendered = runCatching { PptxRenderer.render(bytes) }.getOrNull()
+        if (rendered != null) return writePdf(context, rendered, "Pptx")
+        return writePdf(context, renderBlocks(parsePptx(bytes), bodyPaint()), "Pptx")
+    }
 
     private fun parsePptx(bytes: ByteArray): List<DocBlock> {
         val result = mutableListOf<DocBlock>()

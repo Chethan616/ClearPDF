@@ -300,7 +300,12 @@ fun DemoDocumentOpen(isActive: Boolean, backdrop: Backdrop, glass: Color, ink: C
                                 scaleX = t
                             }
                             .clip(RoundedCornerShape(3.dp))
-                            .background(lineTint.copy(if (idx == 0) 0.85f else 0.62f))
+                            // Was 0.85 for the first line and a flat 0.62 for every line after it —
+                            // a steep drop that read as "the first sheet landed bright, the rest are
+                            // washed out," which is exactly backwards for a book meant to show all
+                            // six formats having equally assembled it. Close enough now that the
+                            // first line still reads as a heading without the rest going dim.
+                            .background(lineTint.copy(if (idx == 0) 0.90f else 0.80f))
                     )
                 }
             }
@@ -401,6 +406,12 @@ fun DemoFileKinds(isActive: Boolean, backdrop: Backdrop, glass: Color, ink: Colo
             label = "fileKind"
         ) { i ->
             val k = cards[i]
+            // The badge pops on every turnover instead of just cross-fading flat — a small overshoot
+            // that lands, so "now it's a Word doc" reads as an arrival rather than a still image being
+            // swapped out from under itself.
+            val badgePop = remember(i) { Animatable(0.72f) }
+            LaunchedEffect(i) { badgePop.animateTo(1f, GlassMotion.pop()) }
+
             Column(
                 Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -409,6 +420,7 @@ fun DemoFileKinds(isActive: Boolean, backdrop: Backdrop, glass: Color, ink: Colo
                 Box(
                     Modifier
                         .size(76.dp)
+                        .graphicsLayer { scaleX = badgePop.value; scaleY = badgePop.value }
                         .clip(RoundedCornerShape(22.dp))
                         .background(k.tint.copy(0.92f)),
                     contentAlignment = Alignment.Center
@@ -447,6 +459,28 @@ fun DemoFileKinds(isActive: Boolean, backdrop: Backdrop, glass: Color, ink: Colo
                         )
                     }
                 }
+            }
+        }
+
+        // Which format is cycling now, out of how many — without this the card just silently
+        // relabels itself every 1.5s with no sense of a sequence being shown. Same pill-dot language
+        // as the pager's own [PageDots], tinted to the active format instead of a flat ink colour.
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            cards.forEachIndexed { i, k ->
+                val active = i == index
+                val w by animateFloatAsState(if (active) 16f else 5f, GlassMotion.settle(), label = "kindDotW$i")
+                val dotColor by animateColorAsState(
+                    if (active) k.tint.copy(0.9f) else ink.copy(0.22f),
+                    tween(320),
+                    label = "kindDotColor$i"
+                )
+                Box(
+                    Modifier
+                        .width(w.dp)
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(dotColor)
+                )
             }
         }
     }
@@ -618,7 +652,14 @@ fun DemoToolsMenu(
 // ── Page 5 · Ready ──────────────────────────────────────────────────────────────────────────────
 
 /**
- * A glass disc springs in, then a checkmark draws itself inside it.
+ * A glass disc springs in, then a checkmark draws itself inside it, ringed by the six format dots
+ * that opened the tour on page 1.
+ *
+ * A checkmark alone in a circle is the one generic "success" cliché every templated app onboarding
+ * reaches for, with nothing about it specific to this app. The ring ties it back to the actual
+ * promise being confirmed — closing the loop the flow opened with the same six colours from
+ * [DemoKinds]/page 1's flying sheets: "that's all six formats, sorted." It reuses the format's own
+ * language rather than inventing a new decorative element.
  *
  * Same [PathMeasure] trim as [DemoAnnotate] — the tick is *drawn*, not faded in, which is what makes
  * it read as a confirmation rather than an icon appearing. Plays once per visit rather than looping:
@@ -639,8 +680,40 @@ fun DemoReady(isActive: Boolean, backdrop: Backdrop, glass: Color) {
         tween(520, delayMillis = 180, easing = FastOutSlowInEasing),
         label = "readyTick"
     )
+    // A settle, not the disc's own bouncy morph() — six dots overshooting independently around a
+    // ring reads as jitter, not as a landing.
+    val ring by animateFloatAsState(
+        if (play == 1) 1f else 0f,
+        tween(640, delayMillis = 120, easing = FastOutSlowInEasing),
+        label = "readyRing"
+    )
 
-    Box(Modifier.size(132.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(176.dp), contentAlignment = Alignment.Center) {
+        // Six small dots settling into a ring around the disc — each on its own staggered slice of
+        // `ring`, same head-offset idiom page 1 uses for its book's lines, so an early dot is
+        // fully landed while a later one is still arriving.
+        DemoKinds.forEachIndexed { i, kind ->
+            val angle = -Pi / 2f + (i.toFloat() / DemoKinds.size) * TwoPi
+            val head = i * 0.08f
+            val t = ((ring - head) / (1f - head)).coerceIn(0f, 1f)
+            val eased = smooth(t)
+            Box(
+                Modifier
+                    .size(12.dp)
+                    .graphicsLayer {
+                        // Drifts in from a touch further out, so it reads as arriving into the ring
+                        // rather than just fading up in place.
+                        val radius = (72f - 10f * (1f - eased)) * density
+                        translationX = cos(angle) * radius
+                        translationY = sin(angle) * radius
+                        val s = lerp(0.4f, 1f, eased)
+                        scaleX = s; scaleY = s
+                        alpha = eased
+                    }
+                    .clip(CircleShape)
+                    .background(kind.tint)
+            )
+        }
         // A soft accent halo behind the glass, flat, so it can pulse without costing a re-blur.
         Box(
             Modifier
