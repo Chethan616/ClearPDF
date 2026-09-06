@@ -318,9 +318,18 @@ fun DemoDocumentOpen(isActive: Boolean, backdrop: Backdrop, glass: Color, ink: C
  * rectangle read as a document once it is down at a third of its size.
  *
  * [tint] is the sheet's file kind, from [DemoKinds]. Card and bars share it so a sheet reads as one
- * coloured object rather than a coloured card with grey lines on it. Both alphas sit a little above
- * the neutral ones they replace (0.16 / 0.24): a hue needs more weight than grey to register at the
- * 0.32 flight scale, under a 64° fold.
+ * coloured object rather than a coloured card with grey lines on it.
+ *
+ * Fill alphas are high (0.75 card / 1.0 lines), not the washed-out 0.20 / 0.34 this used to carry —
+ * and deliberately still a real gap between the two (not both pushed equally to ~0.9), since the
+ * bars are what read as "document lines" against the card and need contrast against it, not just
+ * high opacity in isolation. Every sheet
+ * stays at this same opacity for its entire life — through the flight, and after it lands in the
+ * fanned stack behind the assembled book (only the last-landing sheet ever fades, as the book takes
+ * over; the rest sit there indefinitely, per `DemoDocumentOpen`). At 0.20 that permanent settled fan
+ * read as pale grey ghosts on the light onboarding background — exactly what a real user flagged as
+ * "backside pages are dull and grey." Near-opaque keeps every sheet in the fan a saturated, distinct
+ * colour instead.
  */
 @Composable
 private fun OrbitSheet(tint: Color, modifier: Modifier) {
@@ -328,7 +337,7 @@ private fun OrbitSheet(tint: Color, modifier: Modifier) {
         modifier
             .size(width = SheetW, height = SheetH)
             .clip(RoundedCornerShape(14.dp))
-            .background(tint.copy(0.20f))
+            .background(tint.copy(0.75f))
             .padding(horizontal = 14.dp, vertical = 16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -338,7 +347,7 @@ private fun OrbitSheet(tint: Color, modifier: Modifier) {
                         .fillMaxWidth(w)
                         .height(5.dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(tint.copy(0.34f))
+                        .background(tint)
                 )
             }
         }

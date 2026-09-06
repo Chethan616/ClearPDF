@@ -42,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
@@ -154,6 +155,16 @@ internal fun PdfContinuousPage(
     var magnifierFocus by remember(page, activeTool) { mutableStateOf(Offset.Unspecified) }
     val selectionHandleDiameterPx = with(LocalDensity.current) { 32.dp.toPx() }
     val selectionHandleHitRadiusPx = with(LocalDensity.current) { 30.dp.toPx() }
+    // Read inside the handle-drag gesture below instead of the raw `selectedOcrRanges` parameter.
+    // That gesture used to key its `pointerInput` on `selectedOcrRanges` itself — but the gesture
+    // is also what MUTATES it on every move (`onSelectOcrRange` inside `updateRange()`), so the
+    // instant a drag moved past touch slop, Compose saw the key change and cancelled + restarted
+    // the gesture coroutine mid-drag. The restarted `awaitEachGesture` then waited on a fresh
+    // touch-down that never came (the same finger was already down), which is why a handle drag
+    // died after exactly one movement in any direction. `selectedOcrRanges` is no longer a key —
+    // `rememberUpdatedState` is what lets the gesture still read the *current* selection at the
+    // start of each new touch (to know which handle was grabbed) without needing a key at all.
+    val latestSelectedOcrRanges by rememberUpdatedState(selectedOcrRanges)
 
     // Page layout (rebuilt on the Pdf_Tools model): the image is drawn at its TRUE
     // aspect via ContentScale.FillWidth, so the box height follows the bitmap. There
@@ -223,9 +234,13 @@ internal fun PdfContinuousPage(
             selectedOcrRanges.forEach { range ->
                 ocrBlocks.firstOrNull { it.id == range.blockId }?.let { b ->
                     val r = expandedTextHighlightRect(ocrTextRangeToRect(b, range, frame), verticalScale = 1.35f)
-                    // Stock-Android text-selection look: a subtle translucent band in the same
-                    // blue as the selection handles (#4285F4), not an opaque saturated cyan block.
-                    val radius = (r.height * 0.14f).coerceIn(2f, 5f)
+                    // Fully rounded — half the band's own height, a real capsule — not the old 2-5px
+                    // clamp, which read as a barely-softened rectangle. The handles hanging off each
+                    // end are a rounded teardrop; a flat bar between them was what made the whole
+                    // selection look like two balloons stuck onto a straight rod instead of one
+                    // shape. Same blue family as the handles (#4285F4) so the band and the handles
+                    // it connects to read as one selection, not two unrelated pieces.
+                    val radius = r.height * 0.5f
                     drawRoundRect(Color(0xFF4285F4).copy(0.28f), r.topLeft, r.size, CornerRadius(radius, radius))
                 }
             }
@@ -373,8 +388,8 @@ internal fun PdfContinuousPage(
                     // DrawScope is itself a Density, so dp -> px works directly here.
                     val minPx = 14.dp.toPx()
                     val maxPx = 30.dp.toPx()
-                    drawTextSelectionHandle(start, (startLineH * 1.1f).coerceIn(minPx, maxPx))
-                    drawTextSelectionHandle(end, (endLineH * 1.1f).coerceIn(minPx, maxPx))
+                    drawTextSelectionHandle(start, (startLineH * 1.1f).coerceIn(minPx, maxPx), isLeftHandle = true)
+                    drawTextSelectionHandle(end, (endLineH * 1.1f).coerceIn(minPx, maxPx), isLeftHandle = false)
                 }
             }
 
@@ -641,7 +656,7 @@ internal fun PdfContinuousPage(
                 // Direct drag (no long-press wait): sweep a contiguous run of words in reading order
                 // and update the range live. The page stays in text-selection mode, while the parent
                 // viewer still receives two-finger pinch events for zoom.
-                .pointerInput(page, ocrBlocks, selectedOcrRanges, selectionHandleHitRadiusPx) {
+                .pointerInput(page, ocrBlocks, selectionHandleHitRadiusPx) {
                     fun updateRange() {
                         val s = selDragStart; val e = selDragEnd
                         if (s == null || e == null || ocrBlocks.isEmpty()) return
@@ -660,7 +675,7 @@ internal fun PdfContinuousPage(
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
-                        val handles = ocrSelectionHandleAnchors(ocrBlocks, selectedOcrRanges, frame)
+                        val handles = ocrSelectionHandleAnchors(ocrBlocks, latestSelectedOcrRanges, frame)
                         val handleMode = when {
                             handles == null -> 0
                             (down.position - handles.first).getDistance() <= selectionHandleHitRadiusPx -> 1
