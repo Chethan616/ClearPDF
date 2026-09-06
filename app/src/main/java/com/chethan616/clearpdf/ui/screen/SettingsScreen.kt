@@ -345,7 +345,8 @@ fun SettingsScreen(
                 data class LangOption(val code: String, val label: String)
                 val langs = listOf(
                     LangOption("en", stringResource(R.string.language_english)),
-                    LangOption("pt-BR", stringResource(R.string.language_portuguese))
+                    LangOption("pt-BR", stringResource(R.string.language_portuguese)),
+                    LangOption("es", stringResource(R.string.language_spanish))
                 )
                 val accent = Color(0xFF0088FF)
                 langs.forEach { opt ->
@@ -722,28 +723,26 @@ fun SettingsScreen(
                 BasicText(stringResource(R.string.settings_licenses), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
-            LicenseItem(
-                name = "AndroidLiquidGlass",
-                author = "Kyant",
-                license = "Apache License 2.0",
-                url = "https://github.com/Kyant0/AndroidLiquidGlass",
-                labelColor = label,
-                subColor = sub
-            )
-
-            Box(
-                Modifier.fillMaxWidth().height(1.dp)
-                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
-            )
-
-            LicenseItem(
-                name = "Pdf_Tools",
-                author = "Karna14314",
-                license = "PDF viewer zoom/pan reference",
-                url = "https://github.com/Karna14314/Pdf_Tools",
-                labelColor = label,
-                subColor = sub
-            )
+            // Everything third-party that ships inside the app. This is the attribution the
+            // Apache-2.0 and BSD notices actually require, so it has to list what the build really
+            // pulls in — not just the two entries it started with. THIRD_PARTY_NOTICES.md carries
+            // the full text; keep the two in step when a dependency is added or dropped.
+            OpenSourceCredits.forEachIndexed { index, credit ->
+                if (index > 0) {
+                    Box(
+                        Modifier.fillMaxWidth().height(1.dp)
+                            .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
+                    )
+                }
+                LicenseItem(
+                    name = credit.name,
+                    author = credit.author,
+                    license = credit.license,
+                    url = credit.url,
+                    labelColor = label,
+                    subColor = sub
+                )
+            }
 
             Box(
                 Modifier.fillMaxWidth().height(1.dp)
@@ -761,6 +760,72 @@ fun SettingsScreen(
     }
     }
 }
+
+private class Credit(val name: String, val author: String, val license: String, val url: String)
+
+/**
+ * Ordered roughly by how much of the app each one carries.
+ *
+ * Note what is *not* here: the .xlsx reader and the PowerPoint slide renderer are written in this
+ * repo against the published OOXML layout, not borrowed. That was a size decision — the libraries
+ * that read Office formats properly on Android (POI's OOXML half plus XmlBeans at ~17 MB, or
+ * OpenDocument.core's 100 MB AAR) are far more than this app can carry for a viewer. POI appears
+ * below only for the *legacy* binary .doc/.xls/.ppt formats, which are not XML and cannot be read
+ * this way. Word layout is the one place a library won on merit: docx-preview delegates to the
+ * browser engine the phone already has, so it costs ~48 KB rather than tens of megabytes.
+ */
+private val OpenSourceCredits = listOf(
+    Credit(
+        "AndroidLiquidGlass", "Kyant",
+        "Apache License 2.0",
+        "https://github.com/Kyant0/AndroidLiquidGlass"
+    ),
+    Credit(
+        "PdfBox-Android", "Tom Roush",
+        "Apache License 2.0 — PDF text, forms and annotation export",
+        "https://github.com/TomRoush/PdfBox-Android"
+    ),
+    Credit(
+        "Apache POI", "The Apache Software Foundation",
+        "Apache License 2.0 — legacy .doc / .xls / .ppt reading",
+        "https://poi.apache.org"
+    ),
+    Credit(
+        "ML Kit Text Recognition", "Google",
+        "Apache License 2.0 — bundled on-device OCR, no network",
+        "https://developers.google.com/ml-kit/vision/text-recognition"
+    ),
+    Credit(
+        "Tesseract4Android", "Adaptech s.r.o.",
+        "Apache License 2.0 — offline OCR fallback",
+        "https://github.com/adaptech-cz/Tesseract4Android"
+    ),
+    Credit(
+        "Tesseract OCR", "Google / Tesseract contributors",
+        "Apache License 2.0",
+        "https://github.com/tesseract-ocr/tesseract"
+    ),
+    Credit(
+        "Leptonica", "Dan Bloomberg",
+        "BSD 2-Clause — image processing behind Tesseract",
+        "https://github.com/DanBloomberg/leptonica"
+    ),
+    Credit(
+        "docx-preview", "Volodymyr Baydalka",
+        "Apache License 2.0 — Word document layout",
+        "https://github.com/VolodymyrBaydalka/docxjs"
+    ),
+    Credit(
+        "JSZip", "Stuart Knightley",
+        "MIT License (used under MIT of its MIT/GPLv3 dual licence)",
+        "https://github.com/Stuk/jszip"
+    ),
+    Credit(
+        "Pdf_Tools", "Karna14314",
+        "PDF viewer zoom/pan reference",
+        "https://github.com/Karna14314/Pdf_Tools"
+    )
+)
 
 private fun Modifier.liquidGlassSection(isLight: Boolean): Modifier {
     val containerColor = if (isLight) Color.White.copy(0.68f) else Color(0xFF161820).copy(0.72f)

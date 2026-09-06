@@ -293,6 +293,7 @@
     <string name="settings_license_author">by %1$s</string>
     <string name="language_english">English</string>
     <string name="language_portuguese">Portuguese</string>
+    <string name="language_spanish">Spanish</string>
     <string name="recents_open">Open</string>
     <string name="recents_share">Share</string>
     <string name="recents_details">Details</string>
@@ -519,4 +520,7 @@
     <string name="images_to_pdf_title">Images -&gt; PDF</string>
     <string name="scanner_unavailable">Scanner is unavailable in this context.</string>
     <string name="scanner_start_failed">Could not start the scanner.</string>
+
+    <!-- Spreadsheet viewer row scrubber badge (compact: "12/940", not "Row 12 / 940") -->
+    <string name="sheet_row_of">%1$d/%2$d</string>
 </resources>

@@ -160,11 +160,32 @@ internal fun PdfContinuousPage(
     // is no forced-aspect placeholder jump, and single / landscape pages lay out
     // correctly. Every overlay uses matchParentSize() so its coordinate frame is
     // exactly the image frame (0,0 → box size).
+    // Height to reserve while this page has no bitmap — either it has not rendered yet, or it
+    // rendered once and was evicted from the cache while staying composed.
+    //
+    // This used to be hardcoded to A4 portrait. On a landscape document (a converted .pptx is 16:9)
+    // that reserved a box ~2.5x taller than the page, and the box collapsed the instant the bitmap
+    // arrived. On the last page that collapse is a feedback loop: the list is centred
+    // (`Arrangement.Center`), so the shrink shifts content, which can push the page out of the
+    // viewport, which disposes it, which restores the tall placeholder, which shifts it back in —
+    // visible as the last page flickering. Reserving the page's real aspect removes the size change
+    // entirely, so there is nothing left to oscillate.
+    //
+    // `pageBitmapSizes` survives eviction (it is only cleared when the document changes), so a page
+    // that has ever rendered knows its own shape; anything else borrows the first page that does,
+    // since documents are near enough uniform. Only the very first page of a fresh document falls
+    // through to the A4 guess.
+    val placeholderAspect = if (bitmap != null) null else {
+        (pageBitmapSizes[page] ?: pageBitmapSizes.values.firstOrNull { it.width > 0f && it.height > 0f })
+            ?.takeIf { it.width > 0f && it.height > 0f }
+            ?.let { it.width / it.height }
+    }
+
     Box(
         Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
-            .then(if (bitmap == null) Modifier.aspectRatio(1f / 1.414f) else Modifier)
+            .then(if (bitmap == null) Modifier.aspectRatio(placeholderAspect ?: (1f / 1.414f)) else Modifier)
             .background(Color(0xFF15181E))
             // Native platform loupe (Android 9+). Inactive — and a no-op on older devices —
             // whenever the focus point is Unspecified, so it costs nothing outside a drag.

@@ -132,9 +132,15 @@ fun GlassSearchHeader(
     // The bounce rides its own clock so it can overshoot without dragging `progress` — and therefore
     // the layout width — past 1. Everything it drives is a draw-time property, so the overshoot costs
     // a layer-matrix update, not a re-measure: `drawBackdrop` never re-runs its blur or lens.
-    // Open only. Overshooting on close drives the scale under its floor and reads as a glitch.
+    // Symmetric on purpose: this used to spring open with `morph()` but close with the fully
+    // rigid `settle()` (no overshoot at all), on the theory that overshooting past the field's
+    // floor scale on the way in would look broken. It doesn't — every use of `bounce` below either
+    // clamps to [0,1] (the pill's shrink) or tolerates a few percent past its floor for a couple of
+    // frames (the field's grow-in, the icon's spin) — so there was nothing actually protecting
+    // against, just an animation that sprang open and then went dead on the way back, closing every
+    // single time compared with opening.
     val bounce by transition.animateFloat(
-        transitionSpec = { if (targetState) GlassMotion.morph() else GlassMotion.settle() },
+        transitionSpec = { GlassMotion.morph() },
         label = "searchBounce"
     ) { if (it) 1f else 0f }
 

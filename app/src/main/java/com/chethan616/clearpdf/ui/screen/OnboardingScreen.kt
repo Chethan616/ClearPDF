@@ -428,7 +428,11 @@ private fun LanguageChooser(
             stringResource(R.string.onboarding_language_label),
             style = TextStyle(inkSoft, 13.sp, fontWeight = FontWeight.SemiBold)
         )
-        listOf("en" to R.string.language_english, "pt-BR" to R.string.language_portuguese).forEach { (code, res) ->
+        listOf(
+            "en" to R.string.language_english,
+            "pt-BR" to R.string.language_portuguese,
+            "es" to R.string.language_spanish
+        ).forEach { (code, res) ->
             val selected = selectedLocale == code
             LiquidButton(
                 onClick = { onLocaleSelected(code) },

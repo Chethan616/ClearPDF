@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -137,6 +138,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 @Composable
 fun PdfViewerScreen(
     backdrop: LayerBackdrop,
@@ -621,11 +623,29 @@ fun PdfViewerScreen(
     val panelFgSoft  = if (isLightChrome) Color(0xFF15171C).copy(0.62f) else Color.White.copy(0.62f)
     val chromeField  = if (isLightChrome) Color.Black.copy(0.10f) else Color.White.copy(0.10f)
 
-    // The top visible page drives text extraction + bitmap caching.
+    // The top visible page drives text extraction, the chrome-tint sampling, and (via
+    // `selectionPageIndex`/toolbar targets) which page an action applies to — all of that needs to
+    // track the scroll position immediately, every tick.
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .distinctUntilChanged()
             .collect { idx -> viewModel.onPageChanged(idx.coerceIn(0, safePageCount - 1)) }
+    }
+    // Bitmap-cache eviction is a separate, DEBOUNCED signal. It used to run on every single one of
+    // those ticks: during a fast scroll or fling through a many-page document (a converted .pptx,
+    // scrolled through quickly, was the easiest way to see it) the "current page" advances every
+    // few milliseconds, and evicting far-from-current bitmaps on every tick recycled pages that
+    // were still transiting through the viewport a frame later — the freshly-evicted page then had
+    // to re-render from scratch before it could be shown again, which is what "flickering"/
+    // "buffering" while scrolling actually was: real re-render work, triggered far more often than
+    // the eviction needed to happen. Coalescing rapid ticks into one sweep after they stop still
+    // bounds memory (nothing pins pages forever, it just evicts once per settled position instead
+    // of once per pixel) while never evicting a page mid-transit.
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex.coerceIn(0, safePageCount - 1) }
+            .distinctUntilChanged()
+            .debounce(180)
+            .collect { idx -> viewModel.trimBitmapCache(idx) }
     }
 
     // Scroll to the page holding the active find match.
@@ -666,6 +686,14 @@ fun PdfViewerScreen(
             .background(if (isLight) Color(0xFF0A0E14).copy(0.85f) else Color(0xFF020305).copy(0.88f))
     ) {
         val renderWidthPx = with(LocalDensity.current) { maxWidth.roundToPx() }.coerceAtLeast(720)
+
+        // Warms the pages just ahead of (and one behind) wherever scrolling currently is, so a page's
+        // render has a head start instead of only beginning once it scrolls into view — undebounced
+        // is fine here since `prefetchAround`/`renderPage` are no-ops for a page already rendered or
+        // already in flight.
+        LaunchedEffect(currentPageIndex, renderWidthPx) {
+            viewModel.prefetchAround(context, currentPageIndex, renderWidthPx)
+        }
 
         var containerHeightPx by remember { mutableStateOf(0) }
 

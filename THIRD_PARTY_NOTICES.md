@@ -43,3 +43,23 @@ ClearPDF uses open-source components and keeps their notices with the project. R
 - Use: informed ClearPDF's on-device tool set (e.g. PDF-to-Images export). ClearPDF's implementations are original code written against the app's own architecture and `backdrop` UI; no source was copied. This acknowledgement is provided in good faith for the shared feature direction.
 
 The app does not add GPL or LGPL components for document rendering. If a future dependency changes that, its license and redistribution obligations must be reviewed before release.
+
+## docx-preview (docxjs)
+
+- Artifact: `docx-preview.min.js` 0.4.0, vendored at `app/src/main/assets/docx/`
+- License: Apache License 2.0
+- Source: https://github.com/VolodymyrBaydalka/docxjs
+- Use: lays out .docx documents inside an offscreen WebView, which is then printed to PDF. Chosen
+  over a native Office engine purely on size — `app.opendocument:odr-core-android` is a 100 MB AAR
+  and Apache POI's OOXML half is ~17 MB of jars that only parse, not render.
+- Notice practice: the upstream Apache-2.0 banner is preserved verbatim at the top of the vendored
+  file, and the library is credited in Settings → Licenses.
+
+## JSZip
+
+- Artifact: `jszip.min.js` 3.10.1, vendored at `app/src/main/assets/docx/`
+- License: MIT (upstream is dual MIT / GPL-3.0; this app uses it under the MIT option)
+- Source: https://github.com/Stuk/jszip
+- Use: required by docx-preview to read the .docx zip container in the browser context.
+- Notice practice: the upstream banner (including its pako attribution) is preserved verbatim at the
+  top of the vendored file, and the library is credited in Settings → Licenses.

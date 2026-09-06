@@ -13,15 +13,41 @@ import java.util.zip.ZipInputStream
  * interactive spreadsheet viewer (as opposed to [UniversalDocumentConverter], which flattens to a
  * static PDF). Cells are placed at their true column index (from the r="C5" ref) so omitted/empty
  * cells don't shift data, and inline strings + shared strings are both handled. Self-contained.
+ *
+ * Two things it deliberately reads beyond the raw cell values, because leaving them out made the
+ * viewer disagree with Excel on the same file:
+ *  - `xl/styles.xml`, so a date cell renders as a date instead of its serial number (see
+ *    [ExcelCellFormat]);
+ *  - the `hidden` flags on `<cols>`/`<row>`, so a column the author hid stays hidden here too.
+ *    Sheets routinely carry helper columns that are hidden on purpose; showing them made the app
+ *    look like it was inventing data that "isn't in the file".
  */
 object SpreadsheetParser {
 
     /** Widest row this parser will materialise. See the note at the `"c"` end-tag. */
     private const val MaxColumns = 1024
 
-    data class Sheet(val name: String, val rows: List<List<String>>) {
+    /**
+     * @param columnLabels the spreadsheet letter for each rendered column. Not simply `A, B, C…`:
+     *   hidden columns are dropped from [rows], so a sheet that hides H renders `… G, I …` exactly
+     *   as Excel's own header does.
+     * @param rowNumbers the real 1-based sheet row number for each rendered row, for the same
+     *   reason — and so the viewer's row gutter agrees with the reference the user reads on desktop.
+     */
+    data class Sheet(
+        val name: String,
+        val rows: List<List<String>>,
+        val columnLabels: List<String> = emptyList(),
+        val rowNumbers: List<Int> = emptyList()
+    ) {
         /** Widest row → number of columns to render. */
         val columnCount: Int get() = rows.maxOfOrNull { it.size } ?: 0
+
+        /** Header letter for a rendered column, falling back to positional letters. */
+        fun labelAt(index: Int): String = columnLabels.getOrNull(index) ?: colLetter(index)
+
+        /** Sheet row number for a rendered row, falling back to positional numbering. */
+        fun rowNumberAt(index: Int): Int = rowNumbers.getOrNull(index) ?: (index + 1)
     }
 
     /**
@@ -46,6 +72,14 @@ object SpreadsheetParser {
         }
     }.getOrDefault(emptyList())
 
+    /** 0→A, 25→Z, 26→AA … spreadsheet column labels. */
+    fun colLetter(index: Int): String {
+        var i = index
+        val sb = StringBuilder()
+        while (i >= 0) { sb.insert(0, 'A' + (i % 26)); i = i / 26 - 1 }
+        return sb.toString()
+    }
+
     // ── XLSX (Office Open XML) ───────────────────────────────────────────────────
 
     fun parseXlsx(bytes: ByteArray): List<Sheet> = bytes.inputStream().use { parseXlsx(it) }
@@ -55,18 +89,19 @@ object SpreadsheetParser {
         ZipInputStream(source).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
-                // Only the four things below are ever read again. Keeping the rest was the single
-                // biggest allocation in this parser: `xl/media/*` (embedded images, already the
-                // bulk of many workbooks) and `xl/calcChain.xml` (one node per formula cell, often
-                // larger than the sheets themselves) were being decompressed into the heap in full
-                // and never touched. Skipping them is what keeps a mid-size workbook off the OOM
-                // line, since every entry kept here stays reachable until parsing finishes.
+                // Only the parts below are ever read again. Keeping the rest was the single biggest
+                // allocation in this parser: `xl/media/*` (embedded images, already the bulk of many
+                // workbooks) and `xl/calcChain.xml` (one node per formula cell, often larger than
+                // the sheets themselves) were being decompressed into the heap in full and never
+                // touched. Skipping them is what keeps a mid-size workbook off the OOM line, since
+                // every entry kept here stays reachable until parsing finishes.
                 if (isNeeded(entry.name)) entries[entry.name] = zip.readBytes()
             }
         }
         val sharedStrings = entries["xl/sharedStrings.xml"]?.let { parseSharedStrings(it.inputStream()) } ?: emptyList()
-        val workbookSheets = parseWorkbookSheets(entries["xl/workbook.xml"])   // (name, rId) in tab order
-        val rels = parseRels(entries["xl/_rels/workbook.xml.rels"])            // rId → "worksheets/sheetN.xml"
+        val formatCodes = parseStyles(entries["xl/styles.xml"])                 // cellXfs index → format code
+        val workbookSheets = parseWorkbookSheets(entries["xl/workbook.xml"])    // (name, rId) in tab order
+        val rels = parseRels(entries["xl/_rels/workbook.xml.rels"])             // rId → "worksheets/sheetN.xml"
 
         val ordered: List<Pair<String, ByteArray>> = if (workbookSheets.isNotEmpty()) {
             workbookSheets.mapNotNull { (name, rId) ->
@@ -80,8 +115,78 @@ object SpreadsheetParser {
                 .map { (Regex("sheet(\\d+)").find(it)?.groupValues?.getOrNull(1)?.let { n -> "Sheet $n" } ?: "Sheet") to entries[it]!! }
         }
 
-        return ordered.map { (name, xml) -> Sheet(name, parseWorksheetRows(xml.inputStream(), sharedStrings)) }
-            .filter { it.rows.isNotEmpty() }
+        return ordered.map { (name, xml) ->
+            buildSheet(name, parseWorksheet(xml.inputStream(), sharedStrings, formatCodes))
+        }.filter { it.rows.isNotEmpty() }
+    }
+
+    /** Raw worksheet contents, before hidden columns are folded out. */
+    private class RawSheet {
+        val rows = mutableListOf<List<String>>()
+        val rowNumbers = mutableListOf<Int>()
+        val hiddenCols = HashSet<Int>()
+    }
+
+    /**
+     * Drops the columns the author hid and derives the header letters / row numbers that survive.
+     * The labels come from the *original* indices, which is the whole point: after removing H, the
+     * remaining headers must still read G then I, or the viewer silently renames the user's columns.
+     */
+    private fun buildSheet(name: String, raw: RawSheet): Sheet {
+        val width = raw.rows.maxOfOrNull { it.size } ?: 0
+        val visible = (0 until width).filter { it !in raw.hiddenCols }
+        // A sheet with everything hidden is almost certainly a file we misread; showing it beats
+        // showing an empty grid.
+        if (visible.isEmpty() || visible.size == width) {
+            return Sheet(name, raw.rows, (0 until width).map { colLetter(it) }, raw.rowNumbers)
+        }
+        val rows = raw.rows.map { row -> visible.map { row.getOrElse(it) { "" } } }
+        return Sheet(name, rows, visible.map { colLetter(it) }, raw.rowNumbers)
+    }
+
+    /**
+     * `xl/styles.xml` → format code per `cellXfs` index, which is what a cell's `s="7"` points at.
+     * Custom codes live in `<numFmts>`; everything else is a built-in id resolved by
+     * [ExcelCellFormat]. Returns empty when there is no styles part, in which case values render
+     * exactly as they are stored.
+     */
+    private fun parseStyles(bytes: ByteArray?): List<String> {
+        if (bytes == null) return emptyList()
+        val custom = HashMap<Int, String>()
+        val numFmtIds = mutableListOf<Int>()
+        return runCatching {
+            val parser = newParser(bytes.inputStream())
+            var inCellXfs = false
+            // `<dxfs>` (conditional-formatting overrides) carries its own `<numFmt>` children with
+            // ids that can collide with the workbook's real ones. Only the top-level `<numFmts>`
+            // block defines what a cell's `numFmtId` means.
+            var inDxfs = false
+            var event = parser.eventType
+            while (event != XmlPullParser.END_DOCUMENT) {
+                when (event) {
+                    XmlPullParser.START_TAG -> when (parser.name) {
+                        "dxfs" -> inDxfs = true
+                        "numFmt" -> if (!inDxfs) {
+                            val id = parser.getAttributeValue(null, "numFmtId")?.toIntOrNull()
+                            val code = parser.getAttributeValue(null, "formatCode")
+                            if (id != null && code != null) custom[id] = code
+                        }
+                        // `cellStyleXfs` has the same `<xf>` children and comes first; only the
+                        // `cellXfs` block is indexed by a cell's `s` attribute.
+                        "cellXfs" -> inCellXfs = true
+                        "xf" -> if (inCellXfs) {
+                            numFmtIds.add(parser.getAttributeValue(null, "numFmtId")?.toIntOrNull() ?: 0)
+                        }
+                    }
+                    XmlPullParser.END_TAG -> when (parser.name) {
+                        "cellXfs" -> inCellXfs = false
+                        "dxfs" -> inDxfs = false
+                    }
+                }
+                event = parser.next()
+            }
+            ExcelCellFormat.formatCodesFor(numFmtIds, custom)
+        }.getOrDefault(emptyList())
     }
 
     private fun parseWorkbookSheets(bytes: ByteArray?): List<Pair<String, String>> {
@@ -144,13 +249,20 @@ object SpreadsheetParser {
         return if (sawLetter) idx - 1 else -1
     }
 
-    private fun parseWorksheetRows(stream: InputStream, sharedStrings: List<String>): List<List<String>> {
-        val rows = mutableListOf<List<String>>()
+    private fun parseWorksheet(
+        stream: InputStream,
+        sharedStrings: List<String>,
+        formatCodes: List<String>
+    ): RawSheet {
+        val out = RawSheet()
         val parser = newParser(stream)
         var rowCells = sortedMapOf<Int, String>()
         var cellType = ""
+        var cellStyle = -1
         var cellCol = 0
         var nextAutoCol = 0
+        var rowNumber = 0
+        var rowHidden = false
         var inVal = false
         val cellBuf = StringBuilder()
 
@@ -158,22 +270,47 @@ object SpreadsheetParser {
         while (event != XmlPullParser.END_DOCUMENT) {
             when (event) {
                 XmlPullParser.START_TAG -> when (parser.name) {
-                    "row" -> { rowCells = sortedMapOf(); nextAutoCol = 0 }
+                    "col" -> {
+                        // `hidden="1"` on a `<col>` spans min..max, so one entry can hide a range.
+                        if (parser.getAttributeValue(null, "hidden") == "1") {
+                            val min = parser.getAttributeValue(null, "min")?.toIntOrNull() ?: 0
+                            val max = parser.getAttributeValue(null, "max")?.toIntOrNull() ?: min
+                            for (c in min..max.coerceAtMost(MaxColumns)) if (c >= 1) out.hiddenCols.add(c - 1)
+                        }
+                    }
+                    "row" -> {
+                        rowCells = sortedMapOf()
+                        nextAutoCol = 0
+                        rowNumber = parser.getAttributeValue(null, "r")?.toIntOrNull() ?: (out.rows.size + 1)
+                        rowHidden = parser.getAttributeValue(null, "hidden") == "1"
+                    }
                     "c" -> {
                         cellType = parser.getAttributeValue(null, "t") ?: ""
+                        cellStyle = parser.getAttributeValue(null, "s")?.toIntOrNull() ?: -1
                         cellCol = colIndexFromRef(parser.getAttributeValue(null, "r")).let { if (it >= 0) it else nextAutoCol }
                         inVal = false; cellBuf.clear()
                     }
                     "v", "t" -> inVal = true
                 }
                 XmlPullParser.END_TAG -> when (parser.name) {
-                    "row" -> if (rowCells.isNotEmpty()) {
-                        val maxC = rowCells.lastKey()
-                        rows.add((0..maxC).map { rowCells[it] ?: "" })
-                    } else rows.add(emptyList())
+                    "row" -> if (!rowHidden) {
+                        if (rowCells.isNotEmpty()) {
+                            val maxC = rowCells.lastKey()
+                            out.rows.add((0..maxC).map { rowCells[it] ?: "" })
+                        } else out.rows.add(emptyList())
+                        out.rowNumbers.add(rowNumber)
+                    }
                     "c" -> {
                         val raw = cellBuf.toString()
-                        val value = if (cellType == "s") sharedStrings.getOrElse(raw.trim().toIntOrNull() ?: -1) { raw } else raw
+                        val value = when (cellType) {
+                            "s" -> sharedStrings.getOrElse(raw.trim().toIntOrNull() ?: -1) { raw }
+                            "b" -> if (raw.trim() == "1") "TRUE" else "FALSE"
+                            "str", "inlineStr", "e" -> raw
+                            // Numeric (the default, `t` absent) — this is where a date lives, and
+                            // where reading the style is the difference between "02-09-2026" and
+                            // the bare serial "46267".
+                            else -> ExcelCellFormat.apply(raw, formatCodes.getOrNull(cellStyle))
+                        }
                         // The column cap is what stops one malformed `r` ref from sizing the whole
                         // sheet: the row is materialised as a dense `0..maxKey` list, so a single
                         // cell claiming to be at XFD would allocate 16384 strings for every row in
@@ -188,11 +325,14 @@ object SpreadsheetParser {
                 XmlPullParser.TEXT -> if (inVal) cellBuf.append(parser.text)
             }
             event = parser.next()
-            if (rows.size > 20000) break
+            if (out.rows.size > 20000) break
         }
         // Trim trailing fully-empty rows.
-        while (rows.isNotEmpty() && rows.last().all { it.isBlank() }) rows.removeAt(rows.lastIndex)
-        return rows
+        while (out.rows.isNotEmpty() && out.rows.last().all { it.isBlank() }) {
+            out.rows.removeAt(out.rows.lastIndex)
+            if (out.rowNumbers.isNotEmpty()) out.rowNumbers.removeAt(out.rowNumbers.lastIndex)
+        }
+        return out
     }
 
     // ── Legacy XLS (POI) ─────────────────────────────────────────────────────────
@@ -201,11 +341,17 @@ object SpreadsheetParser {
         HSSFWorkbook(bytes.inputStream()).use { wb ->
             return (0 until wb.numberOfSheets).map { si ->
                 val sheet = wb.getSheetAt(si)
-                val rows = sheet.map { row ->
-                    val lastCol = row.lastCellNum.toInt().coerceAtLeast(0)
-                    (0 until lastCol).map { c -> row.getCell(c)?.toString()?.trim() ?: "" }
-                }
-                Sheet(wb.getSheetName(si) ?: "Sheet ${si + 1}", rows)
+                val width = sheet.maxOfOrNull { it.lastCellNum.toInt().coerceAtLeast(0) } ?: 0
+                val visible = (0 until width).filter { !sheet.isColumnHidden(it) }
+                    .ifEmpty { (0 until width).toList() }
+                val kept = sheet.filter { !it.zeroHeight }
+                val rows = kept.map { row -> visible.map { c -> row.getCell(c)?.toString()?.trim() ?: "" } }
+                Sheet(
+                    name = wb.getSheetName(si) ?: "Sheet ${si + 1}",
+                    rows = rows,
+                    columnLabels = visible.map { colLetter(it) },
+                    rowNumbers = kept.map { it.rowNum + 1 }
+                )
             }.filter { it.rows.isNotEmpty() }
         }
     }
@@ -222,6 +368,7 @@ object SpreadsheetParser {
         return n.endsWith("workbook.xml") ||
             n.endsWith("workbook.xml.rels") ||
             n.endsWith("sharedStrings.xml") ||
+            n.endsWith("styles.xml") ||
             (n.contains("worksheets/") && n.endsWith(".xml"))
     }
 

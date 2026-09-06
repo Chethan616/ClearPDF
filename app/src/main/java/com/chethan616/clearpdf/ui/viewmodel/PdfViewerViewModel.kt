@@ -16,6 +16,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
+import com.chethan616.clearpdf.data.repository.LocalDocumentMirror
 import com.chethan616.clearpdf.data.repository.PdfServiceLocator
 import com.chethan616.clearpdf.data.repository.RecentFile
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
@@ -186,7 +187,19 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
     companion object {
         private const val DEFAULT_RENDER_WIDTH = 1200
         private const val MIN_RENDER_WIDTH = 720
-        private const val CACHE_RADIUS = 2
+        // Was 2 (5 pages held at once). A landscape page (any converted .pptx) is ~40% the bitmap
+        // memory of a portrait one at the same render width, so this is roughly the old radius-2
+        // memory budget for a slide deck, and a moderate increase for a portrait document — in
+        // exchange for needing to re-render a page from scratch (the visible black-flash-then-redraw)
+        // far less often while scrolling either direction.
+        private const val CACHE_RADIUS = 5
+        // How many pages ahead of the current one to render proactively, independent of whether the
+        // LazyColumn has actually composed that item yet. Without this, a page's first-ever render
+        // only starts once it scrolls into (near) view, which is exactly the "buffers while scrolling"
+        // complaint — the render and the need for it were racing. Warming pages before you reach them
+        // gives that race a head start.
+        private const val PREFETCH_AHEAD = 2
+        private const val PREFETCH_BEHIND = 1
     }
 
     fun openPdf(context: Context, uri: Uri, password: String? = null) {
@@ -216,23 +229,40 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     )
                 } catch (_: Exception) {}
 
+                // `uri` may be a share-intent grant that is about to be revoked (many senders never
+                // attach a persistable flag, so the line above throws and is swallowed above) — this
+                // is what turns "opened once from WhatsApp/Gmail" into "Failed to open PDF." the next
+                // time it's tapped from Recents. `readableUri` is the original when it's still good,
+                // or a durable local copy this app saved the first time it *was* good. `uri` itself
+                // stays the identity used for naming and for the Recents entry.
+                val readableUri = withContext(Dispatchers.IO) {
+                    LocalDocumentMirror.resolve(context, uri, extensionOf(context, uri))
+                }
+
                 val sourceUri = withContext(Dispatchers.IO) {
                     when {
                         password != null -> {
-                            val decrypted = PdfSecurityService.decryptToCache(context, uri, password)
+                            val decrypted = PdfSecurityService.decryptToCache(context, readableUri, password)
                             FileProvider.getUriForFile(context, "${context.packageName}.provider", decrypted)
                         }
-                        UniversalDocumentConverter.isPdf(context, uri) &&
-                            PdfSecurityService.isPasswordProtected(context, uri) -> {
+                        UniversalDocumentConverter.isPdf(context, readableUri) &&
+                            PdfSecurityService.isPasswordProtected(context, readableUri) -> {
                             throw PdfSecurityService.PasswordRequiredException()
                         }
-                        else -> uri
+                        else -> readableUri
                     }
                 }
                 val (doc, _) = withContext(Dispatchers.IO) {
                     openDocumentWithFallback(context, sourceUri)
                 }
-                val displayName = queryFileName(context, uri) ?: doc.name
+                // A revoked share-intent grant fails the DISPLAY_NAME query on `uri` exactly the way
+                // it fails a read — falling straight to `doc.name` would then show the mirror's own
+                // "<hash>.pdf" filename. The name this document was already saved under in Recents
+                // (set the first time it opened, when the query still worked) is what a returning
+                // "Failed to open" file should still show.
+                val displayName = queryFileName(context, uri)
+                    ?: RecentFilesManager.getRecents(context).firstOrNull { it.uriString == uri.toString() }?.name
+                    ?: doc.name
                 _uiState.value = _uiState.value.copy(
                     fileName = displayName,
                     pageCount = doc.pageCount,
@@ -381,20 +411,20 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                 if (currentState.document?.uri != documentUri) return@launch
                 if (pageIndex !in currentState.pageBitmaps.indices) return@launch
 
+                // Cache trimming does NOT happen here any more — it used to, sweeping every page
+                // outside `CACHE_RADIUS` of `currentState.currentPage` on every single render
+                // completion. `currentPage` updates on every scroll tick (undebounced, by design —
+                // other things need it live), and during a fast scroll a render completes every few
+                // milliseconds, so this ran constantly and evicted pages that were still transiting
+                // through the viewport a frame later. That eviction is now solely `trimBitmapCache`
+                // (below), which the caller in `PdfViewerScreen` debounces — this function's only job
+                // is to place the bitmap it just rendered.
                 val bitmaps = currentState.pageBitmaps.toMutableList()
                 val previous = bitmaps[pageIndex]
                 if (previous != null && previous != bitmap && !previous.isRecycled) previous.recycle()
                 bitmaps[pageIndex] = bitmap
                 if (bitmap == null) renderedPageWidths.remove(pageIndex)
                 else renderedPageWidths[pageIndex] = renderWidth
-
-                bitmaps.forEachIndexed { index, existing ->
-                    if (existing != null && index != pageIndex && abs(index - currentState.currentPage) > CACHE_RADIUS) {
-                        if (!existing.isRecycled) existing.recycle()
-                        bitmaps[index] = null
-                        renderedPageWidths.remove(index)
-                    }
-                }
                 _uiState.value = currentState.copy(pageBitmaps = bitmaps)
 
                 // Load text for page if not already done (async, IO thread)
@@ -463,19 +493,51 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         }
     }
 
+    /** Cheap, called on every scroll tick: just records which page is "current" now. */
     fun onPageChanged(page: Int) {
+        val state = _uiState.value
+        if (page !in state.pageBitmaps.indices || state.currentPage == page) return
+        _uiState.value = state.copy(currentPage = page)
+    }
+
+    /**
+     * Kicks off rendering for the pages just ahead of (and a little behind) [page], so they're
+     * likely already there by the time a scroll actually reaches them instead of starting the render
+     * only once the page scrolls into view. `renderPage` itself is cheap to call redundantly — it
+     * returns immediately for a page that's already rendered at this width or already in flight — so
+     * this can safely be called on every scroll tick without debouncing.
+     */
+    fun prefetchAround(context: Context, page: Int, targetWidthPx: Int) {
+        val pageCount = _uiState.value.pageBitmaps.size
+        for (p in (page + 1)..(page + PREFETCH_AHEAD)) {
+            if (p in 0 until pageCount) renderPage(context, p, targetWidthPx)
+        }
+        for (p in (page - 1) downTo (page - PREFETCH_BEHIND)) {
+            if (p in 0 until pageCount) renderPage(context, p, targetWidthPx)
+        }
+    }
+
+    /**
+     * Recycles bitmaps far from [page]. Deliberately a separate call from [onPageChanged] — the
+     * caller debounces this one, so a fast scroll doesn't evict a page that's still transiting
+     * through the viewport a frame later (see the call site's comment for why that showed up as
+     * visible flicker/re-render churn while scrolling).
+     */
+    fun trimBitmapCache(page: Int) {
         val state = _uiState.value
         if (page !in state.pageBitmaps.indices) return
 
         val bitmaps = state.pageBitmaps.toMutableList()
+        var evicted = false
         bitmaps.forEachIndexed { index, existing ->
             if (existing != null && abs(index - page) > CACHE_RADIUS) {
                 if (!existing.isRecycled) existing.recycle()
                 bitmaps[index] = null
                 renderedPageWidths.remove(index)
+                evicted = true
             }
         }
-        _uiState.value = state.copy(currentPage = page, pageBitmaps = bitmaps)
+        if (evicted) _uiState.value = _uiState.value.copy(pageBitmaps = bitmaps)
     }
 
     fun toggleOcrSelection(pageIndex: Int, blockId: String) {
@@ -1014,6 +1076,12 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
             if (!file.exists()) file.createNewFile()
             FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
         }
+    }
+
+    /** Best-effort real file extension, so a mirrored copy still sniffs as the right format. */
+    private fun extensionOf(context: Context, uri: Uri): String {
+        val name = queryFileName(context, uri) ?: uri.lastPathSegment.orEmpty()
+        return name.substringAfterLast('.', "pdf").lowercase()
     }
 
     private fun queryFileName(context: Context, uri: Uri): String? = runCatching {
