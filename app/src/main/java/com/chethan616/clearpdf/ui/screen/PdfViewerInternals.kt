@@ -454,22 +454,51 @@ internal fun ocrSelectionHandleLineHeights(
     return (firstBlock.bottom - firstBlock.top) * frame.height to (lastBlock.bottom - lastBlock.top) * frame.height
 }
 
-/** Custom organic handle used by the PDF selection layer; deliberately not a platform handle. */
+/**
+ * Stock-Android-style selection handle: a circle with one sharp corner notched out exactly at
+ * [anchor] — the actual look of the system text-selection handles (and Chrome's, and Google Docs'),
+ * not a free-floating teardrop. The bulge always leans *toward* the selection it bounds: the left
+ * handle's sharp corner sits at its top-left with the circle hanging down-right (into the selected
+ * text), the right handle's sharp corner sits at top-right with the circle hanging down-left.
+ *
+ * The construction is the special case where a circle of radius `r` is centered exactly `(r, r)`
+ * diagonally from the external anchor point: the tangent lines from the anchor to that circle then
+ * land exactly on the horizontal and vertical through the anchor (no trig needed to find them), and
+ * the visible arc is the far 270° of the circle — the 90° nearest the anchor is what's replaced by
+ * the two straight tangent segments that meet at the sharp corner.
+ *
+ * The previous shape was a symmetric, free-floating teardrop with a flat rectangular "neck" — it
+ * didn't sit flush against anything, so next to the highlight band it read as two balloons stuck
+ * onto a separate bar rather than the band's own corner drawn out into a handle.
+ */
 internal fun DrawScope.drawTextSelectionHandle(
     anchor: Offset,
     diameter: Float,
+    isLeftHandle: Boolean,
     color: Color = Color(0xFF4285F4)
 ) {
-    val neckHalfWidth = diameter * 0.22f
-    val bodyRadius = diameter * 0.47f
-    val top = anchor.y - 1f
-    val bottom = top + bodyRadius * 2f
+    val r = diameter * 0.5f
+    // +1 for the left handle (circle bulges right, into the selection), -1 for the right handle
+    // (circle bulges left, into the selection).
+    val sign = if (isLeftHandle) 1f else -1f
+    val center = Offset(anchor.x + sign * r, anchor.y + r)
+    val bottomTangent = Offset(anchor.x, anchor.y + r)         // straight down from the anchor
+    // Sweeping the long way (270°, away from the anchor-facing quadrant) from `bottomTangent` back
+    // to the anchor's other tangent point (straight sideways from it) — direction flips with
+    // handedness since the circle sits on the opposite side.
+    val startAngleDeg = if (isLeftHandle) 180f else 0f
+    val sweepDeg = if (isLeftHandle) -270f else 270f
+
     val path = Path().apply {
-        moveTo(anchor.x - neckHalfWidth, top)
-        lineTo(anchor.x + neckHalfWidth, top)
-        lineTo(anchor.x + neckHalfWidth, top + 6f)
-        cubicTo(anchor.x + bodyRadius, top + 9f, anchor.x + bodyRadius, bottom - 2f, anchor.x, bottom)
-        cubicTo(anchor.x - bodyRadius, bottom - 2f, anchor.x - bodyRadius, top + 9f, anchor.x - neckHalfWidth, top + 6f)
+        moveTo(anchor.x, anchor.y)
+        lineTo(bottomTangent.x, bottomTangent.y)
+        arcTo(
+            rect = Rect(center.x - r, center.y - r, center.x + r, center.y + r),
+            startAngleDegrees = startAngleDeg,
+            sweepAngleDegrees = sweepDeg,
+            forceMoveTo = false
+        )
+        lineTo(anchor.x, anchor.y)
         close()
     }
     drawPath(path, color)
