@@ -161,10 +161,11 @@ dependencies {
     implementation(libs.acccompanist.permissions)
     implementation("androidx.documentfile:documentfile:1.0.1")
 
-    // Image editor: GPUImage (T8RIN fork, ~0.2 MB) for GL adjustments/filters, EXIF read/strip,
+    // Image editor: GPUImage (upstream 2.1.0, ~0.2 MB; the T8RIN 8.x fork needs compileSdk 37
+    // + desugaring and drags in androidx.core 1.19) for GL adjustments/filters, EXIF read/strip,
     // and ML Kit subject segmentation for auto background removal (API 24+, gated at runtime;
     // isolated behind BackgroundRemover so a FOSS flavor can swap it out).
-    implementation(libs.toolbox.gpuimage)
+    implementation(libs.gpuimage)
     implementation(libs.androidx.exifinterface)
     implementation(libs.mlkit.subject.segmentation)
 }

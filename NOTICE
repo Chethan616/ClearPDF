@@ -14,4 +14,13 @@ port of Apache PDFBox (https://pdfbox.apache.org/).
 This project uses Google ML Kit (document scanner and on-device text recognition)
 for the scanning and text-selection features only.
 
+The image editor adapts source code from ImageToolbox by T8RIN (Malik Mukhametzyanov),
+Copyright (c) 2026, licensed under the Apache License, Version 2.0.
+Source: https://github.com/T8RIN/ImageToolbox
+Adapted files keep their original Apache-2.0 header plus a "Modified by ClearPDF" line:
+the Compose cropper (lib/cropper), gesture helpers (lib/gesture), image-scope helpers
+(lib/image), the free-corners perspective cropper (lib/opencv-tools, with OpenCV replaced
+by android.graphics.Matrix), and draw-engine geometry/paint/flood-fill code (feature/draw).
+The image editor also depends on GPUImage for Android by CyberAgent (Apache-2.0).
+
 ClearPDF remains licensed under the MIT License (see LICENSE).
