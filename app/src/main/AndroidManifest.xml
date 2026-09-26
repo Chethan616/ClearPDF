@@ -13,6 +13,9 @@
     <!-- Legacy write access for pre-scoped-storage devices only. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- ML Kit subject segmentation (image editor → auto background removal) declares minSdk 24.
+         The app stays on 23; BackgroundRemover gates the call at runtime (API < 24 → unavailable). -->
+    <uses-sdk tools:overrideLibrary="com.google.mlkit.vision.segmentation.subject" />
 
     <application
         android:allowBackup="true"
@@ -145,6 +148,13 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Ask Google Play services to fetch the subject-segmentation model ahead of time so the
+             image editor's "Remove background" works on first use. The download is done by Play
+             services itself; the app declares no network permission. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="subject_segment" />
     </application>
 
 </manifest>
