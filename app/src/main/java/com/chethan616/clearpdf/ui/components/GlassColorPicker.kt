@@ -166,7 +166,18 @@ fun GlassColorPicker(
     showAlpha: Boolean = false,
     onClear: (() -> Unit)? = null,
     clearLabel: String = "No colour",
-    standardColors: List<Color> = OfficeStandardColors
+    standardColors: List<Color> = OfficeStandardColors,
+    /**
+     * Optional: the 5 tint/shade variants under each theme swatch. Defaults to [officeVariants];
+     * a spreadsheet editor passes the exact HLS-tint ladder its file format uses.
+     */
+    themeVariants: (Color) -> List<Color> = ::officeVariants,
+    /**
+     * Optional: called instead of [onColorChange] when a theme-grid swatch is tapped, with its
+     * column (theme slot) and row (0 = base, 1–5 = variant), so callers can store the pick as a
+     * theme reference + tint rather than a literal colour.
+     */
+    onThemePick: ((column: Int, row: Int, color: Color) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val isDark = LocalIsDarkMode.current
@@ -232,11 +243,21 @@ fun GlassColorPicker(
 
         SectionLabel("Theme colours", secondary)
         // Theme grid: base row, gap, then 5 variant rows.
-        val columns = themeColors.map { listOf(it) + officeVariants(it) }
-        SwatchRow(themeColors, color, isDark) { pick(it) }
+        val columns = themeColors.map { listOf(it) + themeVariants(it) }
+        fun pickTheme(col: Int, row: Int) {
+            val c = columns[col][row]
+            val handler = onThemePick
+            if (handler == null) pick(c) else {
+                haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                handler(col, row, c.copy(alpha = 1f))
+                pushRecent(c.copy(alpha = 1f))
+            }
+        }
+        SwatchRow(themeColors, color, isDark) { c -> pickTheme(themeColors.indexOf(c).coerceAtLeast(0), 0) }
         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
             for (row in 1..5) {
-                SwatchRow(columns.map { it[row] }, color, isDark, gap = 4.dp, tight = true) { pick(it) }
+                val rowColors = columns.map { it[row] }
+                SwatchRow(rowColors, color, isDark, gap = 4.dp, tight = true) { c -> pickTheme(rowColors.indexOf(c).coerceAtLeast(0), row) }
             }
         }
 
