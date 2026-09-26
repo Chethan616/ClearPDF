@@ -49,7 +49,7 @@ ClearPDF uses open-source components and keeps their notices with the project. R
 - License: Apache License 2.0
 - Use: informed ClearPDF's on-device tool set (e.g. PDF-to-Images export). ClearPDF's implementations are original code written against the app's own architecture and `backdrop` UI; no source was copied. This acknowledgement is provided in good faith for the shared feature direction.
 
-The app does not add GPL or LGPL components for document rendering. If a future dependency changes that, its license and redistribution obligations must be reviewed before release.
+The app does not bundle GPL or LGPL components for document rendering. If a future dependency changes that, its license and redistribution obligations must be reviewed before release. (The optional LibreOffice engine below is not bundled in the APK; it is installed only on request.)
 
 ## docx-preview (docxjs)
 
@@ -70,3 +70,25 @@ The app does not add GPL or LGPL components for document rendering. If a future 
 - Use: required by docx-preview to read the .docx zip container in the browser context.
 - Notice practice: the upstream banner (including its pako attribution) is preserved verbatim at the
   top of the vendored file, and the library is credited in Settings → Licenses.
+
+## LibreOffice (optional Office engine)
+
+- What: "Office engine (powered by LibreOffice)" — a prebuilt LibreOfficeKit bundle for Android
+  (`liblo-native-code.so`, `libc++_shared.so` and the LibreOffice runtime tree). It is **not in the
+  APK**. It is installed only when the user asks for it in Settings: the `play` flavor gets it through
+  the on-demand Play Feature Delivery module `:office_engine`, and the `foss` flavor downloads it from
+  a pinned release, accepting it only if its size and SHA-256 match `OfficeEngineManifest.kt`.
+- Binary source: https://github.com/vasuki-re/LibreOffice-Lite (release v2.0), a build of
+  LibreOffice core (https://git.libreoffice.org/core, mirror https://github.com/LibreOffice/core).
+- License: Mozilla Public License 2.0 for LibreOffice itself; some bundled parts (fonts such as
+  Liberation, Carlito, Caladea and Gentium Basic, and other third-party libraries compiled into
+  LibreOffice) carry their own licences, listed at https://www.libreoffice.org/about-us/licenses/.
+- Source availability (MPL-2.0 §3.2): the corresponding LibreOffice source is available from the
+  URLs above. Anyone redistributing a build that bundles or rehosts the engine must keep that source
+  available and should prefer a self-built bundle whose build recipe is published.
+- ClearPDF's Kotlin JNI binding (`app/src/main/java/org/libreoffice/kit/`) is original code; only
+  its package, class and method names follow LibreOffice's Android binding, because the native
+  library resolves them by name.
+- Trademark: "LibreOffice" is a trademark of The Document Foundation; ClearPDF uses it only to say
+  the optional engine is powered by LibreOffice and is not affiliated with or endorsed by TDF.
+- Credited in Settings → Licenses and Settings → Office engine.
