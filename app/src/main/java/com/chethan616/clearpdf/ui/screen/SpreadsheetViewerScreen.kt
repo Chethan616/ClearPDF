@@ -99,6 +99,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -520,8 +522,15 @@ fun SpreadsheetViewerScreen(
                             .fillMaxWidth()
                             .weight(1f)
                             .padding(top = if (selection != null) 8.dp else 0.dp)
-                            .liquidGlassPanel(backdrop, uiSensor, containerColorOverride = surface)
+                            // Solid document surface, like PDF pages. The glass panel used here before
+                            // was fully covered by this opaque fill (none of its refraction showed), yet
+                            // its gravity-tracking highlight re-rendered a screen-sized blur + lens on
+                            // every sensor tick — continuous frames that made the share morph and every
+                            // other animation in this viewer stutter while the PDF viewer stayed smooth.
+                            .shadow(10.dp, GlassPanelShape, clip = false, ambientColor = Color.Black.copy(0.10f), spotColor = Color.Black.copy(0.10f))
                             .clip(GlassPanelShape)
+                            .background(surface)
+                            .border(0.5.dp, if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.06f), GlassPanelShape)
                     ) {
                         SpreadsheetGrid(
                             sheet = sheet,
