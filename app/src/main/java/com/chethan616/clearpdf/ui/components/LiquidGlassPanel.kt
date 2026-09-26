@@ -40,7 +40,7 @@ fun Modifier.liquidGlassPanel(
         effects = {
             vibrancy()
             blur(8f.dp.toPx())
-            lens(20f.dp.toPx(), 40f.dp.toPx(), depthEffect = true)
+            lens(20f.dp.toPx(), 40f.dp.toPx(), depthEffect = true, chromaticAberration = true)
         },
         highlight = { Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f)) },
         shadow = { Shadow(radius = 8f.dp, color = Color.Black.copy(alpha = 0.1f)) },
