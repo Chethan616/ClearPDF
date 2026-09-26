@@ -225,9 +225,6 @@ fun PdfSelectionToolbar(
         if (shown) GlassMotion.pop() else GlassMotion.settle(),
         label = "selToolbarScale"
     )
-    val radius by animateDpAsState(
-        if (page == ToolbarPage.Overflow) 22.dp else 24.dp, GlassMotion.settle(), label = "selToolbarRadius"
-    )
 
     // Accessibility: announce the selection size politely whenever it changes.
     // Computed only once a gesture settles, so a drag doesn't rebuild the text every frame.
@@ -305,24 +302,25 @@ fun PdfSelectionToolbar(
 
         Layout(
             content = {
-                // ONE glass surface for every page. Only its size animates (SizeTransform with the
-                // morph spring) while the pages cross-fade inside it: the capsule visibly stretches
-                // into the menu instead of being swapped for a second piece of glass.
+                // Each page carries its own glass (a single shared glass node on the animating
+                // container went see-through once it morphed into the menu). The pages still grow
+                // out of the same edge and cross-fade on the morph spring, so it reads as one
+                // surface stretching into the next.
                 AnimatedContent(
                     targetState = page,
-                    modifier = Modifier.viewerGlass(backdrop, glass, shape = { RoundedRectangle(radius) }),
                     contentAlignment = BiasAlignment(alignH, alignV),
                     transitionSpec = {
                         val origin = TransformOrigin(if (anchorEnd) 1f else 0f, if (placedAbove) 1f else 0f)
                         (fadeIn(GlassMotion.fade()) + scaleIn(GlassMotion.morph(), initialScale = 0.92f, transformOrigin = origin)) togetherWith
                             (fadeOut(spring(stiffness = Spring.StiffnessMediumLow * 2f)) + scaleOut(GlassMotion.settle(), targetScale = 0.96f, transformOrigin = origin)) using
-                            SizeTransform(clip = true) { _, _ -> GlassMotion.morph() }
+                            SizeTransform(clip = false) { _, _ -> GlassMotion.morph() }
                     },
                     label = "selToolbarMorph"
                 ) { p ->
                     when (p) {
                         ToolbarPage.Main -> Row(
                             Modifier
+                                .viewerGlass(backdrop, glass, shape = { RoundedRectangle(24.dp) })
                                 .height(48.dp)
                                 .padding(horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -334,6 +332,7 @@ fun PdfSelectionToolbar(
                         }
                         ToolbarPage.Overflow -> Column(
                             Modifier
+                                .viewerGlass(backdrop, glass, shape = { RoundedRectangle(22.dp) })
                                 .widthIn(min = 200.dp, max = 280.dp)
                                 .verticalScroll(rememberScrollState())
                                 .padding(vertical = 6.dp)
@@ -343,6 +342,7 @@ fun PdfSelectionToolbar(
                         }
                         ToolbarPage.Colors -> Row(
                             Modifier
+                                .viewerGlass(backdrop, glass, shape = { RoundedRectangle(24.dp) })
                                 .height(48.dp)
                                 .padding(horizontal = 4.dp)
                                 .semantics { contentDescription = colorL },
