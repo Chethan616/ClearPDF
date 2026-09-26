@@ -184,6 +184,7 @@ internal fun SpreadsheetGrid(
     }
 
     fun chevronRect(g: Geo, s: GridSelection): Rect? {
+        if (!currentEdit) return null
         if (!s.range.isSingle && sheet.mergeAt(s.anchorR, s.anchorC) != s.range) return null
         val v = sheet.validationAt(s.anchorR, s.anchorC) ?: return null
         if (v.kind != ValidationKind.LIST || v.showDropDown) return null

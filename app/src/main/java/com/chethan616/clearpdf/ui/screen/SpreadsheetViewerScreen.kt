@@ -253,7 +253,10 @@ fun SpreadsheetViewerScreen(
     val anchorCell = selection?.let { sheet?.cell(it.anchorR, it.anchorC) }
     val anchorStyle = remember(anchorCell, version) { wb?.styles?.resolve(anchorCell?.style ?: 0) }
 
-    fun anchorEditText(): String = anchorCell?.let { wb?.editText(it) } ?: ""
+    // Reads `selection` at call time (not the composition's snapshot), so it is right straight
+    // after a selection change inside the same event handler.
+    fun anchorEditText(): String =
+        selection?.let { s -> sheet?.cell(s.anchorR, s.anchorC) }?.let { wb?.editText(it) } ?: ""
 
     fun commitDraft() {
         val sel = selection ?: return
@@ -271,7 +274,7 @@ fun SpreadsheetViewerScreen(
     }
 
     fun select(sel: GridSelection) {
-        if (editing) commitDraft()
+        if (editing) { commitDraft(); focusManager.clearFocus() }
         dropdown = null
         selection = sel
         draft = sel.let { s -> sheet?.cell(s.anchorR, s.anchorC)?.let { wb?.editText(it) } } ?: ""
@@ -406,7 +409,7 @@ fun SpreadsheetViewerScreen(
                             backdrop = headerBackdrop
                         )
                     }
-                    if (editMode && state.dirty) {
+                    if (state.dirty && state.editable) {
                         LiquidIconButton(onClick = { save(false) }, backdrop = headerBackdrop, surfaceColor = accent.copy(0.85f)) {
                             if (state.saving) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
                             else Icon(Icons.Rounded.Check, stringResource(R.string.sheet_save), Modifier.size(20.dp), Color.White)
@@ -465,7 +468,9 @@ fun SpreadsheetViewerScreen(
                             text = text, sub = sub, accent = accent,
                             onValueChange = { draft = it },
                             onStartEdit = { startEditing() },
-                            onCommit = { commitDraft(); moveSelection(1, 0) },
+                            // Enter commits and moves down, staying in typing mode — the keyboard
+                            // doesn't bounce between cells when filling a column.
+                            onCommit = { commitDraft(); moveSelection(1, 0); startEditing() },
                             onCancel = { editing = false; draft = anchorEditText(); focusManager.clearFocus() }
                         )
                     }
