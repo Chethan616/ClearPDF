@@ -225,12 +225,22 @@ object SpreadsheetParser {
         val strings = mutableListOf<String>()
         val parser = newParser(stream)
         var inT = false
+        // `<rPh>` phonetic guides carry their own `<t>`; they are not part of the string.
+        var inPhonetic = false
         val buf = StringBuilder()
         var event = parser.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
             when (event) {
-                XmlPullParser.START_TAG -> if (parser.name == "si") buf.clear() else if (parser.name == "t") inT = true
-                XmlPullParser.END_TAG -> if (parser.name == "si") { strings.add(buf.toString()); inT = false } else if (parser.name == "t") inT = false
+                XmlPullParser.START_TAG -> when (parser.name) {
+                    "si" -> buf.clear()
+                    "rPh" -> inPhonetic = true
+                    "t" -> inT = !inPhonetic
+                }
+                XmlPullParser.END_TAG -> when (parser.name) {
+                    "si" -> { strings.add(buf.toString()); inT = false; inPhonetic = false }
+                    "rPh" -> inPhonetic = false
+                    "t" -> inT = false
+                }
                 XmlPullParser.TEXT -> if (inT) buf.append(parser.text)
             }
             event = parser.next()
