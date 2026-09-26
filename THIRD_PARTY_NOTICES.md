@@ -22,6 +22,13 @@ ClearPDF uses open-source components and keeps their notices with the project. R
 - License: Apache License 2.0 (as attributed in the Settings screen)
 - Use: the app's translucent glass surfaces, backdrop effects, and shared UI components.
 
+## AndroidLiquidGlassView
+
+- Component: `AndroidLiquidGlassView` by Donny Yale (https://github.com/QmDeve/AndroidLiquidGlassView), Copyright (c) 2025-2026 Donny Yale
+- License: MIT License
+- Use: the velocity squash-and-stretch technique from its `LiquidTracker` was re-implemented in Compose as `ui/components/LiquidStretch.kt` (`Modifier.liquidStretch`), used by the slider, toggle and segmented-control thumbs. No library code is bundled.
+- Notice practice: keep this copyright line and the MIT permission notice with redistributed source/builds.
+
 ## Google ML Kit Text Recognition
 
 - Artifact: `com.google.mlkit:text-recognition:16.0.1`

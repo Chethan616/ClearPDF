@@ -86,7 +86,7 @@ fun LiquidGlassCard(
                 effects = {
                     vibrancy()
                     blur(7f.dp.toPx())
-                    lens(20f.dp.toPx(), 38f.dp.toPx(), depthEffect = true)
+                    lens(20f.dp.toPx(), 38f.dp.toPx(), depthEffect = true, chromaticAberration = true)
                 },
                 highlight = {
                     Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f))
