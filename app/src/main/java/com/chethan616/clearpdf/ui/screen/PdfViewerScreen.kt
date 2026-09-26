@@ -118,6 +118,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
+import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
 import com.chethan616.clearpdf.ui.components.DecryptingAnimation
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.GlassTitlePill
@@ -245,6 +246,19 @@ fun PdfViewerScreen(
 
     fun getPageMarks(page: Int): MutableList<PdfMarkup> =
         annotationsByPage.getOrPut(page) { mutableStateListOf() }
+
+    // ── Unsaved-edit tracking ──────────────────────────────────────────────
+    // Markups live here (not in the ViewModel), so "dirty" is: the current markups differ from what
+    // was last exported. PdfMarkup variants are data classes, so a structural compare of a per-page
+    // copy is exact — drawing, erasing, moving, retyping a note all flip it, undoing back to the
+    // saved state clears it. Covers PDFs and Office documents alike (both render through here).
+    fun markupSnapshot(): Map<Int, List<PdfMarkup>> =
+        annotationsByPage.filterValues { it.isNotEmpty() }.mapValues { it.value.toList() }
+    var savedMarkups        by remember { mutableStateOf<Map<Int, List<PdfMarkup>>>(emptyMap()) }
+    var pendingSaveMarkups  by remember { mutableStateOf<Map<Int, List<PdfMarkup>>?>(null) }
+    var exitAfterSave       by remember { mutableStateOf(false) }
+    var showUnsavedDialog   by remember { mutableStateOf(false) }
+    val hasUnsavedEdits     by remember { derivedStateOf { markupSnapshot() != savedMarkups } }
 
     // Undo history: the page each added markup landed on, newest last. Undo pops the most recent
     // entry and removes THAT page's last mark, so "undo" means the last thing the user actually
@@ -426,6 +440,7 @@ fun PdfViewerScreen(
         activeTool = PdfEditTool.None
         selectedAnnoPage = null; selectedAnnoIndex = -1
         annotationsByPage.clear(); undoStack.clear(); pageCanvasSizes.clear(); pageBitmapSizes.clear()
+        savedMarkups = emptyMap(); pendingSaveMarkups = null; exitAfterSave = false; showUnsavedDialog = false
         textSelection.resetDocument(); viewModel.clearExportFeedback()
         showFindBar = false; findQuery = ""; viewModel.clearSearch()
     }
@@ -448,8 +463,26 @@ fun PdfViewerScreen(
         if (state.passwordUri != null) { passwordText = ""; delay(120); passwordFocusRequester.requestFocus() }
     }
 
+    /** Leave the viewer — via the "Save changes?" card when there are unexported markups. */
+    fun requestExit() {
+        if (state.document != null && hasUnsavedEdits) { controlsVisible = true; showUnsavedDialog = true }
+        else onBack()
+    }
+
+    // An export started from the unsaved-changes card (or any Save) settles here: success marks the
+    // exported markups as saved and, if the card asked for it, leaves; failure keeps the user here.
+    LaunchedEffect(state.exportMessage, state.exportError) {
+        val pending = pendingSaveMarkups ?: return@LaunchedEffect
+        if (state.exportMessage != null) {
+            savedMarkups = pending; pendingSaveMarkups = null
+            if (exitAfterSave) { exitAfterSave = false; onBack() }
+        } else if (state.exportError != null) {
+            pendingSaveMarkups = null; exitAfterSave = false
+        }
+    }
+
     BackHandler(enabled = state.document != null) {
-        if (!controlsVisible) controlsVisible = true else onBack()
+        if (!controlsVisible) controlsVisible = true else requestExit()
     }
 
     // ── No-document state ─────────────────────────────────────────────────
@@ -1058,7 +1091,7 @@ fun PdfViewerScreen(
                 ) {
                     // No `surfaceColor`, exactly as Home calls it: the circle paints nothing of its own
                     // and is pure refraction. Only the icon's colour adapts to the page.
-                    LiquidIconButton(onClick = onBack, backdrop = contentBackdrop) {
+                    LiquidIconButton(onClick = { requestExit() }, backdrop = contentBackdrop) {
                         Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), topFg)
                     }
                     // A weighted Box rather than two weighted spacers: the back circle and the
@@ -1458,12 +1491,31 @@ fun PdfViewerScreen(
             fgSoft          = panelFgSoft,
             surface         = chromePanel,
             field           = chromeField,
-            onDismiss       = { showSaveDialog = false },
+            onDismiss       = { showSaveDialog = false; exitAfterSave = false },
             onSave          = { fileName, overrideUri ->
                 showSaveDialog = false
+                val snapshot = markupSnapshot()
                 val overlays = buildExportOverlays(annotationsByPage, state.ocrBlocksByPage, pageCanvasSizes, pageBitmapSizes)
-                if (overlays.isNotEmpty()) viewModel.exportEditedPdf(context, overlays, fileName, overrideUri)
+                if (overlays.isNotEmpty()) {
+                    pendingSaveMarkups = snapshot
+                    viewModel.exportEditedPdf(context, overlays, fileName, overrideUri)
+                } else {
+                    // Nothing exportable (e.g. only empty text boxes) — nothing to lose either.
+                    savedMarkups = snapshot
+                    if (exitAfterSave) { exitAfterSave = false; onBack() }
+                }
             }
+        )
+
+        // ── Unsaved changes — same card as the spreadsheet, refracting the live page ──
+        // Save routes through the normal Save sheet (file name / location), then leaves once the
+        // export succeeds (see the exportMessage effect above).
+        UnsavedChangesDialog(
+            visible   = showUnsavedDialog,
+            onDiscard = { showUnsavedDialog = false; onBack() },
+            onCancel  = { showUnsavedDialog = false },
+            onSave    = { showUnsavedDialog = false; exitAfterSave = true; showSaveDialog = true },
+            backdrop  = contentBackdrop
         )
 
         // ── Share / export chooser ──

@@ -75,8 +75,7 @@ import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.GlassBottomSheet
 import com.chethan616.clearpdf.ui.components.GlassColorPicker
-import com.chethan616.clearpdf.ui.components.GlassDialog
-import com.chethan616.clearpdf.ui.components.GlassDialogAction
+import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
 import com.chethan616.clearpdf.ui.components.GlassHeaderHeight
 import com.chethan616.clearpdf.ui.components.GlassProgressBar
 import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
@@ -402,18 +401,15 @@ fun ImageEditorScreen(
             )
         }
 
-        GlassDialog(
+        // Same "Save changes?" card as every editor; Save publishes to the gallery, then leaves.
+        UnsavedChangesDialog(
             visible = showDiscard,
-            onDismiss = { showDiscard = false },
+            onDiscard = { showDiscard = false; onBack() },
+            onCancel = { showDiscard = false },
+            onSave = { showDiscard = false; viewModel.saveToGallery(onSaved = onBack) },
             backdrop = glass,
-            title = stringResource(R.string.ie_discard_title),
-            actions = {
-                GlassDialogAction(stringResource(R.string.ie_keep_editing), { showDiscard = false })
-                GlassDialogAction(stringResource(R.string.ie_discard), { showDiscard = false; onBack() }, destructive = true)
-            }
-        ) {
-            BasicText(stringResource(R.string.ie_discard_body), style = TextStyle(sub, 14.sp))
-        }
+            body = stringResource(R.string.unsaved_body_image)
+        )
     }
 }
 

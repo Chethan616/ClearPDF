@@ -165,8 +165,15 @@ fun ToolScaffold(
     /** Retained for source compatibility; the title pill has a fixed 13 sp label like the viewer's. */
     @Suppress("UNUSED_PARAMETER") titleFontSize: TextUnit = 18.sp,
     headerTrailing: (@Composable RowScope.() -> Unit)? = null,
+    /**
+     * Floating layer drawn above header + body (dialogs such as [UnsavedChangesDialog]). It gets the
+     * screen's live glass backdrop — wallpaper + the scrolling body — and sits outside the captured
+     * layer, so there is no feedback loop.
+     */
+    overlay: (@Composable (screenGlass: Backdrop) -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val screenBackdrop = rememberScreenBackdrop(backdrop)
     val isLight = !LocalIsDarkMode.current
     val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
     val density = LocalDensity.current.density
@@ -184,9 +191,10 @@ fun ToolScaffold(
     // Column above it, so cards pass under the glass instead of stopping at its edge — and the
     // header samples wallpaper + live content, so its refraction is finally of something real. It
     // used to sample a layer captured *below* it, which meant it refracted nothing at all.
+    Box(modifier.fillMaxSize()) {
     GlassScreenScaffold(
         backdrop = backdrop,
-        modifier = modifier,
+        screenBackdrop = screenBackdrop,
         contentBottomPadding = GlassDimens.ScreenPadding,
         header = { headerBackdrop ->
             // Same header trio as the PDF/spreadsheet viewers: back circle · centered title pill ·
@@ -232,5 +240,7 @@ fun ToolScaffold(
             verticalArrangement = Arrangement.spacedBy(GlassDimens.SectionGap),
             content = content
         )
+    }
+    overlay?.invoke(screenBackdrop.glass)
     }
 }

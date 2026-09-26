@@ -47,8 +47,15 @@ data class PageOrganizerUiState(
     val resultMessage: String? = null,
     val errorMessage: String? = null,
     val lastOutputUri: Uri? = null,
-    val saveLocationLabel: String = "Downloads (default)"
-)
+    val saveLocationLabel: String = "Downloads (default)",
+    /** (originalIndex, rotation) of every page as last loaded / saved — the "clean" layout. */
+    val savedLayout: List<Pair<Int, Int>> = emptyList()
+) {
+    /** Reordered, rotated or deleted pages that haven't been written to a PDF yet. */
+    val dirty: Boolean get() = pages.isNotEmpty() && layoutOf(pages) != savedLayout
+}
+
+internal fun layoutOf(pages: List<OrganizerPage>) = pages.map { it.originalIndex to Math.floorMod(it.rotation, 360) }
 
 class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
     private val _uiState = MutableStateFlow(PageOrganizerUiState())
@@ -68,7 +75,8 @@ class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
                 _uiState.value = PageOrganizerUiState(
                     sourceFileName = name,
                     sourceUri = uri,
-                    pages = pages.mapIndexed { i, bmp -> OrganizerPage(originalIndex = i, thumbnail = bmp) }
+                    pages = pages.mapIndexed { i, bmp -> OrganizerPage(originalIndex = i, thumbnail = bmp) },
+                    savedLayout = List(pages.size) { i -> i to 0 }
                 )
             } catch (e: Exception) {
                 _uiState.value = PageOrganizerUiState(errorMessage = context.getString(R.string.organize_open_failed))
@@ -150,7 +158,8 @@ class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
         _uiState.value = _uiState.value.copy(pages = result, resultMessage = null)
     }
 
-    fun save(context: Context, fileName: String, overrideUri: Uri? = null) {
+    /** [onSaved] runs only after the new PDF was written. */
+    fun save(context: Context, fileName: String, overrideUri: Uri? = null, onSaved: (() -> Unit)? = null) {
         val src = _uiState.value.sourceUri ?: return
         val pages = _uiState.value.pages
         if (pages.isEmpty()) return
@@ -177,8 +186,10 @@ class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
                     isSaving = false,
                     lastOutputUri = outUri,
                     saveLocationLabel = saveLabel,
-                    resultMessage = context.getString(R.string.organize_success, pages.size, saveLabel)
+                    resultMessage = context.getString(R.string.organize_success, pages.size, saveLabel),
+                    savedLayout = layoutOf(pages)
                 )
+                onSaved?.invoke()
                 val shouldPrompt = withContext(Dispatchers.IO) { GitHubStarPromptManager.recordPdfInteraction(context) }
                 if (shouldPrompt) StarPromptEventBus.requestPrompt()
             } catch (e: Exception) {

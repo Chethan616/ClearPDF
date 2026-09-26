@@ -537,8 +537,10 @@ class ImageEditorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun saveToGallery() = export { file ->
+    /** [onSaved] runs (main thread) only when the image actually landed in the gallery. */
+    fun saveToGallery(onSaved: (() -> Unit)? = null) = export { file ->
         val uri = withContext(Dispatchers.IO) { ImageIo.publishToGallery(context, file, _state.value.export.format) }
+        if (uri != null && onSaved != null) withContext(Dispatchers.Main) { onSaved() }
         if (uri != null) "Saved to Pictures/ClearPDF" else "Couldn't save image"
     }
 
