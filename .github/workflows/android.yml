@@ -28,5 +28,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clearpdf-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          # Product flavors (foss / play) put APKs under apk/<flavor>/release/.
+          path: app/build/outputs/apk/*/release/*.apk
           if-no-files-found: error
