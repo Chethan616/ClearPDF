@@ -323,7 +323,7 @@ fun PdfSelectionToolbar(
                 val screenH = constraints.maxHeight.toFloat()
                 val screenW = constraints.maxWidth.toFloat()
                 val rects = state.selectionScreenRects()
-                val union = rects.takeIf { it.isNotEmpty() }?.reduce { a, b -> a.union(b) }
+                val union = rects.takeIf { it.isNotEmpty() }?.reduce { a, b -> Rect(minOf(a.left, b.left), minOf(a.top, b.top), maxOf(a.right, b.right), maxOf(a.bottom, b.bottom)) }
                 val visible = union?.takeIf { it.bottom > 0f && it.top < screenH }
                     ?.let { Rect(it.left, it.top.coerceAtLeast(0f), it.right, it.bottom.coerceAtMost(screenH)) }
                 if (visible != null) lastBounds[0] = visible

@@ -2,7 +2,6 @@ package com.chethan616.clearpdf.ui.selection
 
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
@@ -59,11 +58,12 @@ class PdfTextSelectionState {
     var magnifierCenter by mutableStateOf(Offset.Unspecified)
         internal set
 
-    /** Current zoom/pan; written by the screen every composition / gesture frame. */
-    var transform by mutableStateOf(PdfViewportTransform(0f, 1f, 0f))
-
-    /** Bumped whenever page geometry may have moved, so draw-phase readers re-run. */
-    internal var geometryTick by mutableFloatStateOf(0f)
+    /**
+     * Current zoom/pan. A provider rather than a stored value so every reader (draw, layout, gesture)
+     * reads the viewer's live `scale`/`offsetX` snapshot state directly and is invalidated by it.
+     */
+    var transformProvider: () -> PdfViewportTransform = { PdfViewportTransform(0f, 1f, 0f) }
+    val transform: PdfViewportTransform get() = transformProvider()
 
     var blocksProvider: (Int) -> List<OcrTextBlock> = { emptyList() }
 

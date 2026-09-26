@@ -135,8 +135,6 @@ internal fun PdfViewerBottomToolbar(
     exportError: String?,
     exportMessage: String?,
     lastExportedUri: Uri?,
-    selectedTextCount: Int,
-    currentSelectedIds: Set<String>,
     activeIsSignature: Boolean,
     // Undo/clear are driven by the viewer's own history rather than by a list handed down here: the
     // page the user is drawing on is NOT `firstVisibleItemIndex`, so a list picked by the toolbar
@@ -154,12 +152,6 @@ internal fun PdfViewerBottomToolbar(
     onImageDone: () -> Unit,
     onReplaceImage: () -> Unit,
     onDeleteImage: () -> Unit,
-    onSelectAllText: () -> Unit,
-    onCopyText: () -> Unit,
-    onHighlightSelected: () -> Unit,
-    onUnderlineSelected: () -> Unit,
-    onStrikeSelected: () -> Unit,
-    onClearTextSelection: () -> Unit,
     onSetColorLong: (Long) -> Unit,
     onSetStrokeWidth: (Float) -> Unit,
     onDismissExportFeedback: () -> Unit,
@@ -198,13 +190,12 @@ internal fun PdfViewerBottomToolbar(
     val pillGlass = Color.Transparent
 
     val showDrawTools  = drawingToolActive
-    val showOcrTools   = activeTool == PdfEditTool.SelectText || selectedTextCount > 0
     val showImageTools = activeTool == PdfEditTool.Image && activeImageId != null
 
     // The two faces of the toolbar never share the screen: the SELECTOR face (the tool chips + the
     // blue "Editor Tools" pill) and the SUB-TOOLBAR face (draw / OCR / image). `subActive` is the
     // dimension that swaps them.
-    val subActive = showDrawTools || showOcrTools || showImageTools
+    val subActive = showDrawTools || showImageTools
     // Apple-style hand-off. The old code removed the selector face INSTANTLY (ExitTransition.None)
     // while the sub-toolbar faded in, so the two vanished/appeared on top of each other. Instead we
     // run a tiny two-phase gate: the outgoing face fades fully out, and only THEN does the incoming
@@ -364,29 +355,6 @@ internal fun PdfViewerBottomToolbar(
                                     surfaceColor = Color(0xFFC62828).copy(0.85f),
                                     modifier = Modifier.size(40.dp)
                                 ) { Icon(Icons.Rounded.Delete, stringResource(R.string.viewer_clear), Modifier.size(19.dp), Color.White) }
-                            }
-
-                            showOcrTools -> {
-                                // Plain, native-menu-style neutral buttons — no per-action rainbow
-                                // tinting — matching the in-context selection toolbar's look.
-                                LiquidButton(onClick = onSelectAllText, backdrop = backdrop, surfaceColor = chip) {
-                                    BasicText(stringResource(R.string.viewer_select_all), style = TextStyle(fg, 12.sp, FontWeight.Medium))
-                                }
-                                LiquidButton(onClick = onCopyText, backdrop = backdrop, surfaceColor = chip) {
-                                    BasicText(stringResource(R.string.copy), style = TextStyle(fg, 12.sp, FontWeight.Medium))
-                                }
-                                LiquidButton(onClick = onHighlightSelected, backdrop = backdrop, surfaceColor = chip) {
-                                    BasicText(stringResource(R.string.viewer_highlight), style = TextStyle(fg, 12.sp, FontWeight.Medium))
-                                }
-                                LiquidButton(onClick = onUnderlineSelected, backdrop = backdrop, surfaceColor = chip) {
-                                    BasicText(stringResource(R.string.viewer_underline), style = TextStyle(fg, 12.sp, FontWeight.Medium))
-                                }
-                                LiquidButton(onClick = onStrikeSelected, backdrop = backdrop, surfaceColor = chip) {
-                                    BasicText(stringResource(R.string.viewer_strike), style = TextStyle(fg, 12.sp, FontWeight.Medium))
-                                }
-                                LiquidButton(onClick = onClearTextSelection, backdrop = backdrop, surfaceColor = chip) {
-                                    BasicText(stringResource(R.string.viewer_clear), style = TextStyle(fg, 12.sp, FontWeight.Medium))
-                                }
                             }
 
                             showImageTools -> {
@@ -581,13 +549,6 @@ internal fun PdfViewerBottomToolbar(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     fun wSurface(color: Color, active: Boolean) = color.copy(if (active) 0.96f else 0.80f)
-                    val selOn = activeTool == PdfEditTool.SelectText
-                    LiquidButton(onClick = { onSetActiveTool(if (selOn) PdfEditTool.None else PdfEditTool.SelectText) }, backdrop = backdrop, surfaceColor = wSurface(Color(0xFF7B1FA2), selOn)) {
-                        BasicText(
-                            if (selectedTextCount > 0) stringResource(R.string.viewer_ocr, selectedTextCount) else stringResource(R.string.viewer_select_text),
-                            style = TextStyle(Color.White, 12.sp, FontWeight.Medium)
-                        )
-                    }
                     val hlOn = activeTool == PdfEditTool.Highlight
                     LiquidButton(onClick = { onSetActiveTool(if (hlOn) PdfEditTool.None else PdfEditTool.Highlight) }, backdrop = backdrop, surfaceColor = wSurface(Color(0xFFF9A825), hlOn)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -632,18 +593,6 @@ internal fun PdfViewerBottomToolbar(
                     backdrop = backdrop,
                     surfaceColor = toolSurface(Color(0xFF0097A7), drawOn)
                 ) { BasicText(stringResource(R.string.viewer_draw_tools), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
-
-                val selOn = activeTool == PdfEditTool.SelectText
-                LiquidButton(
-                    onClick  = { onSetActiveTool(if (selOn) PdfEditTool.None else PdfEditTool.SelectText) },
-                    backdrop = backdrop,
-                    surfaceColor = toolSurface(Color(0xFF7B1FA2), selOn)
-                ) {
-                    BasicText(
-                        if (selectedTextCount > 0) stringResource(R.string.viewer_ocr, selectedTextCount) else stringResource(R.string.viewer_select_text),
-                        style = TextStyle(Color.White, 12.sp, FontWeight.Medium)
-                    )
-                }
 
                 val imgOn = activeTool == PdfEditTool.Image
                 LiquidButton(
@@ -703,7 +652,7 @@ internal fun PdfViewerBottomToolbar(
                     }
                 }
 
-                if (drawingToolActive || activeTool == PdfEditTool.SelectText || activeTool == PdfEditTool.Image || activeTool == PdfEditTool.Eraser || activeTool == PdfEditTool.Text || activeTool == PdfEditTool.Note) {
+                if (drawingToolActive || activeTool == PdfEditTool.Image || activeTool == PdfEditTool.Eraser || activeTool == PdfEditTool.Text || activeTool == PdfEditTool.Note) {
                     LiquidIconButton(
                         onClick  = { onSetActiveTool(PdfEditTool.None) },
                         backdrop = backdrop,
