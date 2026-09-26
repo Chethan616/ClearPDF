@@ -523,4 +523,15 @@
 
     <!-- Spreadsheet viewer row scrubber badge (compact: "12/940", not "Row 12 / 940") -->
     <string name="sheet_row_of">%1$d/%2$d</string>
+    <!-- PDF text selection (floating glass toolbar) -->
+    <string name="selection_search">Search</string>
+    <string name="selection_strikethrough">Strikethrough</string>
+    <string name="selection_remove_highlight">Remove highlight</string>
+    <string name="selection_more">More options</string>
+    <string name="selection_highlight_color">Highlight colour</string>
+    <string name="selection_copied">Copied</string>
+    <string name="selection_start_handle">Selection start handle</string>
+    <string name="selection_end_handle">Selection end handle</string>
+    <string name="selection_chars_selected">%1$d characters selected</string>
+    <string name="selection_select_page_text">Select all text on this page</string>
 </resources>
