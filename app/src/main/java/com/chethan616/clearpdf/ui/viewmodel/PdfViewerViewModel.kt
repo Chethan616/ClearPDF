@@ -164,13 +164,22 @@ data class PdfViewerUiState(
     val lastExportedUri: Uri? = null,
     val findQuery: String = "",
     val findMatches: List<FindMatch> = emptyList(),
-    val currentMatchIndex: Int = -1
+    val currentMatchIndex: Int = -1,
+    // One-time "Improve fidelity with the Office engine" hint, shown after an Office file was
+    // rendered by the built-in renderers on a device that supports the optional engine.
+    val showOfficeEngineHint: Boolean = false
 )
 
 class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PdfViewerUiState())
     val uiState: StateFlow<PdfViewerUiState> = _uiState.asStateFlow()
+
+    /** Hides the Office engine hint for good (it is a one-time suggestion). */
+    fun dismissOfficeEngineHint(context: Context) {
+        com.chethan616.clearpdf.office.OfficeEngine.dismissHint(context)
+        _uiState.value = _uiState.value.copy(showOfficeEngineHint = false)
+    }
 
     private val renderingPages = mutableSetOf<Pair<Uri, Int>>()
     private val renderedPageWidths = mutableMapOf<Int, Int>()
@@ -285,7 +294,8 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     isExporting = false,
                     exportMessage = null,
                     exportError = null,
-                    lastExportedUri = null
+                    lastExportedUri = null,
+                    showOfficeEngineHint = com.chethan616.clearpdf.office.OfficeEngine.shouldOfferHint(context, displayName)
                 )
                 // The ORIGINAL uri, deliberately — not `openedUri`.
                 //

@@ -70,6 +70,9 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.office.OfficeEngine
+import com.chethan616.clearpdf.ui.components.GlassDialog
+import com.chethan616.clearpdf.ui.components.GlassDialogAction
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
@@ -120,6 +123,8 @@ fun SettingsScreen(
     }
 
     var saveUri by remember { mutableStateOf(SaveLocationManager.getSaveUri(context)) }
+    // Non-null while the "Delete Office engine?" dialog is up; holds the size it will free.
+    var officeEngineDeleteSize by remember { mutableStateOf<Long?>(null) }
 
     val folderPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -703,6 +708,24 @@ fun SettingsScreen(
             )
         }
 
+        // ── Office engine (optional, powered by LibreOffice) ──
+        OfficeEngineSettingsSection(
+            backdrop = backdrop,
+            isLight = isLight,
+            textColor = text,
+            labelColor = label,
+            subColor = sub,
+            onRequestDelete = { officeEngineDeleteSize = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel5Alpha
+                    translationY = panel5OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp)
+        )
+
         // ── Licenses ──
         Column(
             Modifier
@@ -757,6 +780,37 @@ fun SettingsScreen(
 
         // Clear the floating bottom navigation bar + system nav inset.
         Spacer(Modifier.height(120.dp))
+    }
+
+    // Last child of the scaffold's full-screen Box so the glass refracts the screen behind it.
+    GlassDialog(
+        visible = officeEngineDeleteSize != null,
+        onDismiss = { officeEngineDeleteSize = null },
+        backdrop = backdrop,
+        title = stringResource(R.string.office_engine_delete_title),
+        actions = {
+            GlassDialogAction(
+                text = stringResource(R.string.office_engine_cancel),
+                onClick = { officeEngineDeleteSize = null }
+            )
+            GlassDialogAction(
+                text = stringResource(R.string.office_engine_delete),
+                onClick = {
+                    officeEngineDeleteSize = null
+                    OfficeEngine.installer(context).uninstall()
+                },
+                primary = true,
+                destructive = true
+            )
+        }
+    ) {
+        BasicText(
+            stringResource(
+                R.string.office_engine_delete_message,
+                android.text.format.Formatter.formatShortFileSize(context, officeEngineDeleteSize ?: 0L)
+            ),
+            style = TextStyle(LiquidGlassColors.text(!isLight), 14.sp, lineHeight = 20.sp)
+        )
     }
     }
 }
@@ -819,6 +873,11 @@ private val OpenSourceCredits = listOf(
         "JSZip", "Stuart Knightley",
         "MIT License (used under MIT of its MIT/GPLv3 dual licence)",
         "https://github.com/Stuk/jszip"
+    ),
+    Credit(
+        "LibreOffice", "The Document Foundation",
+        "Mozilla Public License 2.0 — optional Office engine (downloaded on request, not bundled)",
+        "https://www.libreoffice.org/about-us/licenses/"
     ),
     Credit(
         "Pdf_Tools", "Karna14314",
