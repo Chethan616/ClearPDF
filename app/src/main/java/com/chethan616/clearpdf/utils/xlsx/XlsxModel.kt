@@ -127,7 +127,10 @@ class XlsxWorkbook(
     }
 
     /** What the cell shows: formatted number/date, text, TRUE/FALSE or the error code. */
-    fun display(c: CellData): String = when (c.type) {
+    fun display(c: CellData): String = if (c.formula != null && c.raw.isEmpty() && c.formula.text.isNotEmpty()) {
+        // A formula typed here has no cached result until Excel recalculates it on open.
+        "=" + c.formula.text
+    } else when (c.type) {
         "s", "inlineStr" -> textOf(c)?.text ?: c.raw
         "b" -> if (c.raw.trim() == "1") "TRUE" else "FALSE"
         "str", "e" -> c.raw
