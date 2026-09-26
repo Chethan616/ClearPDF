@@ -523,4 +523,41 @@
 
     <!-- Spreadsheet viewer row scrubber badge (compact: "12/940", not "Row 12 / 940") -->
     <string name="sheet_row_of">%1$d/%2$d</string>
+    <!-- Spreadsheet editor -->
+    <string name="sheet_edit">Edit</string>
+    <string name="sheet_done">Done</string>
+    <string name="sheet_save">Save</string>
+    <string name="sheet_save_as">Save as</string>
+    <string name="sheet_saved">Saved</string>
+    <string name="sheet_save_failed">Couldn\'t save the spreadsheet</string>
+    <string name="sheet_unsaved_title">Save changes?</string>
+    <string name="sheet_unsaved_body">Your edits to this spreadsheet haven\'t been saved.</string>
+    <string name="sheet_discard">Discard</string>
+    <string name="sheet_undo">Undo</string>
+    <string name="sheet_redo">Redo</string>
+    <string name="sheet_bold">Bold</string>
+    <string name="sheet_italic">Italic</string>
+    <string name="sheet_underline">Underline</string>
+    <string name="sheet_strike">Strike</string>
+    <string name="sheet_text_color">Text</string>
+    <string name="sheet_fill_color">Fill</string>
+    <string name="sheet_align">Align</string>
+    <string name="sheet_borders">Borders</string>
+    <string name="sheet_number_format">Format</string>
+    <string name="sheet_rows_cols">Rows</string>
+    <string name="sheet_clear">Clear</string>
+    <string name="sheet_wrap">Wrap text</string>
+    <string name="sheet_horizontal">Horizontal</string>
+    <string name="sheet_vertical">Vertical</string>
+    <string name="sheet_automatic">Automatic</string>
+    <string name="sheet_no_fill">No fill</string>
+    <string name="sheet_insert_row_above">Insert row above</string>
+    <string name="sheet_insert_row_below">Insert row below</string>
+    <string name="sheet_delete_rows">Delete rows</string>
+    <string name="sheet_insert_col_left">Insert column left</string>
+    <string name="sheet_insert_col_right">Insert column right</string>
+    <string name="sheet_delete_cols">Delete columns</string>
+    <string name="sheet_formula_hint">Enter a value or =formula</string>
+    <string name="sheet_read_only">This file can be viewed but not edited</string>
+    <string name="sheet_invalid_value">That value isn\'t in this cell\'s list</string>
 </resources>
