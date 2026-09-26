@@ -1087,6 +1087,25 @@ fun PdfViewerScreen(
                 }
             }
 
+            // One-time Office engine suggestion after a built-in Office render. Glass fades only
+            // (translating glass re-runs its blur + lens).
+            AnimatedVisibility(
+                visible  = state.showOfficeEngineHint && controlsVisible,
+                enter    = fadeIn(spring(stiffness = 300f)),
+                exit     = fadeOut(tween(150)),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 92.dp)
+            ) {
+                OfficeEngineHintCard(
+                    backdrop  = contentBackdrop,
+                    isDark    = isDarkMode,
+                    onGet     = {
+                        com.chethan616.clearpdf.office.OfficeEngine.installer(context).install()
+                        viewModel.dismissOfficeEngineHint(context)
+                    },
+                    onDismiss = { viewModel.dismissOfficeEngineHint(context) }
+                )
+            }
+
             // Bottom toolbar
             AnimatedVisibility(
                 visible  = controlsVisible,
