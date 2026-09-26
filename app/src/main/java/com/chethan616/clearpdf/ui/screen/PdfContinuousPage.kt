@@ -6,7 +6,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.magnifier
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -39,6 +39,7 @@ import androidx.compose.material.icons.rounded.StrikethroughS
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,7 +65,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
+import com.chethan616.clearpdf.R
+import com.chethan616.clearpdf.ui.selection.PdfTextSelectionState
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -78,22 +88,6 @@ import com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock
 import com.chethan616.clearpdf.ui.viewmodel.OcrTextRange
 import kotlin.math.max
 import kotlin.math.min
-
-/** One icon+label action in the stock-style text-selection menu (Acrobat/Drive look). */
-@Composable
-private fun SelectionMenuItem(icon: ImageVector, label: String, tint: Color, onClick: () -> Unit) {
-    Column(
-        Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-            .width(52.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(icon, label, Modifier.size(20.dp), tint)
-        BasicText(label, style = TextStyle(tint, 10.sp, FontWeight.Medium), maxLines = 1)
-    }
-}
 
 /**
  * A single page inside the continuous (Adobe-style) vertical viewer.
@@ -109,8 +103,6 @@ internal fun PdfContinuousPage(
     bitmap: Bitmap?,
     marks: MutableList<PdfMarkup>,
     ocrBlocks: List<OcrTextBlock>,
-    selectedOcrIds: Set<String>,
-    selectedOcrRanges: List<OcrTextRange>,
     findMatches: List<FindMatch>,
     currentMatchIndex: Int,
     showFindBar: Boolean,
@@ -127,8 +119,6 @@ internal fun PdfContinuousPage(
     onShowControls: () -> Unit,
     onActiveToolChanged: (PdfEditTool) -> Unit,
     onActiveImageIdChanged: (Long?) -> Unit,
-    onClearOcrSelection: () -> Unit,
-    onSelectOcrRange: (List<OcrTextRange>) -> Unit,
     onPlaceText: (Offset) -> Unit,
     onPlaceNote: (Offset) -> Unit,
     onEditAnnotation: (Long) -> Unit,
@@ -137,34 +127,21 @@ internal fun PdfContinuousPage(
     selectedMarkupIndex: Int = -1,
     onSelectMarkup: (Int) -> Unit = {},
     onDeleteMarkup: (Int) -> Unit = {},
-    onCopySelection: () -> Unit = {},
-    onHighlightSelection: () -> Unit = {},
-    onUnderlineSelection: () -> Unit = {},
-    onStrikeSelection: () -> Unit = {},
-    onSetColorLong: (Long) -> Unit = {},
-    onSelectAll: () -> Unit = {}
+    /** The viewer's text selection: this page draws its slice of the highlight and registers its coordinates. */
+    textSelection: PdfTextSelectionState
 ) {
     var draftPoints    by remember(page, activeTool) { mutableStateOf<List<Offset>>(emptyList()) }
     var draftRectStart by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
     var draftRectEnd   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
-    var selDragStart   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
-    var selDragEnd     by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
-    // Live focus point for the native magnifier loupe. Offset.Unspecified hides it; while a
-    // selection drag is in flight it tracks the finger so text stays legible under the fingertip,
-    // exactly like the platform text selector.
-    var magnifierFocus by remember(page, activeTool) { mutableStateOf(Offset.Unspecified) }
-    val selectionHandleDiameterPx = with(LocalDensity.current) { 32.dp.toPx() }
-    val selectionHandleHitRadiusPx = with(LocalDensity.current) { 30.dp.toPx() }
-    // Read inside the handle-drag gesture below instead of the raw `selectedOcrRanges` parameter.
-    // That gesture used to key its `pointerInput` on `selectedOcrRanges` itself — but the gesture
-    // is also what MUTATES it on every move (`onSelectOcrRange` inside `updateRange()`), so the
-    // instant a drag moved past touch slop, Compose saw the key change and cancelled + restarted
-    // the gesture coroutine mid-drag. The restarted `awaitEachGesture` then waited on a fresh
-    // touch-down that never came (the same finger was already down), which is why a handle drag
-    // died after exactly one movement in any direction. `selectedOcrRanges` is no longer a key —
-    // `rememberUpdatedState` is what lets the gesture still read the *current* selection at the
-    // start of each new touch (to know which handle was grabbed) without needing a key at all.
-    val latestSelectedOcrRanges by rememberUpdatedState(selectedOcrRanges)
+    val selectionColors = LocalTextSelectionColors.current
+    DisposableEffect(page, textSelection) { onDispose { textSelection.unregisterPage(page, null) } }
+    // Accessibility: expose the page's extracted text to TalkBack, plus a "select page text" action.
+    val selectPageLabel = stringResource(R.string.selection_select_page_text)
+    val pageText = remember(ocrBlocks) { textSelection.layout(page)?.text.orEmpty() }
+    val pageTextSemantics = if (pageText.isEmpty()) Modifier else Modifier.semantics {
+        text = AnnotatedString(pageText)
+        customActions = listOf(CustomAccessibilityAction(selectPageLabel) { textSelection.selectPages(page, page); true })
+    }
 
     // Page layout (rebuilt on the Pdf_Tools model): the image is drawn at its TRUE
     // aspect via ContentScale.FillWidth, so the box height follows the bitmap. There
@@ -198,15 +175,9 @@ internal fun PdfContinuousPage(
             .padding(vertical = 6.dp)
             .then(if (bitmap == null) Modifier.aspectRatio(placeholderAspect ?: (1f / 1.414f)) else Modifier)
             .background(Color(0xFF15181E))
-            // Native platform loupe (Android 9+). Inactive — and a no-op on older devices —
-            // whenever the focus point is Unspecified, so it costs nothing outside a drag.
-            .magnifier(
-                sourceCenter = { magnifierFocus },
-                zoom = 1.5f,
-                size = DpSize(112.dp, 64.dp),
-                cornerRadius = 32.dp,
-                elevation = 4.dp
-            )
+            // Page-local coordinates for the text selection's screen mapping (see PdfViewportTransform).
+            .onGloballyPositioned { textSelection.registerPage(page, it) }
+            .then(pageTextSemantics)
             .onSizeChanged { sz ->
                 pageCanvasSizes[page] = Size(sz.width.toFloat(), sz.height.toFloat())
                 if (bitmap != null) pageBitmapSizes[page] = Size(bitmap.width.toFloat(), bitmap.height.toFloat())
@@ -231,17 +202,11 @@ internal fun PdfContinuousPage(
         Canvas(Modifier.matchParentSize()) {
             val frame = Rect(0f, 0f, size.width, size.height)
 
-            selectedOcrRanges.forEach { range ->
-                ocrBlocks.firstOrNull { it.id == range.blockId }?.let { b ->
-                    val r = expandedTextHighlightRect(ocrTextRangeToRect(b, range, frame), verticalScale = 1.35f)
-                    // Fully rounded — half the band's own height, a real capsule — not the old 2-5px
-                    // clamp, which read as a barely-softened rectangle. The handles hanging off each
-                    // end are a rounded teardrop; a flat bar between them was what made the whole
-                    // selection look like two balloons stuck onto a straight rod instead of one
-                    // shape. Same blue family as the handles (#4285F4) so the band and the handles
-                    // it connects to read as one selection, not two unrelated pieces.
-                    val radius = r.height * 0.5f
-                    drawRoundRect(Color(0xFF4285F4).copy(0.28f), r.topLeft, r.size, CornerRadius(radius, radius))
+            // Text selection highlight — the platform selection colour, one band per line fragment.
+            // Drawn inside the zoom layer so it scales with the page, exactly like the glyphs.
+            textSelection.pageRange(page)?.let { (from, to) ->
+                textSelection.layout(page)?.selectionRects(from, to, size)?.forEach { r ->
+                    drawRect(selectionColors.backgroundColor, r.topLeft, r.size)
                 }
             }
 
@@ -376,21 +341,6 @@ internal fun PdfContinuousPage(
                             style = Stroke(2f)
                         )
                     }
-            }
-
-            if (activeTool == PdfEditTool.SelectText) {
-                ocrSelectionHandleAnchors(ocrBlocks, selectedOcrRanges, frame)?.let { (start, end) ->
-                    // Size each handle off its own line's rendered height, clamped to a sane
-                    // touch-target range, instead of a fixed dp that ignores the page's current
-                    // zoom/fit-width scale (see ocrSelectionHandleLineHeights doc).
-                    val (startLineH, endLineH) = ocrSelectionHandleLineHeights(ocrBlocks, selectedOcrRanges, frame)
-                        ?: (selectionHandleDiameterPx to selectionHandleDiameterPx)
-                    // DrawScope is itself a Density, so dp -> px works directly here.
-                    val minPx = 14.dp.toPx()
-                    val maxPx = 30.dp.toPx()
-                    drawTextSelectionHandle(start, (startLineH * 1.1f).coerceIn(minPx, maxPx), isLeftHandle = true)
-                    drawTextSelectionHandle(end, (endLineH * 1.1f).coerceIn(minPx, maxPx), isLeftHandle = false)
-                }
             }
 
             // In-progress drafts
@@ -640,189 +590,7 @@ internal fun PdfContinuousPage(
             )
         }
 
-        if (activeTool == PdfEditTool.SelectText) {
-            Box(Modifier.matchParentSize()
-                .pointerInput(page, ocrBlocks) {
-                    val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
-                    detectTapGestures(
-                        // A tap or double-tap lands on one word. Long-press follows the platform
-                        // text-selection convention: select that word and reveal the contextual
-                        // Copy / Highlight actions above it.
-                        onDoubleTap = { p -> hitTestOcrWord(ocrBlocks, p, frame)?.let { onSelectOcrRange(listOf(it)) }; onInteraction() },
-                        onLongPress = { p -> hitTestOcrWord(ocrBlocks, p, frame)?.let { onSelectOcrRange(listOf(it)) }; onInteraction() },
-                        onTap = { p -> hitTestOcrWord(ocrBlocks, p, frame)?.let { onSelectOcrRange(listOf(it)) } ?: onClearOcrSelection(); onInteraction() }
-                    )
-                }
-                // Direct drag (no long-press wait): sweep a contiguous run of words in reading order
-                // and update the range live. The page stays in text-selection mode, while the parent
-                // viewer still receives two-finger pinch events for zoom.
-                .pointerInput(page, ocrBlocks, selectionHandleHitRadiusPx) {
-                    fun updateRange() {
-                        val s = selDragStart; val e = selDragEnd
-                        if (s == null || e == null || ocrBlocks.isEmpty()) return
-                        val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
-                        // Character-precise sweep (native granularity) — extends smoothly across
-                        // words, lines and paragraphs instead of snapping a whole word at a time.
-                        onSelectOcrRange(ocrCharRangesBetween(ocrBlocks, frame, s, e))
-                        magnifierFocus = e
-                    }
-
-                    // Do not use detectDragGestures here: it commits to a one-finger drag before
-                    // the second finger of a pinch arrives. That is why zooming used to leave a
-                    // text selection behind. We wait for touch slop, then only consume while the
-                    // gesture remains single-touch; a second finger cancels selection immediately
-                    // and leaves the event stream available to the viewer's pinch detector.
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
-                        val handles = ocrSelectionHandleAnchors(ocrBlocks, latestSelectedOcrRanges, frame)
-                        val handleMode = when {
-                            handles == null -> 0
-                            (down.position - handles.first).getDistance() <= selectionHandleHitRadiusPx -> 1
-                            (down.position - handles.second).getDistance() <= selectionHandleHitRadiusPx -> 2
-                            else -> 0
-                        }
-                        val fixedHandlePoint = when (handleMode) {
-                            1 -> handles?.second
-                            2 -> handles?.first
-                            else -> null
-                        }
-                        val pointerId = down.id
-                        var selecting = false
-                        var multiTouch = false
-                        do {
-                            val event = awaitPointerEvent()
-                            val pressed = event.changes.count { it.pressed }
-                            if (pressed > 1) {
-                                if (!multiTouch) {
-                                    multiTouch = true
-                                    if (selecting) onClearOcrSelection()
-                                }
-                                selDragStart = null
-                                selDragEnd = null
-                                magnifierFocus = Offset.Unspecified
-                            } else if (!multiTouch) {
-                                val change = event.changes.firstOrNull { it.id == pointerId }
-                                if (change != null) {
-                                    if (!selecting && (change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
-                                        selecting = true
-                                        selDragStart = fixedHandlePoint ?: down.position
-                                        selDragEnd = change.position
-                                        updateRange()
-                                        onInteraction()
-                                    } else if (selecting) {
-                                        change.consume()
-                                        selDragStart = fixedHandlePoint ?: down.position
-                                        selDragEnd = change.position
-                                        updateRange()
-                                        onInteraction()
-                                    }
-                                }
-                            }
-                        } while (event.changes.any { it.pressed })
-                        selDragStart = null
-                        selDragEnd = null
-                        magnifierFocus = Offset.Unspecified
-                    }
-                }
-            )
-        }
-
-        // ── Contextual selection bubble (Copy / Highlight), smart-positioned ──────
         val csz = pageCanvasSizes[page]
-        if (activeTool == PdfEditTool.SelectText && selectedOcrIds.isNotEmpty() && csz != null && csz.width > 0f) {
-            val frame = Rect(0f, 0f, csz.width, csz.height)
-            val selRects = selectedOcrRanges.mapNotNull { range ->
-                ocrBlocks.firstOrNull { it.id == range.blockId }?.let { ocrTextRangeToRect(it, range, frame) }
-            }.ifEmpty {
-                selectedOcrIds.mapNotNull { id -> ocrBlocks.firstOrNull { it.id == id }?.let { ocrBlockToRect(it, frame) } }
-            }
-            if (selRects.isNotEmpty()) {
-                val density = LocalDensity.current
-                val selLeft = selRects.minOf { it.left }
-                val selTop = selRects.minOf { it.top }
-                val selRight = selRects.maxOf { it.right }
-                val selBottom = selRects.maxOf { it.bottom }
-                // Is any selected word already carrying a highlight? If so the pill gains a Remove
-                // action — this is the fix for "tap a highlight again and there's no delete, only
-                // copy/highlight". The selection and the highlight live in two different models (OCR
-                // selection vs. the page's markup list), so we cross-reference by block id.
-                val selectionHasHighlight = selectedOcrIds.any { id ->
-                    marks.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == id }
-                }
-                val gapPx = with(density) { 8.dp.toPx() }
-                val bubbleHpx = with(density) { 148.dp.toPx() }
-                val itemCount = if (selectionHasHighlight) 6 else 5
-                val bubbleWpx = with(density) { (itemCount * 60).dp.toPx() }
-                // Flip below the selection when it's too close to the page top.
-                val placeBelow = selTop < bubbleHpx + gapPx
-                val by = (if (placeBelow) selBottom + gapPx else selTop - bubbleHpx - gapPx).coerceIn(0f, (csz.height - bubbleHpx).coerceAtLeast(0f))
-                val bx = ((selLeft + selRight) / 2f - bubbleWpx / 2f).coerceIn(0f, (csz.width - bubbleWpx).coerceAtLeast(0f))
-
-                // Icon-menu look (Acrobat/Drive-style), not a pill of coloured text: a plain
-                // dark card, one icon+label column per action, neutral colour throughout except
-                // the active/applied state and the destructive action.
-                val menuFg = Color(0xFFCCCCCC)
-                Column(
-                    Modifier
-                        .offset { IntOffset(bx.roundToInt(), by.roundToInt()) }
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFF232629))
-                        .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(14.dp))
-                ) {
-                    Row(
-                        Modifier
-                            .padding(horizontal = 4.dp, vertical = 6.dp)
-                            .horizontalScroll(rememberScrollState()),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SelectionMenuItem(Icons.Rounded.ContentCopy, "Copy", menuFg) {
-                            onCopySelection(); onClearOcrSelection()
-                        }
-                        SelectionMenuItem(Icons.Rounded.SelectAll, "Select all", menuFg) { onSelectAll() }
-                        SelectionMenuItem(
-                            Icons.Rounded.Highlight,
-                            if (selectionHasHighlight) "Recolor" else "Highlight",
-                            if (selectionHasHighlight) currentColor else menuFg
-                        ) { onHighlightSelection() }
-                        SelectionMenuItem(Icons.Rounded.FormatUnderlined, "Underline", menuFg) { onUnderlineSelection() }
-                        SelectionMenuItem(Icons.Rounded.StrikethroughS, "Strike", menuFg) { onStrikeSelection() }
-                        if (selectionHasHighlight) {
-                            SelectionMenuItem(Icons.Rounded.Delete, "Delete", Color(0xFFEF5350)) {
-                                // Drop every highlight sitting on a selected word, then clear the
-                                // selection so the menu dismisses.
-                                marks.removeAll { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId in selectedOcrIds }
-                                onClearOcrSelection()
-                            }
-                        }
-                    }
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(0.08f)))
-                    Row(
-                        Modifier
-                            .padding(horizontal = 10.dp, vertical = 8.dp)
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        editorPalette.forEach { c ->
-                            val isSel = c.value == currentColor.value
-                            Box(
-                                Modifier
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(c)
-                                    .border(
-                                        width = if (isSel) 2.dp else 0.dp,
-                                        color = Color.White.copy(0.85f),
-                                        shape = CircleShape
-                                    )
-                                    .clickable { onSetColorLong(c.value.toLong()) }
-                            )
-                        }
-                    }
-                }
-            }
-        }
 
         // ── Contextual Edit / Delete bar for the selected shape / text / note ──────
         if (activeTool == PdfEditTool.None && csz != null && csz.width > 0f) {
