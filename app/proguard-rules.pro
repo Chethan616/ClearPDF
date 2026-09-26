@@ -50,3 +50,7 @@
 # liblo-native-code.so binds to these by name: Java_org_libreoffice_kit_* natives, the
 # "handle" ByteBuffer fields and the messageRetrieved* callbacks. Nothing may be renamed.
 -keep class org.libreoffice.kit.** { *; }
+
+# WorkManager (foss Office-engine downloader) instantiates its Room database reflectively at
+# startup; R8 full mode strips the generated no-arg constructor → launch crash. Keep it.
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
