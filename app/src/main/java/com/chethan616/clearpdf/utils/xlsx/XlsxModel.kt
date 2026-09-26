@@ -7,7 +7,7 @@ class TextRun(val start: Int, val end: Int, val props: XmlEl?)
 
 /** A shared/inline string: its plain text plus, when rich, the formatted runs. */
 class RichText(val text: String, val runs: List<TextRun>?) {
-    val isRich get() = runs != null && runs.size > 1
+    val isRich get() = runs != null && runs.any { it.props != null }
 }
 
 /** A cell's `<f>` element. [text] is empty for a shared-formula follower. */

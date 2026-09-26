@@ -96,6 +96,16 @@ object UniversalDocumentConverter {
     private fun convertZipXmlToPdf(context: Context, sourceUri: Uri, flavor: DocFlavor): Uri {
         val bytes = context.contentResolver.openInputStream(sourceUri)?.use { it.readBytes() }
             ?: throw IllegalStateException("Cannot open file")
+        if (flavor == DocFlavor.XLSX) {
+            // Styled print: the viewer's own cell painter (fills, fonts, borders, merges). The
+            // plain table reflow below stays as the fallback for a package it can't read.
+            val styled = runCatching {
+                com.chethan616.clearpdf.utils.xlsx.XlsxPdfRenderer.render(
+                    com.chethan616.clearpdf.utils.xlsx.XlsxReader.read(bytes)
+                )
+            }.getOrNull()
+            if (styled != null) return writePdf(context, styled, "Xlsx")
+        }
         val paint = bodyPaint()
         val blocks: List<DocBlock> = when (flavor) {
             DocFlavor.DOCX -> parseDocx(bytes)
