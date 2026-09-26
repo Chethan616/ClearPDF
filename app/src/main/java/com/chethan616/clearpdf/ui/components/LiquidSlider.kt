@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -113,6 +114,13 @@ fun LiquidSlider(
             )
         }
 
+        // Squash-and-stretch of the thumb along its travel (LiquidTracker technique).
+        val stretch = rememberLiquidStretchState(stretchFactor = 0.4f, minScale = 0.85f, maxScale = 1.2f)
+        LaunchedEffect(dampedDragAnimation, stretch, trackWidth) {
+            snapshotFlow { dampedDragAnimation.progress }
+                .collect { p -> stretch.onPositionSample(p * trackWidth) }
+        }
+
         LaunchedEffect(currentValue, isDragging, dampedDragAnimation) {
             if (!isDragging && abs(dampedDragAnimation.targetValue - currentValue) > visibilityThreshold) {
                 dampedDragAnimation.updateValue(currentValue)
@@ -163,6 +171,7 @@ fun LiquidSlider(
                             .fastCoerceIn(-size.width / 4f, trackWidth - size.width * 3f / 4f) * if (isLtr) 1f else -1f
                 }
                 .then(dampedDragAnimation.modifier)
+                .liquidStretch(stretch)
                 .drawBackdrop(
                     backdrop = rememberCombinedBackdrop(
                         backdrop,
@@ -201,9 +210,6 @@ fun LiquidSlider(
                     layerBlock = {
                         scaleX = dampedDragAnimation.scaleX
                         scaleY = dampedDragAnimation.scaleY
-                        val velocity = dampedDragAnimation.velocity / 10f
-                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                     },
                     onDrawSurface = {
                         val progress = dampedDragAnimation.pressProgress
