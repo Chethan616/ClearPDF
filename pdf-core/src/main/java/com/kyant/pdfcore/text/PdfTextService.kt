@@ -121,7 +121,31 @@ class PdfTextServiceImpl : PdfTextService {
             }
         }
 
-        return lines.mapIndexedNotNull { lineIdx, linePositions ->
+        // A "line" above is every glyph sharing a baseline across the FULL page width, so on a
+        // two-column page the left and right columns' lines merged into one block ("...end of left
+        // sentence start of right sentence..."). Split each line wherever the horizontal gap between
+        // consecutive glyphs is far wider than any word space (> ~3x the line's average glyph
+        // width): column gutters and wide table gaps become separate blocks, ordinary word spacing
+        // (even justified) never reaches that.
+        val segments = lines.flatMap { line ->
+            val byX = line.sortedBy { it.x }
+            val avgW = byX.map { it.width }.filter { it > 0f }.average().toFloat()
+                .takeIf { !it.isNaN() && it > 0f } ?: avgH * 0.5f
+            val splitGap = avgW * 3f
+            val out = mutableListOf<MutableList<TextPosition>>()
+            var lastRight = -Float.MAX_VALUE
+            for (tp in byX) {
+                if (out.isEmpty() || (lastRight > -Float.MAX_VALUE && tp.x - lastRight > splitGap)) {
+                    out.add(mutableListOf(tp))
+                } else {
+                    out.last().add(tp)
+                }
+                lastRight = maxOf(lastRight, tp.x + tp.width)
+            }
+            out
+        }
+
+        return segments.mapIndexedNotNull { lineIdx, linePositions ->
             val byX = linePositions.sortedBy { it.x }
             // Build the line text AND per-character x bounds together so indices stay aligned.
             val sb = StringBuilder()
