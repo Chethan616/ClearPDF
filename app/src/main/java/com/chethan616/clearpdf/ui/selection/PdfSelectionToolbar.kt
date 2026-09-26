@@ -159,7 +159,7 @@ fun PdfSelectionToolbar(
     backdrop: Backdrop,
     actions: PdfSelectionActions,
     highlightColor: Color,
-    hasHighlightOverlap: Boolean,
+    hasHighlightOverlap: () -> Boolean,
     modifier: Modifier = Modifier
 ) {
     val isDark = LocalIsDarkMode.current
@@ -202,7 +202,11 @@ fun PdfSelectionToolbar(
     )
 
     // Accessibility: announce the selection size politely whenever it changes.
-    val count = if (state.hasSelection) state.selectedText().length else 0
+    // Computed only once a gesture settles, so a drag doesn't rebuild the text every frame.
+    val settled = state.hasSelection && !state.gestureActive
+    val selStart = state.start
+    val selEnd = state.end
+    val count = remember(settled, selStart, selEnd) { if (settled) state.selectedText().length else 0 }
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         if (count > 0) {
@@ -246,7 +250,7 @@ fun PdfSelectionToolbar(
                 onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); page = ToolbarPage.Colors },
                 onClick = act { actions.onHighlight(highlightColor.toArgbLong()) }
             ))
-            if (hasHighlightOverlap) add(ToolbarItem("rm", removeL, Icons.Rounded.FormatColorReset, tint = LiquidGlassColors.Red, onClick = act(actions.onRemoveHighlight)))
+            if (shown && hasHighlightOverlap()) add(ToolbarItem("rm", removeL, Icons.Rounded.FormatColorReset, tint = LiquidGlassColors.Red, onClick = act(actions.onRemoveHighlight)))
             add(ToolbarItem("ul", underlineL, Icons.Rounded.FormatUnderlined, onClick = act(actions.onUnderline)))
             add(ToolbarItem("st", strikeL, Icons.Rounded.StrikethroughS, onClick = act(actions.onStrike)))
             add(ToolbarItem("share", shareL, Icons.Rounded.Share, onClick = act(actions.onShare)))
@@ -327,6 +331,9 @@ fun PdfSelectionToolbar(
                 val visible = union?.takeIf { it.bottom > 0f && it.top < screenH }
                     ?.let { Rect(it.left, it.top.coerceAtLeast(0f), it.right, it.bottom.coerceAtMost(screenH)) }
                 if (visible != null) lastBounds[0] = visible
+                // Selection scrolled out of view: hide (the platform toolbar does too). The last
+                // bounds are only reused while the capsule fades out after the selection cleared.
+                if (visible == null && state.hasSelection) return@layout
                 val b = visible ?: lastBounds[0] ?: return@layout
                 val w = placeable.width.toFloat()
                 val h = placeable.height.toFloat()

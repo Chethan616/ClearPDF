@@ -3,6 +3,7 @@ package com.chethan616.clearpdf.ui.screen
 import android.app.Activity
 import android.content.Intent
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.derivedStateOf
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -592,7 +593,8 @@ fun PdfViewerScreen(
     val currentPageIndex = listState.firstVisibleItemIndex.coerceIn(0, safePageCount - 1)
     // Back clears an active text selection first (registered after the viewer's own BackHandler, so
     // it takes precedence), exactly like a TextView's selection mode.
-    BackHandler(enabled = textSelection.hasSelection) { textSelection.clear() }
+    val selectionActive by remember { derivedStateOf { textSelection.hasSelection } }
+    BackHandler(enabled = selectionActive) { textSelection.clear() }
     // Any editing tool owns the page gestures; a selection must not linger underneath it.
     LaunchedEffect(activeTool) { if (activeTool != PdfEditTool.None) textSelection.clear() }
 
@@ -1316,9 +1318,13 @@ fun PdfViewerScreen(
                 }
             }
         )
-        val hasHighlightOverlap = textSelection.hasSelection && textSelection.rangesByPage().any { (page, ranges) ->
-            annotationsByPage[page].orEmpty().any { m ->
-                m is PdfMarkup.TextBlockHighlightMarkup && ranges.any { r -> r.blockId == m.blockId && m.start < r.end && m.end > r.start }
+        // A lambda, evaluated inside the toolbar: reading the selection here would recompose this
+        // whole screen on every handle-drag step.
+        val hasHighlightOverlap: () -> Boolean = {
+            textSelection.hasSelection && textSelection.rangesByPage().any { (page, ranges) ->
+                annotationsByPage[page].orEmpty().any { m ->
+                    m is PdfMarkup.TextBlockHighlightMarkup && ranges.any { r -> r.blockId == m.blockId && m.start < r.end && m.end > r.start }
+                }
             }
         }
         PdfSelectionToolbar(

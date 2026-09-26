@@ -289,10 +289,14 @@ class PdfTextSelectionState {
         if (raw >= w0e) {
             val c = (raw.offset - 1).coerceAtLeast(0)
             val w = l.wordAt(c)
-            select(w0s, TextPos(raw.page, maxOf(w.last + 1, raw.offset).coerceAtMost(l.length)))
+            // Whole word only if the finger is actually inside one (wordAt falls back to a
+            // neighbouring word for whitespace, which would overshoot).
+            val e = if (c in w) maxOf(w.last + 1, raw.offset) else raw.offset
+            select(w0s, TextPos(raw.page, e.coerceAtMost(l.length)))
         } else if (raw <= w0s) {
-            val w = l.wordAt(raw.offset.coerceAtMost(l.length - 1))
-            select(w0e, TextPos(raw.page, minOf(w.first, raw.offset)))
+            val c = raw.offset.coerceIn(0, (l.length - 1).coerceAtLeast(0))
+            val w = l.wordAt(c)
+            select(w0e, TextPos(raw.page, if (c in w) minOf(w.first, raw.offset) else raw.offset))
         } else {
             select(w0s, w0e)
         }

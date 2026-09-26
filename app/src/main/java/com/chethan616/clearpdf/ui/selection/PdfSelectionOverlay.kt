@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.magnifier
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -241,6 +242,8 @@ fun PdfSelectionHandles(
     }
 
     val minTouchPx = with(density) { 44.dp.toPx() }
+    // Derived so a drag (which changes anchor/focus every frame) doesn't recompose this overlay.
+    val hasSelection by remember(state) { derivedStateOf { state.hasSelection } }
     val startDesc = stringResource(R.string.selection_start_handle)
     val endDesc = stringResource(R.string.selection_end_handle)
 
@@ -254,7 +257,7 @@ fun PdfSelectionHandles(
             // Platform loupe (API 28+; a no-op below). Inactive while the centre is Unspecified.
             .magnifier(sourceCenter = { state.magnifierCenter })
     ) {
-        if (!state.hasSelection) return@Box
+        if (!hasSelection) return@Box
 
         Canvas(Modifier.fillMaxSize()) {
             // Subscribe to everything that moves page geometry, so the handles are redrawn in the same
