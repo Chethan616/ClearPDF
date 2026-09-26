@@ -253,6 +253,11 @@
     <string name="recents_sheets">Planilhas</string>
     <string name="recents_pin">Fixar</string>
     <string name="recents_unpin">Desafixar</string>
+    <string name="recents_open_with">Abrir com…</string>
+    <string name="recents_remove_from_list">Remover dos recentes</string>
+    <string name="recents_delete_file">Excluir arquivo</string>
+    <string name="recents_delete_confirm">Toque novamente para excluir</string>
+    <string name="recents_delete_failed">Não foi possível excluir o arquivo</string>
     <string name="recents_filter">Filtrar por tipo</string>
     <string name="recents_filter_all">Tudo</string>
     <string name="recents_filter_pdf">PDF</string>
