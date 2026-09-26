@@ -8,7 +8,6 @@ import android.graphics.Paint
 import jp.co.cyberagent.android.gpuimage.filter.GPUImageCrosshatchFilter
 import jp.co.cyberagent.android.gpuimage.filter.GPUImageEmbossFilter
 import jp.co.cyberagent.android.gpuimage.filter.GPUImageFilter
-import jp.co.cyberagent.android.gpuimage.filter.GPUImageFilterGroup
 import jp.co.cyberagent.android.gpuimage.filter.GPUImageHalftoneFilter
 import jp.co.cyberagent.android.gpuimage.filter.GPUImageKuwaharaFilter
 import jp.co.cyberagent.android.gpuimage.filter.GPUImagePosterizeFilter
@@ -132,5 +131,3 @@ private fun offset(t: Float) =
 /** Returns this followed by [next] (mutates and returns this). */
 private fun ColorMatrix.then(next: ColorMatrix): ColorMatrix = apply { postConcat(next) }
 
-@Suppress("unused")
-private fun group(vararg f: GPUImageFilter) = GPUImageFilterGroup(f.toList())
