@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="office_engine_module_title">Office engine (powered by LibreOffice)</string>
+    <string name="office_engine_title">Office engine</string>
+    <string name="office_engine_powered_by">Powered by LibreOffice</string>
+    <string name="office_engine_description">Opens Word, Excel, PowerPoint and OpenDocument files with LibreOffice’s own layout for the most faithful result. Optional — the built-in renderers keep working without it.</string>
+    <string name="office_engine_not_installed">Not installed · ~%1$s download</string>
+    <string name="office_engine_installed">Installed · %1$s · v%2$s</string>
+    <string name="office_engine_update_available">Update available · %1$s</string>
+    <string name="office_engine_downloading">Downloading…</string>
+    <string name="office_engine_downloading_progress">Downloading · %1$s of %2$s</string>
+    <string name="office_engine_waiting_network">Waiting for network…</string>
+    <string name="office_engine_installing">Verifying and installing…</string>
+    <string name="office_engine_needs_confirmation">Google Play needs your approval to download</string>
+    <string name="office_engine_failed">Install failed: %1$s</string>
+    <string name="office_engine_download">Download</string>
+    <string name="office_engine_install">Install</string>
+    <string name="office_engine_update">Update</string>
+    <string name="office_engine_delete">Delete</string>
+    <string name="office_engine_cancel">Cancel</string>
+    <string name="office_engine_retry">Retry</string>
+    <string name="office_engine_approve">Approve</string>
+    <string name="office_engine_use_for_office">Use for Office files</string>
+    <string name="office_engine_use_for_office_sub">Falls back to the built-in renderers if a file fails</string>
+    <string name="office_engine_licences">LibreOffice licences (MPL-2.0)</string>
+    <string name="office_engine_delete_title">Delete Office engine?</string>
+    <string name="office_engine_delete_message">Frees %1$s. Office files will open with the built-in renderers. You can download it again at any time.</string>
+    <string name="office_engine_notification_channel">Office engine download</string>
+    <string name="office_engine_hint">Improve fidelity with the Office engine</string>
+    <string name="office_engine_hint_sub">Optional download · powered by LibreOffice</string>
+    <string name="office_engine_hint_action">Get it</string>
+</resources>

@@ -81,6 +81,23 @@ android {
         // throwing so incidental framework calls don't fail a pure-logic test.
         unitTests.isReturnDefaultValues = true
     }
+
+    // Two distributions of the same app (identical applicationId):
+    //  - play: Google Play. The optional Office engine ships as the on-demand dynamic feature
+    //    module :office_engine (Play Feature Delivery); no native code is ever downloaded by the app.
+    //  - foss: GitHub/F-Droid-style sideload builds. The Office engine is downloaded on request
+    //    from a pinned, SHA-256 verified release; only this flavor declares INTERNET
+    //    (see src/foss/AndroidManifest.xml).
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+        }
+        create("foss") {
+            dimension = "distribution"
+        }
+    }
+    dynamicFeatures += setOf(":office_engine")
     // Bundling on-device OCR (bundled ML Kit + Tesseract4Android) added native .so libs for
     // 4 CPU architectures; without splitting, every install carries all 4. This produces one
     // APK per ABI (~1/4 the native-lib weight each) plus a universal fallback for sideloading.
@@ -176,4 +193,9 @@ dependencies {
     implementation(libs.mlkit.subject.segmentation)
     // A real XmlPullParser for JVM tests; android.jar only carries stubs of it.
     testImplementation("net.sf.kxml:kxml2:2.3.0")
+
+    // Optional Office engine (powered by LibreOffice) — installer differs per distribution.
+    "playImplementation"(libs.play.feature.delivery.ktx)
+    "fossImplementation"(libs.androidx.work.runtime.ktx)
+    "fossImplementation"(libs.xz)
 }

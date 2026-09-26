@@ -39,8 +39,10 @@ import java.util.zip.ZipInputStream
  * thing the phone already has: the browser engine.
  *
  * Offline: the page is loaded from `file:///android_asset`, network loads are blocked on the
- * WebView, and the app declares no `INTERNET` permission at all — so the OS would refuse a network
- * request even if a script attempted one.
+ * WebView, and `shouldInterceptRequest` answers anything that is not a bundled asset or inline
+ * data with a local 403 ([com.chethan616.clearpdf.util.OfflineWebContent]). The play flavor also
+ * declares no `INTERNET` permission; the foss flavor does (only for the optional Office engine
+ * download), which is why the WebView itself must never rely on the permission being absent.
  *
  * There are two ways out of the WebView, tried in order:
  *  1. **The print framework.** It honours the CSS page breaks the host page puts on each section,
@@ -112,8 +114,8 @@ internal object DocxWebRenderer {
                 val view = WebView(context)
                 webView = view
                 view.settings.javaScriptEnabled = true
-                // Redundant with the missing INTERNET permission, and kept anyway: two independent
-                // guarantees that a document can never phone home.
+                // Independent of the INTERNET permission (present in the foss flavor): together with
+                // shouldInterceptRequest below, a document can never phone home.
                 view.settings.blockNetworkLoads = true
                 view.settings.allowFileAccess = true
 
@@ -151,7 +153,16 @@ internal object DocxWebRenderer {
                     "AndroidDocx"
                 )
 
+                com.chethan616.clearpdf.util.OfflineWebContent.harden(view)
                 view.webViewClient = object : WebViewClient() {
+                    // Third guarantee: anything that is not a bundled asset or inline data is
+                    // answered locally with a 403, even in builds that hold INTERNET (foss).
+                    override fun shouldInterceptRequest(
+                        view: WebView,
+                        request: android.webkit.WebResourceRequest
+                    ): android.webkit.WebResourceResponse? =
+                        com.chethan616.clearpdf.util.OfflineWebContent.intercept(request)
+
                     override fun onPageFinished(view: WebView, url: String) {
                         val base64 = Base64.encodeToString(docxBytes, Base64.NO_WRAP)
                         view.evaluateJavascript("renderDocx('$base64')", null)

@@ -28,7 +28,9 @@ object HtmlToPdfConverter {
     fun convertHtml(context: Context, html: String, outputUri: Uri, onDone: (Boolean) -> Unit) {
         val webView = WebView(context)
         webView.settings.javaScriptEnabled = false
-        finishOnLoad(webView, context, outputUri, settleMs = 250, onDone)
+        // User-supplied HTML must not fetch remote images/trackers (foss builds hold INTERNET).
+        OfflineWebContent.harden(webView)
+        finishOnLoad(webView, context, outputUri, settleMs = 250, offline = true, onDone)
         webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
     }
 
@@ -41,13 +43,26 @@ object HtmlToPdfConverter {
             useWideViewPort = true
         }
         // JS-heavy pages need a longer settle before the layout is stable enough to snapshot.
-        finishOnLoad(webView, context, outputUri, settleMs = 900, onDone)
+        finishOnLoad(webView, context, outputUri, settleMs = 900, offline = false, onDone)
         webView.loadUrl(url)
     }
 
-    private fun finishOnLoad(webView: WebView, context: Context, outputUri: Uri, settleMs: Long, onDone: (Boolean) -> Unit) {
+    private fun finishOnLoad(
+        webView: WebView,
+        context: Context,
+        outputUri: Uri,
+        settleMs: Long,
+        offline: Boolean,
+        onDone: (Boolean) -> Unit
+    ) {
         var handled = false
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: android.webkit.WebResourceRequest
+            ): android.webkit.WebResourceResponse? =
+                if (offline) OfflineWebContent.intercept(request) else null
+
             override fun onPageFinished(view: WebView, url: String?) {
                 if (handled) return
                 view.postDelayed({

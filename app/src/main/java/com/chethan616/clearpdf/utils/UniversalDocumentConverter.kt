@@ -45,6 +45,9 @@ object UniversalDocumentConverter {
     fun convertToPdf(context: Context, sourceUri: Uri): Uri {
         val mimeType = context.contentResolver.getType(sourceUri) ?: ""
         val name = getFileName(context, sourceUri).lowercase()
+        // Optional Office engine (powered by LibreOffice): used first when installed and enabled.
+        // Any failure returns null and the built-in renderers below take over, unchanged.
+        com.chethan616.clearpdf.office.OfficeEngine.tryConvert(context, sourceUri, name)?.let { return Uri.fromFile(it) }
         return when {
             mimeType.startsWith("image/") || name.endsWithAny(".png", ".jpg", ".jpeg", ".webp", ".bmp", ".heic") ->
                 convertImageToPdf(context, sourceUri)

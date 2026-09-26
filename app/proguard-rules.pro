@@ -45,3 +45,8 @@
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
+
+# ── Optional Office engine (LibreOfficeKit JNI) ──
+# liblo-native-code.so binds to these by name: Java_org_libreoffice_kit_* natives, the
+# "handle" ByteBuffer fields and the messageRetrieved* callbacks. Nothing may be renamed.
+-keep class org.libreoffice.kit.** { *; }
