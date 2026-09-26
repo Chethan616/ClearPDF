@@ -821,6 +821,21 @@ private val OpenSourceCredits = listOf(
         "https://github.com/Stuk/jszip"
     ),
     Credit(
+        "ImageToolbox", "T8RIN (Malik Mukhametzyanov)",
+        "Apache License 2.0 — image editor cropper, perspective crop and draw engine (adapted)",
+        "https://github.com/T8RIN/ImageToolbox"
+    ),
+    Credit(
+        "GPUImage for Android", "CyberAgent, Inc.",
+        "Apache License 2.0 — image editor adjustments and filters",
+        "https://github.com/cats-oss/android-gpuimage"
+    ),
+    Credit(
+        "ML Kit Subject Segmentation", "Google",
+        "Google APIs Terms — optional background removal via Play services",
+        "https://developers.google.com/ml-kit/vision/subject-segmentation"
+    ),
+    Credit(
         "Pdf_Tools", "Karna14314",
         "PDF viewer zoom/pan reference",
         "https://github.com/Karna14314/Pdf_Tools"

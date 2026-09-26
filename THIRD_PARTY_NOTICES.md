@@ -70,3 +70,37 @@ The app does not add GPL or LGPL components for document rendering. If a future 
 - Use: required by docx-preview to read the .docx zip container in the browser context.
 - Notice practice: the upstream banner (including its pako attribution) is preserved verbatim at the
   top of the vendored file, and the library is credited in Settings → Licenses.
+
+## ImageToolbox (adapted source)
+
+- Source: https://github.com/T8RIN/ImageToolbox — Copyright (c) 2026 T8RIN (Malik Mukhametzyanov)
+- License: Apache License 2.0
+- Use: the image editor's cropper (`imageeditor/thirdparty/cropper`, from `lib/cropper` minus
+  its widgets), gesture helpers (`thirdparty/gesture`), image-scope helpers (`thirdparty/image`),
+  the perspective cropper (`thirdparty/freecorners`, from `lib/opencv-tools/free_corners_crop`
+  with OpenCV's `warpPerspective` replaced by `Matrix.setPolyToPoly`), and draw-engine code
+  (`imageeditor/engine/draw`: shape/arrow geometry from `PathHelper.kt`, paint set-up from
+  `DrawUtils.kt`, `FloodFill.kt`). Adjustment/preset choices and the watermark placement model
+  follow `feature/filters` and `feature/watermarking`.
+- Notice practice: every adapted file keeps the upstream Apache-2.0 header with an added
+  "Modified by ClearPDF" line; attribution is also in `NOTICE` and Settings → Licenses.
+
+## GPUImage for Android
+
+- Artifact: `jp.co.cyberagent.android:gpuimage:2.1.0` (Maven Central; ~0.2 MB incl. a tiny native helper)
+- License: Apache License 2.0 (CyberAgent, Inc.)
+- Use: GL-accelerated adjustments (white balance, vibrance, gamma, sharpen, vignette) and
+  artistic presets in the image editor.
+
+## Google ML Kit Subject Segmentation
+
+- Artifact: `com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1`
+- License: Google APIs Terms of Service
+- Use: optional automatic background removal in the image editor. The model is delivered by
+  Google Play services; the call is gated at runtime (Android 7+, Play services present) behind
+  the `BackgroundRemover` interface so FOSS builds can swap or drop it.
+
+## Stack Blur
+
+- Algorithm by Mario Klingemann (public domain), re-implemented in `imageeditor/engine/BlurUtils.kt`
+  as the pre-Android-12 fallback for the blur brush.
