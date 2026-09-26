@@ -235,19 +235,21 @@ fun ImageEditorScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AnimatedVisibility(state.hasEdits && state.tool != Tool.Crop && !state.isLoading, enter = fadeIn(), exit = fadeOut()) {
-                Box(
-                    Modifier.pointerInput(Unit) {
-                        detectTapGestures(onPress = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            comparing = true
-                            tryAwaitRelease()
-                            comparing = false
-                        })
-                    }
-                ) {
+                Box {
                     LiquidIconButton(onClick = {}, backdrop = glass, isInteractive = false, surfaceColor = Color.White.copy(0.10f)) {
                         Icon(Icons.Rounded.Compare, stringResource(R.string.ie_compare), Modifier.size(18.dp), if (comparing) LiquidGlassColors.Blue else text)
                     }
+                    // Touch overlay on top of the button so press-and-hold isn't eaten by its clickable.
+                    Box(
+                        Modifier.matchParentSize().pointerInput(Unit) {
+                            detectTapGestures(onPress = {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                comparing = true
+                                tryAwaitRelease()
+                                comparing = false
+                            })
+                        }
+                    )
                 }
             }
         }
