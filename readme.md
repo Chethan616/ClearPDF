@@ -1,187 +1,183 @@
+<div align="center">
 
+<img src="screenshots/banner_gh.png" alt="ClearPDF — free offline PDF editor, Office viewer and image editor for Android" width="100%">
 
 # ClearPDF
 
-<p align="center">
-  <img src="screenshots/banner_gh.png" alt="ClearPDF Banner">
-</p>
+### The free, offline PDF & Office suite for Android — in liquid glass.
 
-<p align="center">
-  <img src="https://img.shields.io/github/stars/Chethan616/ClearPDF?style=for-the-badge" />
-  <img src="https://img.shields.io/github/license/Chethan616/ClearPDF?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/Kotlin-Android-blue?style=for-the-badge&logo=kotlin" />
-  <img src="https://img.shields.io/badge/Jetpack-Compose-purple?style=for-the-badge&logo=jetpackcompose" />
-</p>
+Read, edit, sign and convert **PDF, Word, Excel, PowerPoint and images** entirely on your phone.<br>
+No ads · No subscription · No file-size limits · No uploads · Open source.
 
-<p align="center">
-  Modern open-source PDF toolkit for Android with a beautiful liquid glass inspired UI.
-</p>
+<a href="https://github.com/Chethan616/ClearPDF/releases/latest"><img src="https://img.shields.io/badge/Download-Latest_APK-0A84FF?style=for-the-badge&logo=android&logoColor=white" alt="Download the latest ClearPDF APK"></a>
+<a href="https://github.com/Chethan616/ClearPDF/releases"><img src="https://img.shields.io/github/downloads/Chethan616/ClearPDF/total?style=for-the-badge&color=30D158&logo=github" alt="Total downloads"></a>
+<a href="https://github.com/Chethan616/ClearPDF/releases/latest"><img src="https://img.shields.io/github/v/release/Chethan616/ClearPDF?style=for-the-badge&color=BF5AF2&label=version" alt="Latest version"></a>
+<a href="https://github.com/Chethan616/ClearPDF/stargazers"><img src="https://img.shields.io/github/stars/Chethan616/ClearPDF?style=for-the-badge&color=FF9F0A" alt="GitHub stars"></a>
 
----
+<img src="https://img.shields.io/badge/Android-6.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android 6.0+">
+<img src="https://img.shields.io/badge/Kotlin-Jetpack_Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin + Jetpack Compose">
+<img src="https://img.shields.io/github/license/Chethan616/ClearPDF?style=flat-square&color=64D2FF" alt="MIT license">
+<img src="https://img.shields.io/badge/100%25-offline-5E5CE6?style=flat-square" alt="100% offline">
 
-# ✨ Features
-
-- 📖 Fast PDF reader with smooth, Adobe-style pinch-zoom & pan
-- ✍️ Annotate: pen, highlighter, shapes, arrows + on-device text selection (OCR)
-- 🗂️ Organize pages: reorder, rotate & delete — losslessly
-- 🔀 Merge multiple PDFs (lossless — text & vectors preserved)
-- ✂️ Split and extract PDF pages (lossless)
-- 🗜️ Compress PDFs with quality controls
-- 🔐 Encrypt and decrypt PDFs
-- 🖼️ Images → PDF and 📄 Create PDFs from scans or blank pages
-- 🔎 Extract text from PDFs (copy / share)
-- 📷 Document scanner with edge detection (Google ML Kit)
-- 🌗 Beautiful liquid glass UI for light & dark mode
-- ⚡ Smooth performance built with Jetpack Compose
-- 🔒 Offline-first & privacy friendly — no cloud PDF processing, accounts, ads, or analytics
-- 🛡️ No hidden uploads — PDF work stays on-device; scanner/text-selection ML components are disclosed in `NOTICE`
+</div>
 
 ---
 
-# 📱 Screenshots
+## Why ClearPDF?
 
-<p align="center">
-  <img src="screenshots/dark home screen.jpg" width="210"/>
-  <img src="screenshots/dark create pdf.jpg" width="210"/>
-  <img src="screenshots/dark pdf tools.jpg" width="210"/>
-</p>
+Most "free" PDF apps and websites upload your files, cap file sizes, watermark output or lock basic tools behind a subscription. ClearPDF does all of it **on-device**, for free, forever.
 
-<p align="center">
-  <img src="screenshots/light home screen.jpg" width="210"/>
-  <img src="screenshots/light create pdf.jpg" width="210"/>
-  <img src="screenshots/light pdf tools.jpg" width="210"/>
-</p>
-
----
-
-# 🎬 Demo
-
-Explore the included ClearPDF walkthroughs and editing-tool previews:
-
-- [▶️ Onboarding walkthrough](demo/1.mp4)
-- [▶️ PDF viewer walkthrough](demo/2.mp4)
-
-<p align="center">
-  <img src="demo/3.jpg" width="260" alt="ClearPDF editing tools preview 1"/>
-  <img src="demo/4.jpg" width="260" alt="ClearPDF editing tools preview 2"/>
-  <img src="demo/5.jpg" width="260" alt="ClearPDF editing tools preview 3"/>
-</p>
+| | ClearPDF | Typical freemium PDF apps / sites |
+|---|:---:|:---:|
+| Works fully offline, files never uploaded | ✅ | ❌ |
+| No ads, no account, no subscription | ✅ | ❌ |
+| No file-size or page limits, no watermarks | ✅ | ❌ |
+| PDF **and** Word / Excel / PowerPoint | ✅ | ⚠️ often paid |
+| Real spreadsheet & image editors | ✅ | ❌ |
+| Open source (MIT) | ✅ | ❌ |
 
 ---
 
-# 🧊 Liquid Glass UI
+## ✨ Features
 
-ClearPDF uses a custom Android liquid glass inspired design system with:
+### 📖 PDF viewer & editor
+- Smooth continuous scrolling, pinch-zoom and a fast page scrubber
+- **Native-feeling text selection** — long-press any word, drag handles with a magnifier across lines and pages; copy, share, search or translate
+- Annotate: highlight, underline, strikethrough, pen, shapes, arrows, text boxes and sticky notes
+- Sign documents, fill forms, add page numbers and watermarks, flatten
+- Search inside documents, OCR for scanned pages (on-device)
 
-- Blur & transparency effects
-- Floating glass cards
-- Dynamic gradients
-- Smooth rounded layouts
-- Adaptive light & dark themes
+### 🧰 PDF tools
+Merge · Split · Extract pages · Organize (reorder, rotate, delete) · Compress · Encrypt / decrypt · Images → PDF · PDF → images · HTML → PDF · Extract text · Create PDF — all **lossless** where possible.
 
-Designed specifically for modern Android devices using Jetpack Compose.
+### 📊 Spreadsheet editor (xlsx)
+- Faithful Excel rendering: fills, fonts, borders, merged cells, frozen panes, column widths, theme colours
+- Edit cells with a formula bar, format with a colour picker, use dropdown (data-validation) cells
+- Insert / delete rows and columns, undo / redo, save back to **.xlsx** without breaking the rest of the file
+
+### 🖼️ Image editor
+Crop, straighten, perspective, shape masks · 13 adjustments · 22 filters · brushes, shapes, arrows, blur & pixelate · text · **background removal** · watermark · resize & format · EXIF viewer / stripper. Non-destructive with full undo / redo.
+
+### 📄 Word, PowerPoint & more
+Open **docx, doc, odt, rtf, pptx, ppt, xlsx, xls** and more. Optionally download the **Office engine (powered by LibreOffice)** in Settings for pixel-faithful Office rendering — it runs in its own sandboxed process and never leaves your device.
+
+### 📷 Document scanner
+Edge-detecting scanner that turns paper into clean, searchable PDFs.
+
+### 💎 Liquid glass design
+A custom liquid-glass design system for Android — real refraction, blur and light, adaptive light & dark themes, and fluid spring animations throughout.
+
+### 🔒 Private by design
+No ads, no analytics, no accounts. Your documents are processed on your phone. See [PRIVACY.md](PRIVACY.md).
 
 ---
 
-# 🛠 Tech Stack
+## 📱 Screenshots
 
-- Kotlin
-- Jetpack Compose
-- Material 3
-- Android PDF rendering libraries
-- Android Liquid Glass effects
+<div align="center">
+  <img src="screenshots/light%20home%20screen.jpg" width="24%" alt="ClearPDF home screen (light)">
+  <img src="screenshots/light%20pdf%20tools.jpg" width="24%" alt="ClearPDF PDF tools (light)">
+  <img src="screenshots/light%20settings%20screen.jpg" width="24%" alt="ClearPDF settings (light)">
+  <img src="demo/3.jpg" width="24%" alt="ClearPDF PDF editing tools">
+</div>
+<div align="center">
+  <img src="screenshots/dark%20home%20screen.jpg" width="24%" alt="ClearPDF home screen (dark)">
+  <img src="screenshots/dark%20pdf%20tools.jpg" width="24%" alt="ClearPDF PDF tools (dark)">
+  <img src="screenshots/dark%20settings%20screen.jpg" width="24%" alt="ClearPDF settings (dark)">
+  <img src="demo/4.jpg" width="24%" alt="ClearPDF annotation tools">
+</div>
+
+🎬 Video walkthroughs: [onboarding](demo/1.mp4) · [PDF viewer](demo/2.mp4)
 
 ---
 
-# 🚀 Getting Started
+## ⬇️ Download
 
-Clone the repository:
+Grab the APK from the **[latest release](https://github.com/Chethan616/ClearPDF/releases/latest)**:
+
+| APK | For |
+|---|---|
+| `ClearPDF-vX-arm64-v8a.apk` | Almost every modern phone (recommended) |
+| `ClearPDF-vX-armeabi-v7a.apk` | Older 32-bit phones |
+| `ClearPDF-vX-universal.apk` | Not sure? This one works everywhere (larger) |
+
+Get automatic updates with **[Obtainium](https://github.com/ImranR98/Obtainium)** — add `https://github.com/Chethan616/ClearPDF`.
+
+---
+
+## ❓ FAQ
+
+<details>
+<summary><b>Is ClearPDF really free? What's the catch?</b></summary>
+
+It's free and open source under the MIT license. There are no ads, no in-app purchases and no data collection.
+</details>
+
+<details>
+<summary><b>Does it upload my documents?</b></summary>
+
+No. Every PDF, Office and image operation runs on your device. The only optional network use is downloading the Office engine when you ask for it (sideload builds), verified by SHA-256.
+</details>
+
+<details>
+<summary><b>Can it edit Excel / Word / PowerPoint files?</b></summary>
+
+Spreadsheets (.xlsx) can be edited and saved. Word and PowerPoint files open in the viewer and can be annotated, exported and shared as PDF. A PowerPoint editor is on the roadmap.
+</details>
+
+<details>
+<summary><b>Is it an alternative to Adobe Acrobat, iLovePDF or Smallpdf?</b></summary>
+
+For everyday tasks — reading, annotating, signing, merging, splitting, compressing, converting — yes, and without uploads, limits or subscriptions.
+</details>
+
+---
+
+## 🛠️ Build from source
+
+Requires JDK 17+ and Android SDK 36.
 
 ```bash
 git clone https://github.com/Chethan616/ClearPDF.git
-```
-
-Open the project in Android Studio and run:
-
-1. Sync Gradle
-2. Build the project
-3. Run on a real device or emulator
-
-The project uses JDK 17 or newer and Android SDK 36. Build the release variant locally with:
-
-```bash
-./gradlew assembleFossRelease   # GitHub/sideload APKs (per-ABI + universal)
+cd ClearPDF
+./gradlew assembleFossRelease   # sideload APKs (per-ABI + universal)
 ./gradlew bundlePlayRelease     # Google Play bundle
 ```
 
-There are two product flavors (dimension `distribution`, same `applicationId`):
+Two product flavors share one `applicationId`:
 
-- `play` — Google Play. ClearPDF adds no `INTERNET` permission of its own; the optional Office engine (powered by
-  LibreOffice) is the on-demand dynamic feature `:office_engine`. Its ~46 MB binaries are not in git:
-  `bundlePlay*` downloads the pinned archives, verifies their SHA-256 and unpacks them
-  (`:office_engine:prepareOfficeEngineBinaries`). Other tasks never need the network.
-- `foss` — the engine is downloaded on request in Settings, SHA-256 verified.
+- **`foss`** — GitHub / sideload builds. The optional Office engine downloads in-app on request, pinned and SHA-256 verified.
+- **`play`** — Google Play. The Office engine ships as the on-demand dynamic feature `:office_engine`; its binaries are fetched and verified only by `bundlePlay*` tasks.
 
-Debug equivalents: `assemblePlayDebug`, `assembleFossDebug`, `installFossDebug`.
+Debug: `assembleFossDebug`, `installFossDebug`, `assemblePlayDebug`. Release builds fall back to debug signing unless local signing credentials are configured — never commit `key.properties` or keystores.
 
-The release build is intentionally unsigned for contributors unless local signing credentials are configured. Never commit `key.properties`, keystores, APKs, or private documents.
+**Stack:** Kotlin · Jetpack Compose · PdfBox-Android · Android PdfRenderer · ML Kit · LibreOfficeKit (optional) · GPUImage · custom liquid-glass backdrop engine.
 
 ---
 
-# ❤️ Open Source
+## 🤝 Contributing
 
-ClearPDF is fully open source and built for the Android community.
+Bug reports, ideas and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and use the issue templates.
 
-If you like the project:
-
-- ⭐ Star the repository
-- 🍴 Fork the project
-- 🛠 Contribute improvements
-- 📢 Share it with others
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the offline-first contribution principles and release workflow. See [PRIVACY.md](PRIVACY.md) for the app's privacy and offline behavior. Please use the issue templates for bugs and feature requests.
-
----
-
-# 🙌 Credits
-
-Liquid glass and backdrop effects are inspired by and partially adapted from:
-
-AndroidLiquidGlass by kyant0  
-https://github.com/Kyant0/AndroidLiquidGlass
-
-Lossless PDF page operations and text extraction are powered by:
-
-PdfBox-Android by Tom Roush (a port of Apache PDFBox)  
-https://github.com/TomRoush/PdfBox-Android
-
-Both are licensed under the Apache License 2.0.
-
----
-
-# 🤝 Contributing
-
-Contributions are welcome.
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Open a pull request
-
----
-
-# 📄 License
-
-MIT License — see [LICENSE](LICENSE).
-
----
-
-# 💖 Support
-
-If you find ClearPDF useful, consider supporting development:
+If ClearPDF saves you from a subscription, **⭐ star the repo** and share it — it genuinely helps others find it.
 
 [![Sponsor on GitHub](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=githubsponsors&style=for-the-badge)](https://github.com/sponsors/Chethan616)
 
-Repository funding metadata lives in:
+---
 
-`.github/FUNDING.yml`
+## 🙌 Credits
+
+- [AndroidLiquidGlass](https://github.com/Kyant0/AndroidLiquidGlass) by Kyant0 — backdrop / liquid-glass effects (Apache-2.0)
+- [AndroidLiquidGlassView](https://github.com/QmDeve/AndroidLiquidGlassView) by QmDeve — motion techniques (MIT)
+- [PdfBox-Android](https://github.com/TomRoush/PdfBox-Android) by Tom Roush — lossless PDF operations (Apache-2.0)
+- [ImageToolbox](https://github.com/T8RIN/ImageToolbox) by T8RIN — image-editor cropper and draw engine (Apache-2.0)
+- [GPUImage for Android](https://github.com/cats-oss/android-gpuimage) — image filters (Apache-2.0)
+- [LibreOffice](https://www.libreoffice.org/) — optional Office engine (MPL-2.0), downloaded on request, not bundled
+
+Full notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## 📄 License
+
+[MIT](LICENSE) © 2026 Chethan616
+
+<sub>Keywords: offline PDF editor Android, free PDF reader, PDF annotator, PDF signer, merge PDF, split PDF, compress PDF, docx viewer, xlsx editor, spreadsheet editor, pptx viewer, image editor, background remover, document scanner, open source Adobe Acrobat alternative, iLovePDF alternative, Smallpdf alternative, liquid glass UI, Jetpack Compose.</sub>
