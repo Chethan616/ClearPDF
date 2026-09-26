@@ -4,8 +4,9 @@
 
     <!-- Camera permission for document scanning -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- Network access was used ONLY by the Web-to-PDF tool. That tool is disabled for this
-         privacy-focused (fully offline) release, so no network permissions are declared.
+    <!-- No network permissions here: the play flavor is fully offline (the optional Office engine
+         arrives through Play Feature Delivery). Only the foss flavor adds INTERNET, solely to
+         download that engine on request - see src/foss/AndroidManifest.xml.
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> -->
     <!-- Legacy read access for older providers on Android 12L and below. -->
@@ -145,6 +146,22 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Optional Office engine (powered by LibreOffice), isolated in its own process so a
+             native crash or runaway document can never take down the app. -->
+        <service
+            android:name=".office.OfficeEngineService"
+            android:exported="false"
+            android:process=":office" />
+
+        <!-- WebViews only ever render local content; opt out of Safe Browsing lookups and
+             WebView usage metrics so nothing is sent even in builds that hold INTERNET. -->
+        <meta-data
+            android:name="android.webkit.WebView.EnableSafeBrowsing"
+            android:value="false" />
+        <meta-data
+            android:name="android.webkit.WebView.MetricsOptOut"
+            android:value="true" />
     </application>
 
 </manifest>
