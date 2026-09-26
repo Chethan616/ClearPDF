@@ -29,4 +29,8 @@ include(":backdrop")
 include(":pdf-core")
 include(":ocr-core")
 include(":app")
-include(":office_engine")
+// The Play Feature Delivery module only makes sense inside an app bundle, and AGP can't build it
+// next to the app's ABI-split APKs — so it joins the build only for bundle tasks.
+if (gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }) {
+    include(":office_engine")
+}

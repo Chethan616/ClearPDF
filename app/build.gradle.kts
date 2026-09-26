@@ -97,7 +97,12 @@ android {
             dimension = "distribution"
         }
     }
-    dynamicFeatures += setOf(":office_engine")
+    // AGP can't link a dynamic feature against ABI-split APK outputs, and the feature is only
+    // ever delivered through a Play bundle anyway — so register it for bundle builds only.
+    // APK builds (sideload/foss) simply don't contain it; the play installer then falls back.
+    if (gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }) {
+        dynamicFeatures += setOf(":office_engine")
+    }
     // Bundling on-device OCR (bundled ML Kit + Tesseract4Android) added native .so libs for
     // 4 CPU architectures; without splitting, every install carries all 4. This produces one
     // APK per ABI (~1/4 the native-lib weight each) plus a universal fallback for sideloading.
