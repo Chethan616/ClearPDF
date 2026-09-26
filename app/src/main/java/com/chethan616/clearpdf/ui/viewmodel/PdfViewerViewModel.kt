@@ -165,7 +165,9 @@ data class PdfViewerUiState(
     val currentMatchIndex: Int = -1,
     // One-time "Improve fidelity with the Office engine" hint, shown after an Office file was
     // rendered by the built-in renderers on a device that supports the optional engine.
-    val showOfficeEngineHint: Boolean = false
+    val showOfficeEngineHint: Boolean = false,
+    /** True when the optional Office engine (LibreOffice) produced the pages on screen. */
+    val renderedByOfficeEngine: Boolean = false
 )
 
 class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel() {
@@ -259,7 +261,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                         else -> readableUri
                     }
                 }
-                val (doc, _) = withContext(Dispatchers.IO) {
+                val (doc, renderedUri) = withContext(Dispatchers.IO) {
                     openDocumentWithFallback(context, sourceUri)
                 }
                 // A revoked share-intent grant fails the DISPLAY_NAME query on `uri` exactly the way
@@ -291,7 +293,8 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     exportMessage = null,
                     exportError = null,
                     lastExportedUri = null,
-                    showOfficeEngineHint = com.chethan616.clearpdf.office.OfficeEngine.shouldOfferHint(context, displayName)
+                    showOfficeEngineHint = com.chethan616.clearpdf.office.OfficeEngine.shouldOfferHint(context, displayName),
+                    renderedByOfficeEngine = renderedUri.path?.contains("/office-pdf/") == true
                 )
                 // The ORIGINAL uri, deliberately — not `openedUri`.
                 //

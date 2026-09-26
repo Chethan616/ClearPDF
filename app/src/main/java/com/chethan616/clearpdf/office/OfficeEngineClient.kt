@@ -83,7 +83,7 @@ object OfficeEngineClient {
                     }
                 }
             } ?: return Result(null, "Cannot open file")
-            digest.update("$ext|${OfficeEngineStore.installedVersion(app)}".toByteArray())
+            digest.update("$ext|${OfficeEngineStore.installedVersion(app)}|fonts2".toByteArray())
             val key = digest.digest().joinToString("") { "%02x".format(it) }.take(40)
             // Password-protected output is never cached: the PDF is unencrypted.
             val cached = File(cacheDir, "$key.pdf")

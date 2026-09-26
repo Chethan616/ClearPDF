@@ -71,6 +71,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.Search
@@ -1092,6 +1094,35 @@ fun PdfViewerScreen(
                     ) {
                         Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), topFg)
                     }
+                }
+            }
+
+            // Brief confirmation that the optional Office engine rendered this file, so installing
+            // it has a visible effect (before, nothing told the user which renderer was used).
+            var showEngineChip by remember(state.renderedByOfficeEngine, state.document) {
+                mutableStateOf(state.renderedByOfficeEngine)
+            }
+            LaunchedEffect(showEngineChip) {
+                if (showEngineChip) { kotlinx.coroutines.delay(2800L); showEngineChip = false }
+            }
+            AnimatedVisibility(
+                visible  = showEngineChip,
+                enter    = fadeIn(spring(stiffness = 300f)),
+                exit     = fadeOut(tween(220)),
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 76.dp)
+            ) {
+                Row(
+                    Modifier
+                        .viewerGlass(contentBackdrop, viewerChromeGlass(isDarkMode), shape = { com.kyant.shapes.Capsule })
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp), LiquidGlassColors.Teal)
+                    BasicText(
+                        stringResource(R.string.office_engine_rendered),
+                        style = TextStyle(topFg, 13.sp, fontWeight = FontWeight.SemiBold)
+                    )
                 }
             }
 

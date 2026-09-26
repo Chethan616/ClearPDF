@@ -32,6 +32,7 @@ internal object OfficeEngineRuntime {
         System.load(File(lib, "liblo-native-code.so").absolutePath)
 
         val tmp = File(app.cacheDir, "office-tmp").apply { mkdirs() }
+        configureFonts(app, engineDir)
         LibreOfficeKit.putenv("SAL_LOG=-WARN-INFO")
         LibreOfficeKit.putenv("SAL_LOK_OPTIONS=compact_fonts")
         LibreOfficeKit.putenv("TMPDIR=${tmp.absolutePath}")
@@ -46,6 +47,55 @@ internal object OfficeEngineRuntime {
         val handle = LibreOfficeKit.getLibreOfficeKitHandle()
             ?: throw ConversionException("Office engine failed to initialise")
         return Office(handle).also { office = it }
+    }
+
+    /**
+     * The bundle ships its fontconfig file as `etc/fonts/fonts.conf.txt` (the name the upstream
+     * Android bootstrap renames on unpack), so fontconfig found no config at all, had no writable
+     * cache, and never saw the bundle's metric-compatible Office fonts — every document fell back
+     * to arbitrary system faces and looked no better than the built-in renderer. Write a real
+     * config that lists the system fonts *and* the engine's own fonts, maps the Microsoft core
+     * families to their metric twins, and gives fontconfig a cache dir; then point the engine at it.
+     */
+    private fun configureFonts(app: Context, engineDir: File) {
+        val fontsDir = File(engineDir, "etc/fonts").apply { mkdirs() }
+        val cache = File(app.cacheDir, "fontconfig").apply { mkdirs() }
+        val home = File(app.filesDir, "office-home").apply { mkdirs() }
+        val dirs = listOf("/system/fonts", "/product/fonts", "/system/product/fonts") +
+            listOf("user/fonts", "share/fonts", "share/fonts/truetype").map { File(engineDir, it) }
+                .filter { it.isDirectory }.map { it.absolutePath }
+        fun alias(from: String, to: String) =
+            "  <alias binding=\"same\"><family>$from</family><prefer><family>$to</family></prefer></alias>\n"
+        val conf = buildString {
+            append("<?xml version=\"1.0\"?>\n<!DOCTYPE fontconfig SYSTEM \"fonts.dtd\">\n<fontconfig>\n")
+            dirs.forEach { append("  <dir>").append(it).append("</dir>\n") }
+            append("  <cachedir>").append(cache.absolutePath).append("</cachedir>\n")
+            append(alias("Calibri", "Carlito"))
+            append(alias("Cambria", "Caladea"))
+            append(alias("Arial", "Liberation Sans"))
+            append(alias("Helvetica", "Liberation Sans"))
+            append(alias("Arial Narrow", "Liberation Sans Narrow"))
+            append(alias("Times New Roman", "Liberation Serif"))
+            append(alias("Times", "Liberation Serif"))
+            append(alias("Courier New", "Liberation Mono"))
+            append(alias("Courier", "Liberation Mono"))
+            append(alias("sans-serif", "Roboto"))
+            append(alias("serif", "Noto Serif"))
+            append(alias("monospace", "Droid Sans Mono"))
+            append("</fontconfig>\n")
+        }
+        val confFile = File(fontsDir, "fonts.conf")
+        if (!confFile.isFile || confFile.readText() != conf) confFile.writeText(conf)
+        val env = listOf(
+            "FONTCONFIG_FILE" to confFile.absolutePath,
+            "FONTCONFIG_PATH" to fontsDir.absolutePath,
+            "XDG_CACHE_HOME" to app.cacheDir.absolutePath,
+            "HOME" to home.absolutePath
+        )
+        for ((k, v) in env) {
+            runCatching { android.system.Os.setenv(k, v, true) }
+            LibreOfficeKit.putenv("$k=$v")
+        }
     }
 
     /** Converts [input] to PDF at [output]. The input's extension drives format detection. */

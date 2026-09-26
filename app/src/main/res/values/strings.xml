@@ -676,4 +676,5 @@
     <string name="sheet_formula_hint">Enter a value or =formula</string>
     <string name="sheet_read_only">This file can be viewed but not edited</string>
     <string name="sheet_invalid_value">That value isn\'t in this cell\'s list</string>
+    <string name="office_engine_rendered">Rendered by Office engine</string>
 </resources>
