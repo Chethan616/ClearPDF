@@ -4,7 +4,8 @@
 
     <!-- Camera permission for document scanning -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- No network permissions here: the play flavor is fully offline (the optional Office engine
+    <!-- ClearPDF declares no network permissions here (note: merged ML Kit/datatransport library
+         manifests still contribute INTERNET). The play flavor itself is offline (the optional Office engine
          arrives through Play Feature Delivery). Only the foss flavor adds INTERNET, solely to
          download that engine on request - see src/foss/AndroidManifest.xml.
     <uses-permission android:name="android.permission.INTERNET" />

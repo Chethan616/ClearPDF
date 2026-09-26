@@ -116,7 +116,7 @@ The project uses JDK 17 or newer and Android SDK 36. Build the release variant l
 
 There are two product flavors (dimension `distribution`, same `applicationId`):
 
-- `play` — Google Play. No `INTERNET` permission; the optional Office engine (powered by
+- `play` — Google Play. ClearPDF adds no `INTERNET` permission of its own; the optional Office engine (powered by
   LibreOffice) is the on-demand dynamic feature `:office_engine`. Its ~46 MB binaries are not in git:
   `bundlePlay*` downloads the pinned archives, verifies their SHA-256 and unpacks them
   (`:office_engine:prepareOfficeEngineBinaries`). Other tasks never need the network.
