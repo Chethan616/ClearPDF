@@ -53,9 +53,50 @@ internal object ExcelCellFormat {
      * behaviour and never worse than it.
      */
     fun formatCodesFor(numFmtIdByStyle: List<Int>, customCodes: Map<Int, String>): List<String> =
-        numFmtIdByStyle.map { id ->
-            customCodes[id] ?: if (id == 14) ShortDatePattern else (BuiltIn[id] ?: "General")
+        numFmtIdByStyle.map { id -> codeFor(id, customCodes) }
+
+    /** One `numFmtId` → its format code (custom first, then the built-in table). */
+    fun codeFor(id: Int, customCodes: Map<Int, String>): String =
+        customCodes[id] ?: if (id == 14) ShortDatePattern else (BuiltIn[id] ?: "General")
+
+    /** The built-in id whose code is exactly [code], or null when it has to be a custom `numFmt`. */
+    fun builtInIdFor(code: String): Int? =
+        if (code.equals("General", true)) 0 else BuiltIn.entries.firstOrNull { it.value == code && it.key != 14 }?.key
+
+    /** True when [code] renders serials as dates/times. */
+    fun isDateCode(code: String?): Boolean {
+        if (code.isNullOrBlank() || code.equals("General", true)) return false
+        val body = splitSections(code).firstOrNull()?.replace(Regex("\\[(?!h+]|hh+])[^]]*]", RegexOption.IGNORE_CASE), "") ?: return false
+        return runCatching { isDateTime(body) }.getOrDefault(false)
+    }
+
+    /**
+     * The colour a format code's section paints [raw] in — `[Red]`, `[Blue]`, `[Color10]` — as ARGB,
+     * or null when the section names none. `#,##0;[Red]-#,##0` is how most finance sheets show a loss.
+     */
+    fun colorFor(raw: String, code: String?): Int? {
+        if (code.isNullOrBlank() || !code.contains('[')) return null
+        val value = raw.trim().toDoubleOrNull() ?: return null
+        val sections = splitSections(code)
+        val section = when {
+            value < 0 && sections.size >= 2 -> sections[1]
+            value == 0.0 && sections.size >= 3 -> sections[2]
+            else -> sections[0]
         }
+        val m = Regex("\\[(Black|Blue|Cyan|Green|Magenta|Red|White|Yellow|Color\\s*(\\d+))]", RegexOption.IGNORE_CASE)
+            .find(section) ?: return null
+        return when (m.groupValues[1].lowercase().replace(" ", "").takeWhile { it.isLetter() }) {
+            "black" -> 0xFF000000.toInt()
+            "blue" -> 0xFF0000FF.toInt()
+            "cyan" -> 0xFF00FFFF.toInt()
+            "green" -> 0xFF00FF00.toInt()
+            "magenta" -> 0xFFFF00FF.toInt()
+            "red" -> 0xFFFF0000.toInt()
+            "white" -> 0xFFFFFFFF.toInt()
+            "yellow" -> 0xFFFFFF00.toInt()
+            else -> m.groupValues[2].toIntOrNull()?.let { com.chethan616.clearpdf.utils.xlsx.XlsxColors.indexed(it + 7) }
+        }
+    }
 
     /**
      * Render [raw] (the literal `<v>` text of a numeric cell) through [code].

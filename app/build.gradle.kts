@@ -76,6 +76,11 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        // Plain JVM unit tests (the xlsx model/writer). Android stubs return defaults instead of
+        // throwing so incidental framework calls don't fail a pure-logic test.
+        unitTests.isReturnDefaultValues = true
+    }
     // Bundling on-device OCR (bundled ML Kit + Tesseract4Android) added native .so libs for
     // 4 CPU architectures; without splitting, every install carries all 4. This produces one
     // APK per ABI (~1/4 the native-lib weight each) plus a universal fallback for sideloading.
@@ -160,4 +165,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.acccompanist.permissions)
     implementation("androidx.documentfile:documentfile:1.0.1")
+
+    testImplementation("junit:junit:4.13.2")
+    // A real XmlPullParser for JVM tests; android.jar only carries stubs of it.
+    testImplementation("net.sf.kxml:kxml2:2.3.0")
 }
