@@ -3,7 +3,6 @@ package com.chethan616.clearpdf.ui.components
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +20,8 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,13 +29,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -51,13 +50,25 @@ import com.kyant.backdrop.effects.colorControls
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.Shadow
-import com.kyant.shapes.Capsule
 import com.kyant.shapes.RoundedRectangle
+
+/** Backdrop the dialog panel samples, handed to [GlassDialogAction]s so the pills refract the same scene. */
+private val LocalDialogBackdrop = staticCompositionLocalOf<Backdrop?> { null }
+
+/** Blur of the dialog panel, so action pills frost the scene exactly like the sheet they sit on. */
+private val LocalDialogBlur = staticCompositionLocalOf { 16.dp }
+
+/** Panel surface wash, reused by neutral action pills so they read as the same glass. */
+private val LocalDialogSurface = staticCompositionLocalOf { Color.Unspecified }
 
 /**
  * Liquid-glass alert dialog (catalog DialogContent recipe) rendered **in-hierarchy** so it can
- * refract [backdrop]. Place it as the last child of a full-screen Box whose content records into
- * [backdrop] (a platform Dialog window could not sample the app's backdrop layer).
+ * refract [backdrop]. Place it as the last child of a full-screen Box, OUTSIDE the layer that records
+ * into [backdrop] (a platform Dialog window could not sample the app's backdrop layer).
+ *
+ * Pass the screen's LIVE backdrop — [ScreenBackdrop.glass] for a [GlassScreenScaffold] screen, the
+ * viewer's `contentBackdrop` for the PDF viewer / image editor. With the wallpaper off by default a
+ * wallpaper-only backdrop has nothing to bend and the panel reads as a flat card.
  *
  * Entrance: scrim fades in, panel scales 0.88 -> 1 with a spring while the lens strength ramps with
  * the same progress (ControlCenter-style progressive lens). Back press and scrim tap call [onDismiss].
@@ -90,8 +101,11 @@ fun GlassDialog(
     BackHandler(enabled = visible) { onDismiss() }
 
     val isLight = !LocalIsDarkMode.current
-    val containerColor = if (isLight) Color(0xFFFAFAFA).copy(0.6f) else Color(0xFF121212).copy(0.4f)
-    val dimColor = if (isLight) Color(0xFF29293A).copy(0.23f) else Color(0xFF121212).copy(0.56f)
+    // Lighter wash + scrim than the catalog so the live screen behind stays visible through the
+    // glass — a heavy scrim leaves the lens nothing to refract.
+    val containerColor = if (isLight) Color(0xFFFAFAFA).copy(0.5f) else Color(0xFF121212).copy(0.34f)
+    val dimColor = if (isLight) Color(0xFF29293A).copy(0.16f) else Color(0xFF000000).copy(0.32f)
+    val blurDp = if (isLight) 16.dp else 8.dp
     val contentColor = LiquidGlassColors.text(!isLight)
 
     Box(
@@ -132,7 +146,7 @@ fun GlassDialog(
                             brightness = if (isLight) 0.2f else 0f,
                             saturation = 1.5f
                         )
-                        blur(if (isLight) 16f.dp.toPx() else 8f.dp.toPx())
+                        blur(blurDp.toPx())
                         lens(24f.dp.toPx() * p, 48f.dp.toPx() * p, depthEffect = true, chromaticAberration = true)
                     },
                     highlight = { Highlight.Plain },
@@ -159,21 +173,28 @@ fun GlassDialog(
             Column(Modifier.fillMaxWidth().padding(horizontal = 24f.dp, vertical = 8f.dp)) {
                 content()
             }
-            Row(
-                Modifier
-                    .padding(24f.dp, 12f.dp, 24f.dp, 24f.dp)
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12f.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                content = actions
-            )
+            CompositionLocalProvider(
+                LocalDialogBackdrop provides backdrop,
+                LocalDialogBlur provides blurDp,
+                LocalDialogSurface provides containerColor
+            ) {
+                Row(
+                    Modifier
+                        .padding(24f.dp, 12f.dp, 24f.dp, 24f.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12f.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    content = actions
+                )
+            }
         }
     }
 }
 
 /**
- * Capsule action for [GlassDialog]'s `actions` slot (catalog style): secondary = faint glass fill,
- * primary = solid accent, destructive = red text.
+ * Liquid-glass capsule action for [GlassDialog]'s `actions` slot, in the vivid "Get it"
+ * [LiquidButton] style: primary = [tint] (screen accent), destructive = Red, neutral = clear glass
+ * frosted like the panel. Each pill refracts the same live backdrop as the dialog.
  */
 @Composable
 fun RowScope.GlassDialogAction(
@@ -182,36 +203,37 @@ fun RowScope.GlassDialogAction(
     modifier: Modifier = Modifier,
     primary: Boolean = false,
     destructive: Boolean = false,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    tint: Color = LiquidGlassColors.Blue
 ) {
     val isDark = LocalIsDarkMode.current
     val haptics = LocalHapticFeedback.current
-    val accent = if (destructive) LiquidGlassColors.Red else LiquidGlassColors.Blue
-    val bg = when {
-        primary -> accent
-        isDark -> Color.White.copy(0.10f)
-        else -> Color.Black.copy(0.06f)
-    }
-    val fg = when {
-        primary -> Color.White
+    val backdrop = LocalDialogBackdrop.current ?: error("GlassDialogAction must be used inside GlassDialog")
+    val pillTint = when {
         destructive -> LiquidGlassColors.Red
-        else -> LiquidGlassColors.text(isDark)
+        primary -> tint
+        else -> Color.Unspecified
     }
-    Row(
-        modifier
-            .weight(1f)
-            .height(48.dp)
-            .clip(Capsule)
-            .background(bg)
-            .clickable(enabled = enabled, role = Role.Button) {
-                haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+    val fg = if (pillTint != Color.Unspecified) Color.White else LiquidGlassColors.text(isDark)
+    LiquidButton(
+        onClick = {
+            if (enabled) {
+                haptics.performHapticFeedback(if (destructive) HapticFeedbackType.LongPress else HapticFeedbackType.ContextClick)
                 onClick()
             }
-            .graphicsLayer { alpha = if (enabled) 1f else 0.4f }
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+        },
+        backdrop = backdrop,
+        modifier = modifier
+            .weight(1f)
+            .graphicsLayer { alpha = if (enabled) 1f else 0.4f },
+        tint = pillTint,
+        surfaceColor = if (pillTint == Color.Unspecified) LocalDialogSurface.current else Color.Unspecified,
+        blurRadius = LocalDialogBlur.current
     ) {
-        BasicText(text, style = TextStyle(fg, 16.sp, if (primary) FontWeight.SemiBold else FontWeight.Medium), maxLines = 1)
+        BasicText(
+            text,
+            style = TextStyle(fg, 16.sp, if (primary || destructive) FontWeight.SemiBold else FontWeight.Medium),
+            maxLines = 1
+        )
     }
 }

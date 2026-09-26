@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtMost
 import androidx.compose.ui.util.lerp
@@ -72,6 +73,10 @@ fun LiquidButton(
     isInteractive: Boolean = true,
     tint: Color = Color.Unspecified,
     surfaceColor: Color = Color.Unspecified,
+    // Frost behind the pill. 2 dp is the catalog look over the wallpaper; a button that sits on
+    // top of another glass panel (dialog actions) passes that panel's blur so it reads as the same
+    // frosted sheet with a lensed rim instead of a sharp window punched through it.
+    blurRadius: Dp = 2.dp,
     content: @Composable RowScope.() -> Unit
 ) {
     val animationScope = rememberCoroutineScope()
@@ -86,7 +91,7 @@ fun LiquidButton(
                 shape = { Capsule },
                 effects = {
                     vibrancy()
-                    blur(2f.dp.toPx())
+                    blur(blurRadius.toPx())
                     lens(12f.dp.toPx(), 24f.dp.toPx())
                 },
                 layerBlock = if (isInteractive) {
