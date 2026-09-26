@@ -71,7 +71,7 @@ object XlsxWriter {
                     for (other in wb.sheets) {
                         if (other === sheet) continue
                         val t = texts[other.partPath] ?: continue
-                        if (!t.contains(other.name.let { sheet.name } + "!") && !t.contains("'" + sheet.name.replace("'", "''") + "'!")) continue
+                        if (!t.contains(sheet.name + "!") && !t.contains("'" + sheet.name.replace("'", "''") + "'!")) continue
                         sheetXml(other.partPath)?.shiftForeignFormulas(sheet.name, op.axis, op.at, op.count)
                     }
                 }
@@ -234,7 +234,7 @@ internal class Attrs(val map: LinkedHashMap<String, String> = LinkedHashMap()) {
  */
 internal class SheetXml(text: String) {
     private val prefix: String
-    private val head: String
+    private var headText: String
     private val openTag: String
     private val closeTag: String
     private var tail: String
@@ -249,7 +249,7 @@ internal class SheetXml(text: String) {
         val m = Regex("<((?:\\w+:)?)sheetData\\b([^>]*?)(/?)>").find(text)
             ?: throw IllegalArgumentException("worksheet without sheetData")
         prefix = m.groupValues[1]
-        head = text.substring(0, m.range.first)
+        headText = text.substring(0, m.range.first)
         openTag = "<${prefix}sheetData${m.groupValues[2]}>"
         closeTag = "</${prefix}sheetData>"
         val body: String
@@ -262,11 +262,8 @@ internal class SheetXml(text: String) {
             body = text.substring(m.range.last + 1, end)
             tail = text.substring(end + closeTag.length)
         }
-        headText = head
         parseRows(body)
     }
-
-    private var headText: String
 
     private fun isTagStart(s: String, at: Int, tag: String): Boolean {
         if (!s.startsWith(tag, at)) return false
@@ -332,6 +329,7 @@ internal class SheetXml(text: String) {
 
     fun setCell(ch: CellChange) {
         dirty = true
+        if (ch.after == null && rows[ch.r] == null) return
         val row = rows.getOrPut(ch.r) { RowX(Attrs().also { it["r"] = (ch.r + 1).toString() }, java.util.TreeMap(), "") }
         val existing = row.cells[ch.c]
         val after = ch.after
@@ -479,7 +477,7 @@ internal class SheetXml(text: String) {
                 val ns = sqref?.let { XlsxRefs.shiftSqref(it, axis, at, count) } ?: return@replace if (sqref == null) m.value else ""
                 if (attrs["sqref"] != null) attrs["sqref"] = ns
                 else if (inner != null) body = body.replaceRange(inner.range, "<${inner.groupValues[1]}sqref>$ns</${inner.groupValues[3]}sqref>")
-                body = Regex("<((?:\\w+:)?(?:formula1|formula2|formula|f))>(.*?)</\\1>", RegexOption.DOT_MATCHES_ALL).replace(body) { f ->
+                body = Regex("<((?:\\w+:)?(?:formula1|formula2|formula|f))>([^<]*)</\\1>").replace(body) { f ->
                     val t = XlsxWriter.unescape(f.groupValues[2])
                     "<${f.groupValues[1]}>${XlsxRefs.escapeXml(XlsxRefs.shiftFormula(t, sheet, true, axis, at, count))}</${f.groupValues[1]}>"
                 }
