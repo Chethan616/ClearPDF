@@ -57,6 +57,7 @@ import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.ImagesToPdfViewModel
 import com.chethan616.clearpdf.ui.components.LiquidSaveDialog
+import com.chethan616.clearpdf.ui.components.rememberScreenBackdrop
 import com.kyant.backdrop.backdrops.LayerBackdrop
 
 import androidx.compose.ui.graphics.graphicsLayer
@@ -104,8 +105,11 @@ fun ImagesToPdfScreen(
         label = "imagesContentOffsetY"
     )
 
+    val screenBackdrop = rememberScreenBackdrop(backdrop)
+    Box(Modifier.fillMaxSize()) {
     GlassScreenScaffold(
         backdrop = backdrop,
+        screenBackdrop = screenBackdrop,
         contentBottomPadding = 16.dp,
         header = { headerBackdrop ->
             // Fade only — the header is glass, and translating glass re-runs its blur+lens.
@@ -210,16 +214,17 @@ fun ImagesToPdfScreen(
         }
     }
 
-    if (showSaveDialog) {
-        LiquidSaveDialog(
-            initialFileName = "ClearPDF_Images",
-            backdrop = backdrop,
-            uiSensor = uiSensor,
-            onDismiss = { showSaveDialog = false },
-            onSave = { fileName, overrideUri ->
-                showSaveDialog = false
-                viewModel.save(context, fileName, overrideUri)
-            }
-        )
+    // In-window glass (not a Dialog window) so it refracts the live screen.
+    LiquidSaveDialog(
+        visible = showSaveDialog,
+        initialFileName = "ClearPDF_Images",
+        backdrop = screenBackdrop.glass,
+        uiSensor = uiSensor,
+        onDismiss = { showSaveDialog = false },
+        onSave = { fileName, overrideUri ->
+            showSaveDialog = false
+            viewModel.save(context, fileName, overrideUri)
+        }
+    )
     }
 }

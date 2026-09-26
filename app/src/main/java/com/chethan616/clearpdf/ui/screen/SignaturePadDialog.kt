@@ -87,7 +87,13 @@ import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
+import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.chethan616.clearpdf.ui.components.GlassDialog
+import com.chethan616.clearpdf.ui.components.GlassDialogAction
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -186,6 +192,10 @@ fun SignaturePadDialog(
     }
     // Long-pressed saved signature awaiting a delete confirmation.
     var signatureToDelete by remember { mutableStateOf<SavedSignature?>(null) }
+    // Kept after dismissal so the card's exit animation doesn't flash an empty name.
+    var lastDeleteName by remember { mutableStateOf("") }
+    LaunchedEffect(signatureToDelete) { signatureToDelete?.let { lastDeleteName = it.name } }
+    val padBackdrop = rememberLayerBackdrop()
 
     val confirmSignatureName = {
         val bitmap = pendingSignature
@@ -213,6 +223,11 @@ fun SignaturePadDialog(
         )
     ) {
         BackHandler { requestClose() }
+        // The pad is captured into its own layer so the naming / delete cards (drawn on top, inside
+        // this same window) are real liquid glass refracting the signing screen. They used to be
+        // solid cards in nested Dialog windows, which cannot sample anything.
+        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().layerBackdrop(padBackdrop)) {
         AnimatedVisibility(
             visible = contentVisible,
             modifier = Modifier.fillMaxSize(),
@@ -599,76 +614,54 @@ fun SignaturePadDialog(
 
         }
     }
-    }
+        }
 
-    // Naming uses its own modal window so the platform pans it cleanly above the
-    // keyboard and the signature canvas behind it never reflows.
-    if (showNamePrompt) {
         SignatureNameDialog(
-            backdrop = backdrop,
-            uiSensor = uiSensor,
+            visible = showNamePrompt,
+            backdrop = padBackdrop,
             name = signatureName,
             focusRequester = nameFocusRequester,
             onNameChange = { signatureName = it },
             onDismiss = { showNamePrompt = false; pendingSignature = null },
             onSave = confirmSignatureName
         )
-    }
 
-    // Delete a saved signature (from a long-press on its thumbnail).
-    signatureToDelete?.let { sig ->
-        Dialog(onDismissRequest = { signatureToDelete = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Column(
-                Modifier
-                    .fillMaxWidth(0.82f)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(if (isDark) Color(0xFF1B1E25) else Color.White)
-                    .border(1.dp, if (isDark) Color.White.copy(0.12f) else Color.Black.copy(0.08f), RoundedCornerShape(24.dp))
-                    .padding(22.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                BasicText(
-                    stringResource(R.string.sig_delete_title),
-                    style = TextStyle(chrome, 17.sp, FontWeight.Bold)
-                )
-                BasicText(
-                    stringResource(R.string.sig_delete_msg, sig.name),
-                    style = TextStyle(chrome.copy(0.72f), 14.sp)
-                )
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
-                ) {
-                    LiquidButton(
-                        onClick = { signatureToDelete = null },
-                        backdrop = backdrop,
-                        surfaceColor = chromeChip
-                    ) {
-                        BasicText(stringResource(R.string.cancel), style = TextStyle(chrome, 13.sp), modifier = Modifier.padding(vertical = 4.dp))
-                    }
-                    LiquidButton(
-                        onClick = {
+        // Delete a saved signature (from a long-press on its thumbnail).
+        GlassDialog(
+            visible = signatureToDelete != null,
+            onDismiss = { signatureToDelete = null },
+            backdrop = padBackdrop,
+            title = stringResource(R.string.sig_delete_title),
+            actions = {
+                GlassDialogAction(stringResource(R.string.cancel), onClick = { signatureToDelete = null })
+                GlassDialogAction(
+                    stringResource(R.string.delete),
+                    onClick = {
+                        signatureToDelete?.let { sig ->
                             runCatching {
                                 com.chethan616.clearpdf.data.repository.SignatureManager.deleteSignature(sig.file)
                             }
                             savedSignatures.remove(sig)
-                            signatureToDelete = null
-                        },
-                        backdrop = backdrop,
-                        tint = Color(0xFFEF5350)
-                    ) {
-                        BasicText(stringResource(R.string.delete), style = TextStyle(Color.White, 13.sp, FontWeight.SemiBold), modifier = Modifier.padding(vertical = 4.dp))
-                    }
-                }
+                        }
+                        signatureToDelete = null
+                    },
+                    destructive = true
+                )
             }
+        ) {
+            BasicText(
+                stringResource(R.string.sig_delete_msg, lastDeleteName),
+                style = TextStyle(chrome.copy(0.72f), 15.sp)
+            )
+        }
         }
     }
 }
 
 @Composable
 private fun SignatureNameDialog(
-    backdrop: LayerBackdrop,
-    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
+    visible: Boolean,
+    backdrop: Backdrop,
     name: String,
     focusRequester: FocusRequester,
     onNameChange: (String) -> Unit,
@@ -676,97 +669,63 @@ private fun SignatureNameDialog(
     onSave: () -> Unit
 ) {
     val canSave = name.trim().isNotEmpty()
-    // Same theme-adaptive chrome as the signing screen so the naming sheet matches it in both modes.
     val isDark = LocalIsDarkMode.current
     val chrome = if (isDark) Color.White else Color(0xFF15171C)
-    val cardBg = if (isDark) Color(0xFF1B1E25) else Color.White
-    val cardBorder = if (isDark) Color.White.copy(0.12f) else Color.Black.copy(0.08f)
     val fieldBg = if (isDark) Color.White.copy(0.12f) else Color.Black.copy(0.05f)
-    val chipBg = if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.05f)
 
-    LaunchedEffect(Unit) {
-        delay(150)
-        runCatching { focusRequester.requestFocus() }
+    LaunchedEffect(visible) {
+        if (visible) {
+            delay(150)
+            runCatching { focusRequester.requestFocus() }
+        }
     }
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            Modifier
-                .fillMaxWidth(0.9f)
-                .clip(RoundedCornerShape(26.dp))
-                // Solid card (matches the signature screen) instead of sampling
-                // the wallpaper PNG through glass in a separate Dialog window.
-                .background(cardBg)
-                .border(1.dp, cardBorder, RoundedCornerShape(26.dp))
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            BasicText(
-                stringResource(R.string.sig_name_title),
-                style = TextStyle(chrome, 16.sp, FontWeight.Bold)
+    GlassDialog(
+        visible = visible,
+        onDismiss = onDismiss,
+        backdrop = backdrop,
+        title = stringResource(R.string.sig_name_title),
+        dismissOnScrimTap = false,
+        actions = {
+            GlassDialogAction(stringResource(R.string.cancel), onClick = onDismiss)
+            GlassDialogAction(
+                stringResource(R.string.sig_name_save),
+                onClick = { if (canSave) onSave() },
+                primary = true,
+                enabled = canSave,
+                tint = LiquidGlassColors.Green
             )
-
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(fieldBg)
-                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(Icons.Rounded.Gesture, null, Modifier.size(18.dp), chrome.copy(0.6f))
-                Box(Modifier.weight(1f)) {
-                    if (name.isEmpty()) {
-                        BasicText(
-                            stringResource(R.string.sig_name_hint),
-                            style = TextStyle(chrome.copy(0.45f), 14.sp)
-                        )
-                    }
-                    BasicTextField(
-                        value = name,
-                        onValueChange = onNameChange,
-                        textStyle = TextStyle(chrome, 14.sp),
-                        cursorBrush = SolidColor(chrome),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { if (canSave) onSave() }),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester)
-                    )
-                }
-            }
-
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                LiquidButton(
-                    onClick = onDismiss,
-                    backdrop = backdrop,
-                    surfaceColor = chipBg,
-                    modifier = Modifier.width(100.dp)
-                ) {
+        }
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(fieldBg)
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(Icons.Rounded.Gesture, null, Modifier.size(18.dp), chrome.copy(0.6f))
+            Box(Modifier.weight(1f)) {
+                if (name.isEmpty()) {
                     BasicText(
-                        stringResource(R.string.cancel),
-                        style = TextStyle(chrome.copy(0.78f), 13.sp, FontWeight.Medium),
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        stringResource(R.string.sig_name_hint),
+                        style = TextStyle(chrome.copy(0.45f), 14.sp)
                     )
                 }
-                LiquidButton(
-                    onClick = { if (canSave) onSave() },
-                    backdrop = backdrop,
-                    tint = if (canSave) Color(0xFF00C853) else chipBg,
-                    modifier = Modifier.width(110.dp)
-                ) {
-                    BasicText(
-                        stringResource(R.string.sig_name_save),
-                        style = TextStyle((if (canSave) Color.White else chrome).copy(if (canSave) 1f else 0.45f), 13.sp, FontWeight.SemiBold),
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
+                BasicTextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    textStyle = TextStyle(chrome, 14.sp),
+                    cursorBrush = SolidColor(chrome),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { if (canSave) onSave() }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                )
             }
         }
     }

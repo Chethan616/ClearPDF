@@ -21,6 +21,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,6 +34,7 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -61,10 +64,28 @@ private val DefaultHeaderGap = 12.dp
  * navigation bar — feed it straight into a `LazyColumn`'s `contentPadding`, or into
  * `Modifier.padding(...)` for a `verticalScroll` body.
  */
+/**
+ * The two backdrops a [GlassScreenScaffold] screen samples: [content] is the captured body layer,
+ * [glass] is `wallpaper + live content` — what anything floating OUTSIDE the body (header, dialogs,
+ * sheets) should refract. Hoist it with [rememberScreenBackdrop] when a sibling of the scaffold
+ * (a [GlassDialog], a bottom sheet) must see the real screen, not just the wallpaper — with the
+ * wallpaper off by default, sampling only the wallpaper reads as a flat card.
+ */
+@Stable
+class ScreenBackdrop internal constructor(val content: LayerBackdrop, val glass: Backdrop)
+
+@Composable
+fun rememberScreenBackdrop(wallpaper: Backdrop): ScreenBackdrop {
+    val content = rememberLayerBackdrop()
+    val glass = rememberCombinedBackdrop(wallpaper, content)
+    return remember(content, glass) { ScreenBackdrop(content, glass) }
+}
+
 @Composable
 fun GlassScreenScaffold(
     backdrop: Backdrop,
     modifier: Modifier = Modifier,
+    screenBackdrop: ScreenBackdrop = rememberScreenBackdrop(backdrop),
     contentHorizontalPadding: Dp = GlassDimens.ScreenPadding,
     contentBottomPadding: Dp = 0.dp,
     headerHorizontalPadding: Dp = GlassDimens.ScreenPadding,
@@ -72,10 +93,10 @@ fun GlassScreenScaffold(
     header: @Composable (headerBackdrop: Backdrop) -> Unit,
     content: @Composable BoxScope.(contentPadding: PaddingValues) -> Unit
 ) {
-    val contentBackdrop = rememberLayerBackdrop()
+    val contentBackdrop = screenBackdrop.content
     // Wallpaper first, live content composited over it — the content layer is transparent wherever
     // no card is drawn, so the header still refracts the wallpaper in the gaps.
-    val headerBackdrop = rememberCombinedBackdrop(backdrop, contentBackdrop)
+    val headerBackdrop = screenBackdrop.glass
 
     val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()

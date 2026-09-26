@@ -73,6 +73,7 @@ import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.office.OfficeEngine
 import com.chethan616.clearpdf.ui.components.GlassDialog
+import com.chethan616.clearpdf.ui.components.rememberScreenBackdrop
 import com.chethan616.clearpdf.ui.components.GlassDialogAction
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
@@ -242,8 +243,11 @@ fun SettingsScreen(
         label = "settingsPanel6OffsetY"
     )
 
+    val screenBackdrop = rememberScreenBackdrop(backdrop)
+    Box(Modifier.fillMaxSize()) {
     GlassScreenScaffold(
         backdrop = backdrop,
+        screenBackdrop = screenBackdrop,
         header = { headerBackdrop ->
             // No back button here, so the pill centres against the full width. Fade only — the pill
             // is glass, and translating glass re-runs its blur+lens.
@@ -793,11 +797,12 @@ fun SettingsScreen(
         Spacer(Modifier.height(120.dp))
     }
 
-    // Last child of the scaffold's full-screen Box so the glass refracts the screen behind it.
+    }
+    // Outside the scaffold's captured layer so it refracts the live screen (wallpaper + content).
     GlassDialog(
         visible = officeEngineDeleteSize != null,
         onDismiss = { officeEngineDeleteSize = null },
-        backdrop = backdrop,
+        backdrop = screenBackdrop.glass,
         title = stringResource(R.string.office_engine_delete_title),
         actions = {
             GlassDialogAction(

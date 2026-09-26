@@ -5,6 +5,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -121,8 +125,8 @@ import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.GlassBottomSheet
 import com.chethan616.clearpdf.ui.components.GlassColorPicker
-import com.chethan616.clearpdf.ui.components.GlassDialog
-import com.chethan616.clearpdf.ui.components.GlassDialogAction
+import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
+import com.chethan616.clearpdf.ui.components.rememberScreenBackdrop
 import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.GlassSegmentedControl
@@ -405,9 +409,13 @@ fun SpreadsheetViewerScreen(
         viewModel.applyStyle(idx, sel.range, patch)
     }
 
+    // Hoisted so the unsaved-changes card and the format sheet (siblings of the scaffold, outside its
+    // captured layer) refract the live grid instead of only the — usually disabled — wallpaper.
+    val screenBackdrop = rememberScreenBackdrop(backdrop)
     Box(Modifier.fillMaxSize()) {
         GlassScreenScaffold(
             backdrop = backdrop,
+            screenBackdrop = screenBackdrop,
             contentHorizontalPadding = 12.dp,
             headerHorizontalPadding = 12.dp,
             header = { headerBackdrop ->
@@ -426,9 +434,17 @@ fun SpreadsheetViewerScreen(
                         )
                     }
                     if (state.dirty && state.editable) {
-                        LiquidIconButton(onClick = { save(false) }, backdrop = headerBackdrop, surfaceColor = accent.copy(0.85f)) {
-                            if (state.saving) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
-                            else Icon(Icons.Rounded.Check, stringResource(R.string.sheet_save), Modifier.size(20.dp), Color.White)
+                        // Clear glass like the other header circles; only the tick carries the accent.
+                        // While saving it breathes instead of swapping in a Material spinner.
+                        val savePulse = if (state.saving) {
+                            val t = rememberInfiniteTransition(label = "savePulse")
+                            t.animateFloat(1f, 0.35f, infiniteRepeatable(tween(520), RepeatMode.Reverse), label = "savePulseA").value
+                        } else 1f
+                        LiquidIconButton(onClick = { if (!state.saving) save(false) }, backdrop = headerBackdrop) {
+                            Icon(
+                                Icons.Rounded.Check, stringResource(R.string.sheet_save),
+                                Modifier.size(22.dp).graphicsLayer { alpha = savePulse }, accent
+                            )
                         }
                     }
                     if (!editMode) {
@@ -701,7 +717,7 @@ fun SpreadsheetViewerScreen(
         GlassBottomSheet(
             visible = sheetPanel,
             onDismiss = { panel = Panel.NONE },
-            backdrop = backdrop
+            backdrop = screenBackdrop.glass
         ) {
             val sel = selection
             when (lastSheetPanel) {
@@ -740,19 +756,17 @@ fun SpreadsheetViewerScreen(
         }
 
         // Unsaved changes.
-        GlassDialog(
+        UnsavedChangesDialog(
             visible = confirmExit,
-            onDismiss = { confirmExit = false },
-            backdrop = backdrop,
+            onDiscard = { confirmExit = false; onBack() },
+            onCancel = { confirmExit = false },
+            onSave = { confirmExit = false; exitAfterSave = true; save(false) },
+            backdrop = screenBackdrop.glass,
             title = stringResource(R.string.sheet_unsaved_title),
-            actions = {
-                GlassDialogAction(stringResource(R.string.sheet_discard), onClick = { confirmExit = false; onBack() }, destructive = true)
-                GlassDialogAction(stringResource(R.string.cancel), onClick = { confirmExit = false })
-                GlassDialogAction(stringResource(R.string.sheet_save), onClick = { confirmExit = false; exitAfterSave = true; save(false) }, primary = true)
-            }
-        ) {
-            BasicText(stringResource(R.string.sheet_unsaved_body), style = TextStyle(sub, 15.sp))
-        }
+            body = stringResource(R.string.sheet_unsaved_body),
+            saveLabel = stringResource(R.string.sheet_save),
+            accent = accent
+        )
     }
 }
 
@@ -808,10 +822,9 @@ private fun FormulaBar(
             )
         }
         if (editing) {
-            Box(
-                Modifier.size(32.dp).clip(CircleShape).background(accent).clickable { onCommit() },
-                contentAlignment = Alignment.Center
-            ) { Icon(Icons.Rounded.Check, stringResource(R.string.save), Modifier.size(18.dp), Color.White) }
+            LiquidIconButton(onClick = onCommit, backdrop = backdrop, modifier = Modifier.size(34.dp), tint = accent) {
+                Icon(Icons.Rounded.Check, stringResource(R.string.save), Modifier.size(18.dp), Color.White)
+            }
         }
     }
 }
