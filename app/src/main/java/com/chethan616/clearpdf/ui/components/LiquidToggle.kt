@@ -1,6 +1,5 @@
 package com.chethan616.clearpdf.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -25,6 +24,9 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
@@ -116,11 +118,27 @@ fun LiquidToggle(
 
     val trackBackdrop = rememberLayerBackdrop()
 
+    // Squash-and-stretch of the thumb along its travel (LiquidTracker technique).
+    val stretch = rememberLiquidStretchState(stretchFactor = 0.4f, minScale = 0.85f, maxScale = 1.2f)
+    LaunchedEffect(dampedDragAnimation, stretch) {
+        snapshotFlow { dampedDragAnimation.value }
+            .collect { v -> stretch.onPositionSample(v * dragWidth) }
+    }
+
+    // The whole switch is the gesture surface: DampedDragAnimation reports a tap through
+    // onDragStopped (didDrag == false), so no extra `clickable` - stacking one here made a tap
+    // fire onSelect twice (toggle on, then straight back off).
     Box(
         modifier
             .clip(Capsule)
-            .clickable {
-                onSelect(!selected())
+            .then(dampedDragAnimation.modifier)
+            .semantics {
+                role = Role.Switch
+                toggleableState = ToggleableState(selected())
+                onClick {
+                    onSelect(!selected())
+                    true
+                }
             },
         contentAlignment = Alignment.CenterStart
     ) {
@@ -144,10 +162,7 @@ fun LiquidToggle(
                         if (isLtr) lerp(padding, padding + dragWidth, fraction)
                         else lerp(-padding, -(padding + dragWidth), fraction)
                 }
-                .semantics {
-                    role = Role.Switch
-                }
-                .then(dampedDragAnimation.modifier)
+                .liquidStretch(stretch)
                 .drawBackdrop(
                     backdrop = rememberCombinedBackdrop(
                         backdrop,
@@ -194,9 +209,6 @@ fun LiquidToggle(
                     layerBlock = {
                         scaleX = dampedDragAnimation.scaleX
                         scaleY = dampedDragAnimation.scaleY
-                        val velocity = dampedDragAnimation.velocity / 50f
-                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                     },
                     onDrawSurface = {
                         val progress = dampedDragAnimation.pressProgress
