@@ -24,6 +24,16 @@
     <string name="onboarding_files_subtitle">PDFs, docs, sheets, slides, images &amp; more</string>
     <string name="onboarding_features_title">Powerful tools</string>
     <string name="onboarding_features_subtitle">Annotate, sign, search, and organize documents</string>
+    <string name="onboarding_editors_title">Edit, not just view</string>
+    <string name="onboarding_editors_subtitle">Spreadsheets, images and text, right on your phone</string>
+    <string name="onboarding_editor_sheets_title">Spreadsheet editor</string>
+    <string name="onboarding_editor_sheets_desc">Colours, formats and dropdowns, saved back to .xlsx</string>
+    <string name="onboarding_editor_image_title">Image editor</string>
+    <string name="onboarding_editor_image_desc">Crop, adjust, filters, draw and remove backgrounds</string>
+    <string name="onboarding_editor_select_title">Smart text selection</string>
+    <string name="onboarding_editor_select_desc">Long-press any word to copy, highlight or translate</string>
+    <string name="onboarding_editor_office_title">Office engine</string>
+    <string name="onboarding_editor_office_desc">Optional LibreOffice engine for faithful Office files</string>
     <string name="onboarding_cta_continue">Continue</string>
     <string name="onboarding_cta_get_started">Get Started</string>
     <string name="onboarding_step">%1$d of %2$d</string>

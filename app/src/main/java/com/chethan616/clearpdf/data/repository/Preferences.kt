@@ -136,7 +136,7 @@ object AppSettingsManager {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun getShowWallpaper(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_SHOW_WALLPAPER, true)
+        prefs(context).getBoolean(KEY_SHOW_WALLPAPER, false)
 
     fun setShowWallpaper(context: Context, value: Boolean) =
         prefs(context).edit().putBoolean(KEY_SHOW_WALLPAPER, value).apply()
@@ -170,7 +170,7 @@ object AppSettingsManager {
         prefs(context).edit().putFloat(KEY_DEFAULT_QUALITY, value).apply()
 
     fun getThemeMode(context: Context): Int =
-        prefs(context).getInt(KEY_THEME_MODE, 0)
+        prefs(context).getInt(KEY_THEME_MODE, 1)
 
     fun setThemeMode(context: Context, value: Int) =
         prefs(context).edit().putInt(KEY_THEME_MODE, value).apply()

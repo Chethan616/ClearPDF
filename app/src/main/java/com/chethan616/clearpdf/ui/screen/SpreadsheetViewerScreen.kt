@@ -95,6 +95,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -462,11 +463,12 @@ fun SpreadsheetViewerScreen(
                     Modifier
                         .fillMaxSize()
                         .padding(contentPadding)
-                        // Only cell editing lifts the grid + tabs above the keyboard. Find floats its
-                        // own bar over the IME, so the sheet tabs must stay put behind the keyboard.
+                        // Only while a cell is being typed into (formula bar) does the grid lift above
+                        // the keyboard. Keying this on "search closed" made the tabs jump up when ✕
+                        // was tapped: search closes a frame before the keyboard finishes hiding.
                         .then(
-                            if (showSearch) Modifier
-                            else Modifier.windowInsetsPadding(WindowInsets.ime.exclude(WindowInsets.navigationBars))
+                            if (editing) Modifier.windowInsetsPadding(WindowInsets.ime.exclude(WindowInsets.navigationBars))
+                            else Modifier
                         )
                 ) {
                     // Formula bar: the selected cell's reference and its content.
@@ -530,7 +532,11 @@ fun SpreadsheetViewerScreen(
                             onDropdown = { r, c, anchor -> if (state.editable) openDropdown(r, c, anchor) },
                             onZoom = { z -> zoom = (zoom * z).coerceIn(0.5f, 2.5f) },
                             onColumnResize = { c, w -> viewModel.setColWidth(idx, c, w) },
-                            modifier = Modifier.fillMaxSize()
+                            // Own layer: the glass panel around the grid redraws on every motion-sensor
+                            // tick (its highlight follows gravity). Without isolation each of those
+                            // re-ran drawGridRow for every visible row (~48 ms/frame, continuously).
+                            // Now the panel reuses the grid's recorded display list.
+                            modifier = Modifier.fillMaxSize().graphicsLayer()
                         )
                         SheetRowScrubber(
                             listState = listState,
