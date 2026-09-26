@@ -119,8 +119,13 @@ fun LiquidButton(
                 },
                 onDrawSurface = {
                     if (tint.isSpecified) {
+                        // "Get it" look everywhere: a tinted pill only read vivid over light content
+                        // (the tint composited onto white); over the dark wallpaper the same 75% tint
+                        // went murky. A soft white base first makes the colour come out bright and
+                        // saturated on any backdrop while the lens rim still refracts.
+                        drawRect(Color.White.copy(alpha = 0.42f))
                         drawRect(tint, blendMode = BlendMode.Hue)
-                        drawRect(tint.copy(alpha = 0.75f))
+                        drawRect(tint.copy(alpha = 0.8f))
                     }
                     if (surfaceColor.isSpecified) {
                         drawRect(surfaceColor)

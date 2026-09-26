@@ -168,7 +168,7 @@ fun ImageToolsScreen(
                                 BasicText(stringResource(R.string.image_tools_save), style = TextStyle(Color.White, 14.sp, FontWeight.Medium), maxLines = 1)
                             }
                         }
-                        LiquidButton(onClick = { viewModel.share(context) }, backdrop = backdrop, tint = Color(0xFF1976D2), modifier = Modifier.weight(1f)) {
+                        LiquidButton(onClick = { viewModel.share(context) }, backdrop = backdrop, tint = ImageAccent, modifier = Modifier.weight(1f)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
                                 Icon(Icons.Rounded.Share, null, Modifier.size(16.dp), Color.White)
                                 BasicText(stringResource(R.string.image_tools_share), style = TextStyle(Color.White, 14.sp, FontWeight.Medium), maxLines = 1)

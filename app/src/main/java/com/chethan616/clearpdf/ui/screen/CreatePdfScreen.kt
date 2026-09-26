@@ -489,7 +489,7 @@ fun CreatePdfScreen(
             LiquidButton(
                 onClick = { onViewOutput(outputUri) },
                 backdrop = backdrop,
-                tint = Color(0xFF1976D2),
+                tint = accent,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold))

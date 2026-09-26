@@ -9,6 +9,12 @@ import java.io.File
  * per-flavor installer, and the conversion hook used by UniversalDocumentConverter.
  */
 object OfficeEngine {
+    /**
+     * One-shot request from the viewer's "Get it" hint: Settings consumes it on entry and scrolls
+     * its Office engine section into view, so the user watches the install they just started.
+     */
+    val focusSettingsSection = androidx.compose.runtime.mutableStateOf(false)
+
 
     private const val PREFS = "office_engine"
     private const val KEY_USE_FOR_OFFICE = "use_for_office_files"

@@ -216,7 +216,7 @@ fun WatermarkPdfScreen(
         state.lastOutputUri?.let { outUri ->
             LiquidButton(
                 onClick = { onViewOutput(outUri) },
-                backdrop = backdrop, tint = Color(0xFF1976D2),
+                backdrop = backdrop, tint = WatermarkAccent,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold), modifier = Modifier.padding(vertical = 8.dp))

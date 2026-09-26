@@ -1,6 +1,7 @@
 package com.chethan616.clearpdf.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -8,7 +9,6 @@ import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
@@ -116,16 +116,17 @@ fun ShareMorphButton(
 
     // A slow bob on the chevron hints "keep going up" while the capsule is open. Only runs while
     // morphed, and only touches translation, so it never re-measures the glass.
-    val bobTransition = rememberInfiniteTransition(label = "shareMorphBob")
-    val bob by bobTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            tween(900, easing = FastOutSlowInEasing),
-            RepeatMode.Reverse
-        ),
-        label = "shareMorphBobOffset"
-    )
+    // Driven only while morphed: an always-on infinite transition kept the frame clock ticking
+    // (and the glass redrawing) for the viewer's whole lifetime even with the button idle.
+    val bobAnim = remember { Animatable(0f) }
+    LaunchedEffect(shareMode) {
+        if (shareMode) {
+            bobAnim.animateTo(1f, infiniteRepeatable(tween(900, easing = FastOutSlowInEasing), RepeatMode.Reverse))
+        } else {
+            bobAnim.snapTo(0f)
+        }
+    }
+    val bob by bobAnim.asState()
 
     val progress = (-dragUp / thresholdPx).coerceIn(0f, 1f)
     // A symmetric S-curve, not [FastOutSlowInEasing]. Fast-out-slow-in front-loads — it is already

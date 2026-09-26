@@ -499,7 +499,8 @@ fun DocsNavGraph(
                 backdrop = backdrop,
                 viewModel = vm,
                 onBack = { navController.popBackStack() },
-                pendingLoad = hasPendingDoc
+                pendingLoad = hasPendingDoc,
+                onOpenOfficeEngineSettings = { navController.navigate(ROUTE_SETTINGS) { launchSingleTop = true } }
             )
         }
 
@@ -517,9 +518,11 @@ fun DocsNavGraph(
                         )
                     )
             },
+            // Fade only: scaling the sheet makes every glass surface (full-screen grid panel, tabs,
+            // share capsule, header) recompute its lens + blur each frame, which is what made Back feel
+            // laggy here. An alpha-only exit reuses the cached layers.
             popExitTransition = {
-                androidx.compose.animation.fadeOut(tween(210, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
-                    androidx.compose.animation.scaleOut(targetScale = 0.94f, animationSpec = tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                androidx.compose.animation.fadeOut(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing))
             }
         ) { backStackEntry ->
             val context = LocalContext.current

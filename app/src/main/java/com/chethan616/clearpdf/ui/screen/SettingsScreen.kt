@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -254,10 +255,19 @@ fun SettingsScreen(
             )
         }
     ) { contentPadding ->
+    val settingsScroll = rememberScrollState()
+    val officeEngineRequester = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    LaunchedEffect(Unit) {
+        if (com.chethan616.clearpdf.office.OfficeEngine.focusSettingsSection.value) {
+            com.chethan616.clearpdf.office.OfficeEngine.focusSettingsSection.value = false
+            delay(350L) // let the screen's entrance settle before scrolling
+            officeEngineRequester.bringIntoView()
+        }
+    }
     Column(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(settingsScroll)
             .padding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -433,7 +443,7 @@ fun SettingsScreen(
                 LiquidButton(
                     onClick = { folderPicker.launch(null) },
                     backdrop = backdrop,
-                    tint = Color(0xFF1976D2),
+                    tint = LiquidGlassColors.Teal,
                     modifier = Modifier.weight(1f)
                 ) {
                     BasicText(stringResource(R.string.settings_change_folder), style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold))
@@ -445,9 +455,9 @@ fun SettingsScreen(
                             saveUri = null
                         },
                         backdrop = backdrop,
-                        surfaceColor = Color.White.copy(0.08f)
+                        tint = LiquidGlassColors.Orange
                     ) {
-                        BasicText(stringResource(R.string.settings_reset), style = TextStyle(text, 13.sp, fontWeight = FontWeight.SemiBold))
+                        BasicText(stringResource(R.string.settings_reset), style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold))
                     }
                 }
             }
@@ -603,7 +613,7 @@ fun SettingsScreen(
                     LiquidButton(
                         onClick = { wallpaperPicker.launch(arrayOf("image/*")) },
                         backdrop = backdrop,
-                        tint = Color(0xFF0088FF),
+                        tint = LiquidGlassColors.Indigo,
                         modifier = Modifier.weight(1f)
                     ) {
                         Row(
@@ -632,7 +642,7 @@ fun SettingsScreen(
             LiquidButton(
                 onClick = onReplayOnboarding,
                 backdrop = backdrop,
-                surfaceColor = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f),
+                tint = LiquidGlassColors.Purple,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -640,16 +650,16 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp), label)
+                    Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp), Color.White)
                     Column(Modifier.weight(1f)) {
                         BasicText(
                             stringResource(R.string.settings_replay_onboarding),
-                            style = TextStyle(text, 14.sp, fontWeight = FontWeight.SemiBold),
+                            style = TextStyle(Color.White, 14.sp, fontWeight = FontWeight.SemiBold),
                             maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
                         BasicText(
                             stringResource(R.string.settings_replay_onboarding_desc),
-                            style = TextStyle(sub, 12.sp),
+                            style = TextStyle(Color.White.copy(0.8f), 12.sp),
                             maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
                     }
@@ -717,6 +727,7 @@ fun SettingsScreen(
             subColor = sub,
             onRequestDelete = { officeEngineDeleteSize = it },
             modifier = Modifier
+                .bringIntoViewRequester(officeEngineRequester)
                 .fillMaxWidth()
                 .graphicsLayer {
                     alpha = panel5Alpha

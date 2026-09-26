@@ -164,7 +164,9 @@ fun PdfViewerScreen(
     // True when the caller (recents / external open / a tool's output) already handed us a document
     // to load. In that case the viewer must NOT flash its "Open a PDF" picker while the pages render —
     // it shows a loading curtain that the real document fades in behind. See [ViewerLoadingCurtain].
-    pendingLoad: Boolean = false
+    pendingLoad: Boolean = false,
+    // "Get it" on the Office engine hint: open Settings at the engine section to show progress.
+    onOpenOfficeEngineSettings: () -> Unit = {}
 ) {
     val state         by viewModel.uiState.collectAsState()
     val isDarkMode     = LocalIsDarkMode.current
@@ -1104,9 +1106,12 @@ fun PdfViewerScreen(
                 OfficeEngineHintCard(
                     backdrop  = contentBackdrop,
                     isDark    = isDarkMode,
+                    fg        = bottomFg,
                     onGet     = {
                         com.chethan616.clearpdf.office.OfficeEngine.installer(context).install()
                         viewModel.dismissOfficeEngineHint(context)
+                        com.chethan616.clearpdf.office.OfficeEngine.focusSettingsSection.value = true
+                        onOpenOfficeEngineSettings()
                     },
                     onDismiss = { viewModel.dismissOfficeEngineHint(context) }
                 )

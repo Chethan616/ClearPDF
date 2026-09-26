@@ -26,6 +26,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.runtime.produceState
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -147,6 +153,7 @@ import com.chethan616.clearpdf.utils.xlsx.XlsxRefs
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.shapes.Capsule
 import com.kyant.shapes.RoundedRectangle
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /** `liquidGlassPanel`'s corner curve, restated so the scrolling grid can be clipped to it. */
@@ -314,14 +321,22 @@ fun SpreadsheetViewerScreen(
     }
 
     // Search across the current sheet.
-    val matches = remember(sheet, searchQuery, version) {
+    // Find runs off the main thread and is debounced, so typing never waits on a full-sheet scan
+    // (each cell is number-formatted for matching, which is far too slow per keystroke on big sheets).
+    val matches by produceState(emptyList<Pair<Int, Int>>(), sheet, searchQuery, version) {
         val q = searchQuery.trim()
-        if (q.isBlank() || sheet == null || painter == null) emptyList()
-        else buildList {
-            for ((r, row) in sheet.rows) for ((c, cell) in row.cells) {
-                if (painter.display(cell).contains(q, ignoreCase = true)) add(r to c)
-                if (size > 5000) break
+        if (q.isBlank() || sheet == null || painter == null) { value = emptyList(); return@produceState }
+        kotlinx.coroutines.delay(180L)
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            val out = ArrayList<Pair<Int, Int>>()
+            scan@ for ((r, row) in sheet.rows) for ((c, cell) in row.cells) {
+                if (!isActive) return@withContext out
+                if (painter.display(cell).contains(q, ignoreCase = true)) {
+                    out.add(r to c)
+                    if (out.size >= 5000) break@scan
+                }
             }
+            out
         }
     }
     val currentMatchCell = matches.getOrNull(currentMatch)
@@ -444,7 +459,15 @@ fun SpreadsheetViewerScreen(
                     BasicText(state.error ?: "Empty spreadsheet", style = TextStyle(sub, 14.sp))
                 }
                 else -> Column(
-                    Modifier.fillMaxSize().padding(contentPadding).imePadding()
+                    Modifier
+                        .fillMaxSize()
+                        .padding(contentPadding)
+                        // Only cell editing lifts the grid + tabs above the keyboard. Find floats its
+                        // own bar over the IME, so the sheet tabs must stay put behind the keyboard.
+                        .then(
+                            if (showSearch) Modifier
+                            else Modifier.windowInsetsPadding(WindowInsets.ime.exclude(WindowInsets.navigationBars))
+                        )
                 ) {
                     // Formula bar: the selected cell's reference and its content.
                     AnimatedVisibility(
@@ -557,10 +580,9 @@ fun SpreadsheetViewerScreen(
                             onPanel = { p -> focusManager.clearFocus(); if (editing) commitDraft(); panel = if (panel == p) Panel.NONE else p },
                             onClear = { selection?.let { viewModel.clearRange(idx, it.range) } },
                             onSaveAs = { save(true) },
-                            modifier = Modifier.padding(top = 8.dp).navigationBarsPadding()
+                            modifier = Modifier.padding(top = 8.dp)
                         )
                     }
-                    if (!editMode) Spacer(Modifier.navigationBarsPadding())
                 }
             }
         }
@@ -575,7 +597,7 @@ fun SpreadsheetViewerScreen(
                 onShare = { viewModel.shareableUri(context) { u -> u?.let { shareFile(context, it) } } },
                 idleIcon = Icons.Rounded.PictureAsPdf,
                 idleContentDesc = stringResource(R.string.sheet_export_pdf),
-                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 12.dp, bottom = 2.dp)
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 12.dp)
             )
         }
 
@@ -805,7 +827,7 @@ private fun SheetTabs(
     Row(
         modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(52.dp)
             .viewerGlass(backdrop, glass, shape = { Capsule })
             .padding(4.dp)
             .horizontalScroll(scroll),
@@ -818,7 +840,7 @@ private fun SheetTabs(
             val tab = s.tabColor?.resolve(wb.styles.themeColors, wb.styles.indexedColors)?.let { Color(it) }
             Row(
                 Modifier
-                    .height(40.dp)
+                    .height(44.dp)
                     .clip(Capsule)
                     .background(if (sel) accent.copy(0.18f) else Color.Transparent)
                     .clickable { onSelect(i) }

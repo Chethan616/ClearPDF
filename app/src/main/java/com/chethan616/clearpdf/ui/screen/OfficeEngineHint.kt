@@ -40,12 +40,15 @@ import com.kyant.backdrop.Backdrop
 /**
  * One-time viewer suggestion shown after an Office file was rendered by the built-in renderers:
  * "Improve fidelity with the Office engine". Floating viewer chrome, so it is viewerGlass over
- * the live page backdrop, with white text like the rest of the viewer controls.
+ * the live page backdrop. Its ink ([fg]) follows the page luminance behind it, exactly like the
+ * viewer's own toolbar (dark ink over light pages, white over dark); the "Get it" pill keeps its
+ * own blue-tinted look.
  */
 @Composable
 fun OfficeEngineHintCard(
     backdrop: Backdrop,
     isDark: Boolean,
+    fg: Color,
     onGet: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -69,13 +72,13 @@ fun OfficeEngineHintCard(
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             BasicText(
                 stringResource(R.string.office_engine_hint),
-                style = TextStyle(Color.White, 14.sp, fontWeight = FontWeight.SemiBold),
+                style = TextStyle(fg, 14.sp, fontWeight = FontWeight.SemiBold),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             BasicText(
                 stringResource(R.string.office_engine_hint_sub),
-                style = TextStyle(Color.White.copy(0.72f), 12.sp),
+                style = TextStyle(fg.copy(0.72f), 12.sp),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -92,7 +95,7 @@ fun OfficeEngineHintCard(
             BasicText(stringResource(R.string.office_engine_hint_action), style = TextStyle(Color.White, 14.sp, fontWeight = FontWeight.SemiBold))
         }
         LiquidIconButton(onClick = onDismiss, backdrop = backdrop) {
-            CloseCrossIcon(Modifier.size(14.dp))
+            CloseCrossIcon(Modifier.size(14.dp), tint = fg)
         }
     }
 }
