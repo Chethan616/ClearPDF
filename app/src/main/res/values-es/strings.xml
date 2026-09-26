@@ -346,6 +346,11 @@
     <string name="recents_sheets">Hojas</string>
     <string name="recents_pin">Fijar</string>
     <string name="recents_unpin">Dejar de fijar</string>
+    <string name="recents_open_with">Abrir con…</string>
+    <string name="recents_remove_from_list">Quitar de recientes</string>
+    <string name="recents_delete_file">Eliminar archivo</string>
+    <string name="recents_delete_confirm">Toca de nuevo para eliminar</string>
+    <string name="recents_delete_failed">No se pudo eliminar el archivo</string>
     <string name="recents_filter">Filtrar por tipo</string>
     <string name="recents_filter_all">Todos</string>
     <string name="recents_filter_pdf">PDF</string>

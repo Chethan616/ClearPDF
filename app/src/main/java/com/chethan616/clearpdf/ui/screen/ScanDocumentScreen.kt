@@ -81,6 +81,7 @@ import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.model.ScanFilter
+import com.chethan616.clearpdf.ui.components.LiquidGlassErrorCard
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
 import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
@@ -237,28 +238,13 @@ fun ScanDocumentScreen(
             exit = fadeOut()
         ) {
             state.error?.let { error ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFFFEBEE))
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    BasicText(
-                        error,
-                        style = TextStyle(Color(0xFFD32F2F), 13.sp),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        Icons.Rounded.Close, null,
-                        Modifier
-                            .size(20.dp)
-                            .clickable { viewModel.setError(null) },
-                        Color(0xFFD32F2F)
-                    )
-                }
+                // Glass error card (was a solid pink banner).
+                LiquidGlassErrorCard(
+                    message = error,
+                    backdrop = backdrop,
+                    uiSensor = uiSensor,
+                    onDismiss = { viewModel.setError(null) }
+                )
             }
         }
 

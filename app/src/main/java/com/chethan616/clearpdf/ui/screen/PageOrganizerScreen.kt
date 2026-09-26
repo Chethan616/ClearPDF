@@ -69,6 +69,8 @@ import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
 import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.LiquidSaveDialog
+import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
+import com.chethan616.clearpdf.ui.components.rememberScreenBackdrop
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -96,6 +98,11 @@ fun PageOrganizerScreen(
     val density = LocalDensity.current
 
     var showSaveDialog by remember { mutableStateOf(false) }
+    var confirmExit by remember { mutableStateOf(false) }
+    var exitAfterSave by remember { mutableStateOf(false) }
+    val requestBack = { if (state.dirty && !state.isSaving) confirmExit = true else onBack() }
+    androidx.activity.compose.BackHandler(enabled = state.dirty && !confirmExit && !showSaveDialog) { requestBack() }
+    val screenBackdrop = rememberScreenBackdrop(backdrop)
 
     var isVisible by remember { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(Unit) { isVisible = true }
@@ -144,15 +151,17 @@ fun PageOrganizerScreen(
         uri?.let { viewModel.onSelectFile(context, it) }
     }
 
+    Box(Modifier.fillMaxSize()) {
     GlassScreenScaffold(
         backdrop = backdrop,
+        screenBackdrop = screenBackdrop,
         contentBottomPadding = 16.dp,
         header = { headerBackdrop ->
             // Fade only — the header is glass, and translating glass re-runs its blur+lens.
             GlassScreenHeaderRow(
                 title = stringResource(R.string.organize_screen_title),
                 backdrop = headerBackdrop,
-                onBack = onBack,
+                onBack = requestBack,
                 modifier = Modifier.graphicsLayer { alpha = topBarAlpha }
             )
         }
@@ -404,16 +413,29 @@ fun PageOrganizerScreen(
         }
     }
 
-    if (showSaveDialog) {
-        LiquidSaveDialog(
-            initialFileName = state.sourceFileName.substringBeforeLast('.').ifBlank { "Document" } + "_Organized",
-            backdrop = backdrop,
-            uiSensor = uiSensor,
-            onDismiss = { showSaveDialog = false },
-            onSave = { fileName, overrideUri ->
-                showSaveDialog = false
-                viewModel.save(context, fileName, overrideUri)
-            }
-        )
+    // Leaving with a reordered / rotated layout that was never written out.
+    UnsavedChangesDialog(
+        visible = confirmExit,
+        onDiscard = { confirmExit = false; onBack() },
+        onCancel = { confirmExit = false },
+        onSave = { confirmExit = false; exitAfterSave = true; showSaveDialog = true },
+        backdrop = screenBackdrop.glass,
+        accent = accent
+    )
+
+    // In-window glass (not a Dialog window) so it refracts the live screen.
+    LiquidSaveDialog(
+        visible = showSaveDialog,
+        initialFileName = state.sourceFileName.substringBeforeLast('.').ifBlank { "Document" } + "_Organized",
+        backdrop = screenBackdrop.glass,
+        uiSensor = uiSensor,
+        onDismiss = { showSaveDialog = false; exitAfterSave = false },
+        onSave = { fileName, overrideUri ->
+            showSaveDialog = false
+            val leave = exitAfterSave
+            exitAfterSave = false
+            viewModel.save(context, fileName, overrideUri, onSaved = if (leave) onBack else null)
+        }
+    )
     }
 }

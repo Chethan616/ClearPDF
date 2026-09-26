@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -66,6 +67,7 @@ import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
 import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.LiquidSaveDialog
+import com.chethan616.clearpdf.ui.components.rememberScreenBackdrop
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -174,8 +176,11 @@ fun CreatePdfScreen(
         label = "createContentOffsetY"
     )
 
+    val screenBackdrop = rememberScreenBackdrop(backdrop)
+    Box(Modifier.fillMaxSize()) {
     GlassScreenScaffold(
         backdrop = backdrop,
+        screenBackdrop = screenBackdrop,
         header = { headerBackdrop ->
             // Fade only — the header is glass, and translating glass re-runs its blur+lens.
             GlassScreenHeaderRow(
@@ -489,7 +494,7 @@ fun CreatePdfScreen(
             LiquidButton(
                 onClick = { onViewOutput(outputUri) },
                 backdrop = backdrop,
-                tint = Color(0xFF1976D2),
+                tint = accent,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold))
@@ -500,16 +505,17 @@ fun CreatePdfScreen(
         }
     }
 
-    if (showSaveDialog) {
-        LiquidSaveDialog(
-            initialFileName = "ClearPDF_Document.pdf",
-            backdrop = backdrop,
-            uiSensor = uiSensor,
-            onDismiss = { showSaveDialog = false },
-            onSave = { fileName, locationUri ->
-                showSaveDialog = false
-                viewModel.onCreate(context, fileName, locationUri)
-            }
-        )
+    // In-window glass (not a Dialog window) so it refracts the live screen.
+    LiquidSaveDialog(
+        visible = showSaveDialog,
+        initialFileName = "ClearPDF_Document.pdf",
+        backdrop = screenBackdrop.glass,
+        uiSensor = uiSensor,
+        onDismiss = { showSaveDialog = false },
+        onSave = { fileName, locationUri ->
+            showSaveDialog = false
+            viewModel.onCreate(context, fileName, locationUri)
+        }
+    )
     }
 }

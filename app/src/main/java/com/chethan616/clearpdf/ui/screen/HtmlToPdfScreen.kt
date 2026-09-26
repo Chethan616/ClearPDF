@@ -163,7 +163,7 @@ fun HtmlToPdfScreen(
         }
 
         state.lastOutputUri?.let { outUri ->
-            LiquidButton(onClick = { onViewOutput(outUri) }, backdrop = backdrop, tint = Color(0xFF1976D2), modifier = Modifier.fillMaxWidth()) {
+            LiquidButton(onClick = { onViewOutput(outUri) }, backdrop = backdrop, tint = HtmlAccent, modifier = Modifier.fillMaxWidth()) {
                 BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold), modifier = Modifier.padding(vertical = 8.dp))
             }
         }

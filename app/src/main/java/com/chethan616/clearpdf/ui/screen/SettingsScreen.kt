@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -70,6 +71,10 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.GitHubStarPromptManager
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
+import com.chethan616.clearpdf.office.OfficeEngine
+import com.chethan616.clearpdf.ui.components.GlassDialog
+import com.chethan616.clearpdf.ui.components.rememberScreenBackdrop
+import com.chethan616.clearpdf.ui.components.GlassDialogAction
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
@@ -120,6 +125,8 @@ fun SettingsScreen(
     }
 
     var saveUri by remember { mutableStateOf(SaveLocationManager.getSaveUri(context)) }
+    // Non-null while the "Delete Office engine?" dialog is up; holds the size it will free.
+    var officeEngineDeleteSize by remember { mutableStateOf<Long?>(null) }
 
     val folderPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -236,8 +243,11 @@ fun SettingsScreen(
         label = "settingsPanel6OffsetY"
     )
 
+    val screenBackdrop = rememberScreenBackdrop(backdrop)
+    Box(Modifier.fillMaxSize()) {
     GlassScreenScaffold(
         backdrop = backdrop,
+        screenBackdrop = screenBackdrop,
         header = { headerBackdrop ->
             // No back button here, so the pill centres against the full width. Fade only — the pill
             // is glass, and translating glass re-runs its blur+lens.
@@ -249,10 +259,19 @@ fun SettingsScreen(
             )
         }
     ) { contentPadding ->
+    val settingsScroll = rememberScrollState()
+    val officeEngineRequester = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    LaunchedEffect(Unit) {
+        if (com.chethan616.clearpdf.office.OfficeEngine.focusSettingsSection.value) {
+            com.chethan616.clearpdf.office.OfficeEngine.focusSettingsSection.value = false
+            delay(350L) // let the screen's entrance settle before scrolling
+            officeEngineRequester.bringIntoView()
+        }
+    }
     Column(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(settingsScroll)
             .padding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -428,7 +447,7 @@ fun SettingsScreen(
                 LiquidButton(
                     onClick = { folderPicker.launch(null) },
                     backdrop = backdrop,
-                    tint = Color(0xFF1976D2),
+                    tint = LiquidGlassColors.Teal,
                     modifier = Modifier.weight(1f)
                 ) {
                     BasicText(stringResource(R.string.settings_change_folder), style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold))
@@ -440,9 +459,9 @@ fun SettingsScreen(
                             saveUri = null
                         },
                         backdrop = backdrop,
-                        surfaceColor = Color.White.copy(0.08f)
+                        tint = LiquidGlassColors.Orange
                     ) {
-                        BasicText(stringResource(R.string.settings_reset), style = TextStyle(text, 13.sp, fontWeight = FontWeight.SemiBold))
+                        BasicText(stringResource(R.string.settings_reset), style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.SemiBold))
                     }
                 }
             }
@@ -598,7 +617,7 @@ fun SettingsScreen(
                     LiquidButton(
                         onClick = { wallpaperPicker.launch(arrayOf("image/*")) },
                         backdrop = backdrop,
-                        tint = Color(0xFF0088FF),
+                        tint = LiquidGlassColors.Indigo,
                         modifier = Modifier.weight(1f)
                     ) {
                         Row(
@@ -627,7 +646,7 @@ fun SettingsScreen(
             LiquidButton(
                 onClick = onReplayOnboarding,
                 backdrop = backdrop,
-                surfaceColor = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f),
+                tint = LiquidGlassColors.Purple,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -635,16 +654,16 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp), label)
+                    Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(18.dp), Color.White)
                     Column(Modifier.weight(1f)) {
                         BasicText(
                             stringResource(R.string.settings_replay_onboarding),
-                            style = TextStyle(text, 14.sp, fontWeight = FontWeight.SemiBold),
+                            style = TextStyle(Color.White, 14.sp, fontWeight = FontWeight.SemiBold),
                             maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
                         BasicText(
                             stringResource(R.string.settings_replay_onboarding_desc),
-                            style = TextStyle(sub, 12.sp),
+                            style = TextStyle(Color.White.copy(0.8f), 12.sp),
                             maxLines = 1, overflow = TextOverflow.Ellipsis
                         )
                     }
@@ -703,6 +722,25 @@ fun SettingsScreen(
             )
         }
 
+        // ── Office engine (optional, powered by LibreOffice) ──
+        OfficeEngineSettingsSection(
+            backdrop = backdrop,
+            isLight = isLight,
+            textColor = text,
+            labelColor = label,
+            subColor = sub,
+            onRequestDelete = { officeEngineDeleteSize = it },
+            modifier = Modifier
+                .bringIntoViewRequester(officeEngineRequester)
+                .fillMaxWidth()
+                .graphicsLayer {
+                    alpha = panel5Alpha
+                    translationY = panel5OffsetY * density
+                }
+                .liquidGlassSection(isLight)
+                .padding(20.dp)
+        )
+
         // ── Licenses ──
         Column(
             Modifier
@@ -757,6 +795,38 @@ fun SettingsScreen(
 
         // Clear the floating bottom navigation bar + system nav inset.
         Spacer(Modifier.height(120.dp))
+    }
+
+    }
+    // Outside the scaffold's captured layer so it refracts the live screen (wallpaper + content).
+    GlassDialog(
+        visible = officeEngineDeleteSize != null,
+        onDismiss = { officeEngineDeleteSize = null },
+        backdrop = screenBackdrop.glass,
+        title = stringResource(R.string.office_engine_delete_title),
+        actions = {
+            GlassDialogAction(
+                text = stringResource(R.string.office_engine_cancel),
+                onClick = { officeEngineDeleteSize = null }
+            )
+            GlassDialogAction(
+                text = stringResource(R.string.office_engine_delete),
+                onClick = {
+                    officeEngineDeleteSize = null
+                    OfficeEngine.installer(context).uninstall()
+                },
+                primary = true,
+                destructive = true
+            )
+        }
+    ) {
+        BasicText(
+            stringResource(
+                R.string.office_engine_delete_message,
+                android.text.format.Formatter.formatShortFileSize(context, officeEngineDeleteSize ?: 0L)
+            ),
+            style = TextStyle(LiquidGlassColors.text(!isLight), 14.sp, lineHeight = 20.sp)
+        )
     }
     }
 }
@@ -819,6 +889,26 @@ private val OpenSourceCredits = listOf(
         "JSZip", "Stuart Knightley",
         "MIT License (used under MIT of its MIT/GPLv3 dual licence)",
         "https://github.com/Stuk/jszip"
+    ),
+    Credit(
+        "ImageToolbox", "T8RIN (Malik Mukhametzyanov)",
+        "Apache License 2.0 — image editor cropper, perspective crop and draw engine (adapted)",
+        "https://github.com/T8RIN/ImageToolbox"
+    ),
+    Credit(
+        "GPUImage for Android", "CyberAgent, Inc.",
+        "Apache License 2.0 — image editor adjustments and filters",
+        "https://github.com/cats-oss/android-gpuimage"
+    ),
+    Credit(
+        "ML Kit Subject Segmentation", "Google",
+        "Google APIs Terms — optional background removal via Play services",
+        "https://developers.google.com/ml-kit/vision/subject-segmentation"
+    ),
+    Credit(
+        "LibreOffice", "The Document Foundation",
+        "Mozilla Public License 2.0 — optional Office engine (downloaded on request, not bundled)",
+        "https://www.libreoffice.org/about-us/licenses/"
     ),
     Credit(
         "Pdf_Tools", "Karna14314",

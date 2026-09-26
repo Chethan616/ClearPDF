@@ -63,3 +63,6 @@ app/src/main/assets/adi-registration.properties
 
 # Local scratch / reference clones
 scratch/
+
+# Upstream reference clones (study only)
+/reference/

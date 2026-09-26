@@ -4,8 +4,10 @@
 
     <!-- Camera permission for document scanning -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- Network access was used ONLY by the Web-to-PDF tool. That tool is disabled for this
-         privacy-focused (fully offline) release, so no network permissions are declared.
+    <!-- ClearPDF declares no network permissions here (note: merged ML Kit/datatransport library
+         manifests still contribute INTERNET). The play flavor itself is offline (the optional Office engine
+         arrives through Play Feature Delivery). Only the foss flavor adds INTERNET, solely to
+         download that engine on request - see src/foss/AndroidManifest.xml.
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> -->
     <!-- Legacy read access for older providers on Android 12L and below. -->
@@ -13,6 +15,18 @@
     <!-- Legacy write access for pre-scoped-storage devices only. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- ML Kit subject segmentation (image editor → auto background removal) declares minSdk 24.
+         The app stays on 23; BackgroundRemover gates the call at runtime (API < 24 → unavailable). -->
+    <uses-sdk tools:overrideLibrary="com.google.mlkit.vision.segmentation.subject" />
+
+    <!-- Package visibility (Android 11+) for the text-selection toolbar's "process text" apps
+         (Translate, dictionaries), the same list a TextView's selection menu offers. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="true"
@@ -145,6 +159,29 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Ask Google Play services to fetch the subject-segmentation model ahead of time so the
+             image editor's "Remove background" works on first use. The download is done by Play
+             services itself; the app declares no network permission. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="subject_segment" />
+
+        <!-- Optional Office engine (powered by LibreOffice), isolated in its own process so a
+             native crash or runaway document can never take down the app. -->
+        <service
+            android:name=".office.OfficeEngineService"
+            android:exported="false"
+            android:process=":office" />
+
+        <!-- WebViews only ever render local content; opt out of Safe Browsing lookups and
+             WebView usage metrics so nothing is sent even in builds that hold INTERNET. -->
+        <meta-data
+            android:name="android.webkit.WebView.EnableSafeBrowsing"
+            android:value="false" />
+        <meta-data
+            android:name="android.webkit.WebView.MetricsOptOut"
+            android:value="true" />
     </application>
 
 </manifest>

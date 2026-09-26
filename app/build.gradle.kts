@@ -38,8 +38,8 @@ android {
         applicationId = "com.chethan616.clearpdf"
         minSdk = 23
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "2.0.0"
         // Keep every locale declared by the app. Filtering this to English
         // removes values-pt-rBR from the packaged APK, so the language picker
         // can appear to work while the app continues to resolve English.
@@ -75,6 +75,33 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    testOptions {
+        // Plain JVM unit tests (the xlsx model/writer). Android stubs return defaults instead of
+        // throwing so incidental framework calls don't fail a pure-logic test.
+        unitTests.isReturnDefaultValues = true
+    }
+
+    // Two distributions of the same app (identical applicationId):
+    //  - play: Google Play. The optional Office engine ships as the on-demand dynamic feature
+    //    module :office_engine (Play Feature Delivery); no native code is ever downloaded by the app.
+    //  - foss: GitHub/F-Droid-style sideload builds. The Office engine is downloaded on request
+    //    from a pinned, SHA-256 verified release; only this flavor declares INTERNET
+    //    (see src/foss/AndroidManifest.xml).
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+        }
+        create("foss") {
+            dimension = "distribution"
+        }
+    }
+    // AGP can't link a dynamic feature against ABI-split APK outputs, and the feature is only
+    // ever delivered through a Play bundle anyway — so register it for bundle builds only.
+    // APK builds (sideload/foss) simply don't contain it; the play installer then falls back.
+    if (gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }) {
+        dynamicFeatures += setOf(":office_engine")
     }
     // Bundling on-device OCR (bundled ML Kit + Tesseract4Android) added native .so libs for
     // 4 CPU architectures; without splitting, every install carries all 4. This produces one
@@ -127,6 +154,7 @@ kotlin {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.foundation)
@@ -160,4 +188,19 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.acccompanist.permissions)
     implementation("androidx.documentfile:documentfile:1.0.1")
+
+    // Image editor: GPUImage (upstream 2.1.0, ~0.2 MB; the T8RIN 8.x fork needs compileSdk 37
+    // + desugaring and drags in androidx.core 1.19) for GL adjustments/filters, EXIF read/strip,
+    // and ML Kit subject segmentation for auto background removal (API 24+, gated at runtime;
+    // isolated behind BackgroundRemover so a FOSS flavor can swap it out).
+    implementation(libs.gpuimage)
+    implementation(libs.androidx.exifinterface)
+    implementation(libs.mlkit.subject.segmentation)
+    // A real XmlPullParser for JVM tests; android.jar only carries stubs of it.
+    testImplementation("net.sf.kxml:kxml2:2.3.0")
+
+    // Optional Office engine (powered by LibreOffice) — installer differs per distribution.
+    "playImplementation"(libs.play.feature.delivery.ktx)
+    "fossImplementation"(libs.androidx.work.runtime.ktx)
+    "fossImplementation"(libs.xz)
 }

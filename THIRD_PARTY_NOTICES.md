@@ -22,6 +22,13 @@ ClearPDF uses open-source components and keeps their notices with the project. R
 - License: Apache License 2.0 (as attributed in the Settings screen)
 - Use: the app's translucent glass surfaces, backdrop effects, and shared UI components.
 
+## AndroidLiquidGlassView
+
+- Component: `AndroidLiquidGlassView` by Donny Yale (https://github.com/QmDeve/AndroidLiquidGlassView), Copyright (c) 2025-2026 Donny Yale
+- License: MIT License
+- Use: the velocity squash-and-stretch technique from its `LiquidTracker` was re-implemented in Compose as `ui/components/LiquidStretch.kt` (`Modifier.liquidStretch`), used by the slider, toggle and segmented-control thumbs. No library code is bundled.
+- Notice practice: keep this copyright line and the MIT permission notice with redistributed source/builds.
+
 ## Google ML Kit Text Recognition
 
 - Artifact: `com.google.mlkit:text-recognition:16.0.1`
@@ -42,7 +49,7 @@ ClearPDF uses open-source components and keeps their notices with the project. R
 - License: Apache License 2.0
 - Use: informed ClearPDF's on-device tool set (e.g. PDF-to-Images export). ClearPDF's implementations are original code written against the app's own architecture and `backdrop` UI; no source was copied. This acknowledgement is provided in good faith for the shared feature direction.
 
-The app does not add GPL or LGPL components for document rendering. If a future dependency changes that, its license and redistribution obligations must be reviewed before release.
+The app does not bundle GPL or LGPL components for document rendering. If a future dependency changes that, its license and redistribution obligations must be reviewed before release. (The optional LibreOffice engine below is not bundled in the APK; it is installed only on request.)
 
 ## docx-preview (docxjs)
 
@@ -63,3 +70,59 @@ The app does not add GPL or LGPL components for document rendering. If a future 
 - Use: required by docx-preview to read the .docx zip container in the browser context.
 - Notice practice: the upstream banner (including its pako attribution) is preserved verbatim at the
   top of the vendored file, and the library is credited in Settings → Licenses.
+
+## ImageToolbox (adapted source)
+
+- Source: https://github.com/T8RIN/ImageToolbox — Copyright (c) 2026 T8RIN (Malik Mukhametzyanov)
+- License: Apache License 2.0
+- Use: the image editor's cropper (`imageeditor/thirdparty/cropper`, from `lib/cropper` minus
+  its widgets), gesture helpers (`thirdparty/gesture`), image-scope helpers (`thirdparty/image`),
+  the perspective cropper (`thirdparty/freecorners`, from `lib/opencv-tools/free_corners_crop`
+  with OpenCV's `warpPerspective` replaced by `Matrix.setPolyToPoly`), and draw-engine code
+  (`imageeditor/engine/draw`: shape/arrow geometry from `PathHelper.kt`, paint set-up from
+  `DrawUtils.kt`, `FloodFill.kt`). Adjustment/preset choices and the watermark placement model
+  follow `feature/filters` and `feature/watermarking`.
+- Notice practice: every adapted file keeps the upstream Apache-2.0 header with an added
+  "Modified by ClearPDF" line; attribution is also in `NOTICE` and Settings → Licenses.
+
+## GPUImage for Android
+
+- Artifact: `jp.co.cyberagent.android:gpuimage:2.1.0` (Maven Central; ~0.2 MB incl. a tiny native helper)
+- License: Apache License 2.0 (CyberAgent, Inc.)
+- Use: GL-accelerated adjustments (white balance, vibrance, gamma, sharpen, vignette) and
+  artistic presets in the image editor.
+
+## Google ML Kit Subject Segmentation
+
+- Artifact: `com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1`
+- License: Google APIs Terms of Service
+- Use: optional automatic background removal in the image editor. The model is delivered by
+  Google Play services; the call is gated at runtime (Android 7+, Play services present) behind
+  the `BackgroundRemover` interface so FOSS builds can swap or drop it.
+
+## Stack Blur
+
+- Algorithm by Mario Klingemann (public domain), re-implemented in `imageeditor/engine/BlurUtils.kt`
+  as the pre-Android-12 fallback for the blur brush.
+
+## LibreOffice (optional Office engine)
+
+- What: "Office engine (powered by LibreOffice)" — a prebuilt LibreOfficeKit bundle for Android
+  (`liblo-native-code.so`, `libc++_shared.so` and the LibreOffice runtime tree). It is **not in the
+  APK**. It is installed only when the user asks for it in Settings: the `play` flavor gets it through
+  the on-demand Play Feature Delivery module `:office_engine`, and the `foss` flavor downloads it from
+  a pinned release, accepting it only if its size and SHA-256 match `OfficeEngineManifest.kt`.
+- Binary source: https://github.com/vasuki-re/LibreOffice-Lite (release v2.0), a build of
+  LibreOffice core (https://git.libreoffice.org/core, mirror https://github.com/LibreOffice/core).
+- License: Mozilla Public License 2.0 for LibreOffice itself; some bundled parts (fonts such as
+  Liberation, Carlito, Caladea and Gentium Basic, and other third-party libraries compiled into
+  LibreOffice) carry their own licences, listed at https://www.libreoffice.org/about-us/licenses/.
+- Source availability (MPL-2.0 §3.2): the corresponding LibreOffice source is available from the
+  URLs above. Anyone redistributing a build that bundles or rehosts the engine must keep that source
+  available and should prefer a self-built bundle whose build recipe is published.
+- ClearPDF's Kotlin JNI binding (`app/src/main/java/org/libreoffice/kit/`) is original code; only
+  its package, class and method names follow LibreOffice's Android binding, because the native
+  library resolves them by name.
+- Trademark: "LibreOffice" is a trademark of The Document Foundation; ClearPDF uses it only to say
+  the optional engine is powered by LibreOffice and is not affiliated with or endorsed by TDF.
+- Credited in Settings → Licenses and Settings → Office engine.

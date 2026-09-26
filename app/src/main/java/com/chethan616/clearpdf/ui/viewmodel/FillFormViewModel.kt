@@ -34,7 +34,9 @@ data class FillFormUiState(
     val isProcessing: Boolean = false,
     val lastOutputUri: Uri? = null,
     val resultMessage: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    /** Field values edited since the file was opened / last successfully saved. */
+    val dirty: Boolean = false
 )
 
 class FillFormViewModel : ViewModel() {
@@ -46,7 +48,7 @@ class FillFormViewModel : ViewModel() {
         try {
             context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } catch (_: Exception) {}
-        _uiState.update { it.copy(sourceUri = uri, sourceName = queryName(context, uri), fields = emptyList(), loaded = false, lastOutputUri = null, resultMessage = null, errorMessage = null) }
+        _uiState.update { it.copy(sourceUri = uri, sourceName = queryName(context, uri), fields = emptyList(), loaded = false, lastOutputUri = null, resultMessage = null, errorMessage = null, dirty = false) }
         viewModelScope.launch {
             val fields = withContext(Dispatchers.IO) { runCatching { PdfFormService.readFields(context, uri) }.getOrDefault(emptyList()) }
             _uiState.update {
@@ -60,13 +62,14 @@ class FillFormViewModel : ViewModel() {
 
     fun onFieldChange(name: String, value: String) {
         _uiState.update { st ->
-            st.copy(fields = st.fields.map { if (it.name == name) it.copy(value = value) else it })
+            st.copy(fields = st.fields.map { if (it.name == name) it.copy(value = value) else it }, dirty = true)
         }
     }
 
     fun onFlattenChange(value: Boolean) = _uiState.update { it.copy(flatten = value) }
 
-    fun save(context: Context) {
+    /** [onSaved] runs only after the filled copy was actually written. */
+    fun save(context: Context, onSaved: (() -> Unit)? = null) {
         val src = _uiState.value.sourceUri ?: return
         if (_uiState.value.isProcessing || _uiState.value.fields.isEmpty()) return
         _uiState.update { it.copy(isProcessing = true, errorMessage = null, resultMessage = null, lastOutputUri = null) }
@@ -83,7 +86,8 @@ class FillFormViewModel : ViewModel() {
                     name = fileName, uriString = outUri.toString(),
                     timestamp = System.currentTimeMillis(), sizeBytes = 0
                 ))
-                _uiState.update { it.copy(isProcessing = false, lastOutputUri = outUri, resultMessage = "Filled $written field${if (written == 1) "" else "s"} · saved to $saveLabel") }
+                _uiState.update { it.copy(isProcessing = false, lastOutputUri = outUri, resultMessage = "Filled $written field${if (written == 1) "" else "s"} · saved to $saveLabel", dirty = false) }
+                onSaved?.invoke()
             } catch (t: Throwable) {
                 _uiState.update { it.copy(isProcessing = false, errorMessage = t.message ?: "Couldn't fill the form") }
             }

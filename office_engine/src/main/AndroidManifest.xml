@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  On-demand dynamic feature carrying the optional Office engine (powered by LibreOffice) for
+  Play builds. It holds no code: only the LibreOfficeKit native libraries (jniLibs) and the
+  LibreOffice runtime tree (assets/lo/). The base app copies both out of the installed split
+  (OfficeEngineStore) and loads them in its isolated ":office" process.
+  The binaries are NOT committed; see build.gradle.kts (prepareOfficeEngineBinaries).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:dist="http://schemas.android.com/apk/distribution">
+
+    <dist:module
+        dist:instant="false"
+        dist:title="@string/office_engine_module_title">
+        <dist:delivery>
+            <dist:on-demand />
+        </dist:delivery>
+        <dist:fusing dist:include="false" />
+    </dist:module>
+
+    <application android:hasCode="false" />
+</manifest>

@@ -1,12 +1,14 @@
 package com.chethan616.clearpdf.ui.screen
 
-import android.os.SystemClock
-import android.view.HapticFeedbackConstants
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -15,60 +17,79 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.FlingBehavior
-import androidx.compose.foundation.gestures.ScrollScope
-import androidx.compose.foundation.gestures.ScrollableDefaults
-import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.runtime.produceState
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Redo
+import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
+import androidx.compose.material.icons.rounded.BorderAll
+import androidx.compose.material.icons.rounded.BorderBottom
+import androidx.compose.material.icons.rounded.BorderClear
+import androidx.compose.material.icons.rounded.BorderInner
+import androidx.compose.material.icons.rounded.BorderLeft
+import androidx.compose.material.icons.rounded.BorderOuter
+import androidx.compose.material.icons.rounded.BorderRight
+import androidx.compose.material.icons.rounded.BorderStyle
+import androidx.compose.material.icons.rounded.BorderTop
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.ChevronLeft
-import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.GridOn
-import androidx.compose.material.icons.rounded.IosShare
+import androidx.compose.material.icons.rounded.FormatAlignCenter
+import androidx.compose.material.icons.rounded.FormatAlignLeft
+import androidx.compose.material.icons.rounded.FormatAlignRight
+import androidx.compose.material.icons.rounded.FormatBold
+import androidx.compose.material.icons.rounded.FormatClear
+import androidx.compose.material.icons.rounded.FormatColorFill
+import androidx.compose.material.icons.rounded.FormatColorText
+import androidx.compose.material.icons.rounded.FormatItalic
+import androidx.compose.material.icons.rounded.FormatStrikethrough
+import androidx.compose.material.icons.rounded.FormatUnderlined
+import androidx.compose.material.icons.rounded.Numbers
 import androidx.compose.material.icons.rounded.PictureAsPdf
+import androidx.compose.material.icons.rounded.SaveAs
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.TableRows
+import androidx.compose.material.icons.rounded.VerticalAlignBottom
+import androidx.compose.material.icons.rounded.VerticalAlignCenter
+import androidx.compose.material.icons.rounded.VerticalAlignTop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -76,40 +97,47 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
-import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.abs
-import kotlin.math.roundToInt
-import kotlinx.coroutines.flow.distinctUntilChanged
 import com.chethan616.clearpdf.R
+import com.chethan616.clearpdf.ui.components.GlassBottomSheet
+import com.chethan616.clearpdf.ui.components.GlassColorPicker
+import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
+import com.chethan616.clearpdf.ui.components.rememberScreenBackdrop
+import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
+import com.chethan616.clearpdf.ui.components.GlassSegmentedControl
 import com.chethan616.clearpdf.ui.components.GlassTitlePill
-import com.chethan616.clearpdf.ui.components.LiquidButton
+import com.chethan616.clearpdf.ui.components.GlassToolButton
+import com.chethan616.clearpdf.ui.components.GlassToolbar
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
+import com.chethan616.clearpdf.ui.components.LiquidToggle
+import com.chethan616.clearpdf.ui.components.OfficeStandardColors
 import com.chethan616.clearpdf.ui.components.ShareMorphButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.components.viewerChromeGlass
@@ -117,39 +145,57 @@ import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
+import com.chethan616.clearpdf.ui.viewmodel.BorderPreset
 import com.chethan616.clearpdf.ui.viewmodel.SpreadsheetViewModel
+import com.chethan616.clearpdf.utils.xlsx.Axis
+import com.chethan616.clearpdf.utils.xlsx.CellRange
+import com.chethan616.clearpdf.utils.xlsx.ColorSpec
+import com.chethan616.clearpdf.utils.xlsx.PaintTheme
+import com.chethan616.clearpdf.utils.xlsx.SheetLayout
+import com.chethan616.clearpdf.utils.xlsx.StylePatch
+import com.chethan616.clearpdf.utils.xlsx.ValidationKind
+import com.chethan616.clearpdf.utils.xlsx.XlsxColors
+import com.chethan616.clearpdf.utils.xlsx.XlsxPainter
+import com.chethan616.clearpdf.utils.xlsx.XlsxRefs
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.shapes.Capsule
 import com.kyant.shapes.RoundedRectangle
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
-private val CELL_W = 132.dp
-private val CELL_H = 38.dp
+/** `liquidGlassPanel`'s corner curve, restated so the scrolling grid can be clipped to it. */
+private val GlassPanelShape = RoundedRectangle(28f.dp)
+
+/** Which formatting panel is open. */
+private enum class Panel { NONE, FONT_COLOR, FILL_COLOR, ALIGN, BORDERS, NUMBER, ROWS_COLS }
+
+/** An open list-validation dropdown. */
+private class DropdownState(val r: Int, val c: Int, val anchor: Rect, val items: List<String>, val strict: Boolean)
+
+private val NumberFormats = listOf(
+    "General" to "General",
+    "Number" to "#,##0.00",
+    "Integer" to "0",
+    "Currency" to "\"$\"#,##0.00",
+    "Accounting" to "_(\"$\"* #,##0.00_);_(\"$\"* (#,##0.00);_(\"$\"* \"-\"??_);_(@_)",
+    "Percent" to "0%",
+    "Percent (2dp)" to "0.00%",
+    "Scientific" to "0.00E+00",
+    "Short date" to "dd-mm-yyyy",
+    "Long date" to "d mmmm yyyy",
+    "Time" to "h:mm:ss",
+    "Text" to "@"
+)
 
 /**
- * `liquidGlassPanel`'s own corner curve, restated so the scrolling grid can be clipped to it.
+ * Spreadsheet viewer and editor.
  *
- * The panel is read-only and its radius lives in a default argument, so this is a copy rather than
- * a reference. Keep the two in step — a clip that disagrees with the paint reads as a chipped edge.
+ * Reading: the file's own look — fills, fonts, borders, merges, column widths, row heights, frozen
+ * panes — on a solid document surface inside the glass panel, with sticky column/row headers and a
+ * sheet tab strip. Editing (the pencil): a formula bar, a glass formatting toolbar, range handles,
+ * list-validation dropdowns, insert/delete rows and columns, undo/redo, and Save / Save as, which
+ * patch the original .xlsx in place of regenerating it.
  */
-private val GlassPanelShape: Shape = RoundedRectangle(28f.dp)
-
-/** The cell a tap selected, carried into the value/edit popup. */
-private data class CellRef(val row: Int, val col: Int, val value: String)
-
-/** Icon + label, so Copy / Edit / Save all sit the same inside a [LiquidButton]. */
-@Composable
-private fun CellActionLabel(icon: ImageVector, label: String, tint: Color) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Icon(icon, null, Modifier.size(16.dp), tint)
-        BasicText(label, style = TextStyle(tint, 14.sp, FontWeight.Medium))
-    }
-}
-
-/** Interactive spreadsheet viewer: a real scrollable grid with sticky column letters, sheet
- *  navigation, and tap-a-cell-to-see-its-full-value (so long values are never lost to "…"). */
 @Composable
 fun SpreadsheetViewerScreen(
     backdrop: LayerBackdrop,
@@ -164,90 +210,262 @@ fun SpreadsheetViewerScreen(
     val accent = Color(0xFF1E8E5A)   // spreadsheet green
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val focusManager = LocalFocusManager.current
+    val chromeGlass = viewerChromeGlass(isDark)
 
-    var sheetIndex by remember { mutableIntStateOf(0) }
-    // The tapped cell, plus whether its popup is in read or edit mode. `draft` holds the in-progress
-    // text so cancelling leaves the sheet untouched.
-    var selectedCell by remember { mutableStateOf<CellRef?>(null) }
-    var editingCell by remember { mutableStateOf(false) }
+    val wb = state.workbook
+    val visibleSheets = remember(wb) { wb?.sheets?.indices?.filter { !wb.sheets[it].hidden } ?: emptyList() }
+    var sheetIndex by remember { mutableIntStateOf(-1) }
+    val idx = if (sheetIndex in visibleSheets) sheetIndex else visibleSheets.firstOrNull() ?: 0
+    val sheet = wb?.sheets?.getOrNull(idx)
+
+    var selection by remember { mutableStateOf<GridSelection?>(null) }
+    var editMode by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
-    val editFocus = remember { FocusRequester() }
+    val formulaFocus = remember { FocusRequester() }
     var zoom by remember { mutableFloatStateOf(1f) }
+    var panel by remember { mutableStateOf(Panel.NONE) }
+    var dropdown by remember { mutableStateOf<DropdownState?>(null) }
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var currentMatch by remember { mutableIntStateOf(0) }
-    var showSheetPicker by remember { mutableStateOf(false) }
+    var confirmExit by remember { mutableStateOf(false) }
+    var exitAfterSave by remember { mutableStateOf(false) }
     val searchFocus = remember { FocusRequester() }
-    val gridListState = rememberLazyListState()
-    // Theme-adaptive glass surface for the top-bar pill / buttons → true liquid-glass refraction.
-    val chromeGlass = viewerChromeGlass(isDark)
+    val listState = rememberLazyListState()
+    val scrollX = remember { mutableFloatStateOf(0f) }
 
-    val sheets = state.sheets
-    val idx = sheetIndex.coerceIn(0, sheets.lastIndex.coerceAtLeast(0))
-    val currentSheet = sheets.getOrNull(idx)
+    // Reset view state when switching sheets.
+    LaunchedEffect(idx) {
+        selection = null; editing = false; dropdown = null
+        scrollX.floatValue = 0f
+        runCatching { listState.scrollToItem(0) }
+    }
 
-    // Cell search across the current sheet → list of (row, col) matches.
-    val matches = remember(currentSheet, searchQuery) {
-        val q = searchQuery.trim()
-        if (q.isBlank() || currentSheet == null) emptyList()
-        else buildList {
-            currentSheet.rows.forEachIndexed { r, row ->
-                row.forEachIndexed { c, v -> if (v.contains(q, ignoreCase = true)) add(r to c) }
-            }
+    val surface = if (isDark) Color(0xFF1C1C1E) else Color.White
+    val gridColors = remember(isDark) {
+        GridColors(
+            surface = surface,
+            headerBand = if (isDark) Color(0xFF26272B) else Color(0xFFF3F5F8),
+            headerText = if (isDark) Color(0xFFB5B6BF) else Color(0xFF5E6068),
+            headerDivider = if (isDark) Color(0xFF3A3B40) else Color(0xFFDADDE3),
+            accent = accent
+        )
+    }
+    val version = state.version
+    val layout = remember(sheet, version) { sheet?.let { SheetLayout(it) } }
+    val painter = remember(wb, isDark) {
+        wb?.let {
+            XlsxPainter(it, PaintTheme(isDark, surface.toArgb(), text.toArgb(), if (isDark) 0xFF34353A.toInt() else 0xFFE2E4E9.toInt()))
         }
     }
-    val matchSet = remember(matches) { matches.mapTo(HashSet()) { it.first.toLong() * 1_000_000L + it.second } }
-    val currentCell = matches.getOrNull(currentMatch)
+    remember(version) { painter?.invalidate(); version }
+
+    val anchorCell = selection?.let { sheet?.cell(it.anchorR, it.anchorC) }
+    val anchorStyle = remember(anchorCell, version) { wb?.styles?.resolve(anchorCell?.style ?: 0) }
+
+    // Reads `selection` at call time (not the composition's snapshot), so it is right straight
+    // after a selection change inside the same event handler.
+    fun anchorEditText(): String =
+        selection?.let { s -> sheet?.cell(s.anchorR, s.anchorC) }?.let { wb?.editText(it) } ?: ""
+
+    fun commitDraft() {
+        val sel = selection ?: return
+        if (!editing) return
+        editing = false
+        val validation = sheet?.validationAt(sel.anchorR, sel.anchorC)
+        if (validation != null && validation.kind == ValidationKind.LIST && validation.strict && draft.isNotEmpty()) {
+            val items = wb!!.listItems(validation, sheet)
+            if (items.isNotEmpty() && items.none { it.equals(draft, ignoreCase = true) }) {
+                Toast.makeText(context, R.string.sheet_invalid_value, Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
+        viewModel.setCellText(idx, sel.anchorR, sel.anchorC, draft)
+    }
+
+    fun select(sel: GridSelection) {
+        if (editing) { commitDraft(); focusManager.clearFocus() }
+        dropdown = null
+        selection = sel
+        draft = sel.let { s -> sheet?.cell(s.anchorR, s.anchorC)?.let { wb?.editText(it) } } ?: ""
+    }
+
+    fun startEditing() {
+        if (!state.editable || selection == null) return
+        if (!editMode) editMode = true
+        draft = anchorEditText()
+        editing = true
+    }
+
+    fun moveSelection(dr: Int, dc: Int) {
+        val s = selection ?: return
+        val lay = layout ?: return
+        var r = s.anchorR
+        var c = s.anchorC
+        val m = sheet?.mergeAt(r, c)
+        if (dr > 0) r = (m?.r2 ?: r) + 1
+        if (dc > 0) c = (m?.c2 ?: c) + 1
+        r = r.coerceIn(0, lay.nRows - 1); c = c.coerceIn(0, lay.nCols - 1)
+        while (r < lay.nRows - 1 && sheet?.isRowHidden(r) == true) r++
+        select(GridSelection.cell(r, c, sheet!!))
+        if (r >= sheet.frozenRows) {
+            val item = lay.itemIndexOf(r)
+            val visible = listState.layoutInfo.visibleItemsInfo
+            if (visible.none { it.index == item } || visible.lastOrNull()?.index == item) scope.launch { listState.animateScrollToItem((item - 3).coerceAtLeast(0)) }
+        }
+    }
+
+    fun openDropdown(r: Int, c: Int, anchor: Rect) {
+        val v = sheet?.validationAt(r, c) ?: return
+        val items = wb?.listItems(v, sheet) ?: return
+        if (items.isEmpty()) return
+        haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+        dropdown = DropdownState(r, c, anchor, items, v.strict)
+    }
+
+    // Search across the current sheet.
+    // Find runs off the main thread and is debounced, so typing never waits on a full-sheet scan
+    // (each cell is number-formatted for matching, which is far too slow per keystroke on big sheets).
+    val matches by produceState(emptyList<Pair<Int, Int>>(), sheet, searchQuery, version) {
+        val q = searchQuery.trim()
+        if (q.isBlank() || sheet == null || painter == null) { value = emptyList(); return@produceState }
+        kotlinx.coroutines.delay(180L)
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            val out = ArrayList<Pair<Int, Int>>()
+            scan@ for ((r, row) in sheet.rows) for ((c, cell) in row.cells) {
+                if (!isActive) return@withContext out
+                if (painter.display(cell).contains(q, ignoreCase = true)) {
+                    out.add(r to c)
+                    if (out.size >= 5000) break@scan
+                }
+            }
+            out
+        }
+    }
+    val currentMatchCell = matches.getOrNull(currentMatch)
+    fun scrollToCell(r: Int, c: Int) {
+        val lay = layout ?: return
+        if (r >= (sheet?.frozenRows ?: 0)) scope.launch { listState.animateScrollToItem((lay.itemIndexOf(r) - 2).coerceAtLeast(0)) }
+        val density = context.resources.displayMetrics.density
+        val target = ((lay.colX[c] - lay.frozenWidth) * density * zoom - 24 * density).coerceAtLeast(0f)
+        if (c >= (sheet?.frozenCols ?: 0)) scrollX.floatValue = target
+    }
     LaunchedEffect(matches) {
         currentMatch = 0
-        if (matches.isNotEmpty()) gridListState.animateScrollToItem(matches[0].first)
+        matches.firstOrNull()?.let { (r, c) -> scrollToCell(r, c) }
     }
     fun goToMatch(delta: Int) {
         if (matches.isEmpty()) return
         currentMatch = ((currentMatch + delta) % matches.size + matches.size) % matches.size
-        scope.launch { gridListState.animateScrollToItem(matches[currentMatch].first) }
+        matches[currentMatch].let { (r, c) -> scrollToCell(r, c) }
     }
 
+    // Save / Save as.
+    val saveAsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    ) { uri ->
+        if (uri != null) viewModel.save(context, uri) { res ->
+            when (res) {
+                is SpreadsheetViewModel.SaveResult.Saved -> {
+                    Toast.makeText(context, R.string.sheet_saved, Toast.LENGTH_SHORT).show()
+                    if (exitAfterSave) onBack()
+                }
+                else -> Toast.makeText(context, R.string.sheet_save_failed, Toast.LENGTH_SHORT).show()
+            }
+        } else exitAfterSave = false
+    }
+    fun save(asCopy: Boolean) {
+        if (editing) commitDraft()
+        if (asCopy) { saveAsLauncher.launch(viewModel.suggestedSaveAsName()); return }
+        viewModel.save(context, null) { res ->
+            when (res) {
+                is SpreadsheetViewModel.SaveResult.Saved -> {
+                    haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                    Toast.makeText(context, R.string.sheet_saved, Toast.LENGTH_SHORT).show()
+                    if (exitAfterSave) onBack()
+                }
+                is SpreadsheetViewModel.SaveResult.NeedsSaveAs -> saveAsLauncher.launch(viewModel.suggestedSaveAsName())
+                is SpreadsheetViewModel.SaveResult.Failed -> Toast.makeText(context, R.string.sheet_save_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun requestBack() {
+        when {
+            dropdown != null -> dropdown = null
+            panel != Panel.NONE -> panel = Panel.NONE
+            editing -> { editing = false; draft = anchorEditText(); focusManager.clearFocus() }
+            state.dirty -> confirmExit = true
+            else -> onBack()
+        }
+    }
+    BackHandler(enabled = dropdown != null || panel != Panel.NONE || editing || state.dirty) { requestBack() }
+
+    fun styleSel(patch: StylePatch) {
+        val sel = selection ?: return
+        if (editing) commitDraft()
+        viewModel.applyStyle(idx, sel.range, patch)
+    }
+
+    // Hoisted so the unsaved-changes card and the format sheet (siblings of the scaffold, outside its
+    // captured layer) refract the live grid instead of only the — usually disabled — wallpaper.
+    val screenBackdrop = rememberScreenBackdrop(backdrop)
     Box(Modifier.fillMaxSize()) {
         GlassScreenScaffold(
             backdrop = backdrop,
+            screenBackdrop = screenBackdrop,
             contentHorizontalPadding = 12.dp,
             headerHorizontalPadding = 12.dp,
-            // Header — Home and Tools' trio, verbatim: back circle · centred [GlassTitlePill] ·
-            // search circle, 10 dp apart. The pill is the same widget carrying "ClearPDF" on Home,
-            // so the two can't drift apart; it shows "Sheet X / Y" and (for multi-sheet files) opens
-            // a sheet picker on tap. It is pinned over the grid and samples the content layer, so
-            // rows scroll *under* the chrome and refract through it rather than pushing it down.
             header = { headerBackdrop ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // No `surfaceColor` — Home's circles paint nothing of their own and are pure
-                    // refraction. The heavier `chromeGlass` tint that used to be here is still right
-                    // for the grid container below, but on floating chrome it read as a grey slab.
-                    LiquidIconButton(onClick = onBack, backdrop = headerBackdrop) {
+                    LiquidIconButton(onClick = { requestBack() }, backdrop = headerBackdrop) {
                         Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
                     }
-                    // Weighted Box, not two weighted spacers — the two circles are both 40 dp, so
-                    // this is what actually centres the pill on the row, the way Home does it.
                     Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         GlassTitlePill(
-                            text = if (currentSheet != null) stringResource(R.string.viewer_sheet_of, idx + 1, sheets.size)
-                            else state.fileName.ifBlank { stringResource(R.string.viewer_title) },
-                            backdrop = headerBackdrop,
-                            // No overrides at all, exactly as Home calls it. Both defaults already
-                            // resolve to what this screen was passing by hand — the pill's own tint
-                            // is the theme's, and its ink is `LiquidGlassColors.text(isDark)`, which
-                            // is what `text` is here.
-                            onClick = if (sheets.size > 1) ({ showSheetPicker = true }) else null
+                            text = (if (state.dirty) "• " else "") + state.fileName.ifBlank { stringResource(R.string.viewer_title) },
+                            backdrop = headerBackdrop
                         )
                     }
-                    LiquidIconButton(onClick = { showSearch = true }, backdrop = headerBackdrop) {
-                        Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), text)
+                    if (state.dirty && state.editable) {
+                        // Clear glass like the other header circles; only the tick carries the accent.
+                        // While saving it breathes instead of swapping in a Material spinner.
+                        val savePulse = if (state.saving) {
+                            val t = rememberInfiniteTransition(label = "savePulse")
+                            t.animateFloat(1f, 0.35f, infiniteRepeatable(tween(520), RepeatMode.Reverse), label = "savePulseA").value
+                        } else 1f
+                        LiquidIconButton(onClick = { if (!state.saving) save(false) }, backdrop = headerBackdrop) {
+                            Icon(
+                                Icons.Rounded.Check, stringResource(R.string.sheet_save),
+                                Modifier.size(22.dp).graphicsLayer { alpha = savePulse }, accent
+                            )
+                        }
+                    }
+                    if (!editMode) {
+                        LiquidIconButton(onClick = { showSearch = true }, backdrop = headerBackdrop) {
+                            Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), text)
+                        }
+                    }
+                    if (state.editable) {
+                        LiquidIconButton(
+                            onClick = {
+                                if (editMode) { if (editing) commitDraft(); editMode = false; panel = Panel.NONE; focusManager.clearFocus() }
+                                else { editMode = true; showSearch = false }
+                            },
+                            backdrop = headerBackdrop,
+                            surfaceColor = if (editMode) accent.copy(0.22f) else Color.Unspecified
+                        ) {
+                            if (editMode) BasicText(stringResource(R.string.sheet_done), style = TextStyle(accent, 13.sp, FontWeight.SemiBold))
+                            else Icon(Icons.Rounded.Edit, stringResource(R.string.sheet_edit), Modifier.size(19.dp), text)
+                        }
                     }
                 }
             }
@@ -256,178 +474,164 @@ fun SpreadsheetViewerScreen(
                 state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = accent, strokeWidth = 2.5.dp)
                 }
-                currentSheet == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                sheet == null || layout == null || painter == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     BasicText(state.error ?: "Empty spreadsheet", style = TextStyle(sub, 14.sp))
                 }
-                else -> {
-                    // The grid used to sit straight on the wallpaper: cells are mostly transparent,
-                    // so whatever photo was behind the app showed through the data. It now rides on
-                    // the same heavy glass the sheet picker and the page-jump dialog use — blur 8,
-                    // a 20x40 depth lens, highlight and inner shadow — which is the one place in
-                    // this app that stack is right outside a dialog, because this *is* a reading
-                    // surface that has to hold small text over an arbitrary backdrop.
-                    //
-                    // The tint is pushed well past `liquidGlassPanel`'s 40% default. At 40% a busy
-                    // wallpaper still reads through 11 sp cell text. 72% keeps the refraction and
-                    // the depth lens plainly visible while giving the type something to sit on.
-                    val sheetSurface =
-                        if (isDark) Color(0xFF15181E).copy(0.72f) else Color(0xFFF7F8FA).copy(0.72f)
+                else -> Column(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(contentPadding)
+                        // Only while a cell is being typed into (formula bar) does the grid lift above
+                        // the keyboard. Keying this on "search closed" made the tabs jump up when ✕
+                        // was tapped: search closes a frame before the keyboard finishes hiding.
+                        .then(
+                            if (editing) Modifier.windowInsetsPadding(WindowInsets.ime.exclude(WindowInsets.navigationBars))
+                            else Modifier
+                        )
+                ) {
+                    // Formula bar: the selected cell's reference and its content.
+                    AnimatedVisibility(
+                        visible = selection != null,
+                        enter = fadeIn(GlassMotion.fade()),
+                        exit = fadeOut(GlassMotion.fade())
+                    ) {
+                        FormulaBar(
+                            ref = selection?.let { s ->
+                                if (s.range.isSingle || sheet.mergeAt(s.anchorR, s.anchorC) == s.range) XlsxRefs.cellRef(s.anchorR, s.anchorC)
+                                else if (s.isWholeColumn) XlsxRefs.colLetter(s.range.c1) + ":" + XlsxRefs.colLetter(s.range.c2)
+                                else if (s.isWholeRow) "${s.range.r1 + 1}:${s.range.r2 + 1}"
+                                else s.range.toRef()
+                            } ?: "",
+                            value = if (editing) draft else anchorEditText(),
+                            editable = state.editable && editMode,
+                            editing = editing,
+                            focusRequester = formulaFocus,
+                            backdrop = backdrop,
+                            glass = chromeGlass,
+                            text = text, sub = sub, accent = accent,
+                            onValueChange = { draft = it },
+                            onStartEdit = { startEditing() },
+                            // Enter commits and moves down, staying in typing mode — the keyboard
+                            // doesn't bounce between cells when filling a column.
+                            onCommit = { commitDraft(); moveSelection(1, 0); startEditing() },
+                            onCancel = { editing = false; draft = anchorEditText(); focusManager.clearFocus() }
+                        )
+                    }
                     Box(
                         Modifier
-                            .fillMaxSize()
-                            .padding(contentPadding)
-                            .liquidGlassPanel(backdrop, uiSensor, containerColorOverride = sheetSurface)
-                            // `liquidGlassPanel` paints its shape but does not clip, and the grid
-                            // scrolls — without this the rows run out past the rounded corners.
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .padding(top = if (selection != null) 8.dp else 0.dp)
+                            // Solid document surface, like PDF pages. The glass panel used here before
+                            // was fully covered by this opaque fill (none of its refraction showed), yet
+                            // its gravity-tracking highlight re-rendered a screen-sized blur + lens on
+                            // every sensor tick — continuous frames that made the share morph and every
+                            // other animation in this viewer stutter while the PDF viewer stayed smooth.
+                            .shadow(10.dp, GlassPanelShape, clip = false, ambientColor = Color.Black.copy(0.10f), spotColor = Color.Black.copy(0.10f))
                             .clip(GlassPanelShape)
+                            .background(surface)
+                            .border(0.5.dp, if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.06f), GlassPanelShape)
                     ) {
-                        SheetGrid(
-                            sheet = currentSheet, isDark = isDark, text = text, sub = sub, accent = accent, zoom = zoom,
-                            listState = gridListState, matchSet = matchSet, currentCell = currentCell,
-                            onZoom = { z -> zoom = (zoom * z).coerceIn(0.7f, 2f) },
-                            onCellTap = { r, c, value ->
-                                selectedCell = CellRef(r, c, value)
-                                editingCell = false
-                                draft = value
+                        SpreadsheetGrid(
+                            sheet = sheet,
+                            layout = layout,
+                            painter = painter,
+                            version = version,
+                            zoom = zoom,
+                            listState = listState,
+                            scrollX = scrollX,
+                            selection = selection,
+                            matches = matches,
+                            currentMatch = currentMatchCell,
+                            colors = gridColors,
+                            editMode = editMode,
+                            flingBehavior = rememberStackingFlingBehavior(),
+                            onSelect = { select(it) },
+                            onTapSelected = { r, c ->
+                                val v = sheet.validationAt(r, c)
+                                if (editMode && v != null && v.kind == ValidationKind.LIST) {
+                                    val sel = selection
+                                    if (sel != null) openDropdown(r, c, Rect.Zero)
+                                } else startEditing()
                             },
-                            modifier = Modifier.fillMaxSize()
+                            onDropdown = { r, c, anchor -> if (state.editable) openDropdown(r, c, anchor) },
+                            onZoom = { z -> zoom = (zoom * z).coerceIn(0.5f, 2.5f) },
+                            onColumnResize = { c, w -> viewModel.setColWidth(idx, c, w) },
+                            // Own layer: the glass panel around the grid redraws on every motion-sensor
+                            // tick (its highlight follows gravity). Without isolation each of those
+                            // re-ran drawGridRow for every visible row (~48 ms/frame, continuously).
+                            // Now the panel reuses the grid's recorded display list.
+                            modifier = Modifier.fillMaxSize().graphicsLayer()
                         )
-
-                        // Jump-scrubber for long sheets — the fast-flick fling on the grid itself
-                        // covers distance quickly, but a WPS/Excel-style rail is still the more
-                        // precise way to land on a specific far-off row without counting flicks.
                         SheetRowScrubber(
-                            listState = gridListState,
-                            rowCount = currentSheet.rows.size,
+                            listState = listState,
+                            rowCount = layout.scrollRows.size,
                             backdrop = backdrop,
                             chromeGlass = chromeGlass,
                             accent = accent,
                             text = text,
                             isDark = isDark,
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 4.dp)
+                            labelFor = { i -> (layout.scrollRows.getOrElse(i) { i } + 1) },
+                            totalLabel = (sheet.maxRow + 1).coerceAtLeast(1),
+                            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp)
                         )
                     }
-                }
-            }
-        }
-
-        // Tap-a-cell → full value popup (fixes truncated "…" cells), and the entry point for editing.
-        AnimatedVisibility(
-            visible = selectedCell != null,
-            enter = fadeIn(tween(150)) + scaleIn(initialScale = 0.94f, animationSpec = tween(160)),
-            exit = fadeOut(tween(140)) + scaleOut(targetScale = 0.96f)
-        ) {
-            Box(
-                Modifier.fillMaxSize().background(Color.Black.copy(0.28f))
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { selectedCell = null }
-                    // The edit field lives in here, so the card has to ride above the keyboard.
-                    .imePadding(),
-                contentAlignment = Alignment.Center
-            ) {
-                selectedCell?.let { cell ->
-                    Column(
-                        Modifier
-                            .fillMaxWidth().padding(28.dp)
-                            .viewerGlass(backdrop, chromeGlass)
-                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    SheetTabs(
+                        wb = wb!!,
+                        indices = visibleSheets,
+                        selected = idx,
+                        backdrop = backdrop,
+                        glass = chromeGlass,
+                        text = text, sub = sub, accent = accent,
+                        onSelect = { i -> if (editing) commitDraft(); sheetIndex = i },
+                        modifier = Modifier.padding(top = 8.dp, end = if (!editMode && !showSearch) 64.dp else 0.dp)
+                    )
+                    AnimatedVisibility(
+                        visible = editMode,
+                        enter = fadeIn(GlassMotion.fade()),
+                        exit = fadeOut(GlassMotion.fade())
                     ) {
-                        // "B7 · Cell value" — the ref matters once you can change what's in it.
-                        BasicText(
-                            "${currentSheet?.labelAt(cell.col) ?: ""}${currentSheet?.rowNumberAt(cell.row) ?: (cell.row + 1)}" +
-                                "  ·  ${stringResource(R.string.sheet_cell_value)}",
-                            style = TextStyle(sub, 11.sp, FontWeight.Bold, letterSpacing = 0.8.sp)
+                        EditToolbar(
+                            backdrop = backdrop,
+                            accent = accent,
+                            canUndo = state.canUndo,
+                            canRedo = state.canRedo,
+                            hasSelection = selection != null,
+                            bold = anchorStyle?.bold == true,
+                            italic = anchorStyle?.italic == true,
+                            underline = anchorStyle?.underline == true,
+                            strike = anchorStyle?.strike == true,
+                            panel = panel,
+                            onUndo = { if (editing) commitDraft(); viewModel.undo() },
+                            onRedo = { viewModel.redo() },
+                            onBold = { styleSel(StylePatch(bold = !(anchorStyle?.bold ?: false))) },
+                            onItalic = { styleSel(StylePatch(italic = !(anchorStyle?.italic ?: false))) },
+                            onUnderline = { styleSel(StylePatch(underline = !(anchorStyle?.underline ?: false))) },
+                            onStrike = { styleSel(StylePatch(strike = !(anchorStyle?.strike ?: false))) },
+                            onPanel = { p -> focusManager.clearFocus(); if (editing) commitDraft(); panel = if (panel == p) Panel.NONE else p },
+                            onClear = { selection?.let { viewModel.clearRange(idx, it.range) } },
+                            onSaveAs = { save(true) },
+                            modifier = Modifier.padding(top = 8.dp)
                         )
-
-                        if (editingCell) {
-                            LaunchedEffect(Unit) { runCatching { editFocus.requestFocus() } }
-                            Box(
-                                Modifier.fillMaxWidth().heightIn(min = 56.dp, max = 320.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.05f))
-                                    .padding(horizontal = 12.dp, vertical = 10.dp)
-                            ) {
-                                BasicTextField(
-                                    value = draft,
-                                    onValueChange = { draft = it },
-                                    textStyle = TextStyle(text, 16.sp),
-                                    cursorBrush = SolidColor(accent),
-                                    modifier = Modifier.fillMaxWidth().focusRequester(editFocus)
-                                )
-                            }
-                        } else {
-                            Column(
-                                Modifier.fillMaxWidth().heightIn(max = 320.dp).verticalScroll(rememberScrollState())
-                            ) {
-                                BasicText(
-                                    cell.value.ifBlank { stringResource(R.string.sheet_cell_empty) },
-                                    style = TextStyle(if (cell.value.isBlank()) sub else text, 16.sp)
-                                )
-                            }
-                        }
-
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
-                            if (editingCell) {
-                                LiquidButton(
-                                    onClick = { editingCell = false; draft = cell.value },
-                                    backdrop = backdrop,
-                                    surfaceColor = chromeGlass
-                                ) {
-                                    BasicText(stringResource(R.string.cancel), style = TextStyle(text, 14.sp, FontWeight.Medium))
-                                }
-                                LiquidButton(
-                                    onClick = {
-                                        viewModel.updateCell(idx, cell.row, cell.col, draft)
-                                        selectedCell = null
-                                        editingCell = false
-                                    },
-                                    backdrop = backdrop,
-                                    surfaceColor = accent.copy(0.85f)
-                                ) {
-                                    CellActionLabel(Icons.Rounded.Check, stringResource(R.string.save), Color.White)
-                                }
-                            } else {
-                                LiquidButton(
-                                    onClick = { clipboard.setText(AnnotatedString(cell.value)); selectedCell = null },
-                                    backdrop = backdrop,
-                                    surfaceColor = chromeGlass
-                                ) {
-                                    CellActionLabel(Icons.Rounded.ContentCopy, stringResource(R.string.copy), text)
-                                }
-                                LiquidButton(
-                                    onClick = { draft = cell.value; editingCell = true },
-                                    backdrop = backdrop,
-                                    surfaceColor = accent.copy(0.28f)
-                                ) {
-                                    CellActionLabel(Icons.Rounded.Edit, stringResource(R.string.edit), accent)
-                                }
-                            }
-                        }
                     }
                 }
             }
         }
 
-        // ── Share-morph (identical to the PDF viewer): tap = open/export as PDF, long-press +
-        // swipe-up = share. Bottom-right, growing strictly upward.
-        if (currentSheet != null && !showSearch) {
+        // Share / export (reading mode): tap = open as PDF, long-press + swipe up = share.
+        if (sheet != null && !showSearch && !editMode) {
             ShareMorphButton(
                 backdrop = backdrop,
                 glass = chromeGlass,
                 fg = text,
                 onOpen = { viewModel.exportToPdf(context) { u -> u?.let(onOpenPdf) } },
-                onShare = { state.fileUri?.let { shareFile(context, it) } },
+                onShare = { viewModel.shareableUri(context) { u -> u?.let { shareFile(context, it) } } },
                 idleIcon = Icons.Rounded.PictureAsPdf,
                 idleContentDesc = stringResource(R.string.sheet_export_pdf),
-                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 16.dp, bottom = 16.dp)
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 12.dp)
             )
         }
 
-        // ── Search bar (reused from the PDF viewer): searches cells, highlights matches, and
-        // Prev/Next scrolls to them. iOS-style, slides up from the bottom.
         AnimatedVisibility(
             visible = showSearch,
             enter = fadeIn(tween(180)) + slideInVertically { it },
@@ -443,8 +647,6 @@ fun SpreadsheetViewerScreen(
                 uiSensor = uiSensor,
                 fg = text,
                 fgSoft = sub,
-                // Translucent, not the old opaque slab colour — the search pill is glass now, and
-                // an opaque surface would kill its refraction.
                 surface = chromeGlass,
                 onQueryChange = { searchQuery = it },
                 onPrevMatch = { goToMatch(-1) },
@@ -453,506 +655,448 @@ fun SpreadsheetViewerScreen(
             )
         }
 
-        // Sheet picker — tap the "Sheet X / Y" pill to jump to any sheet (mirrors PDF page-jump).
-        SheetPickerPopup(
-            visible = showSheetPicker,
-            sheets = sheets,
-            currentIndex = idx,
-            backdrop = backdrop,
-            uiSensor = uiSensor,
-            isDark = isDark,
-            onPick = { i -> sheetIndex = i; showSheetPicker = false },
-            onDismiss = { showSheetPicker = false }
+        // List-validation dropdown, anchored under (or above) the cell.
+        dropdown?.let { dd ->
+            Box(
+                Modifier.fillMaxSize().clickable(remember { MutableInteractionSource() }, indication = null) { dropdown = null }
+            )
+            ValidationDropdown(
+                state = dd,
+                current = sheet?.cell(dd.r, dd.c)?.let { painter?.display(it) } ?: "",
+                backdrop = backdrop,
+                glass = chromeGlass,
+                text = text, accent = accent,
+                onPick = { value ->
+                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    viewModel.setCellText(idx, dd.r, dd.c, value)
+                    dropdown = null
+                    editing = false
+                }
+            )
+        }
+
+        // Colour picker popover (text or fill).
+        val colorPanel = panel == Panel.FONT_COLOR || panel == Panel.FILL_COLOR
+        AnimatedVisibility(
+            visible = colorPanel,
+            enter = fadeIn(GlassMotion.fade()) + scaleIn(GlassMotion.pop(), initialScale = 0.94f),
+            exit = fadeOut(GlassMotion.fade()) + scaleOut(targetScale = 0.96f),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(Modifier.fillMaxSize().clickable(remember { MutableInteractionSource() }, indication = null) { panel = Panel.NONE }) {
+                val isFill = panel == Panel.FILL_COLOR
+                val theme = wb?.styles?.themeColors ?: XlsxColors.DefaultTheme
+                val themeColors = remember(theme) { (0 until 10).map { Color(theme.getOrElse(it) { XlsxColors.DefaultTheme[it] }) } }
+                val current = if (isFill) anchorStyle?.fillArgb else anchorStyle?.fontArgb
+                GlassColorPicker(
+                    color = current?.let { Color(it) } ?: if (isFill) Color.Transparent else Color.Black,
+                    onColorChange = { c ->
+                        val spec = ColorSpec.ofArgb(c.toArgb())
+                        styleSel(if (isFill) StylePatch(fill = spec) else StylePatch(fontColor = spec))
+                    },
+                    backdrop = backdrop,
+                    themeColors = themeColors,
+                    standardColors = OfficeStandardColors,
+                    themeVariants = { base -> XlsxColors.themeGridTints(base.toArgb()).map { t -> Color(XlsxColors.applyTint(base.toArgb(), t)) } },
+                    onThemePick = { col, row, _ ->
+                        val base = theme.getOrElse(col) { 0 }
+                        val tint = if (row == 0) 0.0 else XlsxColors.themeGridTints(base)[row - 1]
+                        val spec = ColorSpec(theme = col, tint = tint)
+                        styleSel(if (isFill) StylePatch(fill = spec) else StylePatch(fontColor = spec))
+                    },
+                    onClear = {
+                        styleSel(if (isFill) StylePatch(clearFill = true) else StylePatch(fontColor = ColorSpec(theme = 1)))
+                        panel = Panel.NONE
+                    },
+                    clearLabel = stringResource(if (isFill) R.string.sheet_no_fill else R.string.sheet_automatic),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(start = 12.dp, end = 12.dp, bottom = 84.dp)
+                        .widthIn(max = 420.dp)
+                        .clickable(remember { MutableInteractionSource() }, indication = null) {}
+                )
+            }
+        }
+
+        // Other formatting panels.
+        val sheetPanel = panel == Panel.ALIGN || panel == Panel.BORDERS || panel == Panel.NUMBER || panel == Panel.ROWS_COLS
+        var lastSheetPanel by remember { mutableStateOf(Panel.ALIGN) }
+        if (sheetPanel) lastSheetPanel = panel
+        GlassBottomSheet(
+            visible = sheetPanel,
+            onDismiss = { panel = Panel.NONE },
+            backdrop = screenBackdrop.glass
+        ) {
+            val sel = selection
+            when (lastSheetPanel) {
+                Panel.ALIGN -> AlignPanel(
+                    backdrop = backdrop, text = text,
+                    h = anchorStyle?.hAlign ?: "general", v = anchorStyle?.vAlign ?: "bottom", wrap = anchorStyle?.wrap == true,
+                    onH = { styleSel(StylePatch(hAlign = it)) },
+                    onV = { styleSel(StylePatch(vAlign = it)) },
+                    onWrap = { styleSel(StylePatch(wrap = it)) }
+                )
+                Panel.BORDERS -> BordersPanel(text = text, accent = accent) { preset ->
+                    if (sel != null) { if (editing) commitDraft(); viewModel.applyBorders(idx, sel.range, preset) }
+                    panel = Panel.NONE
+                }
+                Panel.NUMBER -> NumberPanel(text = text, sub = sub, accent = accent, current = anchorStyle?.numFmtCode ?: "General") { code ->
+                    styleSel(StylePatch(numFmtCode = code)); panel = Panel.NONE
+                }
+                Panel.ROWS_COLS -> RowsColsPanel(text = text, accent = accent, enabled = sel != null) { action ->
+                    val s = sel ?: return@RowsColsPanel
+                    if (editing) commitDraft()
+                    val rows = if (s.isWholeColumn) 1 else s.range.r2 - s.range.r1 + 1
+                    val cols = if (s.isWholeRow) 1 else s.range.c2 - s.range.c1 + 1
+                    when (action) {
+                        0 -> viewModel.insertLines(idx, Axis.ROW, s.range.r1, rows)
+                        1 -> viewModel.insertLines(idx, Axis.ROW, s.range.r2 + 1, rows)
+                        2 -> viewModel.deleteLines(idx, Axis.ROW, s.range.r1, rows)
+                        3 -> viewModel.insertLines(idx, Axis.COL, s.range.c1, cols)
+                        4 -> viewModel.insertLines(idx, Axis.COL, s.range.c2 + 1, cols)
+                        5 -> viewModel.deleteLines(idx, Axis.COL, s.range.c1, cols)
+                    }
+                    selection = GridSelection.cell(s.anchorR, s.anchorC, sheet!!)
+                    panel = Panel.NONE
+                }
+                else -> Unit
+            }
+        }
+
+        // Unsaved changes.
+        UnsavedChangesDialog(
+            visible = confirmExit,
+            onDiscard = { confirmExit = false; onBack() },
+            onCancel = { confirmExit = false },
+            onSave = { confirmExit = false; exitAfterSave = true; save(false) },
+            backdrop = screenBackdrop.glass,
+            title = stringResource(R.string.sheet_unsaved_title),
+            body = stringResource(R.string.sheet_unsaved_body),
+            saveLabel = stringResource(R.string.sheet_save),
+            accent = accent
         )
     }
 }
 
-/** In-window liquid-glass sheet picker (scrim + scale-in panel), modelled on LiquidPageJumpPopup. */
 @Composable
-private fun SheetPickerPopup(
-    visible: Boolean,
-    sheets: List<com.chethan616.clearpdf.utils.SpreadsheetParser.Sheet>,
-    currentIndex: Int,
+private fun FormulaBar(
+    ref: String,
+    value: String,
+    editable: Boolean,
+    editing: Boolean,
+    focusRequester: FocusRequester,
     backdrop: LayerBackdrop,
-    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
-    isDark: Boolean,
-    onPick: (Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val text = LiquidGlassColors.text(isDark)
-    val sub = LiquidGlassColors.secondary(isDark)
-    val accent = Color(0xFF1E8E5A)
-    Box(Modifier.fillMaxSize()) {
-        AnimatedVisibility(visible, enter = fadeIn(tween(200)), exit = fadeOut(tween(180)), modifier = Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(0.45f)).pointerInput(Unit) { detectTapGestures { onDismiss() } })
-        }
-        AnimatedVisibility(
-            visible,
-            enter = fadeIn(tween(220)) + scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)),
-            exit = fadeOut(tween(140)) + scaleOut(targetScale = 0.9f, animationSpec = tween(150)),
-            modifier = Modifier.align(Alignment.Center).padding(28.dp)
-        ) {
-            Column(
-                Modifier.fillMaxWidth().widthIn(max = 360.dp)
-                    .viewerGlass(backdrop, viewerChromeGlass(isDark))
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                BasicText(
-                    stringResource(R.string.sheet_picker_title),
-                    style = TextStyle(sub, 11.sp, FontWeight.Bold, letterSpacing = 0.8.sp),
-                    modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
-                )
-                Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    sheets.forEachIndexed { i, s ->
-                        val selected = i == currentIndex
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
-                                .background(if (selected) accent.copy(0.16f) else Color.Transparent)
-                                .clickable { onPick(i) }
-                                .padding(horizontal = 12.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Icon(Icons.Rounded.GridOn, null, Modifier.size(18.dp), if (selected) accent else sub)
-                            BasicText(s.name, style = TextStyle(if (selected) accent else text, 15.sp, if (selected) FontWeight.SemiBold else FontWeight.Normal), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                            if (selected) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), accent)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SheetGrid(
-    sheet: com.chethan616.clearpdf.utils.SpreadsheetParser.Sheet,
-    isDark: Boolean,
+    glass: Color,
     text: Color,
     sub: Color,
     accent: Color,
-    zoom: Float,
-    listState: androidx.compose.foundation.lazy.LazyListState,
-    matchSet: Set<Long>,
-    currentCell: Pair<Int, Int>?,
-    onZoom: (Float) -> Unit,
-    onCellTap: (row: Int, col: Int, value: String) -> Unit,
-    modifier: Modifier = Modifier
+    onValueChange: (String) -> Unit,
+    onStartEdit: () -> Unit,
+    onCommit: () -> Unit,
+    onCancel: () -> Unit
 ) {
-    val colCount = sheet.columnCount.coerceAtLeast(1)
-    val hScroll = rememberScrollState()   // shared → header + all rows scroll horizontally in sync
-    val gridLine = if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.10f)
-    // Translucent now that the grid sits on glass. An opaque header read as a solid slab pasted on
-    // top of the panel and cut the refraction dead across the first row.
-    val headerBg = if (isDark) Color.White.copy(0.07f) else Color.Black.copy(0.05f)
-    val rowAlt = if (isDark) Color.White.copy(0.03f) else Color.Black.copy(0.02f)
-    val matchBg = accent.copy(0.20f)
-    val currentBg = accent.copy(0.48f)
-    val cellH = CELL_H * zoom
-    val headerSize = (11f * zoom).sp
-    val cellSize = (13f * zoom).sp
-
-    // Per-column base widths sized to their content (sample up to 200 rows) so a short ID column
-    // stays narrow while a long text column gets room — no more uniform 132dp waste.
-    val baseWidths = remember(sheet) {
-        val sample = sheet.rows.take(200)
-        List(colCount) { c ->
-            var maxLen = sheet.labelAt(c).length
-            for (row in sample) {
-                val len = row.getOrNull(c)?.length ?: 0
-                if (len > maxLen) maxLen = len
-            }
-            (maxLen.coerceAtMost(42) * 8 + 24).dp.coerceIn(64.dp, 260.dp)
-        }
-    }
-
-    // Row-number gutter, sized to the widest number it will ever show so the grid never shifts
-    // sideways mid-scroll. It is pinned outside the horizontal scroll, so the row you are reading
-    // keeps its number no matter how far right the sheet is scrolled — the same thing Excel does,
-    // and the reason a spreadsheet is navigable at all once it is wider than the screen.
-    val gutterWidth = remember(sheet, zoom) {
-        val digits = (sheet.rowNumbers.lastOrNull() ?: sheet.rows.size).toString().length
-        ((digits * 8 + 22).dp * zoom).coerceIn(30.dp, 76.dp)
-    }
-
-    Column(
-        // No clip/border of its own any more — the glass panel it now sits inside is the container,
-        // and a 12 dp rounded outline inside a 28 dp glass capsule read as a box within a box.
-        modifier.fillMaxSize()
-            // Pinch-to-zoom (Apple-HIG). Only two-finger gestures are consumed, so single-finger
-            // scrolling still passes through to the row/column scroll.
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    do {
-                        val e = awaitPointerEvent()
-                        if (e.changes.count { it.pressed } >= 2) {
-                            val z = e.calculateZoom()
-                            if (z != 1f) { onZoom(z); e.changes.forEach { it.consume() } }
-                        }
-                    } while (e.changes.any { it.pressed })
-                }
-            }
+    LaunchedEffect(editing) { if (editing) runCatching { focusRequester.requestFocus() } }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .viewerGlass(backdrop, glass, shape = { RoundedRectangle(20f.dp) })
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            // If the content is narrower than the viewport, stretch every column proportionally so
-            // the grid fills the width (kills the empty right gap); wider sheets keep scrolling.
-            // The gutter is subtracted first — it sits outside the scroll, so the columns only ever
-            // get what is left of the viewport.
-            val available = (maxWidth - gutterWidth).coerceAtLeast(80.dp)
-            val baseSum = baseWidths.fold(0.dp) { acc, w -> acc + w }
-            val fill = if (baseSum > 0.dp && baseSum < available) available / baseSum else 1f
-            val colWidths = baseWidths.map { it * fill * zoom }
-
-            // Left edge of every column in dp, with the grid's total width parked at [colCount].
-            val starts = remember(colWidths) {
-                val out = ArrayList<Float>(colCount + 1)
-                var acc = 0f
-                for (w in colWidths) { out.add(acc); acc += w.value }
-                out.add(acc)
-                out
-            }
-            // Horizontal windowing. `LazyColumn` keeps the row count in check, but each row was an
-            // eager `Row` over *every* column — a 150-column workbook is ~3000 cell nodes on screen,
-            // each with its own background, border, click handler and text layout. That does not
-            // throw; it just wedges the frame loop long enough to look like the app has died, and
-            // on a big enough sheet it is an ANR. Only the columns intersecting the viewport are
-            // composed now; the skipped ones on either side become a single spacer each, so the
-            // scroll range and every column's x-position are unchanged.
-            val scrolledDp = with(androidx.compose.ui.platform.LocalDensity.current) { hScroll.value.toDp().value }
-            val window = remember(starts, scrolledDp, available) {
-                val right = scrolledDp + available.value
-                var first = 0
-                while (first < colCount - 1 && starts[first + 1] <= scrolledDp) first++
-                var last = first
-                while (last < colCount - 1 && starts[last + 1] < right) last++
-                first..last
-            }
-            val leadWidth = starts[window.first].dp
-            val tailWidth = (starts[colCount] - starts[window.last + 1]).dp
-            // For the grid-line draw pass below — converts the dp-unit `starts`/`colWidths` numbers
-            // straight to px without a `LocalDensity.current` lookup inside every row.
-            val pxPerDp = with(LocalDensity.current) { 1.dp.toPx() }
-
-            Column(Modifier.fillMaxSize()) {
-                // Sticky column-letter header, with the gutter's blank corner cell to its left.
-                Row(Modifier.fillMaxWidth().background(headerBg)) {
-                    Box(Modifier.width(gutterWidth).heightIn(min = cellH).border(0.5.dp, gridLine))
-                    Row(Modifier.weight(1f).horizontalScroll(hScroll)) {
-                        Spacer(Modifier.width(leadWidth))
-                        for (c in window) {
-                            Box(
-                                Modifier.width(colWidths[c]).heightIn(min = cellH).border(0.5.dp, gridLine).padding(horizontal = 8.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                // The sheet's own label, not the position — a sheet that hides a
-                                // column still reads "… G, I …" here, exactly as it does in Excel.
-                                BasicText(sheet.labelAt(c), style = TextStyle(sub, headerSize, FontWeight.Bold))
-                            }
-                        }
-                        Spacer(Modifier.width(tailWidth))
-                    }
+        BasicText(ref, style = TextStyle(accent, 13.sp, FontWeight.SemiBold), maxLines = 1, modifier = Modifier.widthIn(min = 36.dp, max = 110.dp))
+        Box(Modifier.width(1.dp).height(22.dp).background(sub.copy(0.35f)))
+        BasicText("fx", style = TextStyle(sub, 13.sp, FontWeight.Medium, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic))
+        Box(Modifier.weight(1f)) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                readOnly = !editing,
+                singleLine = false,
+                maxLines = 4,
+                textStyle = TextStyle(text, 15.sp),
+                cursorBrush = SolidColor(accent),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onCommit() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { if (it.isFocused && !editing && editable) onStartEdit() },
+                decorationBox = { inner ->
+                    if (value.isEmpty() && editing) BasicText(stringResource(R.string.sheet_formula_hint), style = TextStyle(sub, 15.sp))
+                    inner()
                 }
-                LazyColumn(
-                    Modifier.fillMaxWidth().weight(1f),
-                    state = listState,
-                    // Rows only. The column axis is at most a few screens wide, so there is nothing
-                    // there that repeated swipes are a tiring way to cross.
-                    flingBehavior = rememberStackingFlingBehavior()
-                ) {
-                    itemsIndexed(sheet.rows) { rIdx, row ->
-                        val rowMatched = currentCell?.first == rIdx
-                        Row(Modifier.fillMaxWidth()) {
-                            Box(
-                                Modifier.width(gutterWidth).heightIn(min = cellH)
-                                    .background(if (rowMatched) accent.copy(0.22f) else headerBg)
-                                    .border(0.5.dp, gridLine),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                BasicText(
-                                    sheet.rowNumberAt(rIdx).toString(),
-                                    style = TextStyle(
-                                        if (rowMatched) accent else sub,
-                                        headerSize,
-                                        if (rowMatched) FontWeight.Bold else FontWeight.Medium
-                                    ),
-                                    maxLines = 1
-                                )
-                            }
-                            Row(
-                                Modifier
-                                    .weight(1f)
-                                    .horizontalScroll(hScroll)
-                                    // One draw pass for the whole row's grid lines, instead of a
-                                    // `border()` modifier on every cell. A `border` is a real layout
-                                    // + draw node, and with 9–16 visible columns that meant up to
-                                    // ~16 extra nodes composing for every row a fast fling scrolled
-                                    // into view — on a 500–1000 row sheet under the boosted fling
-                                    // below, that per-row node churn was more than composition could
-                                    // keep up with, which showed as the list visibly pausing to
-                                    // "catch up" every screenful.
-                                    .drawBehind {
-                                        val stroke = 0.5.dp.toPx()
-                                        val bottom = size.height
-                                        for (c in window) {
-                                            val right = (starts[c] + colWidths[c].value) * pxPerDp
-                                            drawLine(gridLine, Offset(right, 0f), Offset(right, bottom), stroke)
-                                        }
-                                        drawLine(gridLine, Offset(0f, bottom), Offset(size.width, bottom), stroke)
-                                    }
-                            ) {
-                                Spacer(Modifier.width(leadWidth).heightIn(min = cellH))
-                                for (c in window) {
-                                    val v = row.getOrElse(c) { "" }
-                                    val isCurrent = rowMatched && currentCell.second == c
-                                    val cellBg = when {
-                                        isCurrent -> currentBg
-                                        (rIdx.toLong() * 1_000_000L + c) in matchSet -> matchBg
-                                        rIdx % 2 == 1 -> rowAlt
-                                        else -> Color.Transparent
-                                    }
-                                    val cellInteraction = remember { MutableInteractionSource() }
-                                    Box(
-                                        // Blank cells are tappable too — you have to be able to select
-                                        // an empty cell to type into it. No ripple: a spreadsheet cell
-                                        // gives its own feedback (the value popup opens instantly), and
-                                        // skipping the indication drops one more subsystem — attaching
-                                        // and tearing down a ripple instance — from every cell's cost.
-                                        Modifier.width(colWidths[c]).heightIn(min = cellH).background(cellBg)
-                                            .clickable(interactionSource = cellInteraction, indication = null) {
-                                                onCellTap(rIdx, c, v)
-                                            }
-                                            .padding(horizontal = 8.dp),
-                                        contentAlignment = Alignment.CenterStart
-                                    ) {
-                                        BasicText(v, style = TextStyle(text, cellSize), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    }
-                                }
-                                Spacer(Modifier.width(tailWidth))
-                            }
-                        }
-                    }
-                }
+            )
+        }
+        if (editing) {
+            LiquidIconButton(onClick = onCommit, backdrop = backdrop, modifier = Modifier.size(34.dp), tint = accent) {
+                Icon(Icons.Rounded.Check, stringResource(R.string.save), Modifier.size(18.dp), Color.White)
             }
         }
     }
 }
 
-private val SheetScrubberTrackHeight = 208.dp
-
-/**
- * A WPS/Excel-style vertical jump rail for the row axis — drag to scroll to any row in one motion,
- * with a small floating "N/Total" badge that tracks the finger, instead of counting flicks to get
- * from row 12 to row 940.
- *
- * Modelled directly on [PageScrubber] (the PDF viewer's page rail): same track/thumb sizing, same
- * tap-to-jump + drag-to-scrub gesture, same haptic tick per step. The one real difference is that a
- * spreadsheet has no per-row render cost the way a PDF page does, so this scrolls the list live on
- * every drag tick instead of only on release — the sheet content itself becomes the "preview",
- * which is what the WPS reference screenshot actually shows (the grid moving under the thumb, not a
- * separate popup).
- *
- * Only shown for sheets long enough that the rail is a shortcut rather than clutter — a 20-row sheet
- * scrolls in one swipe already.
- */
 @Composable
-private fun SheetRowScrubber(
-    listState: androidx.compose.foundation.lazy.LazyListState,
-    rowCount: Int,
+private fun SheetTabs(
+    wb: com.chethan616.clearpdf.utils.xlsx.XlsxWorkbook,
+    indices: List<Int>,
+    selected: Int,
     backdrop: LayerBackdrop,
-    chromeGlass: Color,
-    accent: Color,
+    glass: Color,
     text: Color,
-    isDark: Boolean,
+    sub: Color,
+    accent: Color,
+    onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (rowCount < 60) return
-
-    val view = LocalView.current
-    var isDragging by remember { mutableStateOf(false) }
-    var dragRow by remember { mutableIntStateOf(0) }
-    val lastSpan = (rowCount - 1).coerceAtLeast(1)
-
-    // Follow normal (non-rail) scrolling when the rail itself isn't being touched.
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .distinctUntilChanged()
-            .collect { idx -> if (!isDragging) dragRow = idx.coerceIn(0, lastSpan) }
-    }
-
-    // Haptic tick + live scroll on every row the drag crosses.
-    LaunchedEffect(dragRow, isDragging) {
-        if (isDragging) {
-            runCatching { view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }
-            runCatching { listState.scrollToItem(dragRow) }
+    val scroll = rememberScrollState()
+    Row(
+        modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .viewerGlass(backdrop, glass, shape = { Capsule })
+            .padding(4.dp)
+            .horizontalScroll(scroll),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        for (i in indices) {
+            val s = wb.sheets[i]
+            val sel = i == selected
+            val tab = s.tabColor?.resolve(wb.styles.themeColors, wb.styles.indexedColors)?.let { Color(it) }
+            Row(
+                Modifier
+                    .height(44.dp)
+                    .clip(Capsule)
+                    .background(if (sel) accent.copy(0.18f) else Color.Transparent)
+                    .clickable { onSelect(i) }
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                if (tab != null) Box(Modifier.size(8.dp).clip(CircleShape).background(tab))
+                BasicText(
+                    s.name,
+                    style = TextStyle(if (sel) accent else text, 14.sp, if (sel) FontWeight.SemiBold else FontWeight.Medium),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 160.dp)
+                )
+            }
         }
     }
+}
 
-    val fraction by animateFloatAsState(
-        targetValue = (dragRow.toFloat() / lastSpan).coerceIn(0f, 1f),
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy),
-        label = "sheetScrubFraction"
+@Composable
+private fun EditToolbar(
+    backdrop: LayerBackdrop,
+    accent: Color,
+    canUndo: Boolean,
+    canRedo: Boolean,
+    hasSelection: Boolean,
+    bold: Boolean,
+    italic: Boolean,
+    underline: Boolean,
+    strike: Boolean,
+    panel: Panel,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
+    onBold: () -> Unit,
+    onItalic: () -> Unit,
+    onUnderline: () -> Unit,
+    onStrike: () -> Unit,
+    onPanel: (Panel) -> Unit,
+    onClear: () -> Unit,
+    onSaveAs: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    GlassToolbar(backdrop = backdrop, modifier = modifier.fillMaxWidth()) {
+        GlassToolButton(Icons.AutoMirrored.Rounded.Undo, stringResource(R.string.sheet_undo), false, onUndo, enabled = canUndo, accent = accent)
+        GlassToolButton(Icons.AutoMirrored.Rounded.Redo, stringResource(R.string.sheet_redo), false, onRedo, enabled = canRedo, accent = accent)
+        GlassToolButton(Icons.Rounded.FormatBold, stringResource(R.string.sheet_bold), bold, onBold, enabled = hasSelection, accent = accent)
+        GlassToolButton(Icons.Rounded.FormatItalic, stringResource(R.string.sheet_italic), italic, onItalic, enabled = hasSelection, accent = accent)
+        GlassToolButton(Icons.Rounded.FormatUnderlined, stringResource(R.string.sheet_underline), underline, onUnderline, enabled = hasSelection, accent = accent)
+        GlassToolButton(Icons.Rounded.FormatStrikethrough, stringResource(R.string.sheet_strike), strike, onStrike, enabled = hasSelection, accent = accent)
+        GlassToolButton(Icons.Rounded.FormatColorText, stringResource(R.string.sheet_text_color), panel == Panel.FONT_COLOR, { onPanel(Panel.FONT_COLOR) }, enabled = hasSelection, accent = accent)
+        GlassToolButton(Icons.Rounded.FormatColorFill, stringResource(R.string.sheet_fill_color), panel == Panel.FILL_COLOR, { onPanel(Panel.FILL_COLOR) }, enabled = hasSelection, accent = accent)
+        GlassToolButton(Icons.Rounded.FormatAlignLeft, stringResource(R.string.sheet_align), panel == Panel.ALIGN, { onPanel(Panel.ALIGN) }, enabled = hasSelection, accent = accent)
+        GlassToolButton(Icons.Rounded.BorderAll, stringResource(R.string.sheet_borders), panel == Panel.BORDERS, { onPanel(Panel.BORDERS) }, enabled = hasSelection, accent = accent)
+        GlassToolButton(Icons.Rounded.Numbers, stringResource(R.string.sheet_number_format), panel == Panel.NUMBER, { onPanel(Panel.NUMBER) }, enabled = hasSelection, accent = accent)
+        GlassToolButton(Icons.Rounded.TableRows, stringResource(R.string.sheet_rows_cols), panel == Panel.ROWS_COLS, { onPanel(Panel.ROWS_COLS) }, enabled = hasSelection, accent = accent)
+        GlassToolButton(Icons.Rounded.FormatClear, stringResource(R.string.sheet_clear), false, onClear, enabled = hasSelection, accent = accent)
+        GlassToolButton(Icons.Rounded.SaveAs, stringResource(R.string.sheet_save_as), false, onSaveAs, accent = accent)
+    }
+}
+
+@Composable
+private fun AlignPanel(
+    backdrop: LayerBackdrop,
+    text: Color,
+    h: String,
+    v: String,
+    wrap: Boolean,
+    onH: (String) -> Unit,
+    onV: (String) -> Unit,
+    onWrap: (Boolean) -> Unit
+) {
+    val hOptions = listOf("left", "center", "right")
+    val vOptions = listOf("top", "center", "bottom")
+    Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        PanelLabel(stringResource(R.string.sheet_horizontal), text)
+        GlassSegmentedControl(
+            options = listOf("Left", "Center", "Right"),
+            selectedIndex = hOptions.indexOf(h).coerceAtLeast(0).let { if (h == "general") -1 else it },
+            onSelect = { onH(hOptions[it]) },
+            backdrop = backdrop,
+            icons = listOf(Icons.Rounded.FormatAlignLeft, Icons.Rounded.FormatAlignCenter, Icons.Rounded.FormatAlignRight),
+            modifier = Modifier.fillMaxWidth()
+        )
+        PanelLabel(stringResource(R.string.sheet_vertical), text)
+        GlassSegmentedControl(
+            options = listOf("Top", "Middle", "Bottom"),
+            selectedIndex = vOptions.indexOf(v).coerceAtLeast(0),
+            onSelect = { onV(vOptions[it]) },
+            backdrop = backdrop,
+            icons = listOf(Icons.Rounded.VerticalAlignTop, Icons.Rounded.VerticalAlignCenter, Icons.Rounded.VerticalAlignBottom),
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+            BasicText(stringResource(R.string.sheet_wrap), Modifier.weight(1f), style = TextStyle(text, 16.sp, FontWeight.Medium))
+            LiquidToggle(selected = { wrap }, onSelect = onWrap, backdrop = backdrop)
+        }
+    }
+}
+
+@Composable
+private fun PanelLabel(label: String, color: Color) {
+    BasicText(label.uppercase(), style = TextStyle(color.copy(0.6f), 12.sp, FontWeight.SemiBold, letterSpacing = 0.6.sp))
+}
+
+@Composable
+private fun PanelRow(icon: ImageVector?, label: String, color: Color, tint: Color, selected: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (selected) tint.copy(0.16f) else Color.Transparent)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        if (icon != null) Icon(icon, null, Modifier.size(22.dp), if (enabled) tint else color.copy(0.3f))
+        BasicText(label, Modifier.weight(1f), style = TextStyle(if (enabled) color else color.copy(0.4f), 16.sp, FontWeight.Medium))
+        if (selected) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint)
+    }
+}
+
+@Composable
+private fun BordersPanel(text: Color, accent: Color, onPick: (BorderPreset) -> Unit) {
+    val items = listOf(
+        Triple(BorderPreset.ALL, Icons.Rounded.BorderAll, "All borders"),
+        Triple(BorderPreset.OUTER, Icons.Rounded.BorderOuter, "Outside borders"),
+        Triple(BorderPreset.THICK_OUTER, Icons.Rounded.BorderStyle, "Thick outside borders"),
+        Triple(BorderPreset.INNER, Icons.Rounded.BorderInner, "Inside borders"),
+        Triple(BorderPreset.TOP, Icons.Rounded.BorderTop, "Top border"),
+        Triple(BorderPreset.BOTTOM, Icons.Rounded.BorderBottom, "Bottom border"),
+        Triple(BorderPreset.LEFT, Icons.Rounded.BorderLeft, "Left border"),
+        Triple(BorderPreset.RIGHT, Icons.Rounded.BorderRight, "Right border"),
+        Triple(BorderPreset.NONE, Icons.Rounded.BorderClear, "No borders")
     )
-    val trackWidth by animateDpAsState(if (isDragging) 8.dp else 4.dp, spring(stiffness = Spring.StiffnessMedium), label = "sheetTrackWidth")
-    val thumbHeight by animateDpAsState(if (isDragging) 40.dp else 30.dp, spring(stiffness = Spring.StiffnessMedium), label = "sheetThumbHeight")
+    Column(Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
+        for ((p, icon, label) in items) PanelRow(icon, label, text, accent) { onPick(p) }
+    }
+}
 
-    Box(modifier) {
-        Box(
-            Modifier
-                .align(Alignment.CenterEnd)
-                .height(SheetScrubberTrackHeight)
-                .width(28.dp)
-                .pointerInput(rowCount) {
-                    detectTapGestures { offset ->
-                        val target = ((offset.y / size.height) * lastSpan).roundToInt().coerceIn(0, lastSpan)
-                        dragRow = target
-                        runCatching { view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK) }
+@Composable
+private fun NumberPanel(text: Color, sub: Color, accent: Color, current: String, onPick: (String) -> Unit) {
+    Column(Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
+        for ((label, code) in NumberFormats) {
+            val sample = com.chethan616.clearpdf.utils.ExcelCellFormat.apply(if (code.contains("d") && code.contains("y")) "45566" else "1234.5", code)
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(14.dp))
+                    .background(if (current == code) accent.copy(0.16f) else Color.Transparent)
+                    .clickable { onPick(code) }.padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BasicText(label, Modifier.weight(1f), style = TextStyle(if (current == code) accent else text, 16.sp, FontWeight.Medium))
+                BasicText(sample, style = TextStyle(sub, 14.sp), maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowsColsPanel(text: Color, accent: Color, enabled: Boolean, onAction: (Int) -> Unit) {
+    val labels = listOf(
+        R.string.sheet_insert_row_above, R.string.sheet_insert_row_below, R.string.sheet_delete_rows,
+        R.string.sheet_insert_col_left, R.string.sheet_insert_col_right, R.string.sheet_delete_cols
+    )
+    Column(Modifier.fillMaxWidth()) {
+        labels.forEachIndexed { i, id ->
+            val destructive = i == 2 || i == 5
+            PanelRow(null, stringResource(id), if (destructive) LiquidGlassColors.Red else text, if (destructive) LiquidGlassColors.Red else accent, enabled = enabled) { onAction(i) }
+        }
+    }
+}
+
+@Composable
+private fun ValidationDropdown(
+    state: DropdownState,
+    current: String,
+    backdrop: LayerBackdrop,
+    glass: Color,
+    text: Color,
+    accent: Color,
+    onPick: (String) -> Unit
+) {
+    val density = LocalDensity.current
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val screenH = with(density) { maxHeight.toPx() }
+        val screenW = with(density) { maxWidth.toPx() }
+        val anchor = if (state.anchor == Rect.Zero) Rect(screenW * 0.2f, screenH * 0.35f, screenW * 0.8f, screenH * 0.35f) else state.anchor
+        val itemH = with(density) { 46.dp.toPx() }
+        val listH = (state.items.size * itemH + with(density) { 16.dp.toPx() }).coerceAtMost(screenH * 0.45f)
+        val width = maxOf(anchor.width, with(density) { 220.dp.toPx() }).coerceAtMost(screenW - with(density) { 24.dp.toPx() })
+        val below = anchor.bottom + listH + 24f < screenH
+        val y = if (below) anchor.bottom + 6f else (anchor.top - listH - 6f).coerceAtLeast(24f)
+        val x = anchor.left.coerceIn(with(density) { 12.dp.toPx() }, screenW - width - with(density) { 12.dp.toPx() })
+        var shown by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { shown = true }
+        AnimatedVisibility(
+            visible = shown,
+            enter = fadeIn(GlassMotion.fade()) + scaleIn(GlassMotion.pop(), initialScale = 0.92f,
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, if (below) 0f else 1f)),
+            modifier = Modifier.offset { IntOffset(x.toInt(), y.toInt()) }
+        ) {
+            Column(
+                Modifier
+                    .width(with(density) { width.toDp() })
+                    .heightIn(max = with(density) { listH.toDp() })
+                    .viewerGlass(backdrop, glass, shape = { RoundedRectangle(18f.dp) })
+                    .padding(6.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                for (item in state.items) {
+                    val sel = item.equals(current, ignoreCase = true)
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(46.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (sel) accent.copy(0.16f) else Color.Transparent)
+                            .clickable { onPick(item) }
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        BasicText(item, Modifier.weight(1f), style = TextStyle(if (sel) accent else text, 15.sp, if (sel) FontWeight.SemiBold else FontWeight.Normal), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (sel) Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), accent)
                     }
                 }
-                .pointerInput(rowCount) {
-                    detectDragGestures(
-                        onDragStart = { start ->
-                            isDragging = true
-                            dragRow = ((start.y / size.height) * lastSpan).roundToInt().coerceIn(0, lastSpan)
-                        },
-                        onDrag = { change, _ ->
-                            change.consume()
-                            dragRow = ((change.position.y / size.height) * lastSpan).roundToInt().coerceIn(0, lastSpan)
-                        },
-                        onDragEnd = { isDragging = false },
-                        onDragCancel = { isDragging = false }
-                    )
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                Modifier
-                    .width(trackWidth)
-                    .height(SheetScrubberTrackHeight)
-                    .clip(RoundedCornerShape(50))
-                    .background(if (isDark) Color.White.copy(0.14f) else Color.Black.copy(0.10f)),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                Box(
-                    Modifier
-                        .padding(top = ((SheetScrubberTrackHeight - thumbHeight) * fraction).coerceAtLeast(0.dp))
-                        .width(if (isDragging) 8.dp else 4.dp)
-                        .height(thumbHeight)
-                        .clip(RoundedCornerShape(50))
-                        .background(if (isDragging) accent else accent.copy(0.55f))
-                )
-            }
-        }
-
-        // A small pill badge — "12/940", not "Row 12 / 940" in a wide card. Sized to match the 40 dp
-        // search-icon circle it sits beside: a plain `CircleShape` can't hold a 4-digit fraction
-        // without clipping, so this starts as a near-circle for short numbers and only widens as far
-        // as the digits actually need, via `defaultMinSize` rather than a fixed wide padding.
-        AnimatedVisibility(
-            visible = isDragging,
-            enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.9f, animationSpec = tween(160)),
-            exit = fadeOut(tween(180)) + scaleOut(targetScale = 0.92f),
-            modifier = Modifier.align(Alignment.CenterEnd)
-        ) {
-            val yOffset = (SheetScrubberTrackHeight * fraction - SheetScrubberTrackHeight / 2f).coerceIn(-90.dp, 90.dp)
-            Box(
-                Modifier
-                    .offset(x = (-32).dp, y = yOffset)
-                    .defaultMinSize(minWidth = 26.dp, minHeight = 26.dp)
-                    .viewerGlass(backdrop, chromeGlass, shape = { Capsule })
-                    .padding(horizontal = 7.dp, vertical = 4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                BasicText(
-                    stringResource(R.string.sheet_row_of, dragRow + 1, rowCount),
-                    style = TextStyle(text, 10.sp, FontWeight.SemiBold),
-                    maxLines = 1
-                )
             }
         }
     }
-}
-
-/**
- * A fling behaviour that stacks: flick fast in the same direction again before the previous fling
- * has settled and the next one travels further, up to [MaxFlingMultiplier] times a normal one.
- *
- * A spreadsheet is the one screen in this app that is routinely thousands of rows long, and the
- * platform fling is tuned for lists you read rather than lists you traverse — reaching row 4000
- * takes a tiring number of identical swipes. Repeated fast swipes are already the gesture people
- * reach for there, so this reads them as one intent and gives them distance.
- *
- * It boosts the *initial velocity* and then hands off to the platform's own decay curve, so the
- * motion is the standard one throughout — faster, never jumpier. Nothing snaps or teleports.
- *
- * Only deliberate flicks count toward a streak: a swipe under [MinStreakVelocityDp] per second is
- * someone positioning carefully, and stacking those would make precise scrolling impossible.
- * Changing direction, or pausing past [StreakWindowMillis], resets it.
- */
-@Composable
-private fun rememberStackingFlingBehavior(): FlingBehavior {
-    val base = ScrollableDefaults.flingBehavior()
-    val minVelocity = with(LocalDensity.current) { MinStreakVelocityDp.dp.toPx() }
-    return remember(base, minVelocity) { StackingFlingBehavior(base, minVelocity) }
-}
-
-/** dp per second below which a swipe is treated as positioning, not as a fast flick. */
-private const val MinStreakVelocityDp = 1200f
-
-/** How long after a fling a follow-up still counts as part of the same burst. */
-private const val StreakWindowMillis = 320L
-
-/** Each consecutive fast flick adds this much of a normal fling's velocity. */
-private const val FlingBoostPerSwipe = 0.9f
-
-/** Ceiling, so a long burst can't launch the sheet somewhere unrecoverable. */
-private const val MaxFlingMultiplier = 4f
-
-private class StackingFlingBehavior(
-    private val base: FlingBehavior,
-    private val minVelocity: Float
-) : FlingBehavior {
-
-    private var lastDirection = 0
-    private var lastFlingAtMillis = 0L
-    private var streak = 0
-
-    override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
-        val now = SystemClock.uptimeMillis()
-        val direction = when {
-            initialVelocity > 0f -> 1
-            initialVelocity < 0f -> -1
-            else -> 0
-        }
-        val isFastFlick = abs(initialVelocity) >= minVelocity
-        val continuesBurst = direction != 0 &&
-            direction == lastDirection &&
-            now - lastFlingAtMillis <= StreakWindowMillis
-
-        streak = if (isFastFlick && continuesBurst) streak + 1 else 0
-        lastDirection = direction
-        lastFlingAtMillis = now
-
-        val multiplier = (1f + streak * FlingBoostPerSwipe).coerceAtMost(MaxFlingMultiplier)
-        // Delegating rather than animating here is the point: the decay curve, the over-scroll
-        // handover and the "velocity left over" contract all stay exactly the platform's.
-        return with(base) { performFling(initialVelocity * multiplier) }
-    }
-}
-
-/** Share the (mirrored) file. file:// → FileProvider content:// so it isn't exposed → no crash. */
-private fun shareFile(context: android.content.Context, uri: android.net.Uri) {
-    val shareUri = if (uri.scheme == "file") {
-        runCatching {
-            androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", java.io.File(uri.path!!))
-        }.getOrNull() ?: uri
-    } else uri
-    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-        type = context.contentResolver.getType(shareUri) ?: "application/octet-stream"
-        putExtra(android.content.Intent.EXTRA_STREAM, shareUri)
-        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    runCatching { context.startActivity(android.content.Intent.createChooser(intent, null)) }
 }

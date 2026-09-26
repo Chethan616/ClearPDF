@@ -27,6 +27,12 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.TextFields
+import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.TableChart
 import androidx.compose.material.icons.automirrored.rounded.CallSplit
 import androidx.compose.material.icons.automirrored.rounded.MergeType
 import androidx.compose.material.icons.rounded.Compress
@@ -79,7 +85,13 @@ import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.shapes.Capsule
 import kotlinx.coroutines.launch
 
-private const val PageCount = 6
+private const val PageCount = 7
+
+/** CTA colour per page — the vivid "Get it" pill, a different accent on every step. */
+private val PageAccents = listOf(
+    LiquidGlassColors.Blue, LiquidGlassColors.Indigo, LiquidGlassColors.Purple,
+    LiquidGlassColors.Teal, LiquidGlassColors.Orange, LiquidGlassColors.Red, LiquidGlassColors.Green
+)
 
 /**
  * First-run tour. Six pages, each explaining a feature by **replaying the app's own animation** for
@@ -154,6 +166,14 @@ fun OnboardingScreen(
             modifier = Modifier.fillMaxSize()
         ) { page ->
             val isActive = pagerState.currentPage == page
+            Box(
+                Modifier.graphicsLayer {
+                    // Depth while swiping: the outgoing/incoming page dims with its distance from
+                    // centre. Alpha only, so the glass demos reuse their cached layers.
+                    val offset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                    alpha = 1f - 0.55f * kotlin.math.abs(offset).coerceIn(0f, 1f)
+                }
+            ) {
             OnboardingPage(
                 page = page,
                 isActive = isActive,
@@ -172,6 +192,7 @@ fun OnboardingScreen(
                 onCustomWallpaperChanged = onCustomWallpaperChanged,
                 isDark = isDark
             )
+            }
         }
 
         // ── Stationary chrome ───────────────────────────────────────────────────────────────────
@@ -233,10 +254,15 @@ fun OnboardingScreen(
                 maxLines = 1
             )
 
+            val ctaTint by animateColorAsState(
+                PageAccents[pagerState.currentPage.coerceIn(0, PageAccents.lastIndex)],
+                tween(320, easing = FastOutSlowInEasing),
+                label = "onboardingCtaTint"
+            )
             LiquidButton(
                 onClick = advance,
                 backdrop = backdrop,
-                tint = Color(0xFF0088FF),
+                tint = ctaTint,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 // Cross-faded rather than swapped: the label changes on the last page and a hard
@@ -325,6 +351,7 @@ private fun OnboardingPage(
         2 -> { title = stringResource(R.string.onboarding_appearance_title); subtitle = stringResource(R.string.onboarding_appearance_subtitle) }
         3 -> { title = stringResource(R.string.onboarding_files_title); subtitle = stringResource(R.string.onboarding_files_subtitle) }
         4 -> { title = stringResource(R.string.onboarding_features_title); subtitle = stringResource(R.string.onboarding_features_subtitle) }
+        5 -> { title = stringResource(R.string.onboarding_editors_title); subtitle = stringResource(R.string.onboarding_editors_subtitle) }
         else -> { title = stringResource(R.string.onboarding_ready_title); subtitle = stringResource(R.string.onboarding_ready_subtitle) }
     }
 
@@ -358,6 +385,7 @@ private fun OnboardingPage(
                 )
                 3 -> DemoFileKinds(isActive, backdrop, glass, ink, inkSoft)
                 4 -> FeatureRows(isActive, backdrop, uiSensor, glass, ink, inkSoft)
+                5 -> EditorShowcase(isActive, backdrop, glass, ink, inkSoft)
                 else -> DemoReady(isActive, backdrop, glass)
             }
         }
@@ -743,6 +771,80 @@ private fun FeatureRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+    }
+}
+
+
+private data class EditorItem(val icon: ImageVector, val color: Color, val title: Int, val desc: Int)
+
+/**
+ * "Edit, not just view": the editors this release added. Each row is a badge in the tool's own
+ * accent plus copy; rows cascade in when the page becomes active (draw-time alpha + a short rise,
+ * so nothing re-measures and the glass panel itself never moves).
+ */
+@Composable
+private fun EditorShowcase(
+    isActive: Boolean,
+    backdrop: LayerBackdrop,
+    glass: Color,
+    ink: Color,
+    inkSoft: Color
+) {
+    val items = listOf(
+        EditorItem(Icons.Rounded.TableChart, LiquidGlassColors.Green, R.string.onboarding_editor_sheets_title, R.string.onboarding_editor_sheets_desc),
+        EditorItem(Icons.Rounded.AutoFixHigh, LiquidGlassColors.Purple, R.string.onboarding_editor_image_title, R.string.onboarding_editor_image_desc),
+        EditorItem(Icons.Rounded.TextFields, LiquidGlassColors.Blue, R.string.onboarding_editor_select_title, R.string.onboarding_editor_select_desc),
+        EditorItem(Icons.Rounded.Description, LiquidGlassColors.Orange, R.string.onboarding_editor_office_title, R.string.onboarding_editor_office_desc)
+    )
+    val density = LocalDensity.current.density
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .viewerGlass(backdrop, glass)
+            .padding(vertical = 16.dp, horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        items.forEachIndexed { i, item ->
+            val shown by animateFloatAsState(
+                if (isActive) 1f else 0f,
+                tween(durationMillis = 380, delayMillis = if (isActive) 90 * i else 0, easing = FastOutSlowInEasing),
+                label = "editorRow$i"
+            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = shown
+                        translationY = lerp(14f, 0f, shown) * density
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(
+                    Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(item.color.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(item.icon, null, Modifier.size(22.dp), item.color)
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    BasicText(
+                        stringResource(item.title),
+                        style = TextStyle(ink, 15.sp, fontWeight = FontWeight.SemiBold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    BasicText(
+                        stringResource(item.desc),
+                        style = TextStyle(inkSoft, 12.5.sp, lineHeight = 17.sp),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
     }
 }

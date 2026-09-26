@@ -1,6 +1,9 @@
 package com.chethan616.clearpdf.ui.screen
 
 import android.app.Activity
+import android.content.Intent
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.derivedStateOf
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -68,6 +71,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.Search
@@ -115,6 +120,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
+import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
 import com.chethan616.clearpdf.ui.components.DecryptingAnimation
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.GlassTitlePill
@@ -128,6 +134,20 @@ import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.PdfViewerViewModel
 import com.chethan616.clearpdf.ui.viewmodel.OcrTextRange
+import com.chethan616.clearpdf.ui.selection.PdfCopiedToast
+import com.chethan616.clearpdf.ui.selection.PdfSelectionActions
+import com.chethan616.clearpdf.ui.selection.PdfSelectionHandles
+import com.chethan616.clearpdf.ui.selection.PdfSelectionToolbar
+import com.chethan616.clearpdf.ui.selection.PdfTextSelectionState
+import com.chethan616.clearpdf.ui.selection.PdfViewportTransform
+import com.chethan616.clearpdf.ui.selection.TextPos
+import com.chethan616.clearpdf.ui.selection.pdfTextSelectionGestures
+import com.chethan616.clearpdf.ui.selection.rememberSelectionAutoScroller
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.layout.onGloballyPositioned
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -147,7 +167,9 @@ fun PdfViewerScreen(
     // True when the caller (recents / external open / a tool's output) already handed us a document
     // to load. In that case the viewer must NOT flash its "Open a PDF" picker while the pages render —
     // it shows a loading curtain that the real document fades in behind. See [ViewerLoadingCurtain].
-    pendingLoad: Boolean = false
+    pendingLoad: Boolean = false,
+    // "Get it" on the Office engine hint: open Settings at the engine section to show progress.
+    onOpenOfficeEngineSettings: () -> Unit = {}
 ) {
     val state         by viewModel.uiState.collectAsState()
     val isDarkMode     = LocalIsDarkMode.current
@@ -227,8 +249,18 @@ fun PdfViewerScreen(
     fun getPageMarks(page: Int): MutableList<PdfMarkup> =
         annotationsByPage.getOrPut(page) { mutableStateListOf() }
 
-    fun selectedTextRanges(page: Int): List<OcrTextRange> =
-        state.selectedOcrRangesByPage[page].orEmpty()
+    // ── Unsaved-edit tracking ──────────────────────────────────────────────
+    // Markups live here (not in the ViewModel), so "dirty" is: the current markups differ from what
+    // was last exported. PdfMarkup variants are data classes, so a structural compare of a per-page
+    // copy is exact — drawing, erasing, moving, retyping a note all flip it, undoing back to the
+    // saved state clears it. Covers PDFs and Office documents alike (both render through here).
+    fun markupSnapshot(): Map<Int, List<PdfMarkup>> =
+        annotationsByPage.filterValues { it.isNotEmpty() }.mapValues { it.value.toList() }
+    var savedMarkups        by remember { mutableStateOf<Map<Int, List<PdfMarkup>>>(emptyMap()) }
+    var pendingSaveMarkups  by remember { mutableStateOf<Map<Int, List<PdfMarkup>>?>(null) }
+    var exitAfterSave       by remember { mutableStateOf(false) }
+    var showUnsavedDialog   by remember { mutableStateOf(false) }
+    val hasUnsavedEdits     by remember { derivedStateOf { markupSnapshot() != savedMarkups } }
 
     // Undo history: the page each added markup landed on, newest last. Undo pops the most recent
     // entry and removes THAT page's last mark, so "undo" means the last thing the user actually
@@ -241,6 +273,23 @@ fun PdfViewerScreen(
     // Declared here (rather than lower) so the image/signature launchers below can place
     // annotations onto whichever page is under the viewport centre.
     val listState = rememberLazyListState()
+
+    // ── Text selection (long-press, native-style handles, glass toolbar) ─────────────────────
+    val textSelection = remember { PdfTextSelectionState() }
+    textSelection.blocksProvider = { p -> viewModel.uiState.value.ocrBlocksByPage[p].orEmpty() }
+    var containerWidthPx by remember { mutableIntStateOf(0) }
+    textSelection.transformProvider = { PdfViewportTransform(containerWidthPx.toFloat(), scale, offsetX) }
+    val selectionAutoScroller = rememberSelectionAutoScroller(listState, textSelection)
+    selectionAutoScroller.panBy = { dx ->
+        val cw = containerWidthPx.toFloat()
+        val maxOffsetX = ((cw * scale - cw) / 2f).coerceAtLeast(0f)
+        val next = (offsetX + dx).coerceIn(-maxOffsetX, maxOffsetX)
+        val applied = next - offsetX
+        offsetX = next
+        applied
+    }
+    var copiedTick by remember { mutableIntStateOf(0) }
+    val haptics = LocalHapticFeedback.current
 
     // iOS-style momentum for the continuous page scroll: a lower-friction exponential decay
     // glides longer and settles smoothly (vs the stiffer platform spline), so even 2–3 page
@@ -393,7 +442,8 @@ fun PdfViewerScreen(
         activeTool = PdfEditTool.None
         selectedAnnoPage = null; selectedAnnoIndex = -1
         annotationsByPage.clear(); undoStack.clear(); pageCanvasSizes.clear(); pageBitmapSizes.clear()
-        viewModel.clearOcrSelection(state.currentPage); viewModel.clearExportFeedback()
+        savedMarkups = emptyMap(); pendingSaveMarkups = null; exitAfterSave = false; showUnsavedDialog = false
+        textSelection.resetDocument(); viewModel.clearExportFeedback()
         showFindBar = false; findQuery = ""; viewModel.clearSearch()
     }
 
@@ -415,8 +465,26 @@ fun PdfViewerScreen(
         if (state.passwordUri != null) { passwordText = ""; delay(120); passwordFocusRequester.requestFocus() }
     }
 
+    /** Leave the viewer — via the "Save changes?" card when there are unexported markups. */
+    fun requestExit() {
+        if (state.document != null && hasUnsavedEdits) { controlsVisible = true; showUnsavedDialog = true }
+        else onBack()
+    }
+
+    // An export started from the unsaved-changes card (or any Save) settles here: success marks the
+    // exported markups as saved and, if the card asked for it, leaves; failure keeps the user here.
+    LaunchedEffect(state.exportMessage, state.exportError) {
+        val pending = pendingSaveMarkups ?: return@LaunchedEffect
+        if (state.exportMessage != null) {
+            savedMarkups = pending; pendingSaveMarkups = null
+            if (exitAfterSave) { exitAfterSave = false; onBack() }
+        } else if (state.exportError != null) {
+            pendingSaveMarkups = null; exitAfterSave = false
+        }
+    }
+
     BackHandler(enabled = state.document != null) {
-        if (!controlsVisible) controlsVisible = true else onBack()
+        if (!controlsVisible) controlsVisible = true else requestExit()
     }
 
     // ── No-document state ─────────────────────────────────────────────────
@@ -560,12 +628,12 @@ fun PdfViewerScreen(
     val safePageCount = state.pageCount.coerceAtLeast(1)
     val viewerScope   = rememberCoroutineScope()
     val currentPageIndex = listState.firstVisibleItemIndex.coerceIn(0, safePageCount - 1)
-    // The bottom SelectText toolbar must act on whichever page actually holds the current OCR
-    // selection, not the viewport-derived currentPageIndex — otherwise scrolling after selecting
-    // (or the selection sitting on a page whose bottom sliver is visible, not its top) makes
-    // Highlight/Underline/Strike/Copy silently target the wrong page's empty selection.
-    val selectionPageIndex = state.selectedOcrRangesByPage.entries
-        .firstOrNull { it.value.isNotEmpty() }?.key ?: currentPageIndex
+    // Back clears an active text selection first (registered after the viewer's own BackHandler, so
+    // it takes precedence), exactly like a TextView's selection mode.
+    val selectionActive by remember { derivedStateOf { textSelection.hasSelection } }
+    BackHandler(enabled = selectionActive) { textSelection.clear() }
+    // Any editing tool owns the page gestures; a selection must not linger underneath it.
+    LaunchedEffect(activeTool) { if (activeTool != PdfEditTool.None) textSelection.clear() }
 
     // Live backdrop that captures the ACTUAL rendered page column (dark bg + PDF
     // pages), so the glass chrome reflects real content instead of the static
@@ -768,16 +836,27 @@ fun PdfViewerScreen(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .onSizeChanged { containerHeightPx = it.height }
+                    .onSizeChanged { containerHeightPx = it.height; containerWidthPx = it.width }
+                    // Long-press → select word. First in the chain so, once it fires, it can consume
+                    // in the Initial pass ahead of the zoom/tap handlers and the page list.
+                    .pdfTextSelectionGestures(
+                        state = textSelection,
+                        autoScroller = selectionAutoScroller,
+                        haptics = haptics,
+                        enabled = { activeTool == PdfEditTool.None },
+                        onSelectionStarted = { lastInteractionAtMs = System.currentTimeMillis() }
+                    )
                     .then(
                         // Keep pinch zoom available in Select Text mode. Other editing tools own
                         // the page gesture surface because their strokes/shapes need the drag.
-                        if (activeTool != PdfEditTool.None && activeTool != PdfEditTool.SelectText) Modifier
+                        if (activeTool != PdfEditTool.None) Modifier
                         else Modifier.pointerInput(Unit) {
                             awaitEachGesture {
                                 awaitFirstDown(requireUnconsumed = false)
                                 do {
                                     val event = awaitPointerEvent()
+                                    // A selection drag owns the finger: no one-finger pan underneath it.
+                                    if (textSelection.gestureActive) continue
                                     val zoomChange = event.calculateZoom()
                                     val panChange  = event.calculatePan()
                                     val zoomed = scale > 1.001f
@@ -816,7 +895,13 @@ fun PdfViewerScreen(
                     )
                     .pointerInput(activeTool) {
                         detectTapGestures(
-                            onTap = { if (activeTool == PdfEditTool.None) controlsVisible = !controlsVisible; lastInteractionAtMs = System.currentTimeMillis() },
+                            onTap = {
+                                // Tap outside clears a text selection (and does nothing else), like a
+                                // TextView; otherwise it toggles the reading chrome.
+                                if (textSelection.hasSelection) textSelection.clear()
+                                else if (activeTool == PdfEditTool.None) controlsVisible = !controlsVisible
+                                lastInteractionAtMs = System.currentTimeMillis()
+                            },
                             onDoubleTap = { tap ->
                                 if (activeTool != PdfEditTool.None) return@detectTapGestures
                                 val cw = size.width.toFloat()
@@ -848,7 +933,7 @@ fun PdfViewerScreen(
                         scaleX = scale; scaleY = scale
                         translationX = offsetX; translationY = 0f
                         transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
-                    }
+                    }.onGloballyPositioned { textSelection.registerLayer(it) }
                 ) {
                     LazyColumn(
                         state = listState,
@@ -874,8 +959,6 @@ fun PdfViewerScreen(
                                 bitmap             = state.pageBitmaps.getOrNull(page),
                                 marks              = getPageMarks(page),
                                 ocrBlocks          = state.ocrBlocksByPage[page].orEmpty(),
-                                selectedOcrIds     = state.selectedOcrBlockIdsByPage[page].orEmpty(),
-                                selectedOcrRanges  = state.selectedOcrRangesByPage[page].orEmpty(),
                                 findMatches        = state.findMatches,
                                 currentMatchIndex  = state.currentMatchIndex,
                                 showFindBar        = showFindBar,
@@ -891,10 +974,6 @@ fun PdfViewerScreen(
                                 onShowControls     = { controlsVisible = true },
                                 onActiveToolChanged     = { activeTool = it },
                                 onActiveImageIdChanged  = { activeImageId = it },
-                                onClearOcrSelection     = { viewModel.clearOcrSelection(page) },
-                                // Replace (not append): a drag defines the whole selection live, so as
-                                // the finger shrinks the range the deselected words must drop out too.
-                                onSelectOcrRange        = { viewModel.selectOcrRanges(page, it, append = false) },
                                 onPlaceText             = { pt ->
                                     val id = System.nanoTime()
                                     getPageMarks(page).add(PdfMarkup.TextBoxMarkup(id, pt, "", currentColor, 40f))
@@ -933,62 +1012,26 @@ fun PdfViewerScreen(
                                 selectedMarkupIndex     = if (page == selectedAnnoPage) selectedAnnoIndex else -1,
                                 onSelectMarkup          = { idx ->
                                     if (idx < 0) { selectedAnnoPage = null; selectedAnnoIndex = -1 }
-                                    else { selectedAnnoPage = page; selectedAnnoIndex = idx }
+                                    else { selectedAnnoPage = page; selectedAnnoIndex = idx; textSelection.clear() }
                                 },
                                 onDeleteMarkup          = { idx ->
                                     val m = getPageMarks(page); if (idx in m.indices) m.removeAt(idx)
                                     selectedAnnoPage = null; selectedAnnoIndex = -1
                                 },
-                                onCopySelection = {
-                                    viewModel.getSelectedOcrText(page).takeIf { it.isNotBlank() }
-                                        ?.let { clipboard.setText(AnnotatedString(it)) }
-                                    lastInteractionAtMs = System.currentTimeMillis()
-                                },
-                                onHighlightSelection = {
-                                    val m = getPageMarks(page)
-                                    selectedTextRanges(page).forEach { range ->
-                                        // Recolor semantics: drop any highlight already covering this exact
-                                        // range so a re-tap replaces the colour instead of stacking layers.
-                                        m.removeAll { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end }
-                                        m.add(PdfMarkup.TextBlockHighlightMarkup(range.blockId, Color(currentColorLong), 0.38f, range.start, range.end))
-                                        recordEdit(page)
-                                    }
-                                    // Keep the selection live so the pill immediately offers Recolor / Delete —
-                                    // this is the fix for "after highlighting there's no delete option".
-                                    lastInteractionAtMs = System.currentTimeMillis()
-                                },
-                                onUnderlineSelection = {
-                                    val m = getPageMarks(page)
-                                    selectedTextRanges(page).forEach { range ->
-                                        if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end && !it.strikeThrough }) {
-                                            m.add(PdfMarkup.TextBlockLineMarkup(range.blockId, Color(currentColorLong), 3f, 1f, false, range.start, range.end))
-                                            recordEdit(page)
-                                        }
-                                    }
-                                    lastInteractionAtMs = System.currentTimeMillis()
-                                },
-                                onStrikeSelection = {
-                                    val m = getPageMarks(page)
-                                    selectedTextRanges(page).forEach { range ->
-                                        if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end && it.strikeThrough }) {
-                                            m.add(PdfMarkup.TextBlockLineMarkup(range.blockId, Color(currentColorLong), 3f, 1f, true, range.start, range.end))
-                                            recordEdit(page)
-                                        }
-                                    }
-                                    lastInteractionAtMs = System.currentTimeMillis()
-                                },
-                                onSetColorLong = { currentColorLong = it },
-                                onSelectAll = {
-                                    val ids = state.ocrBlocksByPage[page].orEmpty().map { it.id }.toSet()
-                                    if (ids.isNotEmpty()) viewModel.selectOcrBlocks(page, ids, append = false)
-                                    lastInteractionAtMs = System.currentTimeMillis()
-                                }
+                                textSelection = textSelection
                             )
                         }
                     }
                 }
             }
         }
+
+        // ── Text-selection handles + magnifier (outside the zoom layer: fixed on-screen size) ──
+        PdfSelectionHandles(
+            state = textSelection,
+            listState = listState,
+            autoScroller = selectionAutoScroller
+        )
 
         // ── Page scrubber (doubles as the fading scroll indicator) ─────────
         // Always present on multi-page docs so fast scrubbing is one drag away,
@@ -1050,7 +1093,7 @@ fun PdfViewerScreen(
                 ) {
                     // No `surfaceColor`, exactly as Home calls it: the circle paints nothing of its own
                     // and is pure refraction. Only the icon's colour adapts to the page.
-                    LiquidIconButton(onClick = onBack, backdrop = contentBackdrop) {
+                    LiquidIconButton(onClick = { requestExit() }, backdrop = contentBackdrop) {
                         Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), topFg)
                     }
                     // A weighted Box rather than two weighted spacers: the back circle and the
@@ -1087,6 +1130,57 @@ fun PdfViewerScreen(
                 }
             }
 
+            // Brief confirmation that the optional Office engine rendered this file, so installing
+            // it has a visible effect (before, nothing told the user which renderer was used).
+            var showEngineChip by remember(state.renderedByOfficeEngine, state.document) {
+                mutableStateOf(state.renderedByOfficeEngine)
+            }
+            LaunchedEffect(showEngineChip) {
+                if (showEngineChip) { kotlinx.coroutines.delay(2800L); showEngineChip = false }
+            }
+            AnimatedVisibility(
+                visible  = showEngineChip,
+                enter    = fadeIn(spring(stiffness = 300f)),
+                exit     = fadeOut(tween(220)),
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 76.dp)
+            ) {
+                Row(
+                    Modifier
+                        .viewerGlass(contentBackdrop, viewerChromeGlass(isDarkMode), shape = { com.kyant.shapes.Capsule })
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(16.dp), LiquidGlassColors.Teal)
+                    BasicText(
+                        stringResource(R.string.office_engine_rendered),
+                        style = TextStyle(topFg, 13.sp, fontWeight = FontWeight.SemiBold)
+                    )
+                }
+            }
+
+            // One-time Office engine suggestion after a built-in Office render. Glass fades only
+            // (translating glass re-runs its blur + lens).
+            AnimatedVisibility(
+                visible  = state.showOfficeEngineHint && controlsVisible,
+                enter    = fadeIn(spring(stiffness = 300f)),
+                exit     = fadeOut(tween(150)),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 92.dp)
+            ) {
+                OfficeEngineHintCard(
+                    backdrop  = contentBackdrop,
+                    isDark    = isDarkMode,
+                    fg        = bottomFg,
+                    onGet     = {
+                        com.chethan616.clearpdf.office.OfficeEngine.installer(context).install()
+                        viewModel.dismissOfficeEngineHint(context)
+                        com.chethan616.clearpdf.office.OfficeEngine.focusSettingsSection.value = true
+                        onOpenOfficeEngineSettings()
+                    },
+                    onDismiss = { viewModel.dismissOfficeEngineHint(context) }
+                )
+            }
+
             // Bottom toolbar
             AnimatedVisibility(
                 visible  = controlsVisible,
@@ -1111,8 +1205,6 @@ fun PdfViewerScreen(
                     exportError        = state.exportError,
                     exportMessage      = state.exportMessage,
                     lastExportedUri    = state.lastExportedUri,
-                    selectedTextCount  = selectedTextRanges(currentPageIndex).size,
-                    currentSelectedIds = state.selectedOcrBlockIdsByPage[currentPageIndex].orEmpty(),
                     activeIsSignature  = activeItem?.isSignature == true,
                     // Undo is history-driven, not page-driven. Two earlier attempts keyed it to a
                     // page index — first `state.currentPage` (async, lagged behind the scroll), then
@@ -1123,7 +1215,7 @@ fun PdfViewerScreen(
                     canUndo            = undoStack.isNotEmpty() || annotationsByPage.any { it.value.isNotEmpty() },
                     onUndo             = { undoLastEdit(); lastInteractionAtMs = System.currentTimeMillis() },
                     onClearPage        = { clearVisiblePage(); lastInteractionAtMs = System.currentTimeMillis() },
-                    onSetActiveTool    = { activeTool = it; if (it == PdfEditTool.None) activeImageId = null; selectedAnnoPage = null; selectedAnnoIndex = -1; viewModel.clearOcrSelection(currentPageIndex) },
+                    onSetActiveTool    = { activeTool = it; if (it == PdfEditTool.None) activeImageId = null; selectedAnnoPage = null; selectedAnnoIndex = -1; textSelection.clear() },
                     onToggleFindBar    = {
                         showFindBar = !showFindBar
                         if (showFindBar) viewModel.triggerOcrForAllPages(context)
@@ -1143,39 +1235,6 @@ fun PdfViewerScreen(
                         activeImageLoc()?.let { (pg, idx, _) -> getPageMarks(pg).removeAt(idx) }
                         activeImageId = null; activeTool = PdfEditTool.None
                     },
-                    onSelectAllText    = {
-                        val ids = state.ocrBlocksByPage[currentPageIndex].orEmpty().map { it.id }.toSet()
-                        if (ids.isNotEmpty()) viewModel.selectOcrBlocks(currentPageIndex, ids, false)
-                    },
-                    onCopyText         = {
-                        viewModel.getSelectedOcrText(selectionPageIndex).takeIf { it.isNotBlank() }
-                            ?.let { clipboard.setText(AnnotatedString(it)) }
-                    },
-                    onHighlightSelected = {
-                        val m = getPageMarks(selectionPageIndex)
-                        selectedTextRanges(selectionPageIndex).forEach { range ->
-                            if (!m.any { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end })
-                                m.add(PdfMarkup.TextBlockHighlightMarkup(range.blockId, Color(currentColorLong), 0.38f, range.start, range.end))
-                            recordEdit(selectionPageIndex)
-                        }
-                    },
-                    onUnderlineSelected = {
-                        val m = getPageMarks(selectionPageIndex)
-                        selectedTextRanges(selectionPageIndex).forEach { range ->
-                            if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end && !it.strikeThrough })
-                                m.add(PdfMarkup.TextBlockLineMarkup(range.blockId, Color(currentColorLong), 3f, 1f, false, range.start, range.end))
-                            recordEdit(selectionPageIndex)
-                        }
-                    },
-                    onStrikeSelected    = {
-                        val m = getPageMarks(selectionPageIndex)
-                        selectedTextRanges(selectionPageIndex).forEach { range ->
-                            if (!m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == range.blockId && it.start == range.start && it.end == range.end && it.strikeThrough })
-                                m.add(PdfMarkup.TextBlockLineMarkup(range.blockId, Color(currentColorLong), 3f, 1f, true, range.start, range.end))
-                            recordEdit(selectionPageIndex)
-                        }
-                    },
-                    onClearTextSelection = { viewModel.clearOcrSelection(selectionPageIndex) },
                     onSetColorLong   = { currentColorLong = it },
                     onSetStrokeWidth = { currentStrokeWidth = it },
                     onDismissExportFeedback = { viewModel.clearExportFeedback() },
@@ -1233,6 +1292,142 @@ fun PdfViewerScreen(
                 onClose           = { showFindBar = false; focusManager.clearFocus(); findQuery = ""; viewModel.clearSearch() }
             )
         }
+
+        // ── Floating liquid-glass selection toolbar (above the chrome, like the platform's) ──
+        suspend fun selectionTextLoaded(): String {
+            val span = textSelection.pageSpan() ?: return ""
+            val missing = span.any { it !in viewModel.uiState.value.ocrBlocksByPage }
+            if (missing) {
+                viewModel.triggerOcrForAllPages(context)
+                withTimeoutOrNull(10_000) {
+                    viewModel.uiState.first { st -> span.all { it in st.ocrBlocksByPage } }
+                }
+            }
+            return textSelection.selectedText()
+        }
+        fun startSafely(intent: Intent) {
+            runCatching {
+                if (context !is Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+            }
+        }
+        fun applyToSelection(block: (page: Int, marks: MutableList<PdfMarkup>, range: OcrTextRange) -> Boolean) {
+            textSelection.rangesByPage().forEach { (page, ranges) ->
+                val marks = getPageMarks(page)
+                var changed = false
+                ranges.forEach { r -> if (block(page, marks, r)) changed = true }
+                if (changed) recordEdit(page)
+            }
+            lastInteractionAtMs = System.currentTimeMillis()
+        }
+        val selectionActions = PdfSelectionActions(
+            onCopy = {
+                viewerScope.launch {
+                    val t = selectionTextLoaded()
+                    if (t.isNotBlank()) {
+                        clipboard.setText(AnnotatedString(t))
+                        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                        copiedTick++
+                    }
+                    textSelection.clear()
+                }
+            },
+            onSelectAll = {
+                // The whole document. Pages whose text is not extracted yet join the highlight as
+                // they load (the end caret is clamped per page).
+                viewModel.triggerOcrForAllPages(context)
+                textSelection.select(TextPos(0, 0), TextPos(safePageCount - 1, Int.MAX_VALUE))
+            },
+            onShare = {
+                viewerScope.launch {
+                    val t = selectionTextLoaded()
+                    if (t.isNotBlank()) {
+                        startSafely(Intent.createChooser(
+                            Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, t), null
+                        ))
+                    }
+                    textSelection.clear()
+                }
+            },
+            onHighlight = { colorLong ->
+                currentColorLong = colorLong
+                applyToSelection { _, m, r ->
+                    // Re-highlighting replaces (recolours) highlights inside the range instead of stacking.
+                    m.removeAll { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == r.blockId && it.start >= r.start && it.end <= r.end }
+                    m.add(PdfMarkup.TextBlockHighlightMarkup(r.blockId, Color(colorLong), 0.38f, r.start, r.end))
+                    true
+                }
+                textSelection.clear()
+            },
+            onUnderline = {
+                applyToSelection { _, m, r ->
+                    if (m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == r.blockId && it.start == r.start && it.end == r.end && !it.strikeThrough }) false
+                    else m.add(PdfMarkup.TextBlockLineMarkup(r.blockId, Color(currentColorLong), 3f, 1f, false, r.start, r.end))
+                }
+                textSelection.clear()
+            },
+            onStrike = {
+                applyToSelection { _, m, r ->
+                    if (m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == r.blockId && it.start == r.start && it.end == r.end && it.strikeThrough }) false
+                    else m.add(PdfMarkup.TextBlockLineMarkup(r.blockId, Color(currentColorLong), 3f, 1f, true, r.start, r.end))
+                }
+                textSelection.clear()
+            },
+            onRemoveHighlight = {
+                textSelection.rangesByPage().forEach { (page, ranges) ->
+                    getPageMarks(page).removeAll { m ->
+                        m is PdfMarkup.TextBlockHighlightMarkup && ranges.any { r -> r.blockId == m.blockId && m.start < r.end && m.end > r.start }
+                    }
+                }
+                textSelection.clear()
+            },
+            onSearch = {
+                val q = textSelection.selectedText().replace(Regex("\\s+"), " ").trim().take(80)
+                textSelection.clear()
+                if (q.isNotEmpty()) {
+                    showFindBar = true
+                    findQuery = q
+                    viewModel.triggerOcrForAllPages(context)
+                    viewModel.searchText(q)
+                }
+            },
+            onProcessText = { component ->
+                viewerScope.launch {
+                    val t = selectionTextLoaded()
+                    if (t.isNotBlank()) {
+                        startSafely(
+                            Intent(Intent.ACTION_PROCESS_TEXT)
+                                .setComponent(component)
+                                .setType("text/plain")
+                                .putExtra(Intent.EXTRA_PROCESS_TEXT, t)
+                                .putExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
+                        )
+                    }
+                }
+            }
+        )
+        // A lambda, evaluated inside the toolbar: reading the selection here would recompose this
+        // whole screen on every handle-drag step.
+        val hasHighlightOverlap: () -> Boolean = {
+            textSelection.hasSelection && textSelection.rangesByPage().any { (page, ranges) ->
+                annotationsByPage[page].orEmpty().any { m ->
+                    m is PdfMarkup.TextBlockHighlightMarkup && ranges.any { r -> r.blockId == m.blockId && m.start < r.end && m.end > r.start }
+                }
+            }
+        }
+        PdfSelectionToolbar(
+            state = textSelection,
+            listState = listState,
+            backdrop = contentBackdrop,
+            actions = selectionActions,
+            highlightColor = currentColor,
+            hasHighlightOverlap = hasHighlightOverlap
+        )
+        PdfCopiedToast(
+            trigger = copiedTick,
+            backdrop = contentBackdrop,
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 112.dp)
+        )
 
         // ── Page-jump popup (in-window, so it samples the liquid-glass backdrop) ──
         LiquidPageJumpPopup(
@@ -1327,12 +1522,31 @@ fun PdfViewerScreen(
             fgSoft          = panelFgSoft,
             surface         = chromePanel,
             field           = chromeField,
-            onDismiss       = { showSaveDialog = false },
+            onDismiss       = { showSaveDialog = false; exitAfterSave = false },
             onSave          = { fileName, overrideUri ->
                 showSaveDialog = false
+                val snapshot = markupSnapshot()
                 val overlays = buildExportOverlays(annotationsByPage, state.ocrBlocksByPage, pageCanvasSizes, pageBitmapSizes)
-                if (overlays.isNotEmpty()) viewModel.exportEditedPdf(context, overlays, fileName, overrideUri)
+                if (overlays.isNotEmpty()) {
+                    pendingSaveMarkups = snapshot
+                    viewModel.exportEditedPdf(context, overlays, fileName, overrideUri)
+                } else {
+                    // Nothing exportable (e.g. only empty text boxes) — nothing to lose either.
+                    savedMarkups = snapshot
+                    if (exitAfterSave) { exitAfterSave = false; onBack() }
+                }
             }
+        )
+
+        // ── Unsaved changes — same card as the spreadsheet, refracting the live page ──
+        // Save routes through the normal Save sheet (file name / location), then leaves once the
+        // export succeeds (see the exportMessage effect above).
+        UnsavedChangesDialog(
+            visible   = showUnsavedDialog,
+            onDiscard = { showUnsavedDialog = false; onBack() },
+            onCancel  = { showUnsavedDialog = false },
+            onSave    = { showUnsavedDialog = false; exitAfterSave = true; showSaveDialog = true },
+            backdrop  = contentBackdrop
         )
 
         // ── Share / export chooser ──

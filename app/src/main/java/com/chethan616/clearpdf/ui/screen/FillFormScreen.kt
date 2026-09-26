@@ -1,5 +1,9 @@
 package com.chethan616.clearpdf.ui.screen
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.activity.compose.BackHandler
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -42,6 +46,7 @@ import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassErrorCard
 import com.chethan616.clearpdf.ui.components.LiquidToggle
 import com.chethan616.clearpdf.ui.components.ToolScaffold
+import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -75,10 +80,24 @@ fun FillFormScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri -> if (uri != null) viewModel.onSelectFile(context, uri) }
 
+    var confirmExit by remember { mutableStateOf(false) }
+    val requestBack = { if (state.dirty && !state.isProcessing) confirmExit = true else onBack() }
+    BackHandler(enabled = state.dirty && !confirmExit) { requestBack() }
+
     ToolScaffold(
         title = stringResource(R.string.tool_fill_form),
         backdrop = backdrop,
-        onBack = onBack
+        onBack = requestBack,
+        overlay = { screenGlass ->
+            UnsavedChangesDialog(
+                visible = confirmExit,
+                onDiscard = { confirmExit = false; onBack() },
+                onCancel = { confirmExit = false },
+                onSave = { confirmExit = false; viewModel.save(context, onSaved = onBack) },
+                backdrop = screenGlass,
+                accent = FormAccent
+            )
+        }
     ) {
         Column(
             Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(28.dp),
@@ -169,7 +188,7 @@ fun FillFormScreen(
         }
 
         state.lastOutputUri?.let { outUri ->
-            LiquidButton(onClick = { onViewOutput(outUri) }, backdrop = backdrop, tint = Color(0xFF1976D2), modifier = Modifier.fillMaxWidth()) {
+            LiquidButton(onClick = { onViewOutput(outUri) }, backdrop = backdrop, tint = FormAccent, modifier = Modifier.fillMaxWidth()) {
                 BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold), modifier = Modifier.padding(vertical = 8.dp))
             }
         }
