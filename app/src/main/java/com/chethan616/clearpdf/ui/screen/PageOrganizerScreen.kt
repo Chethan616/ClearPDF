@@ -422,20 +422,20 @@ fun PageOrganizerScreen(
         backdrop = screenBackdrop.glass,
         accent = accent
     )
-    }
 
-    if (showSaveDialog) {
-        LiquidSaveDialog(
-            initialFileName = state.sourceFileName.substringBeforeLast('.').ifBlank { "Document" } + "_Organized",
-            backdrop = backdrop,
-            uiSensor = uiSensor,
-            onDismiss = { showSaveDialog = false; exitAfterSave = false },
-            onSave = { fileName, overrideUri ->
-                showSaveDialog = false
-                val leave = exitAfterSave
-                exitAfterSave = false
-                viewModel.save(context, fileName, overrideUri, onSaved = if (leave) onBack else null)
-            }
-        )
+    // In-window glass (not a Dialog window) so it refracts the live screen.
+    LiquidSaveDialog(
+        visible = showSaveDialog,
+        initialFileName = state.sourceFileName.substringBeforeLast('.').ifBlank { "Document" } + "_Organized",
+        backdrop = screenBackdrop.glass,
+        uiSensor = uiSensor,
+        onDismiss = { showSaveDialog = false; exitAfterSave = false },
+        onSave = { fileName, overrideUri ->
+            showSaveDialog = false
+            val leave = exitAfterSave
+            exitAfterSave = false
+            viewModel.save(context, fileName, overrideUri, onSaved = if (leave) onBack else null)
+        }
+    )
     }
 }

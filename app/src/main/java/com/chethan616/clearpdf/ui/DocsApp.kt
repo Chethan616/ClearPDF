@@ -52,8 +52,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.chethan616.clearpdf.R
@@ -68,6 +66,8 @@ import com.chethan616.clearpdf.ui.navigation.ROUTE_ONBOARDING
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
+import com.chethan616.clearpdf.ui.components.GlassDialog
+import com.chethan616.clearpdf.ui.components.GlassDialogAction
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.flow.collectLatest
@@ -390,36 +390,41 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     )
                 }
 
-                if (showStarPrompt) {
-                    val uiSensor = rememberUISensor()
+                // Star prompt — in-window liquid glass over the live screen (wallpaper + content).
+                // It used to be a solid card in a Dialog window, which cannot sample anything.
+                run {
                     val starText = if (!isDarkMode) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
                     val starSub = if (!isDarkMode) Color(0xFF666666) else Color(0xFFAAAAAA)
-                    val starAccent = Color(0xFFFFC107)
-                    Dialog(
-                        onDismissRequest = {
-                            GitHubStarPromptManager.onPromptDismissed(context)
-                            showStarPrompt = false
-                        },
-                        properties = DialogProperties(usePlatformDefaultWidth = false)
+                    val starAccent = Color(0xFFFFB300)
+                    val dismissStar = {
+                        GitHubStarPromptManager.onPromptDismissed(context)
+                        showStarPrompt = false
+                    }
+                    GlassDialog(
+                        visible = showStarPrompt,
+                        onDismiss = dismissStar,
+                        backdrop = contentBackdrop,
+                        title = null,
+                        actions = {
+                            GlassDialogAction(stringResource(R.string.star_prompt_later), onClick = dismissStar)
+                            GlassDialogAction(
+                                stringResource(R.string.star_prompt_accept),
+                                onClick = {
+                                    GitHubStarPromptManager.onPromptAccepted(context)
+                                    showStarPrompt = false
+                                    openRepo()
+                                },
+                                primary = true,
+                                tint = starAccent
+                            )
+                        }
                     ) {
                         Column(
-                            // A Dialog is a separate window and cannot sample the in-window
-                            // backdrop layer — liquidGlassPanel here rendered the raw wallpaper
-                            // PNG. Use a solid themed card instead (same fix as the save/signature
-                            // dialogs).
-                            Modifier
-                                .fillMaxWidth(0.88f)
-                                .clip(RoundedCornerShape(28.dp))
-                                .background(if (isDarkMode) Color(0xFF1B1E25) else Color(0xFFF5F6F8))
-                                .border(1.dp, if (isDarkMode) Color.White.copy(0.10f) else Color.Black.copy(0.06f), RoundedCornerShape(28.dp))
-                                .padding(28.dp),
+                            Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                Icons.Rounded.Star, null,
-                                Modifier.size(52.dp), starAccent
-                            )
+                            Icon(Icons.Rounded.Star, null, Modifier.size(52.dp), starAccent)
                             BasicText(
                                 stringResource(R.string.star_prompt_title),
                                 style = TextStyle(starText, 20.sp, FontWeight.Bold, textAlign = TextAlign.Center)
@@ -428,55 +433,16 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                                 stringResource(R.string.star_prompt_message),
                                 style = TextStyle(starSub, 14.sp, textAlign = TextAlign.Center)
                             )
-                            Spacer(Modifier.height(4.dp))
-                            LiquidButton(
-                                onClick = {
-                                    GitHubStarPromptManager.onPromptAccepted(context)
-                                    showStarPrompt = false
-                                    openRepo()
-                                },
-                                backdrop = backdrop,
-                                tint = starAccent,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Rounded.Star, null, Modifier.size(18.dp), Color.White)
-                                    BasicText(stringResource(R.string.star_prompt_accept), style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold))
-                                }
-                            }
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                BasicText(
-                                    stringResource(R.string.star_prompt_later),
-                                    style = TextStyle(starSub, 13.sp, FontWeight.Medium, textAlign = TextAlign.Center),
-                                    modifier = Modifier
-                                        .clickable {
-                                            GitHubStarPromptManager.onPromptDismissed(context)
-                                            showStarPrompt = false
-                                        }
-                                        .padding(horizontal = 8.dp, vertical = 6.dp)
-                                )
-                                BasicText(
-                                    "•",
-                                    style = TextStyle(starSub.copy(0.4f), 13.sp)
-                                )
-                                BasicText(
-                                    stringResource(R.string.star_prompt_never),
-                                    style = TextStyle(starSub.copy(0.7f), 13.sp, FontWeight.Medium, textAlign = TextAlign.Center),
-                                    modifier = Modifier
-                                        .clickable {
-                                            GitHubStarPromptManager.setNeverShowAgain(context)
-                                            showStarPrompt = false
-                                        }
-                                        .padding(horizontal = 8.dp, vertical = 6.dp)
-                                )
-                            }
+                            BasicText(
+                                stringResource(R.string.star_prompt_never),
+                                style = TextStyle(starSub.copy(0.8f), 13.sp, FontWeight.Medium, textAlign = TextAlign.Center),
+                                modifier = Modifier
+                                    .clickable {
+                                        GitHubStarPromptManager.setNeverShowAgain(context)
+                                        showStarPrompt = false
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                            )
                         }
                     }
                 }

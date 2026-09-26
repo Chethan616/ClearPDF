@@ -1,6 +1,7 @@
 package com.chethan616.clearpdf.ui.components
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -36,8 +37,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
@@ -45,12 +44,14 @@ import com.chethan616.clearpdf.ui.utils.UISensor
 import com.kyant.backdrop.Backdrop
 
 /**
- * Solid modal presentation — used on the tool screens (they sit over the wallpaper, and a
- * Dialog is a separate window that cannot sample the page anyway, so a clean themed card
- * beats a wallpaper-PNG "glass" look).
+ * Tool-screen save dialog — now the same in-window liquid-glass sheet as the viewer's
+ * [LiquidSaveSheet] (it used to be a solid card in a platform Dialog window, which cannot sample
+ * anything). Place it as the last child of a full-screen Box, OUTSIDE the scaffold's captured layer,
+ * and pass the screen's live backdrop ([ScreenBackdrop.glass]) so it refracts the real screen.
  */
 @Composable
 fun LiquidSaveDialog(
+    visible: Boolean,
     initialFileName: String,
     backdrop: Backdrop,
     uiSensor: UISensor,
@@ -58,28 +59,22 @@ fun LiquidSaveDialog(
     onSave: (fileName: String, locationUri: Uri?) -> Unit
 ) {
     val isLight = !LocalIsDarkMode.current
-    // Same adaptive palette the in-window sheet uses, derived from the theme (tool screens
-    // sit over the wallpaper, so we can't sample a live page — a solid card matches the theme).
-    val fg     = if (isLight) Color(0xFF15171C) else Color.White
-    val fgSoft = if (isLight) Color(0xFF15171C).copy(0.62f) else Color.White.copy(0.62f)
-    val field  = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f)
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        SaveDocumentBody(
-            surface = Modifier
-                .fillMaxWidth(0.9f)
-                .widthIn(max = 440.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(if (isLight) Color(0xFFF5F6F8) else Color(0xFF1B1E25))
-                .border(1.dp, if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.12f), RoundedCornerShape(28.dp)),
-            initialFileName = initialFileName,
-            backdrop = backdrop,
-            fg = fg,
-            fgSoft = fgSoft,
-            field = field,
-            onDismiss = onDismiss,
-            onSave = onSave
-        )
-    }
+    val fg      = if (isLight) Color(0xFF15171C) else Color.White
+    val fgSoft  = if (isLight) Color(0xFF15171C).copy(0.62f) else Color.White.copy(0.62f)
+    val field   = if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f)
+    val surface = if (isLight) Color(0xFFFAFAFA).copy(0.55f) else Color(0xFF1B1E25).copy(0.45f)
+    LiquidSaveSheet(
+        visible = visible,
+        initialFileName = initialFileName,
+        backdrop = backdrop,
+        uiSensor = uiSensor,
+        fg = fg,
+        fgSoft = fgSoft,
+        surface = surface,
+        field = field,
+        onDismiss = onDismiss,
+        onSave = onSave
+    )
 }
 
 /**
@@ -101,13 +96,15 @@ fun LiquidSaveSheet(
     onDismiss: () -> Unit,
     onSave: (fileName: String, locationUri: Uri?) -> Unit
 ) {
+    BackHandler(enabled = visible) { onDismiss() }
     Box(Modifier.fillMaxSize()) {
         // Fade-only (like AnnotationEditorDialog) — glass never re-blurs mid-transition.
         AnimatedVisibility(visible, enter = fadeIn(tween(200)), exit = fadeOut(tween(160)), modifier = Modifier.fillMaxSize()) {
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(0.45f))
+                    // Light scrim: the glass needs something visible behind it to refract.
+                    .background(Color.Black.copy(if (LocalIsDarkMode.current) 0.34f else 0.22f))
                     .pointerInput(Unit) { detectTapGestures { onDismiss() } }
             )
         }
