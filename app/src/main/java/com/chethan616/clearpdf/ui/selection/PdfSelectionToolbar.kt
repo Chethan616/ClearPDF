@@ -3,11 +3,25 @@ package com.chethan616.clearpdf.ui.selection
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.BiasAlignment
+import com.chethan616.clearpdf.ui.components.liquidStretchOnDrag
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -190,15 +204,29 @@ fun PdfSelectionToolbar(
         if (want) { delay(120); shown = true } else shown = false
     }
     var page by remember { mutableStateOf(ToolbarPage.Main) }
+    // The sub-page most recently opened. It decides which edge the glass morphs from: the overflow
+    // menu grows out of the trailing "⋯" button, the colour row out of the leading Highlight button,
+    // and collapsing back keeps that same edge pinned so the morph visibly reverses.
+    var lastSub by remember { mutableStateOf(ToolbarPage.Overflow) }
+    fun go(p: ToolbarPage) {
+        if (p != ToolbarPage.Main) lastSub = p
+        page = p
+    }
+    // Written from the layout pass (only when it flips), read by the morph's content alignment so
+    // the capsule grows away from the selection instead of over it.
+    var placedAbove by remember { mutableStateOf(true) }
     LaunchedEffect(shown) { if (!shown) page = ToolbarPage.Main }
     // A new selection (not a toolbar action) resets the menu back to the capsule.
     LaunchedEffect(state.start, state.end) { page = ToolbarPage.Main }
 
     val alpha by animateFloatAsState(if (shown) 1f else 0f, GlassMotion.fade(), label = "selToolbarAlpha")
     val scale by animateFloatAsState(
-        if (shown) 1f else 0.86f,
+        if (shown) 1f else 0.9f,
         if (shown) GlassMotion.pop() else GlassMotion.settle(),
         label = "selToolbarScale"
+    )
+    val radius by animateDpAsState(
+        if (page == ToolbarPage.Overflow) 22.dp else 24.dp, GlassMotion.settle(), label = "selToolbarRadius"
     )
 
     // Accessibility: announce the selection size politely whenever it changes.
@@ -247,7 +275,7 @@ fun PdfSelectionToolbar(
             add(ToolbarItem("all", selectAllL, Icons.Rounded.SelectAll, onClick = act(actions.onSelectAll)))
             add(ToolbarItem(
                 "hl", highlightL, Icons.Rounded.Highlight, badge = highlightColor,
-                onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); page = ToolbarPage.Colors },
+                onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); go(ToolbarPage.Colors) },
                 onClick = act { actions.onHighlight(highlightColor.toArgbLong()) }
             ))
             if (shown && hasHighlightOverlap()) add(ToolbarItem("rm", removeL, Icons.Rounded.FormatColorReset, tint = LiquidGlassColors.Red, onClick = act(actions.onRemoveHighlight)))
@@ -267,49 +295,62 @@ fun PdfSelectionToolbar(
         val primary = items.take(primaryCount)
         val overflow = items.drop(primaryCount) + processItems
 
+        // The Main capsule's width is fully determined by its item count, so the morph can pin an
+        // edge of it without waiting for a measure pass.
+        val mainWPx = with(density) { (itemSize * (primary.size + if (overflow.isNotEmpty()) 1 else 0) + 8.dp).toPx() }
+        val mainHPx = with(density) { 48.dp.toPx() }
+        val anchorEnd = lastSub == ToolbarPage.Overflow
+        val alignH = if (anchorEnd) 1f else -1f
+        val alignV = if (placedAbove) 1f else -1f
+
         Layout(
             content = {
-                Box(
-                    Modifier.graphicsLayer {
-                        this.alpha = alpha
-                        scaleX = scale; scaleY = scale
-                        transformOrigin = TransformOrigin.Center
-                    }
-                ) {
-                    when (page) {
+                // ONE glass surface for every page. Only its size animates (SizeTransform with the
+                // morph spring) while the pages cross-fade inside it: the capsule visibly stretches
+                // into the menu instead of being swapped for a second piece of glass.
+                AnimatedContent(
+                    targetState = page,
+                    modifier = Modifier.viewerGlass(backdrop, glass, shape = { RoundedRectangle(radius) }),
+                    contentAlignment = BiasAlignment(alignH, alignV),
+                    transitionSpec = {
+                        val origin = TransformOrigin(if (anchorEnd) 1f else 0f, if (placedAbove) 1f else 0f)
+                        (fadeIn(GlassMotion.fade()) + scaleIn(GlassMotion.morph(), initialScale = 0.92f, transformOrigin = origin)) togetherWith
+                            (fadeOut(spring(stiffness = Spring.StiffnessMediumLow * 2f)) + scaleOut(GlassMotion.settle(), targetScale = 0.96f, transformOrigin = origin)) using
+                            SizeTransform(clip = true) { _, _ -> GlassMotion.morph() }
+                    },
+                    label = "selToolbarMorph"
+                ) { p ->
+                    when (p) {
                         ToolbarPage.Main -> Row(
                             Modifier
-                                .viewerGlass(backdrop, glass, shape = { RoundedRectangle(24.dp) })
                                 .height(48.dp)
                                 .padding(horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             primary.forEach { ToolbarIconButton(it, fg) }
                             if (overflow.isNotEmpty()) {
-                                ToolbarIconButton(ToolbarItem("more", moreL, Icons.Rounded.MoreHoriz, onClick = act { page = ToolbarPage.Overflow }), fg)
+                                ToolbarIconButton(ToolbarItem("more", moreL, Icons.Rounded.MoreHoriz, onClick = act { go(ToolbarPage.Overflow) }), fg)
                             }
                         }
                         ToolbarPage.Overflow -> Column(
                             Modifier
-                                .viewerGlass(backdrop, glass, shape = { RoundedRectangle(22.dp) })
                                 .widthIn(min = 200.dp, max = 280.dp)
                                 .verticalScroll(rememberScrollState())
                                 .padding(vertical = 6.dp)
                         ) {
-                            MenuRow(ToolbarItem("back", backL, Icons.AutoMirrored.Rounded.ArrowBack, onClick = act { page = ToolbarPage.Main }), fg)
-                            overflow.forEach { MenuRow(it, fg) }
+                            val rows = listOf(ToolbarItem("back", backL, Icons.AutoMirrored.Rounded.ArrowBack, onClick = act { go(ToolbarPage.Main) })) + overflow
+                            rows.forEachIndexed { i, item -> MenuRow(item, fg, index = i, fromBelow = placedAbove) }
                         }
                         ToolbarPage.Colors -> Row(
                             Modifier
-                                .viewerGlass(backdrop, glass, shape = { RoundedRectangle(24.dp) })
                                 .height(48.dp)
                                 .padding(horizontal = 4.dp)
                                 .semantics { contentDescription = colorL },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            ToolbarIconButton(ToolbarItem("back", backL, Icons.AutoMirrored.Rounded.ArrowBack, onClick = act { page = ToolbarPage.Main }), fg)
-                            SelectionHighlightColors.forEach { c ->
-                                ColorDot(c, selected = c.toArgbLong() == highlightColor.toArgbLong(), ring = fg) {
+                            ToolbarIconButton(ToolbarItem("back", backL, Icons.AutoMirrored.Rounded.ArrowBack, onClick = act { go(ToolbarPage.Main) }), fg)
+                            SelectionHighlightColors.forEachIndexed { i, c ->
+                                ColorDot(c, selected = c.toArgbLong() == highlightColor.toArgbLong(), ring = fg, index = i) {
                                     haptics.performHapticFeedback(HapticFeedbackType.VirtualKey)
                                     actions.onHighlight(c.toArgbLong())
                                 }
@@ -320,7 +361,8 @@ fun PdfSelectionToolbar(
             }
         ) { measurables, constraints ->
             val maxW = (constraints.maxWidth - 2 * marginPx).roundToInt().coerceAtLeast(0)
-            val placeable = measurables.first().measure(Constraints(maxWidth = maxW, maxHeight = constraints.maxHeight))
+            val maxH = (constraints.maxHeight - topSafe - bottomInset).roundToInt().coerceAtLeast(0)
+            val placeable = measurables.first().measure(Constraints(maxWidth = maxW, maxHeight = maxH))
             layout(constraints.maxWidth, constraints.maxHeight) {
                 // Read geometry here (layout phase) so the capsule follows the selection.
                 listState.firstVisibleItemScrollOffset; state.transform
@@ -338,17 +380,37 @@ fun PdfSelectionToolbar(
                 val w = placeable.width.toFloat()
                 val h = placeable.height.toFloat()
                 val bottomSafe = screenH - bottomInset
-                val above = b.top - gapPx - h
+                // Above/below is decided for the 48 dp capsule, not the (animating) current size, so
+                // the menu never flips sides mid-morph: it grows away from the selection instead.
+                val aboveTop = b.top - gapPx - mainHPx
                 val below = b.bottom + handleDropPx + gapPx
-                val y = when {
-                    above >= topSafe -> above
-                    below + h <= bottomSafe -> below
+                val side = when {
+                    aboveTop >= topSafe -> 1
+                    below + mainHPx <= bottomSafe -> -1
+                    else -> 0
+                }
+                val y = when (side) {
+                    1 -> (b.top - gapPx - h).coerceAtLeast(topSafe)
+                    -1 -> below.coerceAtMost(bottomSafe - h).coerceAtLeast(topSafe)
                     // Selection taller than the screen: float inside it, near the top, like the
                     // platform toolbar does.
                     else -> (b.top + gapPx).coerceIn(topSafe, (bottomSafe - h).coerceAtLeast(topSafe))
                 }
-                val x = (b.center.x - w / 2f).coerceIn(marginPx, (screenW - w - marginPx).coerceAtLeast(marginPx))
-                placeable.place(x.roundToInt(), y.roundToInt())
+                if (placedAbove != (side == 1)) placedAbove = side == 1
+                // Pin the Main capsule's leading or trailing edge; at w == mainW both agree, so the
+                // capsule never jumps when a morph starts or ends.
+                val mainX = (b.center.x - mainWPx / 2f).coerceIn(marginPx, (screenW - mainWPx - marginPx).coerceAtLeast(marginPx))
+                val pinned = if (anchorEnd) mainX + mainWPx - w else mainX
+                val x = pinned.coerceIn(marginPx, (screenW - w - marginPx).coerceAtLeast(marginPx))
+                // Show/hide pops out of the selection: the pivot is the point of the capsule
+                // nearest the selection's centre.
+                val pivotX = if (w > 0f) ((b.center.x - x) / w).coerceIn(0f, 1f) else 0.5f
+                val pivotY = if (side == 1) 1f else 0f
+                placeable.placeWithLayer(x.roundToInt(), y.roundToInt()) {
+                    this.alpha = alpha
+                    scaleX = scale; scaleY = scale
+                    transformOrigin = TransformOrigin(pivotX, pivotY)
+                }
             }
         }
     }
@@ -356,17 +418,36 @@ fun PdfSelectionToolbar(
 
 private fun Color.toArgbLong(): Long = toArgb().toLong() and 0xFFFFFFFFL
 
+/**
+ * Entrance progress (0..1) for the [index]-th item of a page that just morphed in: items land one
+ * after another (~22 ms apart) as the glass opens, like an iOS menu unfolding. Items past the first
+ * eight share the last delay so long process-text lists don't trail.
+ */
+@Composable
+private fun rememberStaggerIn(index: Int): Animatable<Float, *> {
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(30L + 22L * index.coerceAtMost(8))
+        progress.animateTo(1f, GlassMotion.settle())
+    }
+    return progress
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ToolbarIconButton(item: ToolbarItem, fg: Color) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val s by animateFloatAsState(if (pressed) GlassMotion.PressedScale else 1f, GlassMotion.press(), label = "tbPress")
+    val wash by animateFloatAsState(if (pressed) 0.10f else 0f, GlassMotion.fade(), label = "tbWash")
     Box(
         Modifier
             .size(44.dp)
+            // Draw-time only: a finger sliding across the item squashes it along the drag, like
+            // a drop of the glass it sits on; the press scale adds the tactile dip.
+            .liquidStretchOnDrag(stretchFactor = 0.18f, minScale = 0.88f, maxScale = 1.12f)
             .graphicsLayer { scaleX = s; scaleY = s }
-            .background(if (pressed) fg.copy(alpha = 0.10f) else Color.Transparent, CircleShape)
+            .drawBehind { if (wash > 0f) drawCircle(fg.copy(alpha = wash)) }
             .combinedClickable(
                 interactionSource = interaction,
                 indication = null,
@@ -401,14 +482,24 @@ private fun ItemIcon(item: ToolbarItem, tint: Color, size: androidx.compose.ui.u
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MenuRow(item: ToolbarItem, fg: Color) {
+private fun MenuRow(item: ToolbarItem, fg: Color, index: Int, fromBelow: Boolean) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val s by animateFloatAsState(if (pressed) 0.97f else 1f, GlassMotion.press(), label = "rowPress")
+    val wash by animateFloatAsState(if (pressed) 0.08f else 0f, GlassMotion.fade(), label = "rowWash")
+    val enter = rememberStaggerIn(index)
+    val shiftPx = with(LocalDensity.current) { 8.dp.toPx() } * (if (fromBelow) 1f else -1f)
     Row(
         Modifier
             .widthIn(min = 200.dp, max = 280.dp)
             .height(46.dp)
-            .background(if (pressed) fg.copy(alpha = 0.08f) else Color.Transparent)
+            .graphicsLayer {
+                val e = enter.value
+                alpha = e
+                translationY = (1f - e) * shiftPx
+                scaleX = s; scaleY = s
+            }
+            .drawBehind { if (wash > 0f) drawRect(fg.copy(alpha = wash)) }
             .combinedClickable(interactionSource = interaction, indication = null, onLongClick = item.onLongClick, onClick = item.onClick)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -425,14 +516,21 @@ private fun MenuRow(item: ToolbarItem, fg: Color) {
 }
 
 @Composable
-private fun ColorDot(color: Color, selected: Boolean, ring: Color, onClick: () -> Unit) {
+private fun ColorDot(color: Color, selected: Boolean, ring: Color, index: Int, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val s by animateFloatAsState(if (pressed) GlassMotion.PressedScale else 1f, GlassMotion.press(), label = "dotPress")
+    val enter = rememberStaggerIn(index)
     Box(
         Modifier
             .size(width = 34.dp, height = 44.dp)
-            .graphicsLayer { scaleX = s; scaleY = s }
+            .liquidStretchOnDrag(stretchFactor = 0.18f, minScale = 0.88f, maxScale = 1.12f)
+            .graphicsLayer {
+                val e = enter.value
+                alpha = e
+                val k = s * (0.6f + 0.4f * e)
+                scaleX = k; scaleY = k
+            }
             .combinedClickable(interactionSource = interaction, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {

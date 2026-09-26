@@ -356,6 +356,11 @@
     <string name="recents_sheets">Sheets</string>
     <string name="recents_pin">Pin</string>
     <string name="recents_unpin">Unpin</string>
+    <string name="recents_open_with">Open with…</string>
+    <string name="recents_remove_from_list">Remove from Recents</string>
+    <string name="recents_delete_file">Delete File</string>
+    <string name="recents_delete_confirm">Tap again to delete</string>
+    <string name="recents_delete_failed">Couldn\'t delete this file</string>
     <string name="recents_filter">Filter by type</string>
     <string name="recents_filter_all">All</string>
     <string name="recents_filter_pdf">PDF</string>

@@ -46,7 +46,10 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.FilterList
@@ -99,6 +102,7 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 import com.chethan616.clearpdf.ui.components.GlassCapsuleMenu
+import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.GlassMenuAction
 import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.GlassSearchHeader
@@ -154,24 +158,23 @@ fun HomeScreen(
     // menu. Swipe-to-delete drives its own exit from inside the row; this lets the menu path run the
     // exact same fade + container spring instead of snapping the row out of existence.
     var pendingDeleteUri by remember { mutableStateOf<String?>(null) }
-    // Root-space vertical center of the long-pressed row, so the popup can rise
-    // from the item instead of floating dead-center.
-    var selectedRecentAnchorY by remember { mutableStateOf(0f) }   // root-space TOP of the pressed row
-    var selectedRecentRowHeight by remember { mutableStateOf(0f) }
-    var recentPopupHeightPx by remember { mutableStateOf(0) }
+    // Root-space bounds of the long-pressed row: the context menu grows out of it and the scrim
+    // leaves a hole over it.
+    var selectedRecentBounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    // The last menu target, kept after dismissal so the menu can play its exit with its content.
+    var menuRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
+    LaunchedEffect(selectedRecent) { selectedRecent?.let { menuRecent = it } }
+    // Whether the pressed file itself (not only its recents entry) can be deleted. Asked of the
+    // provider off the main thread each time a menu opens.
+    var menuCanDelete by remember { mutableStateOf(false) }
+    LaunchedEffect(selectedRecent?.uriString) {
+        val r = selectedRecent ?: return@LaunchedEffect
+        menuCanDelete = false
+        menuCanDelete = kotlinx.coroutines.withContext(Dispatchers.IO) { canDeleteDocument(context, r.uri) }
+    }
     var infoRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val popupTransition = updateTransition(
-        targetState = selectedRecent != null,
-        label = "recentPopupTransition"
-    )
-    val morphProgress by popupTransition.animateFloat(
-        transitionSpec = { spring(dampingRatio = 0.82f, stiffness = 220f) },
-        label = "morphProgress"
-    ) { if (it) 1f else 0f }
-    // `morphProgress` alone now drives the menu: GlassCapsuleMenu derives each circle's stagger
-    // from it, so the four per-button springs this used to run are gone.
 
     // Category filter for the recents list. Null = show everything.
     var recentFilter by remember { mutableStateOf<DocKind?>(null) }
@@ -457,11 +460,12 @@ fun HomeScreen(
                                     // Set by the long-press menu's "Remove". When it matches this row,
                                     // the row plays the same exit as a swipe before it is dropped.
                                     pendingDelete = pendingDeleteUri == recent.uriString,
+                                    lifted = selectedRecent?.uriString == recent.uriString,
                                     onClick = { onRecentFileSelected(recent.uri, recent.name) },
-                                    onLongClick = { top, height ->
+                                    onLongClick = { bounds ->
+                                        selectedRecentBounds = bounds
+                                        menuRecent = recent
                                         selectedRecent = recent
-                                        selectedRecentAnchorY = top
-                                        selectedRecentRowHeight = height
                                     },
                                     onDelete = {
                                         // Called once the row has finished fading. Drop it from the
@@ -494,100 +498,96 @@ fun HomeScreen(
         }
         }
 
-        // ── Floating Liquid Glass Chat Bubble Reaction Bar ──
-        AnimatedVisibility(
-            visible = selectedRecent != null,
-            enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessHigh)),
-            exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessHigh))
-        ) {
-            BoxWithConstraints(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Transparent)
-                    .clickable(
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                        indication = null
-                    ) { selectedRecent = null },
-                contentAlignment = Alignment.TopCenter
-            ) {
-                val maxH = constraints.maxHeight
-                val padPx = 16f * density
-                selectedRecent?.let { recent ->
-                    // Float the pill ABOVE the pressed row (WhatsApp-style); flip below only if
-                    // there isn't enough room above.
-                    val gap = 10f * density
-                    val minY = padPx * 3f
-                    val maxY = (maxH - recentPopupHeightPx - padPx * 3f).coerceAtLeast(minY)
-                    val aboveY = selectedRecentAnchorY - recentPopupHeightPx - gap
-                    val belowY = selectedRecentAnchorY + selectedRecentRowHeight + gap
-                    val targetY = (if (aboveY >= minY) aboveY else belowY).coerceIn(minY, maxY)
-                    // One glass capsule with the actions inside it, not five glass buttons floating
-                    // in the air — and one blur pass instead of five. The capsule fades; the
-                    // circles inside carry the morph (see GlassCapsuleMenu).
-                    GlassCapsuleMenu(
-                        actions = listOf(
-                            GlassMenuAction(
-                                Icons.Rounded.FileOpen, stringResource(R.string.recents_open), Color(0xFF0088FF)
-                            ) { selectedRecent = null; onRecentFileSelected(recent.uri, recent.name) },
-                            GlassMenuAction(
-                                if (recent.pinned) Icons.Rounded.PushPin else Icons.Outlined.PushPin,
-                                stringResource(if (recent.pinned) R.string.recents_unpin else R.string.recents_pin),
-                                Color(0xFFFF9500)
-                            ) {
-                                RecentFilesManager.togglePin(context, recent.uri)
-                                recents = RecentFilesManager.getRecents(context)
-                                selectedRecent = null
-                            },
-                            GlassMenuAction(
-                                Icons.Rounded.IosShare, stringResource(R.string.recents_share), Color(0xFF34C759)
-                            ) {
-                                selectedRecent = null
-                                val raw = recent.uri
-                                // A file:// URI can't be shared to other apps (FileUriExposedException →
-                                // crash). Convert to a FileProvider content:// URI first, and use the
-                                // file's real MIME type so non-PDF recents (xlsx/images) share correctly.
-                                val shareUri = if (raw.scheme == "file") {
-                                    runCatching {
-                                        androidx.core.content.FileProvider.getUriForFile(
-                                            context, "${context.packageName}.provider", java.io.File(raw.path!!)
-                                        )
-                                    }.getOrNull() ?: raw
-                                } else raw
-                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = context.contentResolver.getType(shareUri) ?: "application/octet-stream"
-                                    putExtra(Intent.EXTRA_STREAM, shareUri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                runCatching {
-                                    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.recents_share_pdf)))
-                                }
-                            },
-                            GlassMenuAction(
-                                Icons.Rounded.Info, stringResource(R.string.recents_details), Color(0xFF8E8E93)
-                            ) { selectedRecent = null; infoRecent = recent },
-                            GlassMenuAction(
-                                Icons.Rounded.DeleteOutline, stringResource(R.string.recents_remove), Color(0xFFE53935)
-                            ) {
-                                // Hand the removal to the row so it fades out and the container springs
-                                // shut, exactly like a swipe — no instant snap. The row calls back to
-                                // `onDelete` when its fade completes.
-                                selectedRecent = null
-                                pendingDeleteUri = recent.uriString
-                            }
-                        ),
-                        backdrop = backdrop,
-                        uiSensor = uiSensor,
-                        progress = morphProgress,
-                        modifier = Modifier
-                            .offset { IntOffset(0, targetY.toInt()) }
-                            .onGloballyPositioned { recentPopupHeightPx = it.size.height }
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { /* Consume inner taps */ }
-                    )
+        // ── Recents context menu (long-press) ──
+        menuRecent?.let { recent ->
+            // A file:// URI can't be handed to other apps (FileUriExposedException -> crash).
+            // Convert to a FileProvider content:// URI first, and use the file's real MIME type so
+            // non-PDF recents (xlsx/images) share and open correctly.
+            fun exportUri(): Uri {
+                val raw = recent.uri
+                return if (raw.scheme == "file") {
+                    runCatching {
+                        androidx.core.content.FileProvider.getUriForFile(
+                            context, "${context.packageName}.provider", java.io.File(raw.path!!)
+                        )
+                    }.getOrNull() ?: raw
+                } else raw
+            }
+            val shareFile: () -> Unit = {
+                val shareUri = exportUri()
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = context.contentResolver.getType(shareUri) ?: "application/octet-stream"
+                    putExtra(Intent.EXTRA_STREAM, shareUri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                runCatching {
+                    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.recents_share_pdf)))
                 }
             }
+            val openWith: () -> Unit = {
+                val viewUri = exportUri()
+                val view = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(viewUri, context.contentResolver.getType(viewUri) ?: "application/octet-stream")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                runCatching {
+                    context.startActivity(Intent.createChooser(view, context.getString(R.string.recents_open_with)))
+                }
+            }
+            RecentContextMenu(
+                visible = selectedRecent != null,
+                anchor = selectedRecentBounds,
+                title = recent.name,
+                backdrop = backdrop,
+                primary = listOf(
+                    RecentMenuAction("open", Icons.Rounded.FileOpen, stringResource(R.string.recents_open), LiquidGlassColors.Blue) {
+                        selectedRecent = null; onRecentFileSelected(recent.uri, recent.name)
+                    },
+                    RecentMenuAction("share", Icons.Rounded.IosShare, stringResource(R.string.recents_share), LiquidGlassColors.Green) {
+                        selectedRecent = null; shareFile()
+                    }
+                ),
+                actions = buildList {
+                    add(RecentMenuAction(
+                        "pin",
+                        if (recent.pinned) Icons.Rounded.PushPin else Icons.Outlined.PushPin,
+                        stringResource(if (recent.pinned) R.string.recents_unpin else R.string.recents_pin),
+                        LiquidGlassColors.Orange
+                    ) {
+                        RecentFilesManager.togglePin(context, recent.uri)
+                        recents = RecentFilesManager.getRecents(context)
+                        selectedRecent = null
+                    })
+                    add(RecentMenuAction(
+                        "openWith", Icons.AutoMirrored.Rounded.OpenInNew, stringResource(R.string.recents_open_with), LiquidGlassColors.Indigo
+                    ) { selectedRecent = null; openWith() })
+                    add(RecentMenuAction(
+                        "info", Icons.Rounded.Info, stringResource(R.string.recents_details), LiquidGlassColors.Teal
+                    ) { selectedRecent = null; infoRecent = recent })
+                    add(RecentMenuAction(
+                        "remove", Icons.Rounded.RemoveCircleOutline, stringResource(R.string.recents_remove_from_list),
+                        LiquidGlassColors.Red, destructive = true
+                    ) {
+                        // Hand the removal to the row so it fades out and the container springs
+                        // shut, exactly like a swipe. The row calls back to `onDelete` when done.
+                        selectedRecent = null
+                        pendingDeleteUri = recent.uriString
+                    })
+                    if (menuCanDelete) add(RecentMenuAction(
+                        "delete", Icons.Rounded.DeleteForever, stringResource(R.string.recents_delete_file),
+                        LiquidGlassColors.Red, destructive = true,
+                        confirmLabel = stringResource(R.string.recents_delete_confirm)
+                    ) {
+                        selectedRecent = null
+                        homeScope.launch {
+                            val ok = kotlinx.coroutines.withContext(Dispatchers.IO) { deleteDocument(context, recent.uri) }
+                            if (ok) pendingDeleteUri = recent.uriString
+                            else android.widget.Toast.makeText(context, R.string.recents_delete_failed, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    })
+                },
+                onDismiss = { selectedRecent = null }
+            )
         }
 
         // ── Category filter menu ──
@@ -815,6 +815,7 @@ private fun swipeRed(travel: Float, width: Float): Color {
  * the drag both read them at gesture time, long after they are set.
  */
 private class RowMetrics {
+    var leftX = 0f
     var topY = 0f
     var height = 0f
     var width = 1f
@@ -833,16 +834,24 @@ private fun RecentRow(
     secondaryColor: Color,
     // True once the long-press menu's "Remove" targets this row: it plays the same exit a swipe does.
     pendingDelete: Boolean,
+    // True while this row's context menu is open: it lifts slightly above the dimmed screen.
+    lifted: Boolean,
     onClick: () -> Unit,
-    onLongClick: (top: Float, height: Float) -> Unit,
+    onLongClick: (bounds: androidx.compose.ui.geometry.Rect) -> Unit,
     onDelete: () -> Unit
 ) {
     val metrics = remember { RowMetrics() }
     val rowInteraction = remember { MutableInteractionSource() }
     val rowPressed by rowInteraction.collectIsPressedAsState()
+    // Held: eases down. Menu opens: springs UP past rest (the iOS context-menu "lift"), so the
+    // row reads as picked up out of the list the menu grows from.
     val rowScale by animateFloatAsState(
-        if (rowPressed) 0.96f else 1f,
-        spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMediumLow),
+        when {
+            lifted -> 1.025f
+            rowPressed -> 0.96f
+            else -> 1f
+        },
+        if (lifted) GlassMotion.morph() else spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMediumLow),
         label = "recentPress"
     )
     // Swipe-to-delete. Left only: a rightward drag has no meaning here, and allowing it would
@@ -878,7 +887,9 @@ private fun RecentRow(
             .graphicsLayer { alpha = exitAlpha.value }
             .clip(RoundedCornerShape(16.dp))
             .onGloballyPositioned {
-                metrics.topY = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero).y
+                val pos = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero)
+                metrics.leftX = pos.x
+                metrics.topY = pos.y
                 metrics.height = it.size.height.toFloat()
                 metrics.width = it.size.width.toFloat().coerceAtLeast(1f)
             }
@@ -939,7 +950,13 @@ private fun RecentRow(
                     interactionSource = rowInteraction,
                     indication = null,
                     onClick = onClick,
-                    onLongClick = { onLongClick(metrics.topY, metrics.height) }
+                    onLongClick = {
+                        onLongClick(
+                            androidx.compose.ui.geometry.Rect(
+                                metrics.leftX, metrics.topY, metrics.leftX + metrics.width, metrics.topY + metrics.height
+                            )
+                        )
+                    }
                 )
                 // A pinned row is an explicit "keep this" — it doesn't swipe away.
                 .then(
