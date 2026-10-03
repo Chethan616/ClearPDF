@@ -24,6 +24,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -79,6 +80,8 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.UploadFile
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -94,6 +97,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -109,6 +113,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -117,6 +123,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -191,6 +200,9 @@ fun PdfViewerScreen(
     // ── Local UI state ─────────────────────────────────────────────────────
     var controlsVisible     by rememberSaveable { mutableStateOf(true) }
     var controlsPinned      by rememberSaveable { mutableStateOf(false) }
+    var autoScroll by remember { mutableStateOf(false) }
+    var autoScrollSpeed by rememberSaveable { mutableFloatStateOf(1f) }
+    var viewerResumed by remember { mutableStateOf(true) }
     // True while the bottom "Editor Tools" panel is expanded — keeps the chrome from auto-hiding
     // so the user can browse tools without it disappearing.
     var editorToolsOpen     by rememberSaveable { mutableStateOf(false) }
@@ -279,6 +291,40 @@ fun PdfViewerScreen(
     // Declared here (rather than lower) so the image/signature launchers below can place
     // annotations onto whichever page is under the viewport centre.
     val listState = rememberLazyListState()
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewerResumed = true
+            if (event == Lifecycle.Event.ON_PAUSE) {
+                viewerResumed = false
+                autoScroll = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(autoScroll, autoScrollSpeed, state.document?.uri, activeTool, scale, viewerResumed) {
+        if (!autoScroll || state.document == null || !viewerResumed || activeTool != PdfEditTool.None || scale > 1.01f) {
+            if (autoScroll && (!viewerResumed || activeTool != PdfEditTool.None || scale > 1.01f || state.document == null)) autoScroll = false
+            return@LaunchedEffect
+        }
+        var previousFrame = 0L
+        while (true) {
+            val frame = withFrameNanos { it }
+            if (previousFrame == 0L) {
+                previousFrame = frame
+                continue
+            }
+            val elapsedSeconds = ((frame - previousFrame).coerceAtMost(50_000_000L)) / 1_000_000_000f
+            previousFrame = frame
+            val pixels = with(density) { 36.dp.toPx() * autoScrollSpeed * elapsedSeconds }
+            if (listState.scrollBy(pixels) <= 0f) {
+                autoScroll = false
+                break
+            }
+        }
+    }
 
     // ── Text selection (long-press, native-style handles, glass toolbar) ─────────────────────
     val textSelection = remember { PdfTextSelectionState() }
@@ -442,6 +488,7 @@ fun PdfViewerScreen(
 
     // ── Document lifecycle effects ─────────────────────────────────────────
     LaunchedEffect(state.document?.uri) {
+        autoScroll = false
         controlsVisible = true; controlsPinned = false
         lastInteractionAtMs = System.currentTimeMillis()
         scale = 1f; offsetX = 0f
@@ -455,7 +502,7 @@ fun PdfViewerScreen(
     }
 
     LaunchedEffect(state.document, controlsVisible, controlsPinned, activeTool, selectedMarkupGroup.size, editorToolsOpen, shareHolding, lastInteractionAtMs) {
-        if (state.document != null && controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && selectedMarkupGroup.size <= 1 && !editorToolsOpen && !shareHolding) {
+        if (state.document != null && controlsVisible && !controlsPinned && !autoScroll && scale <= 1.01f && activeTool == PdfEditTool.None && selectedMarkupGroup.size <= 1 && !editorToolsOpen && !shareHolding) {
             val snap = lastInteractionAtMs
             // Comfortable auto-hide window; any interaction bumps lastInteractionAtMs and
             // restarts this. It never fires while a tool is active (activeTool != None), while
@@ -463,7 +510,7 @@ fun PdfViewerScreen(
             // produces no pointer events for the viewer to see, so without that last guard the
             // chrome hid itself out from under the finger mid-gesture.
             delay(5000)
-            if (controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && selectedMarkupGroup.size <= 1 && !editorToolsOpen && !shareHolding && snap == lastInteractionAtMs)
+            if (controlsVisible && !controlsPinned && !autoScroll && scale <= 1.01f && activeTool == PdfEditTool.None && selectedMarkupGroup.size <= 1 && !editorToolsOpen && !shareHolding && snap == lastInteractionAtMs)
                 controlsVisible = false
         }
     }
@@ -879,7 +926,7 @@ fun PdfViewerScreen(
                         autoScroller = selectionAutoScroller,
                         haptics = haptics,
                         enabled = { activeTool == PdfEditTool.None },
-                        onSelectionStarted = { lastInteractionAtMs = System.currentTimeMillis() }
+                        onSelectionStarted = { autoScroll = false; lastInteractionAtMs = System.currentTimeMillis() }
                     )
                     .then(
                         // Keep pinch zoom available in Select Text mode. Other editing tools own
@@ -888,6 +935,7 @@ fun PdfViewerScreen(
                         else Modifier.pointerInput(Unit) {
                             awaitEachGesture {
                                 awaitFirstDown(requireUnconsumed = false)
+                                autoScroll = false
                                 do {
                                     val event = awaitPointerEvent()
                                     // A selection drag owns the finger: no one-finger pan underneath it.
@@ -1091,6 +1139,56 @@ fun PdfViewerScreen(
             autoScroller = selectionAutoScroller,
             pageBitmaps = state.pageBitmaps
         )
+
+        AnimatedVisibility(
+            visible = controlsVisible && state.document != null && safePageCount > 1 && scale <= 1.01f && activeTool == PdfEditTool.None,
+            enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.94f),
+            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.96f),
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 92.dp)
+        ) {
+            Row(
+                Modifier
+                    .viewerGlass(contentBackdrop, chromeGlass, shape = { com.kyant.shapes.Capsule })
+                    .padding(horizontal = 7.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                LiquidIconButton(
+                    onClick = {
+                        autoScroll = !autoScroll
+                        controlsVisible = true
+                        lastInteractionAtMs = System.currentTimeMillis()
+                    },
+                    backdrop = contentBackdrop,
+                    tint = if (autoScroll) accent else Color.Unspecified,
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Icon(
+                        if (autoScroll) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        stringResource(if (autoScroll) R.string.viewer_auto_scroll_pause else R.string.viewer_auto_scroll_start),
+                        Modifier.size(20.dp),
+                        if (autoScroll) Color.White else bottomFg
+                    )
+                }
+                BasicText(
+                    text = "${autoScrollSpeed}×",
+                    modifier = Modifier
+                        .semantics { contentDescription = context.getString(R.string.viewer_auto_scroll_speed) }
+                        .clip(RoundedCornerShape(50))
+                        .clickable {
+                            autoScrollSpeed = when (autoScrollSpeed) {
+                                0.75f -> 1f
+                                1f -> 1.5f
+                                1.5f -> 2f
+                                else -> 0.75f
+                            }
+                            lastInteractionAtMs = System.currentTimeMillis()
+                        }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    style = TextStyle(bottomFg, 13.sp, FontWeight.SemiBold)
+                )
+            }
+        }
 
         // ── Page scrubber (doubles as the fading scroll indicator) ─────────
         // Always present on multi-page docs so fast scrubbing is one drag away,

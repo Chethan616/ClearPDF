@@ -2,6 +2,9 @@
 <resources>
     <string name="viewer_page_dark_mode">Activar colores oscuros de página</string>
     <string name="viewer_page_colors_original">Restaurar los colores originales</string>
+    <string name="viewer_auto_scroll_start">Iniciar desplazamiento automático</string>
+    <string name="viewer_auto_scroll_pause">Pausar desplazamiento automático</string>
+    <string name="viewer_auto_scroll_speed">Cambiar velocidad de desplazamiento</string>
     <string name="app_name">ClearPDF</string>
 
     <!-- Accesos directos de la app -->

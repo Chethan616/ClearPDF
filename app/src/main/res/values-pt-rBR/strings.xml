@@ -2,6 +2,9 @@
 <resources>
     <string name="viewer_page_dark_mode">Ativar cores escuras da página</string>
     <string name="viewer_page_colors_original">Restaurar cores originais da página</string>
+    <string name="viewer_auto_scroll_start">Iniciar rolagem automática</string>
+    <string name="viewer_auto_scroll_pause">Pausar rolagem automática</string>
+    <string name="viewer_auto_scroll_speed">Alterar velocidade da rolagem</string>
     <string name="app_name">ClearPDF</string>
 
     <!-- App Shortcuts -->

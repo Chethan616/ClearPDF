@@ -202,6 +202,9 @@
     <string name="viewer_page_of">Page %1$d / %2$d</string>
     <string name="viewer_page_dark_mode">Enable dark page colors</string>
     <string name="viewer_page_colors_original">Restore original page colors</string>
+    <string name="viewer_auto_scroll_start">Start auto-scroll</string>
+    <string name="viewer_auto_scroll_pause">Pause auto-scroll</string>
+    <string name="viewer_auto_scroll_speed">Change auto-scroll speed</string>
     <string name="viewer_draw_tools">Draw Tools</string>
     <string name="viewer_select_text">Select Text</string>
     <string name="viewer_add_image">Add Image</string>
