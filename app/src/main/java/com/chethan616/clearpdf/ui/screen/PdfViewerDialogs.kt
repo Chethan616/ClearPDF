@@ -668,7 +668,7 @@ internal fun AnnotationColorRow(
                     Modifier
                         .size(if (isSel) 30.dp else 26.dp)
                         .clip(CircleShape)
-                        .background(c)
+                        .viewerGlass(backdrop, c.copy(alpha = 0.88f), shape = { CircleShape })
                         .border(
                             width = if (isSel) 2.5.dp else 1.dp,
                             color = if (isSel) LiquidGlassColors.Blue else fgSoft.copy(alpha = 0.42f),

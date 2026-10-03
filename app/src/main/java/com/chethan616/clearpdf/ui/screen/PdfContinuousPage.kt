@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FormatUnderlined
 import androidx.compose.material.icons.rounded.Highlight
@@ -145,6 +146,9 @@ internal fun PdfContinuousPage(
     var draftRectEnd   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
     var draftLasso by remember(page, activeTool) { mutableStateOf<List<Offset>>(emptyList()) }
     val selectionColors = LocalTextSelectionColors.current
+    val latestSelectedMarkupIndex by rememberUpdatedState(selectedMarkupIndex)
+    val latestSelectedMarkupIndices by rememberUpdatedState(selectedMarkupIndices)
+    val latestOcrBlocks by rememberUpdatedState(ocrBlocks)
     DisposableEffect(page, textSelection) { onDispose { textSelection.unregisterPage(page, null) } }
     // Accessibility: expose the page's extracted text to TalkBack, plus a "select page text" action.
     val selectPageLabel = stringResource(R.string.selection_select_page_text)
@@ -455,12 +459,15 @@ internal fun PdfContinuousPage(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     // If a markup is already selected, let its transform layer handle touches
                     // inside its frame (don't steal them here).
-                    val sel = marks.getOrNull(selectedMarkupIndex)?.takeIf { it.isTransformable() }
+                    val currentSelected = latestSelectedMarkupIndex
+                    val currentGroup = latestSelectedMarkupIndices
+                    val currentBlocks = latestOcrBlocks
+                    val sel = marks.getOrNull(currentSelected)?.takeIf { it.isTransformable() }
                     val selBounds = sel?.movableBounds()
                     if (selBounds != null && selBounds.inflate(30f).contains(down.position)) return@awaitEachGesture
 
                     val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
-                    val idx = marks.indexOfLast { it.hitTest(down.position, ocrBlocks, frame) }
+                    val idx = marks.indexOfLast { it.hitTest(down.position, currentBlocks, frame) }
                     if (idx >= 0) {
                         val hit = marks[idx]
                         val up = waitForUpOrCancellation()
@@ -487,8 +494,8 @@ internal fun PdfContinuousPage(
                         }
                     } else {
                         // Missed everything → clear any selection (tap propagates to container).
-                        if (selectedMarkupIndex >= 0) onSelectMarkup(-1)
-                        else if (selectedMarkupIndices.isNotEmpty()) onSelectMarkups(emptySet())
+                        if (currentSelected >= 0) onSelectMarkup(-1)
+                        else if (currentGroup.isNotEmpty()) onSelectMarkups(emptySet())
                     }
                 }
             })
@@ -685,7 +692,7 @@ internal fun PdfContinuousPage(
                     val density = LocalDensity.current
                     val gapPx = with(density) { 12.dp.toPx() }
                     val barHpx = with(density) { 44.dp.toPx() }
-                    val barWpx = with(density) { 132.dp.toPx() }
+                    val barWpx = with(density) { 216.dp.toPx() }
                     val placeBelow = b.top < barHpx + gapPx
                     val by = (if (placeBelow) b.bottom + gapPx else b.top - barHpx - gapPx)
                         .coerceIn(0f, (csz.height - barHpx).coerceAtLeast(0f))
@@ -695,9 +702,7 @@ internal fun PdfContinuousPage(
                     Row(
                         Modifier
                             .offset { IntOffset(bx.roundToInt(), by.roundToInt()) }
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(Color(0xFF1C1F26).copy(0.97f))
-                            .border(1.dp, Color.White.copy(0.14f), RoundedCornerShape(22.dp))
+                            .viewerGlass(backdrop, Color(0xD91C1F26), shape = { RoundedCornerShape(22.dp) })
                             .padding(horizontal = 4.dp, vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -724,6 +729,17 @@ internal fun PdfContinuousPage(
                                 .clickable { onDeleteMarkup(selectedMarkupIndex) }
                                 .padding(horizontal = 16.dp, vertical = 9.dp)
                         )
+                        Box(Modifier.width(1.dp).height(20.dp).background(Color.White.copy(0.16f)))
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = stringResource(R.string.done),
+                            tint = Color.White.copy(0.9f),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable { onSelectMarkup(-1) }
+                                .padding(8.dp)
+                                .size(16.dp)
+                        )
                     }
                 }
             }
@@ -743,7 +759,7 @@ internal fun PdfContinuousPage(
                     val density = LocalDensity.current
                     val gapPx = with(density) { 10.dp.toPx() }
                     val barHpx = with(density) { 44.dp.toPx() }
-                    val barWpx = with(density) { 176.dp.toPx() }
+                    val barWpx = with(density) { 224.dp.toPx() }
                     val placeBelow = anchorRect.top < barHpx + gapPx
                     val by = (if (placeBelow) anchorRect.bottom + gapPx else anchorRect.top - barHpx - gapPx)
                         .coerceIn(0f, (csz.height - barHpx).coerceAtLeast(0f))
@@ -774,6 +790,17 @@ internal fun PdfContinuousPage(
                                 .clip(RoundedCornerShape(6.dp))
                                 .clickable { onDeleteMarkup(selectedMarkupIndex) }
                                 .padding(horizontal = 16.dp, vertical = 10.dp)
+                        )
+                        Box(Modifier.width(1.dp).height(20.dp).background(Color.White.copy(0.16f)))
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = stringResource(R.string.done),
+                            tint = Color.White.copy(0.9f),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable { onSelectMarkup(-1) }
+                                .padding(8.dp)
+                                .size(16.dp)
                         )
                     }
                 }

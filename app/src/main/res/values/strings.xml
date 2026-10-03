@@ -226,6 +226,7 @@
     <string name="viewer_open_another">Open Another PDF</string>
     <string name="viewer_share_document">Share Document</string>
     <string name="viewer_editor_tools">Editor Tools</string>
+    <string name="viewer_quick_actions">Reader actions</string>
     <string name="viewer_tools_coming_soon">Editor tools coming soon</string>
     <string name="viewer_open_pdf_short">Open PDF</string>
     <string name="viewer_pen">Pen</string>

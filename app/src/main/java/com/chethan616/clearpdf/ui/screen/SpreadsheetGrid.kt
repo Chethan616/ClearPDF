@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -136,7 +137,12 @@ internal fun SpreadsheetGrid(
     // Horizontal pan: an offset in px, clamped to the scrollable width.
     var viewportW by remember { mutableStateOf(0f) }
     val maxScroll = ((layout.totalWidth - layout.frozenWidth) * scale - (viewportW - gutterW - frozenW)).coerceAtLeast(0f)
-    if (scrollX.floatValue > maxScroll) scrollX.floatValue = maxScroll
+    // Keep the scroll offset out of composition: a pointer pan updates it every frame and the
+    // previous read here subscribed the whole grid composable to every horizontal pixel.
+    LaunchedEffect(maxScroll) {
+        val current = scrollX.floatValue
+        if (current > maxScroll) scrollX.floatValue = maxScroll
+    }
     val hState = rememberScrollableState { delta ->
         val old = scrollX.floatValue
         val next = (old - delta).coerceIn(0f, maxScroll)

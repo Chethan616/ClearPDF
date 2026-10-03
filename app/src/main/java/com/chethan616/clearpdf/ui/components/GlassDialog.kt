@@ -228,7 +228,9 @@ fun RowScope.GlassDialogAction(
             .graphicsLayer { alpha = if (enabled) 1f else 0.4f },
         tint = pillTint,
         surfaceColor = if (pillTint == Color.Unspecified) LocalDialogSurface.current else Color.Unspecified,
-        blurRadius = LocalDialogBlur.current
+        blurRadius = LocalDialogBlur.current,
+        // Three equal actions must still leave room for translated labels such as “Discard”.
+        horizontalContentPadding = 8.dp
     ) {
         BasicText(
             text,

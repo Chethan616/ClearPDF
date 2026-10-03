@@ -350,7 +350,7 @@ fun PdfSelectionToolbar(
                         ) {
                             ToolbarIconButton(ToolbarItem("back", backL, Icons.AutoMirrored.Rounded.ArrowBack, onClick = act { go(ToolbarPage.Main) }), fg)
                             SelectionHighlightColors.forEachIndexed { i, c ->
-                                ColorDot(c, selected = c.toArgbLong() == highlightColor.toArgbLong(), ring = fg, index = i) {
+                                ColorDot(backdrop, c, selected = c.toArgbLong() == highlightColor.toArgbLong(), ring = fg, index = i) {
                                     haptics.performHapticFeedback(HapticFeedbackType.VirtualKey)
                                     actions.onHighlight(c.toArgbLong())
                                 }
@@ -516,7 +516,7 @@ private fun MenuRow(item: ToolbarItem, fg: Color, index: Int, fromBelow: Boolean
 }
 
 @Composable
-private fun ColorDot(color: Color, selected: Boolean, ring: Color, index: Int, onClick: () -> Unit) {
+private fun ColorDot(backdrop: Backdrop, color: Color, selected: Boolean, ring: Color, index: Int, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val s by animateFloatAsState(if (pressed) GlassMotion.PressedScale else 1f, GlassMotion.press(), label = "dotPress")
@@ -537,7 +537,7 @@ private fun ColorDot(color: Color, selected: Boolean, ring: Color, index: Int, o
         Box(
             Modifier
                 .size(24.dp)
-                .background(color, CircleShape)
+                .viewerGlass(backdrop, color.copy(alpha = 0.88f), shape = { CircleShape })
                 .border(if (selected) 2.dp else 1.dp, ring.copy(alpha = if (selected) 0.9f else 0.25f), CircleShape)
         )
     }

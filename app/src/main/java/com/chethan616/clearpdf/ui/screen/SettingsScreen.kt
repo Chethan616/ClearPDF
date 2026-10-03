@@ -12,6 +12,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -84,7 +86,6 @@ import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.LiquidToggle
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
-import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -111,7 +112,6 @@ fun SettingsScreen(
     val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
     val sub = if (isLight) Color(0xFF888888) else Color(0xFFAAAAAA)
     val label = if (isLight) Color(0xFF444444) else Color(0xFFCCCCCC)
-    val uiSensor = rememberUISensor()
     val context = LocalContext.current
     val settingsScope = rememberCoroutineScope()
     val openRepo = remember(context) {
@@ -266,23 +266,24 @@ fun SettingsScreen(
             )
         }
     ) { contentPadding ->
-    val settingsScroll = rememberScrollState()
+    val settingsListState = rememberLazyListState()
     val officeEngineRequester = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
     LaunchedEffect(Unit) {
         if (com.chethan616.clearpdf.office.OfficeEngine.focusSettingsSection.value) {
             com.chethan616.clearpdf.office.OfficeEngine.focusSettingsSection.value = false
             delay(350L) // let the screen's entrance settle before scrolling
+            settingsListState.animateScrollToItem(7)
+            delay(120L) // let the lazy item attach its bring-into-view target
             officeEngineRequester.bringIntoView()
         }
     }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(settingsScroll)
-            .padding(contentPadding),
+    LazyColumn(
+        state = settingsListState,
+        modifier = Modifier.fillMaxSize().padding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // ── Theme Mode Selector ──
+        item(key = "settings-section-1") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -346,8 +347,10 @@ fun SettingsScreen(
                 style = TextStyle(sub, 12.sp)
             )
         }
+        }
 
         // ── Language ──
+        item(key = "settings-section-2") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -395,8 +398,10 @@ fun SettingsScreen(
                 }
             }
         }
+        }
 
         // ── Save Location ──
+        item(key = "settings-section-3") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -473,8 +478,10 @@ fun SettingsScreen(
                 }
             }
         }
+        }
 
         // ── File Handling ──
+        item(key = "settings-section-4") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -559,8 +566,10 @@ fun SettingsScreen(
             )
 
         }
+        }
 
         // ── Default Quality ──
+        item(key = "settings-section-5") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -616,8 +625,10 @@ fun SettingsScreen(
                 BasicText(stringResource(R.string.settings_higher_quality), style = TextStyle(sub.copy(0.7f), 11.sp))
             }
         }
+        }
 
         // ── Personalization ──
+        item(key = "settings-section-6") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -712,8 +723,10 @@ fun SettingsScreen(
                 }
             }
         }
+        }
 
         // ── About & Open Source ──
+        item(key = "settings-section-7") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -763,8 +776,10 @@ fun SettingsScreen(
                 style = TextStyle(sub.copy(0.7f), 11.sp, textAlign = TextAlign.Center)
             )
         }
+        }
 
         // ── Office engine (optional, powered by LibreOffice) ──
+        item(key = "settings-office-engine") {
         OfficeEngineSettingsSection(
             backdrop = backdrop,
             isLight = isLight,
@@ -782,8 +797,10 @@ fun SettingsScreen(
                 .liquidGlassSection(isLight)
                 .padding(20.dp)
         )
+        }
 
         // ── Licenses ──
+        item(key = "settings-section-8") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -834,9 +851,10 @@ fun SettingsScreen(
                 style = TextStyle(sub.copy(0.7f), 11.sp, lineHeight = 16.sp)
             )
         }
+        }
 
         // Clear the floating bottom navigation bar + system nav inset.
-        Spacer(Modifier.height(120.dp))
+        item(key = "settings-bottom-inset") { Spacer(Modifier.height(120.dp)) }
     }
 
     }

@@ -49,6 +49,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CropSquare
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.FormatListNumbered
 import androidx.compose.material.icons.rounded.Gesture
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
@@ -131,6 +132,7 @@ internal fun PdfViewerBottomToolbar(
     drawingToolActive: Boolean,
     showFindBar: Boolean,
     showSignaturePad: Boolean,
+    quickActionsVisible: Boolean,
     activeImageId: Long?,
     currentColor: Color,
     currentColorLong: Long,
@@ -165,6 +167,7 @@ internal fun PdfViewerBottomToolbar(
     onOpenExportedFile: () -> Unit,
     onOpenAnotherPdf: () -> Unit,
     onShareDocument: () -> Unit,
+    onOpenQuickActions: () -> Unit,
     onEditorOpenChanged: (Boolean) -> Unit = {},
     // Same purpose as [onEditorOpenChanged]: a long-press on the share capsule is a gesture the
     // viewer cannot see, so without this the 5s chrome auto-hide fires mid-hold and takes the button
@@ -225,6 +228,7 @@ internal fun PdfViewerBottomToolbar(
     // Collapsed by default (just the "Editor Tools" pill + "Open PDF" circle). Tapping
     // the pill expands the tool set above it. Image selection auto-expands so its tools show.
     var editorOpen by remember { mutableStateOf(false) }
+    val quickActionsOpen = quickActionsVisible
     // Idle: the tool panels cover the FULL width (scale 1). While the share capsule is morphed up,
     // the panels above the Editor-Tools pill COMPRESS horizontally toward the left (scaleX), freeing
     // room for the cylinder — the whole pill + its buttons shrink together, so nothing is cut.
@@ -239,7 +243,9 @@ internal fun PdfViewerBottomToolbar(
         label = "toolCompress"
     )
     // Tell the viewer when the Editor Tools panel is open so it won't auto-hide the chrome.
-    LaunchedEffect(editorOpen) { onEditorOpenChanged(editorOpen) }
+    LaunchedEffect(editorOpen, quickActionsOpen, showSignaturePad) {
+        onEditorOpenChanged(editorOpen || quickActionsOpen || showSignaturePad)
+    }
     // Any active tool implies the editor is open (survives the chrome auto-hiding/returning).
     LaunchedEffect(activeTool, activeImageId) {
         if (activeTool != PdfEditTool.None || activeImageId != null) editorOpen = true
@@ -765,8 +771,24 @@ internal fun PdfViewerBottomToolbar(
                         )
                     }
                 }
-                // Reserve the morph control's footprint. The reader keeps one sharing affordance,
-                // so its long-press gesture and open-file tap stay visually discoverable as one tool.
+                // ShareMorph overlays the final 52 dp slot. Keep this separate glass action
+                // immediately beside it so neither control obscures the other.
+                Box(Modifier.width(52.dp).height(52.dp), contentAlignment = Alignment.Center) {
+                    LiquidIconButton(
+                        onClick = onOpenQuickActions,
+                        backdrop = backdrop,
+                        modifier = Modifier.size(40.dp),
+                        tint = if (quickActionsOpen) accent else Color.Unspecified,
+                        surfaceColor = if (quickActionsOpen) accent.copy(alpha = 0.22f) else Color.Unspecified
+                    ) {
+                        Icon(
+                            Icons.Rounded.MoreHoriz,
+                            stringResource(R.string.viewer_quick_actions),
+                            Modifier.size(22.dp),
+                            if (quickActionsOpen) Color.White else fg
+                        )
+                    }
+                }
                 Spacer(Modifier.width(52.dp).height(52.dp))
             }
         }
@@ -811,5 +833,6 @@ internal fun PdfViewerBottomToolbar(
             onSkip = onReaderTourDismiss,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 116.dp).zIndex(5f)
         )
+
     }
 }
