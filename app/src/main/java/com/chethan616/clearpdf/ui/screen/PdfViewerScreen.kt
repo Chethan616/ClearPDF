@@ -767,6 +767,23 @@ fun PdfViewerScreen(
     ) {
         val renderWidthPx = with(LocalDensity.current) { maxWidth.roundToPx() }.coerceAtLeast(720)
 
+        // Re-render the focused page after zoom settles. Scaling a screen-sized bitmap makes PDF
+        // text and fine diagrams soft; a bounded higher-resolution page keeps pinch zoom readable
+        // without triggering a native render for every pointer frame.
+        LaunchedEffect(state.document?.uri, currentPageIndex, renderWidthPx) {
+            snapshotFlow { scale }
+                .distinctUntilChanged()
+                .debounce(220)
+                .collect { zoom ->
+                    if (zoom < 1.18f) return@collect
+                    val desired = (renderWidthPx * zoom.coerceAtMost(2.5f))
+                        .roundToInt()
+                        .coerceAtMost(3072)
+                        .coerceAtLeast(renderWidthPx)
+                    if (desired > renderWidthPx) viewModel.renderPage(context, currentPageIndex, desired)
+                }
+        }
+
         // Warms the pages just ahead of (and one behind) wherever scrolling currently is, so a page's
         // render has a head start instead of only beginning once it scrolls into view — undebounced
         // is fine here since `prefetchAround`/`renderPage` are no-ops for a page already rendered or
