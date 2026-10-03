@@ -279,7 +279,8 @@ fun SettingsScreen(
     }
     LazyColumn(
         state = settingsListState,
-        modifier = Modifier.fillMaxSize().padding(contentPadding),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // ── Theme Mode Selector ──
@@ -853,8 +854,6 @@ fun SettingsScreen(
         }
         }
 
-        // Clear the floating bottom navigation bar + system nav inset.
-        item(key = "settings-bottom-inset") { Spacer(Modifier.height(120.dp)) }
     }
 
     }

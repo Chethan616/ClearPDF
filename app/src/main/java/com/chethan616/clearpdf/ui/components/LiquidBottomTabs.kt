@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
@@ -64,14 +65,16 @@ fun LiquidBottomTabs(
     backdrop: Backdrop,
     tabsCount: Int,
     modifier: Modifier = Modifier,
+    barHeight: Dp = 64.dp,
+    surfaceColor: Color? = null,
     content: @Composable RowScope.() -> Unit
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
     val accentColor = LiquidGlassColors.Blue
-    val containerColor =
-        if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f)
-        else Color(0xFF121212).copy(0.4f)
+    val containerColor = surfaceColor ?: if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f)
+    else Color(0xFF121212).copy(0.4f)
+    val contentHeight = (barHeight - 8.dp).coerceAtLeast(0.dp)
 
     val tabsBackdrop = rememberLayerBackdrop()
 
@@ -185,7 +188,7 @@ fun LiquidBottomTabs(
                     onDrawSurface = { drawRect(containerColor) }
                 )
                 .then(interactiveHighlight.modifier)
-                .height(64f.dp)
+                .height(barHeight)
                 .fillMaxWidth()
                 .padding(4f.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -224,7 +227,7 @@ fun LiquidBottomTabs(
                         onDrawSurface = { drawRect(containerColor) }
                     )
                     .then(interactiveHighlight.modifier)
-                    .height(56f.dp)
+                    .height(contentHeight)
                     .fillMaxWidth()
                     .padding(horizontal = 4f.dp)
                     .graphicsLayer(colorFilter = ColorFilter.tint(accentColor)),
@@ -290,7 +293,7 @@ fun LiquidBottomTabs(
                         drawRect(Color.White.copy(alpha = 0.04f * progress))
                     }
                 )
-                .height(56f.dp)
+                .height(contentHeight)
                 .fillMaxWidth(1f / tabsCount)
         )
     }

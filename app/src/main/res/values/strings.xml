@@ -710,7 +710,8 @@
     <string name="tour_next">Next</string>
     <string name="tour_done">Got it</string>
     <string name="tour_reader_tools_title">Reader tools</string>
-    <string name="tour_reader_tools_message">Tap Editor Tools to highlight, draw, add notes, or sign.</string>
+    <string name="tour_reader_tools_message">Tap the edit icon to highlight, draw, add notes, or sign.</string>
+    <string name="tour_reader_tools_ppt_message">Tap the notes bubble to highlight, draw, add notes, or sign.</string>
     <string name="tour_reader_share_title">Share or open another file</string>
     <string name="tour_reader_share_message">Tap the capsule to open another file. To share, press and hold it, then swipe up.</string>
     <string name="tour_sheet_title">Edit a spreadsheet</string>

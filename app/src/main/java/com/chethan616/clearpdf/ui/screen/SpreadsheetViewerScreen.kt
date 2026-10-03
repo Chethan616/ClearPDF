@@ -116,6 +116,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -615,7 +616,7 @@ fun SpreadsheetViewerScreen(
                         glass = chromeGlass,
                         text = text, sub = sub, accent = accent,
                         onSelect = { i -> if (editing) commitDraft(); sheetIndex = i },
-                        modifier = Modifier.padding(top = 8.dp, end = if (!editMode && !showSearch) 64.dp else 0.dp)
+                        modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp)
                     )
                     AnimatedVisibility(
                         visible = editMode,
@@ -908,11 +909,12 @@ private fun SheetTabs(
     val scroll = rememberScrollState()
     val selectedSlot = indices.indexOf(selected).coerceAtLeast(0)
     val density = LocalDensity.current
+    val compactWidth = (LocalConfiguration.current.screenWidthDp.dp - 32.dp)
+        .coerceAtMost(320.dp)
+        .coerceAtLeast(104.dp)
     BoxWithConstraints(
-        modifier
-            .fillMaxWidth()
-            .height(64.dp),
-        contentAlignment = Alignment.CenterStart
+        modifier.width(compactWidth).height(64.dp),
+        contentAlignment = Alignment.Center
     ) {
         val tabWidth = (maxWidth / 3).coerceIn(104.dp, 136.dp)
         val tabWidthPx = with(density) { tabWidth.toPx() }
@@ -929,7 +931,9 @@ private fun SheetTabs(
                 onTabSelected = { slot -> indices.getOrNull(slot)?.let(onSelect) },
                 backdrop = backdrop,
                 tabsCount = indices.size,
-                modifier = Modifier.width(contentWidth).height(64.dp)
+                modifier = Modifier.width(contentWidth).height(48.dp),
+                barHeight = 48.dp,
+                surfaceColor = Color.Transparent
             ) {
                 indices.forEachIndexed { slot, sheetIndex ->
                     val sheet = wb.sheets[sheetIndex]

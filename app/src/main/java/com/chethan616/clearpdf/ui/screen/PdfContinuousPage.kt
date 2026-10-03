@@ -1,5 +1,10 @@
 package com.chethan616.clearpdf.ui.screen
 
+import androidx.compose.ui.graphics.graphicsLayer
+import com.kyant.backdrop.Backdrop
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.rounded.Edit
 import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -691,56 +696,27 @@ internal fun PdfContinuousPage(
                 selM.movableBounds()?.let { b ->
                     val density = LocalDensity.current
                     val gapPx = with(density) { 12.dp.toPx() }
-                    val barHpx = with(density) { 44.dp.toPx() }
-                    val barWpx = with(density) { 216.dp.toPx() }
+                    val barHpx = with(density) { MarkupBarHeight.toPx() }
+                    val barWpx = with(density) { MarkupBarWidth.toPx() }
                     val placeBelow = b.top < barHpx + gapPx
                     val by = (if (placeBelow) b.bottom + gapPx else b.top - barHpx - gapPx)
                         .coerceIn(0f, (csz.height - barHpx).coerceAtLeast(0f))
                     val bx = ((b.left + b.right) / 2f - barWpx / 2f)
                         .coerceIn(0f, (csz.width - barWpx).coerceAtLeast(0f))
 
-                    Row(
-                        Modifier
-                            .offset { IntOffset(bx.roundToInt(), by.roundToInt()) }
-                            .viewerGlass(backdrop, Color(0xD91C1F26), shape = { RoundedCornerShape(22.dp) })
-                            .padding(horizontal = 4.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        BasicText(
-                            "Edit",
-                            style = TextStyle(Color.White, 13.sp, FontWeight.SemiBold),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(18.dp))
-                                .clickable {
-                                    when (selM) {
-                                        is PdfMarkup.TextBoxMarkup -> onEditAnnotation(selM.id)
-                                        is PdfMarkup.NoteMarkup    -> onEditAnnotation(selM.id)
-                                        else -> onEditShape(selectedMarkupIndex)
-                                    }
-                                }
-                                .padding(horizontal = 16.dp, vertical = 9.dp)
-                        )
-                        Box(Modifier.width(1.dp).height(20.dp).background(Color.White.copy(0.14f)))
-                        BasicText(
-                            "Delete",
-                            style = TextStyle(Color(0xFFFF6B6B), 13.sp, FontWeight.SemiBold),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(18.dp))
-                                .clickable { onDeleteMarkup(selectedMarkupIndex) }
-                                .padding(horizontal = 16.dp, vertical = 9.dp)
-                        )
-                        Box(Modifier.width(1.dp).height(20.dp).background(Color.White.copy(0.16f)))
-                        Icon(
-                            Icons.Rounded.Close,
-                            contentDescription = stringResource(R.string.done),
-                            tint = Color.White.copy(0.9f),
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .clickable { onSelectMarkup(-1) }
-                                .padding(8.dp)
-                                .size(16.dp)
-                        )
-                    }
+                    MarkupActionBar(
+                        backdrop = backdrop,
+                        onEdit = {
+                            when (selM) {
+                                is PdfMarkup.TextBoxMarkup -> onEditAnnotation(selM.id)
+                                is PdfMarkup.NoteMarkup    -> onEditAnnotation(selM.id)
+                                else -> onEditShape(selectedMarkupIndex)
+                            }
+                        },
+                        onDelete = { onDeleteMarkup(selectedMarkupIndex) },
+                        onDismiss = { onSelectMarkup(-1) },
+                        modifier = Modifier.offset { IntOffset(bx.roundToInt(), by.roundToInt()) }
+                    )
                 }
             }
 
@@ -758,52 +734,112 @@ internal fun PdfContinuousPage(
                     } else rangeRect
                     val density = LocalDensity.current
                     val gapPx = with(density) { 10.dp.toPx() }
-                    val barHpx = with(density) { 44.dp.toPx() }
-                    val barWpx = with(density) { 224.dp.toPx() }
+                    val barHpx = with(density) { MarkupBarHeight.toPx() }
+                    val barWpx = with(density) { MarkupBarWidth.toPx() }
                     val placeBelow = anchorRect.top < barHpx + gapPx
                     val by = (if (placeBelow) anchorRect.bottom + gapPx else anchorRect.top - barHpx - gapPx)
                         .coerceIn(0f, (csz.height - barHpx).coerceAtLeast(0f))
                     val bx = ((anchorRect.left + anchorRect.right) / 2f - barWpx / 2f)
                         .coerceIn(0f, (csz.width - barWpx).coerceAtLeast(0f))
 
-                    Row(
-                        Modifier
-                            .offset { IntOffset(bx.roundToInt(), by.roundToInt()) }
-                            .viewerGlass(backdrop, Color(0xE522252A), shape = { RoundedCornerShape(14.dp) })
-                            .padding(horizontal = 2.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Same Edit affordance as shapes/text/notes — opens the shared recolor
-                        // popover (ShapeEditorPopup handles highlight/underline/strike too).
-                        BasicText(
-                            "Edit",
-                            style = TextStyle(Color(0xFFECECEC), 13.sp, FontWeight.Medium),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable { onEditShape(selectedMarkupIndex) }
-                                .padding(horizontal = 16.dp, vertical = 10.dp)
-                        )
-                        BasicText(
-                            "Delete",
-                            style = TextStyle(Color(0xFFEF5350), 13.sp, FontWeight.Medium),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable { onDeleteMarkup(selectedMarkupIndex) }
-                                .padding(horizontal = 16.dp, vertical = 10.dp)
-                        )
-                        Box(Modifier.width(1.dp).height(20.dp).background(Color.White.copy(0.16f)))
-                        Icon(
-                            Icons.Rounded.Close,
-                            contentDescription = stringResource(R.string.done),
-                            tint = Color.White.copy(0.9f),
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .clickable { onSelectMarkup(-1) }
-                                .padding(8.dp)
-                                .size(16.dp)
-                        )
-                    }
+                    MarkupActionBar(
+                        backdrop = backdrop,
+                        onEdit = { onEditShape(selectedMarkupIndex) },
+                        onDelete = { onDeleteMarkup(selectedMarkupIndex) },
+                        onDismiss = { onSelectMarkup(-1) },
+                        modifier = Modifier.offset { IntOffset(bx.roundToInt(), by.roundToInt()) }
+                    )
                 }
         }
+    }
+}
+
+private val MarkupBarWidth = 236.dp
+private val MarkupBarHeight = 48.dp
+
+/**
+ * Contextual Edit / Delete / dismiss capsule for a selected markup (shape, text box, note, text
+ * highlight/underline/strike). Same frosted material and theme ink as the selection toolbar and the
+ * dialogs, instead of the old near-opaque dark slab with hard-coded English labels. Dismissal also
+ * works by tapping anywhere else in the viewer or pressing Back.
+ */
+@Composable
+private fun MarkupActionBar(
+    backdrop: Backdrop,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current
+    val ink = com.chethan616.clearpdf.ui.theme.LiquidGlassColors.text(isDark)
+    val red = com.chethan616.clearpdf.ui.theme.LiquidGlassColors.Red
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+    val pop by androidx.compose.animation.core.animateFloatAsState(
+        if (shown) 1f else 0f,
+        com.chethan616.clearpdf.ui.components.GlassMotion.pop(),
+        label = "markupBarPop"
+    )
+    Row(
+        modifier
+            .width(MarkupBarWidth)
+            .height(MarkupBarHeight)
+            .graphicsLayer {
+                alpha = pop.coerceIn(0f, 1f)
+                val sc = 0.9f + 0.1f * pop
+                scaleX = sc; scaleY = sc
+            }
+            .viewerGlass(
+                backdrop,
+                com.chethan616.clearpdf.ui.components.glassDialogSurface(isDark),
+                shape = { com.kyant.shapes.Capsule }
+            )
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        MarkupBarItem(Icons.Rounded.Edit, stringResource(R.string.edit), ink, Modifier.weight(1f)) {
+            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.ContextClick)
+            onEdit()
+        }
+        Box(Modifier.width(1.dp).height(22.dp).background(ink.copy(0.12f)))
+        MarkupBarItem(Icons.Rounded.Delete, stringResource(R.string.delete), red, Modifier.weight(1f)) {
+            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+            onDelete()
+        }
+        Box(Modifier.width(1.dp).height(22.dp).background(ink.copy(0.12f)))
+        Box(
+            Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Rounded.Close, stringResource(R.string.done), Modifier.size(18.dp), ink.copy(0.85f))
+        }
+    }
+}
+
+@Composable
+private fun MarkupBarItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier
+            .fillMaxHeight()
+            .padding(vertical = 4.dp)
+            .clip(com.kyant.shapes.Capsule)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)
+    ) {
+        Icon(icon, null, Modifier.size(17.dp), color)
+        BasicText(label, style = TextStyle(color, 14.sp, FontWeight.SemiBold), maxLines = 1)
     }
 }

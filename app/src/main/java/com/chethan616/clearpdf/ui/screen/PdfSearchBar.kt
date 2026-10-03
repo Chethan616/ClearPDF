@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -98,13 +99,11 @@ internal fun PdfSearchBar(
             }
         )
 
-        // 40 dp and `surface`, matching the top bar's circles exactly. `field` is only 6-10% alpha,
-        // which sets no value of its own and leaves the button refracting whatever is behind it —
-        // the same reason single-page chrome went invisible.
+        // 40 dp, no fill: the top bar's circles exactly (pure refraction, adaptive ink). A tinted
+        // fill here made the find controls read as grey slabs under clear glass up top.
         LiquidIconButton(
             onClick = onPrevMatch,
             backdrop = backdrop,
-            surfaceColor = surface,
             modifier = Modifier.size(FindBarButtonSize)
         ) {
             Icon(Icons.Rounded.KeyboardArrowUp, stringResource(R.string.previous), Modifier.size(20.dp), fg)
@@ -112,18 +111,18 @@ internal fun PdfSearchBar(
         LiquidIconButton(
             onClick = onNextMatch,
             backdrop = backdrop,
-            surfaceColor = surface,
             modifier = Modifier.size(FindBarButtonSize)
         ) {
             Icon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.next), Modifier.size(20.dp), fg)
         }
+        val closeTint = if (fg.luminance() > 0.5f) Color(0xFFD78A92) else Color(0xFFA84D58)
         LiquidIconButton(
             onClick = onClose,
             backdrop = backdrop,
-            surfaceColor = Color(0xFFEF5350).copy(0.22f),
-            modifier = Modifier.size(FindBarButtonSize)
+            modifier = Modifier.size(FindBarButtonSize),
+            surfaceColor = closeTint.copy(alpha = 0.12f)
         ) {
-            CloseCrossIcon(Modifier.size(13.dp), fg)
+            CloseCrossIcon(Modifier.size(13.dp), closeTint)
         }
     }
 }

@@ -98,6 +98,42 @@ class PdfTextServiceImpl : PdfTextService {
         return groupPositionsIntoLines(stripper.positions, pageW, pageH, pageIndex)
     }
 
+    /** Per-font ascent/descent as fractions of the em, cached for the page being grouped. */
+    private val fontMetricsCache = java.util.IdentityHashMap<Any, FloatArray>()
+
+    private fun fontMetrics(tp: TextPosition): FloatArray {
+        val font = tp.font ?: return DefaultMetrics
+        return synchronized(fontMetricsCache) { fontMetricsCache[font] } ?: run {
+            runCatching {
+                val fd = font.fontDescriptor
+                var ascent = fd?.ascent ?: 0f
+                var descent = fd?.descent ?: 0f
+                if (ascent <= 0f) ascent = fd?.capHeight?.takeIf { it > 0f }?.times(1.18f) ?: 0f
+                if (ascent <= 0f || descent >= 0f) {
+                    val bbox = font.boundingBox
+                    if (ascent <= 0f && bbox != null) ascent = bbox.upperRightY
+                    if (descent >= 0f && bbox != null) descent = bbox.lowerLeftY
+                }
+                // Glyph-space units are 1/1000 em for everything but Type 3 fonts. Clamp so a broken
+                // descriptor (some PDFs carry 0 or bbox-sized values) can't produce absurd boxes.
+                val a = (ascent / 1000f).takeIf { it.isFinite() && it > 0f }?.coerceIn(0.62f, 1.05f) ?: DefaultMetrics[0]
+                val d = (-descent / 1000f).takeIf { it.isFinite() && it > 0f }?.coerceIn(0.12f, 0.32f) ?: DefaultMetrics[1]
+                floatArrayOf(a, d)
+            }.getOrDefault(DefaultMetrics).also { m -> synchronized(fontMetricsCache) { fontMetricsCache[font] = m } }
+        }
+    }
+
+    /** Rendered font size in page units: the text rendering matrix's Y scale. */
+    private fun emSize(tp: TextPosition): Float {
+        val ys = tp.yScale
+        if (ys.isFinite() && ys > 0.5f) return ys
+        val pt = tp.fontSizeInPt
+        return if (pt.isFinite() && pt > 0.5f) pt else tp.height.coerceAtLeast(1f) / 0.7f
+    }
+
+    private fun glyphAscent(tp: TextPosition): Float = emSize(tp) * fontMetrics(tp)[0]
+    private fun glyphDescent(tp: TextPosition): Float = emSize(tp) * fontMetrics(tp)[1]
+
     private fun groupPositionsIntoLines(
         positions: List<TextPosition>,
         pageWidth: Float,
@@ -105,6 +141,7 @@ class PdfTextServiceImpl : PdfTextService {
         pageIndex: Int
     ): List<PdfTextBlock> {
         if (positions.isEmpty()) return emptyList()
+        synchronized(fontMetricsCache) { fontMetricsCache.clear() }
 
         val avgH = positions.map { it.height }.average().toFloat().coerceAtLeast(2f)
         val lineGap = avgH * 0.6f
@@ -191,8 +228,12 @@ class PdfTextServiceImpl : PdfTextService {
 
             val minX = byX.minOf { it.x }
             val maxX = byX.maxOf { it.x + it.width }
-            val minY = byX.minOf { it.y - it.height }.coerceAtLeast(0f)
-            val maxY = byX.maxOf { it.y }
+            // Vertical extent from the FONT's ascent/descent at the rendered size, not
+            // TextPosition.height: PdfBox's height is often near the x-height and the old box ended
+            // at the baseline, so highlights sat low — clipping ascenders/caps above and leaving
+            // descenders (g, p, y) hanging out below.
+            val minY = byX.minOf { it.y - glyphAscent(it) }.coerceAtLeast(0f)
+            val maxY = byX.maxOf { it.y + glyphDescent(it) }
 
             PdfTextBlock(
                 id     = "$pageIndex-$lineIdx",
@@ -235,3 +276,6 @@ private class PositionCapturingStripper : PDFTextStripper() {
         if (!text.unicode.isNullOrBlank()) positions.add(text)
     }
 }
+
+/** Typical Latin face: ascent 0.80 em, descent 0.20 em. */
+private val DefaultMetrics = floatArrayOf(0.80f, 0.20f)
