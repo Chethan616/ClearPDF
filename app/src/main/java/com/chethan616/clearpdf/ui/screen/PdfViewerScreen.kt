@@ -120,6 +120,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
+import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
 import com.chethan616.clearpdf.ui.components.DecryptingAnimation
 import com.chethan616.clearpdf.ui.components.LiquidButton
@@ -627,6 +628,12 @@ fun PdfViewerScreen(
     // ── PDF viewer (continuous vertical scroll, Adobe-style) ─────────────────
     val safePageCount = state.pageCount.coerceAtLeast(1)
     val viewerScope   = rememberCoroutineScope()
+    LaunchedEffect(state.document?.uri) {
+        if (state.document != null) {
+            val targetPage = state.currentPage.coerceIn(0, safePageCount - 1)
+            if (listState.firstVisibleItemIndex != targetPage) listState.scrollToItem(targetPage)
+        }
+    }
     val currentPageIndex = listState.firstVisibleItemIndex.coerceIn(0, safePageCount - 1)
     // Back clears an active text selection first (registered after the viewer's own BackHandler, so
     // it takes precedence), exactly like a TextView's selection mode.
@@ -709,11 +716,16 @@ fun PdfViewerScreen(
     // the eviction needed to happen. Coalescing rapid ticks into one sweep after they stop still
     // bounds memory (nothing pins pages forever, it just evicts once per settled position instead
     // of once per pixel) while never evicting a page mid-transit.
-    LaunchedEffect(listState) {
+    LaunchedEffect(listState, state.originalUri, safePageCount) {
         snapshotFlow { listState.firstVisibleItemIndex.coerceIn(0, safePageCount - 1) }
             .distinctUntilChanged()
             .debounce(180)
-            .collect { idx -> viewModel.trimBitmapCache(idx) }
+            .collect { idx ->
+                viewModel.trimBitmapCache(idx)
+                state.originalUri?.let { uri ->
+                    RecentFilesManager.updateProgress(context, uri, idx, safePageCount)
+                }
+            }
     }
 
     // Scroll to the page holding the active find match.
