@@ -741,4 +741,5 @@
     <string name="tour_sheet_title">Edit a spreadsheet</string>
     <string name="tour_sheet_message">Tap the pencil to reveal cell formatting, color, and layout controls.</string>
     <string name="back_to_library">Return to library</string>
+    <string name="home_works_with">Works with</string>
 </resources>

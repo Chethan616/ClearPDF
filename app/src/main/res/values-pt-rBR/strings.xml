@@ -541,4 +541,5 @@
     <string name="tour_sheet_title">Editar uma planilha</string>
     <string name="tour_sheet_message">Toque no lápis para abrir as opções de formatação, cor e layout das células.</string>
     <string name="back_to_library">Voltar para a biblioteca</string>
+    <string name="home_works_with">Funciona com</string>
 </resources>
