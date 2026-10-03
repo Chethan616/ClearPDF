@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  foss flavor only. The single network use in the whole app: downloading the optional Office
-  engine (powered by LibreOffice) when the user asks for it in Settings. The archive is pinned by
-  size + SHA-256 (OfficeEngineManifest). Documents never leave the device; every WebView still
-  blocks network loads (DocxWebRenderer, HtmlToPdfConverter).
+  FOSS flavor only. Network access is used for two user-initiated features: downloading the
+  optional Office engine (powered by LibreOffice) from a pinned archive, and converting a web
+  address entered by the user to PDF. The engine archive is verified by size + SHA-256
+  (OfficeEngineManifest). Local-document WebViews block external loads; URL-to-PDF intentionally
+  requests the entered address and its page resources.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">

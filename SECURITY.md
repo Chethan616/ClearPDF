@@ -2,21 +2,18 @@
 
 ## Supported versions
 
-Security fixes are applied to the latest `main` branch and the newest published release.
+Security fixes are made on the latest <code>main</code> branch and the newest published release.
 
-## Reporting a vulnerability
+## Report a vulnerability privately
 
-Please do not open a public issue for a security vulnerability. Contact the maintainers privately through the GitHub security advisory flow for this repository.
+Please do not open a public issue or pull request with vulnerability details. Use GitHub's [private vulnerability reporting form](https://github.com/Chethan616/ClearPDF/security/advisories/new).
 
-Include:
+Include a short description, affected version or commit, impact, and reproduction steps or a minimal proof of concept. Do not include private documents, personal information, access tokens, or signing keys.
 
-- A short description and impact.
-- Affected version or commit.
-- Reproduction steps or a minimal proof of concept.
-- Any suggested mitigation.
+Reports are reviewed by the maintainers. Please allow reasonable time for verification and a fix before public disclosure.
 
-Please allow reasonable time for verification and a fix before public disclosure. Do not include personal documents, access tokens, private keys, or other sensitive data in a report.
+For non-security bugs, use the public [bug report form](https://github.com/Chethan616/ClearPDF/issues/new?template=bug_report.yml).
 
-## Privacy expectations
+## Privacy
 
-ClearPDF is designed to process PDFs locally. The app does not include ads, accounts, analytics, or cloud PDF processing. Scanner and text-selection features use the disclosed on-device ML Kit components; contributors must not add hidden data collection or network upload behavior.
+ClearPDF processes selected documents locally and does not provide a document-upload service. The FOSS build can make requests for the optional Office engine download and when converting a web address you enter to PDF. See [PRIVACY.md](PRIVACY.md) for details.

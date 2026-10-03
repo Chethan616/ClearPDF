@@ -1,41 +1,28 @@
-# ClearPDF Privacy
+# ClearPDF privacy notes
 
-ClearPDF is designed to be an offline-first PDF utility for Android.
+ClearPDF is an offline-capable Android document app. It has no account system, in-app advertising, analytics SDK, or crash-reporting service in the app code. Document operations run on the device; ClearPDF does not provide a server for uploading user files or extracted text.
 
-## What ClearPDF does not do
+## Network use
 
-- It does not require an account.
-- It does not show ads.
-- It does not include analytics, telemetry, or crash-reporting services.
-- It does not intentionally upload PDFs or extracted content to a server.
-- ClearPDF's own code declares no `INTERNET` permission in the Google Play build (note: bundled
-  Google ML Kit libraries add it through their own manifests; see [`NOTICE`](NOTICE)).
+Network access is limited to features that need it:
 
-## Build flavors and the optional Office engine
+- **Optional Office engine:** In the GitHub/FOSS build, you can choose to download the LibreOffice-based engine from a pinned GitHub release in Settings. ClearPDF checks the expected archive size and SHA-256 before installing it. The engine converts documents locally in an isolated app process.
+- **Web address to PDF:** The FOSS build can load a web address you enter and render the page as a PDF. This sends normal requests to that website and any page resources it loads. The request goes to the address you chose, not to a ClearPDF document-processing server.
+- **Google Play services components:** The scanner is provided by Google Play services. Background removal uses ML Kit subject segmentation, whose model may be delivered by Google Play services. Google manages those service/model downloads; document processing remains on-device.
+- **Play distribution:** The optional Office engine is delivered through Google Play's on-demand feature delivery when requested. The app's main manifest does not declare the <code>INTERNET</code> permission; bundled libraries may contribute permissions during manifest merging. See <a href="NOTICE">NOTICE</a> and the dependency manifests for details.
 
-ClearPDF ships in two flavors:
-
-- **play** (Google Play): ClearPDF itself adds no `INTERNET` permission. The optional Office engine
-  (powered by LibreOffice) is delivered by Google Play itself as an on-demand module, only when you
-  tap *Download* in Settings.
-- **foss** (GitHub / sideload builds): ClearPDF declares `INTERNET` for exactly one purpose — downloading that
-  same optional engine when you ask for it. The download goes to a fixed GitHub release URL, sends no
-  document or personal data, and is installed only if its size and SHA-256 checksum match values
-  pinned in the app. Nothing is downloaded unless you start it, and you can delete the engine at any
-  time in Settings.
-
-In both flavors your documents never leave the device: conversion runs locally in an isolated app
-process, and the app's WebViews (used to lay out .docx and HTML) block all network requests and opt
-out of Safe Browsing lookups and WebView metrics.
+Converting local HTML, rendering DOCX content, OCR, spreadsheet editing, image tools, and PDF operations use local content. The WebViews used for local HTML and DOCX rendering block external network loads; URL-to-PDF intentionally loads the address you enter.
 
 ## Files and permissions
 
-Files are opened or saved only when you choose them through Android's document picker or the app's export flow. Recent-file entries are stored locally on the device and can be removed from the home screen.
+Files are opened and saved through Android's document picker or ClearPDF's export flow. Recent-file entries are stored locally and can be removed from the home screen. ClearPDF does not intentionally send selected documents or their extracted contents to a ClearPDF-controlled server.
 
-## On-device scanning and text selection
+Android permissions are requested for features that need them, such as camera access for scanning. Device and Android-version availability can affect individual features.
 
-Scanning and text-selection features use the on-device Google ML Kit components listed in [`NOTICE`](NOTICE). ClearPDF does not intentionally send their input to a ClearPDF server. This dependency is disclosed so contributors can make informed decisions about builds and distribution.
+## Scanning and OCR
+
+Paper scanning uses Google ML Kit Document Scanner through Google Play services. Background removal uses ML Kit subject segmentation; Google Play services may provide its model. OCR for scanned or image-only PDF pages uses bundled on-device ML Kit text recognition with a Tesseract fallback. These components process content on-device and do not send document contents to a ClearPDF server.
 
 ## Reporting a concern
 
-Please do not attach private PDFs or personal information to public issues. For a suspected security or privacy vulnerability, follow [`SECURITY.md`](SECURITY.md).
+Do not attach private documents, personal information, access tokens, or signing keys to public issues. For a suspected vulnerability, use the private reporting link in <a href="SECURITY.md">SECURITY.md</a>.
