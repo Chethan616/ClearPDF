@@ -1,6 +1,8 @@
 package com.chethan616.clearpdf.ui.screen
 
 import android.widget.Toast
+import android.content.ClipData
+import android.content.ClipboardManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -66,6 +68,7 @@ import androidx.compose.material.icons.rounded.BorderRight
 import androidx.compose.material.icons.rounded.BorderStyle
 import androidx.compose.material.icons.rounded.BorderTop
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FormatAlignCenter
 import androidx.compose.material.icons.rounded.FormatAlignLeft
@@ -511,6 +514,11 @@ fun SpreadsheetViewerScreen(
                             text = text, sub = sub, accent = accent,
                             onValueChange = { draft = it },
                             onStartEdit = { startEditing() },
+                            onCopy = { copiedValue ->
+                                val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                clipboard?.setPrimaryClip(ClipData.newPlainText(selection?.let { XlsxRefs.cellRef(it.anchorR, it.anchorC) }, copiedValue))
+                                Toast.makeText(context, R.string.selection_copied, Toast.LENGTH_SHORT).show()
+                            },
                             // Enter commits and moves down, staying in typing mode — the keyboard
                             // doesn't bounce between cells when filling a column.
                             onCommit = { commitDraft(); moveSelection(1, 0); startEditing() },
@@ -793,6 +801,7 @@ private fun FormulaBar(
     accent: Color,
     onValueChange: (String) -> Unit,
     onStartEdit: () -> Unit,
+    onCopy: (String) -> Unit,
     onCommit: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -829,6 +838,14 @@ private fun FormulaBar(
                     inner()
                 }
             )
+        }
+        LiquidIconButton(
+            onClick = { onCopy(value) },
+            backdrop = backdrop,
+            modifier = Modifier.size(34.dp),
+            tint = accent
+        ) {
+            Icon(Icons.Rounded.ContentCopy, stringResource(R.string.copy), Modifier.size(17.dp), accent)
         }
         if (editing) {
             LiquidIconButton(onClick = onCommit, backdrop = backdrop, modifier = Modifier.size(34.dp), tint = accent) {
