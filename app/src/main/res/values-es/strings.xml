@@ -550,7 +550,7 @@
     <string name="tour_next">Siguiente</string>
     <string name="tour_done">Entendido</string>
     <string name="tour_reader_tools_title">Herramientas de lectura</string>
-    <string name="tour_reader_tools_message">Toca Herramientas para resaltar, dibujar, añadir notas o firmar.</string>
+    <string name="tour_reader_tools_message">Toca el icono de edición para resaltar, dibujar, añadir notas o firmar.</string>
     <string name="tour_reader_share_title">Compartir o abrir otro archivo</string>
     <string name="tour_reader_share_message">Toca la cápsula para abrir otro archivo. Para compartir, mantenla pulsada y desliza hacia arriba.</string>
     <string name="tour_sheet_title">Editar una hoja de cálculo</string>

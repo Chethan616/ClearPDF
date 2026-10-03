@@ -1,11 +1,5 @@
 package com.chethan616.clearpdf.ui.screen
 
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.material.icons.rounded.Bookmark
-import androidx.compose.material.icons.rounded.Draw
-import com.chethan616.clearpdf.ui.components.GlassActionItem
-import com.chethan616.clearpdf.ui.components.GlassActionMenu
 import android.app.Activity
 import android.content.Intent
 import androidx.compose.runtime.mutableIntStateOf
@@ -86,10 +80,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.UploadFile
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.automirrored.rounded.NoteAdd
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -243,7 +234,6 @@ fun PdfViewerScreen(
     var passwordText        by rememberSaveable { mutableStateOf("") }
     val passwordFocusRequester = remember { FocusRequester() }
     var showSignaturePad    by remember { mutableStateOf(false) }
-    var quickActionsOpen    by remember { mutableStateOf(false) }
     var showZoomHud         by remember { mutableStateOf(false) }
     var darkPageAppearance by rememberSaveable { mutableStateOf(false) }
     var bookmarkedPages by remember { mutableStateOf<List<Int>>(emptyList()) }
@@ -911,20 +901,28 @@ fun PdfViewerScreen(
         // midpoint doesn't strobe while scrolling. The colour crossfade below smooths the flip
         // itself. The sampling runs in a coroutine off `snapshotFlow`, so scrolling recomputes the
         // luminance every frame but only an actual light/dark flip ever recomposes the chrome.
-        LaunchedEffect(containerHeightPx) {
+        LaunchedEffect(containerHeightPx, darkPageAppearance) {
+            var firstSample = true
             snapshotFlow {
                 bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, 0f, topBandBottomPx, darkPageAppearance)
             }.collect { lum ->
-                if (lum > 0.62f) topBarLight = true else if (lum < 0.58f) topBarLight = false
+                if (firstSample) {
+                    topBarLight = lum > 0.60f
+                    firstSample = false
+                } else if (lum > 0.62f) topBarLight = true else if (lum < 0.58f) topBarLight = false
             }
         }
-        LaunchedEffect(containerHeightPx) {
+        LaunchedEffect(containerHeightPx, darkPageAppearance) {
+            var firstSample = true
             snapshotFlow {
                 val h = containerHeightPx.toFloat()
                 if (h <= 0f) 0f
                 else bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, h - bottomBandDepthPx, h, darkPageAppearance)
             }.collect { lum ->
-                if (lum > 0.62f) bottomBarLight = true else if (lum < 0.58f) bottomBarLight = false
+                if (firstSample) {
+                    bottomBarLight = lum > 0.60f
+                    firstSample = false
+                } else if (lum > 0.62f) bottomBarLight = true else if (lum < 0.58f) bottomBarLight = false
             }
         }
         val topFg by animateColorAsState(if (topBarLight) Color(0xFF15171C) else Color.White, tween(200), label = "topBarInk")
@@ -1206,7 +1204,7 @@ fun PdfViewerScreen(
         )
 
         AnimatedVisibility(
-            visible = controlsVisible && state.document != null && safePageCount > 1 && scale <= 1.01f && activeTool == PdfEditTool.None,
+            visible = controlsVisible && autoScroll && state.document != null && safePageCount > 1 && scale <= 1.01f && activeTool == PdfEditTool.None,
             enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.94f),
             exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.96f),
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 92.dp)
@@ -1217,25 +1215,8 @@ fun PdfViewerScreen(
                     .viewerGlass(contentBackdrop, Color.Transparent, shape = { com.kyant.shapes.Capsule })
                     .padding(horizontal = 7.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                LiquidIconButton(
-                    onClick = {
-                        autoScroll = !autoScroll
-                        controlsVisible = true
-                        lastInteractionAtMs = System.currentTimeMillis()
-                    },
-                    backdrop = contentBackdrop,
-                    tint = if (autoScroll) accent else Color.Unspecified,
-                    modifier = Modifier.size(38.dp)
-                ) {
-                    Icon(
-                        if (autoScroll) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        stringResource(if (autoScroll) R.string.viewer_auto_scroll_pause else R.string.viewer_auto_scroll_start),
-                        Modifier.size(20.dp),
-                        if (autoScroll) Color.White else bottomFg
-                    )
-                }
                 BasicText(
                     text = "${autoScrollSpeed}×",
                     modifier = Modifier
@@ -1320,6 +1301,7 @@ fun PdfViewerScreen(
                         onBack = { requestExit() },
                         backdrop = contentBackdrop,
                         foreground = topFg,
+                        surfaceColor = Color.Unspecified,
                         onLongPressBack = if (hasUnsavedEdits) ({ requestExit() }) else LocalBackToLibraryAction.current,
                         longPressLabel = if (hasUnsavedEdits) stringResource(R.string.back) else null
                     )
@@ -1459,7 +1441,7 @@ fun PdfViewerScreen(
                     drawingToolActive  = drawingToolActive,
                     showFindBar        = showFindBar,
                     showSignaturePad   = showSignaturePad,
-                    quickActionsVisible = quickActionsOpen,
+                    autoScrollActive = autoScroll,
                     activeImageId      = activeImageId,
                     currentColor       = currentColor,
                     currentColorLong   = currentColorLong,
@@ -1537,9 +1519,8 @@ fun PdfViewerScreen(
                     // .docx used to always leave as the converted PDF, silently. The dialog lets the
                     // user pick the original file vs a PDF (and encrypt the PDF). See ExportShareDialog.
                     onShareDocument    = { showShareDialog = true },
-                    onOpenQuickActions = {
-                        textSelection.clear()
-                        quickActionsOpen = true
+                    onToggleAutoScroll = {
+                        autoScroll = !autoScroll
                         controlsVisible = true
                         lastInteractionAtMs = System.currentTimeMillis()
                     },
@@ -1731,55 +1712,6 @@ fun PdfViewerScreen(
             trigger = copiedTick,
             backdrop = contentBackdrop,
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 112.dp)
-        )
-
-        // Reader actions (the "•••" beside ShareMorph): an iOS-style glass context menu that grows out
-        // of that corner. It replaced a bottom sheet of glass buttons stacked on glass, whose rows
-        // refracted the page behind the sheet and washed out. Last in the overlay stack so it covers
-        // the selection toolbar and bottom controls.
-        val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        GlassActionMenu(
-            visible = quickActionsOpen,
-            onDismiss = { quickActionsOpen = false },
-            backdrop = contentBackdrop,
-            title = stringResource(R.string.viewer_quick_actions),
-            alignment = Alignment.BottomEnd,
-            contentPadding = PaddingValues(end = 16.dp, bottom = navBottom + 82.dp),
-            items = listOf(
-                GlassActionItem(
-                    icon = Icons.Rounded.Draw,
-                    label = stringResource(R.string.viewer_sign),
-                    accent = LiquidGlassColors.Indigo
-                ) {
-                    showSignaturePad = true
-                    controlsVisible = true
-                },
-                GlassActionItem(
-                    icon = Icons.AutoMirrored.Rounded.NoteAdd,
-                    label = stringResource(R.string.anno_note_title),
-                    accent = LiquidGlassColors.Orange
-                ) {
-                    activeTool = PdfEditTool.Note
-                    controlsVisible = true
-                },
-                GlassActionItem(
-                    icon = if (autoScroll) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    label = stringResource(if (autoScroll) R.string.viewer_auto_scroll_pause else R.string.viewer_auto_scroll_start),
-                    subtitle = "${autoScrollSpeed}\u00D7",
-                    accent = LiquidGlassColors.Green,
-                    active = autoScroll
-                ) {
-                    autoScroll = !autoScroll
-                    controlsVisible = true
-                },
-                GlassActionItem(
-                    icon = Icons.Rounded.Bookmark,
-                    label = stringResource(R.string.viewer_jump_to_page),
-                    accent = LiquidGlassColors.Blue
-                ) {
-                    showPageJumpDialog = true
-                }
-            )
         )
 
         // ── Page-jump popup (in-window, so it samples the liquid-glass backdrop) ──

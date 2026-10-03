@@ -49,7 +49,8 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CropSquare
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.FormatListNumbered
 import androidx.compose.material.icons.rounded.Gesture
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
@@ -132,7 +133,7 @@ internal fun PdfViewerBottomToolbar(
     drawingToolActive: Boolean,
     showFindBar: Boolean,
     showSignaturePad: Boolean,
-    quickActionsVisible: Boolean,
+    autoScrollActive: Boolean,
     activeImageId: Long?,
     currentColor: Color,
     currentColorLong: Long,
@@ -167,7 +168,7 @@ internal fun PdfViewerBottomToolbar(
     onOpenExportedFile: () -> Unit,
     onOpenAnotherPdf: () -> Unit,
     onShareDocument: () -> Unit,
-    onOpenQuickActions: () -> Unit,
+    onToggleAutoScroll: () -> Unit,
     onEditorOpenChanged: (Boolean) -> Unit = {},
     // Same purpose as [onEditorOpenChanged]: a long-press on the share capsule is a gesture the
     // viewer cannot see, so without this the 5s chrome auto-hide fires mid-hold and takes the button
@@ -228,7 +229,6 @@ internal fun PdfViewerBottomToolbar(
     // Collapsed by default (just the "Editor Tools" pill + "Open PDF" circle). Tapping
     // the pill expands the tool set above it. Image selection auto-expands so its tools show.
     var editorOpen by remember { mutableStateOf(false) }
-    val quickActionsOpen = quickActionsVisible
     // Idle: the tool panels cover the FULL width (scale 1). While the share capsule is morphed up,
     // the panels above the Editor-Tools pill COMPRESS horizontally toward the left (scaleX), freeing
     // room for the cylinder — the whole pill + its buttons shrink together, so nothing is cut.
@@ -243,8 +243,8 @@ internal fun PdfViewerBottomToolbar(
         label = "toolCompress"
     )
     // Tell the viewer when the Editor Tools panel is open so it won't auto-hide the chrome.
-    LaunchedEffect(editorOpen, quickActionsOpen, showSignaturePad) {
-        onEditorOpenChanged(editorOpen || quickActionsOpen || showSignaturePad)
+    LaunchedEffect(editorOpen, showSignaturePad) {
+        onEditorOpenChanged(editorOpen || showSignaturePad)
     }
     // Any active tool implies the editor is open (survives the chrome auto-hiding/returning).
     LaunchedEffect(activeTool, activeImageId) {
@@ -731,12 +731,11 @@ internal fun PdfViewerBottomToolbar(
             }
         }
 
-        // ── Collapsed home bar: one "Editor Tools" pill (expands the tools above it)
-        // + a compact circular "Open another PDF" button. Hidden while a sub-tool is
-        // active so that focused mode shows ONLY the sub-toolbar (one panel).
+        // ── Collapsed home bar: circular Editor Tools and auto-scroll controls at the
+        // leading edge, balanced by the ShareMorph capsule at the trailing edge.
         AnimatedVisibility(
-            // Same `selectorGate` as the tool chips above, so the blue "Editor Tools" pill fades out
-            // in lockstep with them — "both pills at the same time" — before the sub-toolbar arrives.
+            // Same `selectorGate` as the tool chips above, so the controls fade out together
+            // before the focused sub-toolbar arrives.
             visible = selectorGate && !showFindBar && !showSignaturePad,
             enter   = fadeIn(tween(180)),
             exit    = fadeOut(tween(FaceHandoffMillis))
@@ -744,56 +743,40 @@ internal fun PdfViewerBottomToolbar(
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                // Bottom-align so the "Editor Tools" pill stays pinned to the toolbar's base while
-                // the share capsule (whose real layout height grows) extends UPWARD only — the
-                // toolbar column is bottom-anchored on screen, so added height goes up.
                 verticalAlignment = Alignment.Bottom
             ) {
-                LiquidButton(
-                    onClick = {
-                        editorOpen = !editorOpen
-                        if (!editorOpen) onSetActiveTool(PdfEditTool.None)
-                    },
-                    backdrop = backdrop,
-                    tint = if (editorOpen) accent else Color.Unspecified,
-                    surfaceColor = if (editorOpen) Color.Unspecified
-                    else if (readerTourStep == 0) LiquidGlassColors.Blue.copy(alpha = 0.22f) else pillGlass,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(vertical = 8.dp)
+                Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                    LiquidIconButton(
+                        onClick = {
+                            editorOpen = !editorOpen
+                            if (!editorOpen) onSetActiveTool(PdfEditTool.None)
+                        },
+                        backdrop = backdrop,
+                        modifier = Modifier.size(52.dp),
+                        tint = if (editorOpen) accent else Color.Unspecified,
+                        surfaceColor = if (!editorOpen && readerTourStep == 0) LiquidGlassColors.Blue.copy(alpha = 0.22f) else Color.Unspecified
                     ) {
-                        Icon(Icons.Rounded.Edit, null, Modifier.size(18.dp), if (editorOpen) Color.White else fg)
-                        BasicText(
-                            stringResource(R.string.viewer_editor_tools),
-                            style = TextStyle(if (editorOpen) Color.White else fg, 14.sp, FontWeight.SemiBold),
-                            maxLines = 1
-                        )
+                        Icon(Icons.Rounded.Edit, stringResource(R.string.viewer_editor_tools), Modifier.size(21.dp), if (editorOpen) Color.White else fg)
                     }
                 }
-                // ShareMorph overlays the final 52 dp slot. Keep this separate glass action
-                // immediately beside it so neither control obscures the other.
-                Box(Modifier.width(52.dp).height(52.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
                     LiquidIconButton(
-                        onClick = onOpenQuickActions,
+                        onClick = onToggleAutoScroll,
                         backdrop = backdrop,
-                        // 48 dp: the Editor Tools pill's height, so the row reads as one family
-                        // (pill · circle · 52 dp share capsule) instead of a small dot between two.
-                        modifier = Modifier.size(48.dp),
-                        tint = if (quickActionsOpen) accent else Color.Unspecified,
-                        surfaceColor = if (quickActionsOpen) accent.copy(alpha = 0.22f) else Color.Unspecified
+                        modifier = Modifier.size(52.dp),
+                        tint = if (autoScrollActive) LiquidGlassColors.Green else Color.Unspecified
                     ) {
                         Icon(
-                            Icons.Rounded.MoreHoriz,
-                            stringResource(R.string.viewer_quick_actions),
-                            Modifier.size(22.dp),
-                            if (quickActionsOpen) Color.White else fg
+                            if (autoScrollActive) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            stringResource(if (autoScrollActive) R.string.viewer_auto_scroll_pause else R.string.viewer_auto_scroll_start),
+                            Modifier.size(21.dp),
+                            if (autoScrollActive) Color.White else fg
                         )
                     }
                 }
-                Spacer(Modifier.width(52.dp).height(52.dp))
+                Spacer(Modifier.weight(1f))
+                // Reserve the ShareMorph footprint at the trailing edge; its capsule is layered above.
+                Spacer(Modifier.size(52.dp))
             }
         }
         }
