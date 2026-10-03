@@ -132,6 +132,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
+import com.chethan616.clearpdf.data.repository.PdfPageBookmarksManager
 import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
 import com.chethan616.clearpdf.ui.components.DecryptingAnimation
 import com.chethan616.clearpdf.ui.components.LiquidButton
@@ -191,6 +192,7 @@ fun PdfViewerScreen(
     val accent         = Color(0xFF1976D2)
     val uiSensor       = rememberUISensor()
     val context        = LocalContext.current
+    val bookmarkUri    = state.originalUri ?: state.document?.uri
     val clipboard      = LocalClipboardManager.current
     val focusManager   = LocalFocusManager.current
     val activity       = context as? Activity
@@ -230,6 +232,7 @@ fun PdfViewerScreen(
     var showSignaturePad    by remember { mutableStateOf(false) }
     var showZoomHud         by remember { mutableStateOf(false) }
     var darkPageAppearance by rememberSaveable { mutableStateOf(false) }
+    var bookmarkedPages by remember { mutableStateOf<List<Int>>(emptyList()) }
     // Annotation (text box / sticky note) editing
     var editingAnnoId       by remember { mutableStateOf<Long?>(null) }
     var editingAnnoPage     by remember { mutableStateOf(0) }
@@ -291,6 +294,10 @@ fun PdfViewerScreen(
     // Declared here (rather than lower) so the image/signature launchers below can place
     // annotations onto whichever page is under the viewport centre.
     val listState = rememberLazyListState()
+
+    LaunchedEffect(bookmarkUri) {
+        bookmarkedPages = bookmarkUri?.let { PdfPageBookmarksManager.get(context, it) }.orEmpty()
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -1654,8 +1661,15 @@ fun PdfViewerScreen(
             fgSoft       = panelFgSoft,
             surface      = chromePanel,
             field        = chromeField,
+            bookmarkedPages = bookmarkedPages,
             onDismiss    = { showPageJumpDialog = false },
-            onJumpToPage = { targetPage -> showPageJumpDialog = false; scrollToPage(targetPage) }
+            onJumpToPage = { targetPage -> showPageJumpDialog = false; scrollToPage(targetPage) },
+            onToggleCurrentBookmark = {
+                bookmarkUri?.let { uri -> bookmarkedPages = PdfPageBookmarksManager.toggle(context, uri, currentPageIndex) }
+            },
+            onRemoveBookmark = { page ->
+                bookmarkUri?.let { uri -> bookmarkedPages = PdfPageBookmarksManager.toggle(context, uri, page) }
+            }
         )
 
         // ── Text / note editor (in-window, samples the real page backdrop) ──
