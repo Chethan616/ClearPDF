@@ -227,6 +227,8 @@ fun PdfViewerScreen(
     // Generic markup selection (move + resize of shapes / text / notes).
     var selectedAnnoPage    by remember { mutableStateOf<Int?>(null) }
     var selectedAnnoIndex   by remember { mutableStateOf(-1) }
+    var selectedMarkupGroupPage by remember { mutableStateOf<Int?>(null) }
+    var selectedMarkupGroup by remember { mutableStateOf<Set<Int>>(emptySet()) }
     val density              = LocalDensity.current
 
     // ── Zoom / pan state ───────────────────────────────────────────────────
@@ -442,14 +444,15 @@ fun PdfViewerScreen(
         scale = 1f; offsetX = 0f
         activeTool = PdfEditTool.None
         selectedAnnoPage = null; selectedAnnoIndex = -1
+        selectedMarkupGroupPage = null; selectedMarkupGroup = emptySet()
         annotationsByPage.clear(); undoStack.clear(); pageCanvasSizes.clear(); pageBitmapSizes.clear()
         savedMarkups = emptyMap(); pendingSaveMarkups = null; exitAfterSave = false; showUnsavedDialog = false
         textSelection.resetDocument(); viewModel.clearExportFeedback()
         showFindBar = false; findQuery = ""; viewModel.clearSearch()
     }
 
-    LaunchedEffect(state.document, controlsVisible, controlsPinned, activeTool, editorToolsOpen, shareHolding, lastInteractionAtMs) {
-        if (state.document != null && controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && !editorToolsOpen && !shareHolding) {
+    LaunchedEffect(state.document, controlsVisible, controlsPinned, activeTool, selectedMarkupGroup.size, editorToolsOpen, shareHolding, lastInteractionAtMs) {
+        if (state.document != null && controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && selectedMarkupGroup.size <= 1 && !editorToolsOpen && !shareHolding) {
             val snap = lastInteractionAtMs
             // Comfortable auto-hide window; any interaction bumps lastInteractionAtMs and
             // restarts this. It never fires while a tool is active (activeTool != None), while
@@ -457,7 +460,7 @@ fun PdfViewerScreen(
             // produces no pointer events for the viewer to see, so without that last guard the
             // chrome hid itself out from under the finger mid-gesture.
             delay(5000)
-            if (controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && !editorToolsOpen && !shareHolding && snap == lastInteractionAtMs)
+            if (controlsVisible && !controlsPinned && scale <= 1.01f && activeTool == PdfEditTool.None && selectedMarkupGroup.size <= 1 && !editorToolsOpen && !shareHolding && snap == lastInteractionAtMs)
                 controlsVisible = false
         }
     }
@@ -739,7 +742,7 @@ fun PdfViewerScreen(
 
     val drawingToolActive = activeTool in setOf(
         PdfEditTool.Draw, PdfEditTool.Highlight, PdfEditTool.Rect,
-        PdfEditTool.Ellipse, PdfEditTool.Line, PdfEditTool.Arrow
+        PdfEditTool.Ellipse, PdfEditTool.Line, PdfEditTool.Arrow, PdfEditTool.Lasso
     )
     val zoomHudText = "${(scale * 100 + 0.5f).toInt()}%"
 
@@ -1039,13 +1042,35 @@ fun PdfViewerScreen(
                                     editingShapePage = page; editingShapeIndex = idx; controlsVisible = true
                                 },
                                 selectedMarkupIndex     = if (page == selectedAnnoPage) selectedAnnoIndex else -1,
+                                selectedMarkupIndices   = if (page == selectedMarkupGroupPage) selectedMarkupGroup else emptySet(),
                                 onSelectMarkup          = { idx ->
-                                    if (idx < 0) { selectedAnnoPage = null; selectedAnnoIndex = -1 }
-                                    else { selectedAnnoPage = page; selectedAnnoIndex = idx; textSelection.clear() }
+                                    if (idx < 0) {
+                                        selectedAnnoPage = null; selectedAnnoIndex = -1
+                                        selectedMarkupGroupPage = null; selectedMarkupGroup = emptySet()
+                                    }
+                                    else {
+                                        selectedAnnoPage = page; selectedAnnoIndex = idx
+                                        selectedMarkupGroupPage = null; selectedMarkupGroup = emptySet()
+                                        textSelection.clear()
+                                    }
+                                },
+                                onSelectMarkups        = { indices ->
+                                    selectedAnnoPage = null; selectedAnnoIndex = -1
+                                    selectedMarkupGroupPage = page.takeIf { indices.size > 1 }
+                                    selectedMarkupGroup = indices
+                                },
+                                onMoveMarkups           = { indices, delta ->
+                                    val pageMarks = getPageMarks(page)
+                                    indices.sorted().forEach { idx ->
+                                        pageMarks.getOrNull(idx)?.let { markup ->
+                                            pageMarks[idx] = markup.translated(delta)
+                                        }
+                                    }
                                 },
                                 onDeleteMarkup          = { idx ->
                                     val m = getPageMarks(page); if (idx in m.indices) m.removeAt(idx)
                                     selectedAnnoPage = null; selectedAnnoIndex = -1
+                                    selectedMarkupGroupPage = null; selectedMarkupGroup = emptySet()
                                 },
                                 textSelection = textSelection
                             )
@@ -1211,6 +1236,29 @@ fun PdfViewerScreen(
                 )
             }
 
+            AnimatedVisibility(
+                visible = controlsVisible && selectedMarkupGroup.size > 1,
+                enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.96f),
+                exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.96f),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 88.dp)
+            ) {
+                LiquidButton(
+                    onClick = {
+                        selectedMarkupGroup = emptySet()
+                        selectedMarkupGroupPage = null
+                        lastInteractionAtMs = System.currentTimeMillis()
+                    },
+                    backdrop = contentBackdrop,
+                    surfaceColor = chromeField
+                ) {
+                    BasicText(
+                        stringResource(R.string.viewer_lasso_selected_count, selectedMarkupGroup.size) +
+                            " · " + stringResource(R.string.viewer_lasso_done),
+                        style = TextStyle(bottomFg, 13.sp, fontWeight = FontWeight.SemiBold)
+                    )
+                }
+            }
+
             // Bottom toolbar
             AnimatedVisibility(
                 visible  = controlsVisible,
@@ -1245,7 +1293,13 @@ fun PdfViewerScreen(
                     canUndo            = undoStack.isNotEmpty() || annotationsByPage.any { it.value.isNotEmpty() },
                     onUndo             = { undoLastEdit(); lastInteractionAtMs = System.currentTimeMillis() },
                     onClearPage        = { clearVisiblePage(); lastInteractionAtMs = System.currentTimeMillis() },
-                    onSetActiveTool    = { activeTool = it; if (it == PdfEditTool.None) activeImageId = null; selectedAnnoPage = null; selectedAnnoIndex = -1; textSelection.clear() },
+                    onSetActiveTool    = {
+                        activeTool = it
+                        if (it == PdfEditTool.None) activeImageId = null
+                        selectedAnnoPage = null; selectedAnnoIndex = -1
+                        if (it != PdfEditTool.None) { selectedMarkupGroupPage = null; selectedMarkupGroup = emptySet() }
+                        textSelection.clear()
+                    },
                     onToggleFindBar    = {
                         showFindBar = !showFindBar
                         if (showFindBar) viewModel.triggerOcrForAllPages(context)

@@ -27,7 +27,7 @@ import kotlin.math.sin
 
 internal enum class ScrollOrientation { Vertical, Horizontal }
 
-internal enum class PdfEditTool { None, Draw, Highlight, Rect, Ellipse, Line, Arrow, Image, Eraser, Text, Note }
+internal enum class PdfEditTool { None, Draw, Highlight, Rect, Ellipse, Line, Arrow, Lasso, Image, Eraser, Text, Note }
 
 internal enum class ViewerToolbarMode { Main, Drawing, Selection, Image, Eraser, Search, Signature }
 
@@ -182,6 +182,62 @@ internal fun PdfMarkup.movableBounds(): Rect? = when (this) {
     }
     is PdfMarkup.NoteMarkup -> Rect(anchor.x, anchor.y, anchor.x + 30f, anchor.y + 30f)
     else -> null
+}
+
+/** Returns true when any part of a lasso polygon covers the markup's visible bounds. */
+internal fun PdfMarkup.intersectsLasso(points: List<Offset>): Boolean {
+    if (points.size < 3) return false
+    if (this is PdfMarkup.StrokeMarkup) {
+        if (this.points.any { it.isInsidePolygon(points) }) return true
+        if (this.points.zipWithNext().any { (a, b) -> polygonEdges(points).any { (c, d) -> segmentsIntersect(a, b, c, d) } }) return true
+    }
+    val bounds = movableBounds() ?: return false
+    val corners = listOf(bounds.topLeft, Offset(bounds.right, bounds.top), bounds.bottomRight, Offset(bounds.left, bounds.bottom))
+    return corners.any { it.isInsidePolygon(points) } ||
+        points.any { bounds.contains(it) } ||
+        polygonEdges(points).any { (a, b) ->
+            val edges = listOf(
+                bounds.topLeft to Offset(bounds.right, bounds.top),
+                Offset(bounds.right, bounds.top) to bounds.bottomRight,
+                bounds.bottomRight to Offset(bounds.left, bounds.bottom),
+                Offset(bounds.left, bounds.bottom) to bounds.topLeft
+            )
+            edges.any { (c, d) -> segmentsIntersect(a, b, c, d) }
+        } ||
+        bounds.contains(Offset(points.sumOf { it.x.toDouble() }.toFloat() / points.size, points.sumOf { it.y.toDouble() }.toFloat() / points.size))
+}
+
+private fun polygonEdges(points: List<Offset>): List<Pair<Offset, Offset>> =
+    points.indices.map { i -> points[i] to points[(i + 1) % points.size] }
+
+private fun segmentsIntersect(a: Offset, b: Offset, c: Offset, d: Offset): Boolean {
+    fun cross(p: Offset, q: Offset, r: Offset) = (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)
+    fun within(v: Float, p: Float, q: Float) = v >= min(p, q) && v <= max(p, q)
+    fun onSegment(p: Offset, q: Offset, r: Offset) =
+        within(q.x, p.x, r.x) && within(q.y, p.y, r.y)
+
+    val abC = cross(a, b, c)
+    val abD = cross(a, b, d)
+    val cdA = cross(c, d, a)
+    val cdB = cross(c, d, b)
+    if (((abC > 0f && abD < 0f) || (abC < 0f && abD > 0f)) &&
+        ((cdA > 0f && cdB < 0f) || (cdA < 0f && cdB > 0f))) return true
+    return (abC == 0f && onSegment(a, c, b)) || (abD == 0f && onSegment(a, d, b)) ||
+        (cdA == 0f && onSegment(c, a, d)) || (cdB == 0f && onSegment(c, b, d))
+}
+
+private fun Offset.isInsidePolygon(polygon: List<Offset>): Boolean {
+    var inside = false
+    var j = polygon.lastIndex
+    for (i in polygon.indices) {
+        val a = polygon[i]
+        val b = polygon[j]
+        if ((a.y > y) != (b.y > y) && x < (b.x - a.x) * (y - a.y) / ((b.y - a.y).takeIf { it != 0f } ?: 0.0001f) + a.x) {
+            inside = !inside
+        }
+        j = i
+    }
+    return inside
 }
 
 /** Translate a markup by [d] (move). */

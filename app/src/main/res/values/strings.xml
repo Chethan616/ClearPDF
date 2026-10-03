@@ -204,6 +204,9 @@
     <string name="viewer_select_text">Select Text</string>
     <string name="viewer_add_image">Add Image</string>
     <string name="viewer_eraser">Eraser</string>
+    <string name="viewer_lasso">Lasso</string>
+    <string name="viewer_lasso_selected_count">%1$d selected — drag to move</string>
+    <string name="viewer_lasso_done">Done</string>
     <string name="viewer_save_edits">Save Edits</string>
     <string name="viewer_sign">Sign</string>
     <string name="viewer_find">Find</string>

@@ -121,6 +121,9 @@
     <string name="viewer_select_text">Selecionar Texto</string>
     <string name="viewer_add_image">Adicionar Imagem</string>
     <string name="viewer_eraser">Borracha</string>
+    <string name="viewer_lasso">La&#231;o</string>
+    <string name="viewer_lasso_selected_count">%1$d selecionados — arraste para mover</string>
+    <string name="viewer_lasso_done">Concluir</string>
     <string name="viewer_save_edits">Salvar Edi&#231;&#245;es</string>
     <string name="viewer_sign">Assinar</string>
     <string name="viewer_find">Buscar</string>
