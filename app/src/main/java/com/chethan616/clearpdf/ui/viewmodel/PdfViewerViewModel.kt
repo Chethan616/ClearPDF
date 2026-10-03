@@ -272,10 +272,15 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                 val displayName = queryFileName(context, uri)
                     ?: RecentFilesManager.getRecents(context).firstOrNull { it.uriString == uri.toString() }?.name
                     ?: doc.name
+                val resumePage = RecentFilesManager.getRecents(context)
+                    .firstOrNull { it.uriString == uri.toString() }
+                    ?.currentPage
+                    ?.coerceIn(0, (doc.pageCount - 1).coerceAtLeast(0))
+                    ?: 0
                 _uiState.value = _uiState.value.copy(
                     fileName = displayName,
                     pageCount = doc.pageCount,
-                    currentPage = 0,
+                    currentPage = resumePage,
                     isLoading = false,
                     decrypting = false,
                     passwordRequired = false,

@@ -14,6 +14,8 @@ data class RecentFile(
     val timestamp: Long,
     val pageCount: Int = -1,
     val sizeBytes: Long = -1,
+    /** Last page opened in the PDF reader, zero-based. */
+    val currentPage: Int = 0,
     /** Pinned entries sort to the top and survive the [RecentFilesManager] trim. */
     val pinned: Boolean = false
 ) {
@@ -46,9 +48,12 @@ object RecentFilesManager {
     fun addRecent(context: Context, file: RecentFile) {
         val current = getRecents(context).toMutableList()
         // Re-opening a pinned file must not silently unpin it — carry the flag forward.
-        val wasPinned = current.any { it.uriString == file.uriString && it.pinned }
+        val existing = current.firstOrNull { it.uriString == file.uriString }
         current.removeAll { it.uriString == file.uriString }
-        current.add(0, if (wasPinned) file.copy(pinned = true) else file)
+        current.add(0, file.copy(
+            pinned = file.pinned || existing?.pinned == true,
+            currentPage = existing?.currentPage ?: file.currentPage
+        ))
         // Trim to max, but a pin is an explicit "keep this" — pinned entries are exempt.
         val (pinned, unpinned) = current.partition { it.pinned }
         val trimmed = pinned + unpinned.take((MAX_RECENTS - pinned.size).coerceAtLeast(0))
@@ -62,6 +67,22 @@ object RecentFilesManager {
         val target = uri.toString()
         val updated = getRecents(context).map {
             if (it.uriString == target) it.copy(pinned = !it.pinned) else it
+        }
+        prefs(context).edit()
+            .putString(KEY_RECENTS, json.encodeToString(updated))
+            .apply()
+    }
+
+    /** Stores reading progress without changing the entry's recency or pinned state. */
+    fun updateProgress(context: Context, uri: Uri, currentPage: Int, pageCount: Int) {
+        val target = uri.toString()
+        val updated = getRecents(context).map { file ->
+            if (file.uriString == target) {
+                file.copy(
+                    currentPage = currentPage.coerceIn(0, (pageCount - 1).coerceAtLeast(0)),
+                    pageCount = pageCount
+                )
+            } else file
         }
         prefs(context).edit()
             .putString(KEY_RECENTS, json.encodeToString(updated))
