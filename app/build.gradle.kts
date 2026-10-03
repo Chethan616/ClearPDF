@@ -85,9 +85,8 @@ android {
     // Two distributions of the same app (identical applicationId):
     //  - play: Google Play. The optional Office engine ships as the on-demand dynamic feature
     //    module :office_engine (Play Feature Delivery); no native code is ever downloaded by the app.
-    //  - foss: GitHub/F-Droid-style sideload builds. The Office engine is downloaded on request
-    //    from a pinned, SHA-256 verified release; only this flavor declares INTERNET
-    //    (see src/foss/AndroidManifest.xml).
+    //  - foss: GitHub/F-Droid-style sideload builds. INTERNET is used for the optional Office
+    //    engine download and the user-entered URL-to-PDF flow; see src/foss/AndroidManifest.xml.
     flavorDimensions += "distribution"
     productFlavors {
         create("play") {
