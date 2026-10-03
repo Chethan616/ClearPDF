@@ -231,6 +231,9 @@
     <string name="viewer_replace">Replace</string>
     <string name="viewer_saving">Saving edited PDF&#8230;</string>
     <string name="viewer_reset_zoom">Reset Zoom %1$d%%</string>
+    <string name="viewer_zoom">Zoom</string>
+    <string name="viewer_zoom_in">Zoom in</string>
+    <string name="viewer_zoom_out">Zoom out</string>
     <string name="viewer_size">Size</string>
     <string name="viewer_jump_to_page">Jump to Page</string>
     <string name="viewer_page_label">Page</string>
