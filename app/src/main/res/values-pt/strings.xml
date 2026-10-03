@@ -529,4 +529,14 @@
     <string name="fill_form_flatten_desc">Tornar os valores preenchidos permanentes</string>
     <string name="fill_form_action">Salvar PDF preenchido</string>
     <string name="fill_form_working">Salvando…</string>
+    <string name="tour_skip">Ignorar</string>
+    <string name="tour_next">Seguinte</string>
+    <string name="tour_done">Percebi</string>
+    <string name="tour_reader_tools_title">Ferramentas de leitura</string>
+    <string name="tour_reader_tools_message">Toque em Ferramentas para realçar, desenhar, adicionar notas ou assinar.</string>
+    <string name="tour_reader_share_title">Partilhar ou abrir outro ficheiro</string>
+    <string name="tour_reader_share_message">Toque na cápsula para abrir outro ficheiro. Para partilhar, mantenha-a premida e deslize para cima.</string>
+    <string name="tour_sheet_title">Editar uma folha de cálculo</string>
+    <string name="tour_sheet_message">Toque no lápis para mostrar as opções de formatação, cor e disposição das células.</string>
+    <string name="back_to_library">Voltar à biblioteca</string>
 </resources>

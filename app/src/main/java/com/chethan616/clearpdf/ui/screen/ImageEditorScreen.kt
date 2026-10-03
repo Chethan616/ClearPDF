@@ -79,6 +79,7 @@ import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
 import com.chethan616.clearpdf.ui.components.GlassHeaderHeight
 import com.chethan616.clearpdf.ui.components.GlassProgressBar
 import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
+import com.chethan616.clearpdf.ui.components.LocalBackToLibraryAction
 import com.chethan616.clearpdf.ui.components.GlassToolButton
 import com.chethan616.clearpdf.ui.components.GlassToolbar
 import com.chethan616.clearpdf.ui.components.LiquidButton
@@ -210,6 +211,8 @@ fun ImageEditorScreen(
                 title = state.fileName.ifBlank { stringResource(R.string.image_editor_title) },
                 backdrop = glass,
                 onBack = requestBack,
+                onBackLongPress = if (state.hasEdits) requestBack else LocalBackToLibraryAction.current,
+                backLongPressLabel = if (state.hasEdits) stringResource(R.string.back) else null,
                 trailing = {
                     HeaderIcon(Icons.Rounded.Undo, stringResource(R.string.ie_undo), state.canUndo, glass) {
                         haptics.performHapticFeedback(HapticFeedbackType.ContextClick); viewModel.undo()

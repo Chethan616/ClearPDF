@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.viewmodel.ExportOverlay
 import com.chethan616.clearpdf.ui.viewmodel.FindMatch
 import com.chethan616.clearpdf.ui.viewmodel.NormalizedPoint
@@ -289,7 +290,7 @@ internal fun PdfMarkup.shapeColor(): Color = when (this) {
     is PdfMarkup.LineMarkup   -> color
     is PdfMarkup.TextBlockHighlightMarkup -> color
     is PdfMarkup.TextBlockLineMarkup      -> color
-    else -> Color(0xFF1976D2)
+    else -> LiquidGlassColors.Blue
 }
 
 internal fun PdfMarkup.recolored(c: Color): PdfMarkup = when (this) {
@@ -363,13 +364,25 @@ internal fun ocrTextRangeToRect(block: OcrTextBlock, range: OcrTextRange, frame:
     val start = range.start.coerceIn(0, block.text.length)
     val end = (if (range.end < 0) block.text.length else range.end)
         .coerceIn(start, block.text.length)
-    if (start >= end || block.charLefts.size < end || block.charRights.size < end) {
-        return ocrBlockToRect(block, frame)
-    }
+    if (start >= end) return ocrBlockToRect(block, frame)
+
+    // Character geometry is normally exact. Some PDFs and OCR engines return partial glyph
+    // metadata (for example a ligature or malformed ToUnicode map); falling back to the whole
+    // line made a one-word highlight paint the entire sentence. Interpolate only the missing
+    // character edges across the block so the markup remains range-sized in that case.
+    fun charLeft(index: Int): Float = block.charLefts.getOrNull(index)
+        ?.takeIf(Float::isFinite)
+        ?: (block.left + (block.right - block.left) * index / block.text.length.coerceAtLeast(1))
+    fun charRight(index: Int): Float = block.charRights.getOrNull(index)
+        ?.takeIf(Float::isFinite)
+        ?: (block.left + (block.right - block.left) * (index + 1) / block.text.length.coerceAtLeast(1))
+
+    val left = charLeft(start).coerceIn(block.left, block.right)
+    val right = charRight(end - 1).coerceIn(block.left, block.right).coerceAtLeast(left)
     return Rect(
-        frame.left + block.charLefts[start] * frame.width,
+        frame.left + left * frame.width,
         frame.top + block.top * frame.height,
-        frame.left + block.charRights[end - 1] * frame.width,
+        frame.left + right * frame.width,
         frame.top + block.bottom * frame.height
     )
 }

@@ -162,6 +162,8 @@ fun PageOrganizerScreen(
                 title = stringResource(R.string.organize_screen_title),
                 backdrop = headerBackdrop,
                 onBack = requestBack,
+                onBackLongPress = requestBack,
+                backLongPressLabel = stringResource(R.string.back),
                 modifier = Modifier.graphicsLayer { alpha = topBarAlpha }
             )
         }

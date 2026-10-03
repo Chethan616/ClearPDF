@@ -127,8 +127,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.GlassBottomSheet
+import com.chethan616.clearpdf.ui.components.GlassGuideCallout
+import com.chethan616.clearpdf.ui.components.GlassBackButton
+import com.chethan616.clearpdf.ui.components.LocalBackToLibraryAction
 import com.chethan616.clearpdf.ui.components.GlassColorPicker
 import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
 import com.chethan616.clearpdf.ui.components.rememberScreenBackdrop
@@ -139,6 +143,8 @@ import com.chethan616.clearpdf.ui.components.GlassTitlePill
 import com.chethan616.clearpdf.ui.components.GlassToolButton
 import com.chethan616.clearpdf.ui.components.GlassToolbar
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
+import com.chethan616.clearpdf.ui.components.LiquidBottomTab
+import com.chethan616.clearpdf.ui.components.LiquidBottomTabs
 import com.chethan616.clearpdf.ui.components.LiquidToggle
 import com.chethan616.clearpdf.ui.components.OfficeStandardColors
 import com.chethan616.clearpdf.ui.components.ShareMorphButton
@@ -147,6 +153,7 @@ import com.chethan616.clearpdf.ui.components.viewerChromeGlass
 import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
+import com.chethan616.clearpdf.data.repository.OnboardingManager
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.BorderPreset
 import com.chethan616.clearpdf.ui.viewmodel.SpreadsheetViewModel
@@ -164,6 +171,7 @@ import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.shapes.Capsule
 import com.kyant.shapes.RoundedRectangle
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** `liquidGlassPanel`'s corner curve, restated so the scrolling grid can be clipped to it. */
@@ -210,7 +218,7 @@ fun SpreadsheetViewerScreen(
     val isDark = LocalIsDarkMode.current
     val text = LiquidGlassColors.text(isDark)
     val sub = LiquidGlassColors.secondary(isDark)
-    val accent = Color(0xFF1E8E5A)   // spreadsheet green
+    val accent = LiquidGlassColors.Blue
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -219,6 +227,17 @@ fun SpreadsheetViewerScreen(
     val chromeGlass = viewerChromeGlass(isDark)
 
     val wb = state.workbook
+    var showSpreadsheetTour by remember { mutableStateOf(false) }
+    LaunchedEffect(wb) {
+        if (wb != null && !OnboardingManager.hasSeenSpreadsheetReaderTour(context)) {
+            delay(500)
+            showSpreadsheetTour = true
+        }
+    }
+    fun finishSpreadsheetTour() {
+        showSpreadsheetTour = false
+        OnboardingManager.markSpreadsheetReaderTourSeen(context)
+    }
     val visibleSheets = remember(wb) { wb?.sheets?.indices?.filter { !wb.sheets[it].hidden } ?: emptyList() }
     var sheetIndex by remember { mutableIntStateOf(-1) }
     val idx = if (sheetIndex in visibleSheets) sheetIndex else visibleSheets.firstOrNull() ?: 0
@@ -429,9 +448,13 @@ fun SpreadsheetViewerScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    LiquidIconButton(onClick = { requestBack() }, backdrop = headerBackdrop) {
-                        Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
-                    }
+                    GlassBackButton(
+                        onBack = { requestBack() },
+                        backdrop = headerBackdrop,
+                        foreground = text,
+                        onLongPressBack = if (state.dirty || editing) ({ requestBack() }) else LocalBackToLibraryAction.current,
+                        longPressLabel = if (state.dirty || editing) stringResource(R.string.back) else null
+                    )
                     Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         GlassTitlePill(
                             text = (if (state.dirty) "• " else "") + state.fileName.ifBlank { stringResource(R.string.viewer_title) },
@@ -464,10 +487,10 @@ fun SpreadsheetViewerScreen(
                                 else { editMode = true; showSearch = false }
                             },
                             backdrop = headerBackdrop,
-                            surfaceColor = if (editMode) accent.copy(0.22f) else Color.Unspecified
+                            surfaceColor = if (editMode || showSpreadsheetTour) accent.copy(0.22f) else Color.Unspecified
                         ) {
                             if (editMode) BasicText(stringResource(R.string.sheet_done), style = TextStyle(accent, 13.sp, FontWeight.SemiBold))
-                            else Icon(Icons.Rounded.Edit, stringResource(R.string.sheet_edit), Modifier.size(19.dp), text)
+                            else Icon(Icons.Rounded.Edit, stringResource(R.string.sheet_edit), Modifier.size(19.dp), if (showSpreadsheetTour) accent else text)
                         }
                     }
                 }
@@ -784,6 +807,19 @@ fun SpreadsheetViewerScreen(
             saveLabel = stringResource(R.string.sheet_save),
             accent = accent
         )
+
+        GlassGuideCallout(
+            visible = showSpreadsheetTour && !editMode && sheet != null,
+            title = stringResource(R.string.tour_sheet_title),
+            message = stringResource(R.string.tour_sheet_message),
+            backdrop = backdrop,
+            isLastStep = true,
+            pointsUp = true,
+            arrowAtEnd = true,
+            onNext = ::finishSpreadsheetTour,
+            onSkip = ::finishSpreadsheetTour,
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 112.dp, end = 12.dp)
+        )
     }
 }
 
@@ -845,7 +881,7 @@ private fun FormulaBar(
             modifier = Modifier.size(34.dp),
             tint = accent
         ) {
-            Icon(Icons.Rounded.ContentCopy, stringResource(R.string.copy), Modifier.size(17.dp), accent)
+            Icon(Icons.Rounded.ContentCopy, stringResource(R.string.copy), Modifier.size(17.dp), Color.White)
         }
         if (editing) {
             LiquidIconButton(onClick = onCommit, backdrop = backdrop, modifier = Modifier.size(34.dp), tint = accent) {
@@ -868,39 +904,51 @@ private fun SheetTabs(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    if (indices.isEmpty()) return
     val scroll = rememberScrollState()
-    Row(
+    val selectedSlot = indices.indexOf(selected).coerceAtLeast(0)
+    val density = LocalDensity.current
+    BoxWithConstraints(
         modifier
             .fillMaxWidth()
-            .height(52.dp)
-            .viewerGlass(backdrop, glass, shape = { Capsule })
-            .padding(4.dp)
-            .horizontalScroll(scroll),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+            .height(64.dp),
+        contentAlignment = Alignment.CenterStart
     ) {
-        for (i in indices) {
-            val s = wb.sheets[i]
-            val sel = i == selected
-            val tab = s.tabColor?.resolve(wb.styles.themeColors, wb.styles.indexedColors)?.let { Color(it) }
-            Row(
-                Modifier
-                    .height(44.dp)
-                    .clip(Capsule)
-                    .background(if (sel) accent.copy(0.18f) else Color.Transparent)
-                    .clickable { onSelect(i) }
-                    .padding(horizontal = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp)
+        val tabWidth = (maxWidth / 3).coerceIn(104.dp, 136.dp)
+        val tabWidthPx = with(density) { tabWidth.toPx() }
+        val viewportPx = with(density) { maxWidth.toPx() }
+        val contentWidth = tabWidth * indices.size + 8.dp
+        LaunchedEffect(selectedSlot, tabWidthPx, viewportPx) {
+            val target = (selectedSlot * tabWidthPx - (viewportPx - tabWidthPx) / 2f)
+                .coerceIn(0f, (with(density) { contentWidth.toPx() } - viewportPx).coerceAtLeast(0f))
+            scroll.animateScrollTo(target.roundToInt())
+        }
+        Box(Modifier.horizontalScroll(scroll)) {
+            LiquidBottomTabs(
+                selectedTabIndex = { selectedSlot },
+                onTabSelected = { slot -> indices.getOrNull(slot)?.let(onSelect) },
+                backdrop = backdrop,
+                tabsCount = indices.size,
+                modifier = Modifier.width(contentWidth).height(64.dp)
             ) {
-                if (tab != null) Box(Modifier.size(8.dp).clip(CircleShape).background(tab))
-                BasicText(
-                    s.name,
-                    style = TextStyle(if (sel) accent else text, 14.sp, if (sel) FontWeight.SemiBold else FontWeight.Medium),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = 160.dp)
-                )
+                indices.forEachIndexed { slot, sheetIndex ->
+                    val sheet = wb.sheets[sheetIndex]
+                    val tabColor = sheet.tabColor?.resolve(wb.styles.themeColors, wb.styles.indexedColors)?.let(::Color)
+                    LiquidBottomTab(onClick = { onSelect(sheetIndex) }) {
+                        if (tabColor != null) Box(Modifier.size(5.dp).clip(CircleShape).background(tabColor))
+                        BasicText(
+                            sheet.name,
+                            Modifier.fillMaxWidth().padding(horizontal = 5.dp),
+                            style = TextStyle(
+                                if (slot == selectedSlot) accent else text,
+                                11.sp,
+                                if (slot == selectedSlot) FontWeight.SemiBold else FontWeight.Medium
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
         }
     }

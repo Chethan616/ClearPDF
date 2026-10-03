@@ -139,7 +139,9 @@ fun GlassScreenHeaderRow(
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
     titleFontFamily: FontFamily? = null,
-    trailing: (@Composable RowScope.() -> Unit)? = null
+    trailing: (@Composable RowScope.() -> Unit)? = null,
+    onBackLongPress: (() -> Unit)? = LocalBackToLibraryAction.current,
+    backLongPressLabel: String? = null
 ) {
     val text = LiquidGlassColors.text(LocalIsDarkMode.current)
     Row(
@@ -148,9 +150,13 @@ fun GlassScreenHeaderRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (onBack != null) {
-            LiquidIconButton(onClick = onBack, backdrop = backdrop, surfaceColor = Color.White.copy(0.08f)) {
-                Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
-            }
+            GlassBackButton(
+                onBack = onBack,
+                backdrop = backdrop,
+                foreground = text,
+                onLongPressBack = onBackLongPress,
+                longPressLabel = backLongPressLabel
+            )
         } else {
             Spacer(Modifier.size(40.dp))
         }

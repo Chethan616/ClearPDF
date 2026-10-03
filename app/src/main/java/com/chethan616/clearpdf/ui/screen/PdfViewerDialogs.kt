@@ -78,6 +78,8 @@ import com.chethan616.clearpdf.ui.components.DestructiveGlassButton
 import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.components.viewerGlass
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
@@ -185,7 +187,7 @@ internal fun LiquidPageJumpPopup(
                             if (currentPage in bookmarkedPages) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                             null,
                             Modifier.size(17.dp),
-                            if (currentPage in bookmarkedPages) Color(0xFF1976D2) else fg
+                            if (currentPage in bookmarkedPages) LiquidGlassColors.Blue else fg
                         )
                         BasicText(
                             stringResource(if (currentPage in bookmarkedPages) R.string.viewer_bookmark_remove else R.string.viewer_bookmark_add),
@@ -237,7 +239,7 @@ internal fun LiquidPageJumpPopup(
                             if (p != null) onJumpToPage(p)
                         },
                         backdrop = backdrop,
-                        tint = Color(0xFF1976D2)
+                        tint = LiquidGlassColors.Blue
                     ) {
                         BasicText(stringResource(R.string.viewer_go), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
                     }
@@ -333,7 +335,7 @@ internal fun AnnotationEditorDialog(
                     }
 
                     // Colour picker — recolour the text / sticky note.
-                    AnnotationColorRow(selected = color, fgSoft = fgSoft, onPick = { color = it })
+                    AnnotationColorRow(selected = color, backdrop = backdrop, fgSoft = fgSoft, onPick = { color = it })
 
                     Row(
                         Modifier.fillMaxWidth(),
@@ -344,7 +346,7 @@ internal fun AnnotationEditorDialog(
                         LiquidButton(onClick = onDismiss, backdrop = backdrop, surfaceColor = field) {
                             BasicText(stringResource(R.string.cancel), style = TextStyle(fg, 13.sp))
                         }
-                        LiquidButton(onClick = { onSave(text, color) }, backdrop = backdrop, tint = Color(0xFF1976D2)) {
+                        LiquidButton(onClick = { onSave(text, color) }, backdrop = backdrop, tint = LiquidGlassColors.Blue) {
                             BasicText(stringResource(R.string.anno_save), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
                         }
                     }
@@ -493,7 +495,7 @@ internal fun ExportShareDialog(
                                     LiquidButton(
                                         onClick = { encrypt = enc },
                                         backdrop = backdrop,
-                                        tint = if (sel) Color(0xFF1976D2) else Color.Unspecified,
+                                        tint = if (sel) LiquidGlassColors.Blue else Color.Unspecified,
                                         surfaceColor = if (sel) Color.Unspecified else field,
                                         modifier = Modifier.weight(1f)
                                     ) {
@@ -549,7 +551,7 @@ internal fun ExportShareDialog(
                                 )
                             },
                             backdrop = backdrop,
-                            tint = if (canShare) Color(0xFF1976D2) else Color(0xFF1976D2).copy(0.4f)
+                            tint = if (canShare) LiquidGlassColors.Blue else LiquidGlassColors.Blue.copy(0.4f)
                         ) {
                             BasicText(stringResource(R.string.viewer_share_button), style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.Bold))
                         }
@@ -634,35 +636,42 @@ internal fun ExportShareDialog(
 // vivid accents for shapes and notes).
 internal val editorPalette: List<Color> = listOf(
     Color(0xFF1A1A1A), // near-black ink
-    Color(0xFF1976D2), // blue
-    Color(0xFFE53935), // red
-    Color(0xFF43A047), // green
-    Color(0xFFFB8C00), // orange
-    Color(0xFF8E24AA), // purple
-    Color(0xFF00ACC1), // teal
-    Color(0xFFFFC107)  // amber (notes)
+    LiquidGlassColors.Blue,
+    LiquidGlassColors.Red,
+    LiquidGlassColors.Green,
+    LiquidGlassColors.Orange,
+    LiquidGlassColors.Purple,
+    LiquidGlassColors.Teal,
+    Color(0xFFFFCC00) // amber (notes)
 )
 
 /** A horizontal row of tappable colour beads; the selected one gets a ring. */
 @Composable
 internal fun AnnotationColorRow(
     selected: Color,
+    backdrop: LayerBackdrop,
     fgSoft: Color,
     onPick: (Color) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BasicText(stringResource(R.string.viewer_color), style = TextStyle(fgSoft, 12.sp, FontWeight.Medium))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .viewerGlass(backdrop, Color.White.copy(alpha = 0.07f), shape = { RoundedCornerShape(24.dp) })
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             editorPalette.forEach { c ->
                 val isSel = c.value == selected.value
                 Box(
                     Modifier
                         .size(if (isSel) 30.dp else 26.dp)
                         .clip(CircleShape)
-                        .background(c)
+                        .viewerGlass(backdrop, c.copy(alpha = 0.88f), shape = { CircleShape })
                         .border(
                             width = if (isSel) 2.5.dp else 1.dp,
-                            color = if (isSel) Color.White else Color.White.copy(0.25f),
+                            color = if (isSel) LiquidGlassColors.Blue else fgSoft.copy(alpha = 0.42f),
                             shape = CircleShape
                         )
                         .clickable { onPick(c) }
@@ -729,7 +738,7 @@ internal fun ShapeEditorPopup(
                         style = TextStyle(fg, 16.sp, fontWeight = FontWeight.Bold)
                     )
 
-                    AnnotationColorRow(selected = color, fgSoft = fgSoft, onPick = { color = it; onColorChange(it) })
+                    AnnotationColorRow(selected = color, backdrop = backdrop, fgSoft = fgSoft, onPick = { color = it; onColorChange(it) })
 
                     Row(
                         Modifier.fillMaxWidth(),
@@ -737,7 +746,7 @@ internal fun ShapeEditorPopup(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         DestructiveGlassButton(stringResource(R.string.delete), onDelete, backdrop)
-                        LiquidButton(onClick = onDismiss, backdrop = backdrop, tint = Color(0xFF1976D2)) {
+                        LiquidButton(onClick = onDismiss, backdrop = backdrop, tint = LiquidGlassColors.Blue) {
                             BasicText(stringResource(R.string.viewer_done), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
                         }
                     }

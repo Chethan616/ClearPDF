@@ -82,6 +82,8 @@ import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.automirrored.rounded.NoteAdd
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -131,13 +133,17 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
+import com.chethan616.clearpdf.data.repository.OnboardingManager
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.PdfPageBookmarksManager
 import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
+import com.chethan616.clearpdf.ui.components.GlassBottomSheet
 import com.chethan616.clearpdf.ui.components.DecryptingAnimation
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.GlassTitlePill
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
+import com.chethan616.clearpdf.ui.components.GlassBackButton
+import com.chethan616.clearpdf.ui.components.LocalBackToLibraryAction
 import com.chethan616.clearpdf.ui.components.ViewerChromeGlass
 import com.chethan616.clearpdf.ui.components.LiquidSaveSheet
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
@@ -189,7 +195,7 @@ fun PdfViewerScreen(
     val isLight        = !isDarkMode
     val text           = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
     val sub            = if (isLight) Color(0xFF888888) else Color(0xFFAAAAAA)
-    val accent         = Color(0xFF1976D2)
+    val accent         = LiquidGlassColors.Blue
     val uiSensor       = rememberUISensor()
     val context        = LocalContext.current
     val bookmarkUri    = state.originalUri ?: state.document?.uri
@@ -202,6 +208,7 @@ fun PdfViewerScreen(
     // ── Local UI state ─────────────────────────────────────────────────────
     var controlsVisible     by rememberSaveable { mutableStateOf(true) }
     var controlsPinned      by rememberSaveable { mutableStateOf(false) }
+    var readerTourStep      by rememberSaveable { mutableIntStateOf(-1) }
     var autoScroll by remember { mutableStateOf(false) }
     var autoScrollSpeed by rememberSaveable { mutableFloatStateOf(1f) }
     var viewerResumed by remember { mutableStateOf(true) }
@@ -230,6 +237,7 @@ fun PdfViewerScreen(
     var passwordText        by rememberSaveable { mutableStateOf("") }
     val passwordFocusRequester = remember { FocusRequester() }
     var showSignaturePad    by remember { mutableStateOf(false) }
+    var quickActionsOpen    by remember { mutableStateOf(false) }
     var showZoomHud         by remember { mutableStateOf(false) }
     var darkPageAppearance by rememberSaveable { mutableStateOf(false) }
     var bookmarkedPages by remember { mutableStateOf<List<Int>>(emptyList()) }
@@ -238,7 +246,7 @@ fun PdfViewerScreen(
     var editingAnnoPage     by remember { mutableStateOf(0) }
     var editingAnnoIsNote   by remember { mutableStateOf(false) }
     var annotationDraft     by remember { mutableStateOf("") }
-    var editingAnnoColor    by remember { mutableStateOf(Color(0xFF1976D2)) }
+    var editingAnnoColor    by remember { mutableStateOf(LiquidGlassColors.Blue) }
     // Shape (rect / oval / line / arrow / stroke) editing — identified by page + list index.
     var editingShapePage    by remember { mutableStateOf<Int?>(null) }
     var editingShapeIndex   by remember { mutableStateOf(-1) }
@@ -248,6 +256,20 @@ fun PdfViewerScreen(
     var selectedMarkupGroupPage by remember { mutableStateOf<Int?>(null) }
     var selectedMarkupGroup by remember { mutableStateOf<Set<Int>>(emptySet()) }
     val density              = LocalDensity.current
+
+    LaunchedEffect(state.document?.uri) {
+        if (state.document != null && !OnboardingManager.hasSeenPdfReaderTour(context)) {
+            delay(650)
+            readerTourStep = 0
+            controlsPinned = true
+        }
+    }
+
+    fun finishReaderTour() {
+        readerTourStep = -1
+        controlsPinned = false
+        OnboardingManager.markPdfReaderTourSeen(context)
+    }
 
     // ── Zoom / pan state ───────────────────────────────────────────────────
     // Ported from Pdf_Tools (Karna14314): document-level zoom/pan is plain float
@@ -589,9 +611,7 @@ fun PdfViewerScreen(
                 ) {
                     // No `surfaceColor`, like Home's — this circle used to paint a white 8% wash that
                     // nothing else in the app does.
-                    LiquidIconButton(onClick = onBack, backdrop = backdrop) {
-                        Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
-                    }
+                    GlassBackButton(onBack = onBack, backdrop = backdrop, foreground = text)
                     Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         GlassTitlePill(stringResource(R.string.viewer_title), backdrop)
                     }
@@ -699,6 +719,13 @@ fun PdfViewerScreen(
     // it takes precedence), exactly like a TextView's selection mode.
     val selectionActive by remember { derivedStateOf { textSelection.hasSelection } }
     BackHandler(enabled = selectionActive) { textSelection.clear() }
+    val markupSelectionActive by remember { derivedStateOf { selectedAnnoIndex >= 0 || selectedMarkupGroup.isNotEmpty() } }
+    BackHandler(enabled = markupSelectionActive) {
+        selectedAnnoPage = null
+        selectedAnnoIndex = -1
+        selectedMarkupGroupPage = null
+        selectedMarkupGroup = emptySet()
+    }
     // Any editing tool owns the page gestures; a selection must not linger underneath it.
     LaunchedEffect(activeTool) { if (activeTool != PdfEditTool.None) textSelection.clear() }
 
@@ -756,7 +783,16 @@ fun PdfViewerScreen(
     // put white text on a 78% white panel every time a one-page document happened to be light.
     val panelFg      = if (isLightChrome) Color(0xFF15171C) else Color.White
     val panelFgSoft  = if (isLightChrome) Color(0xFF15171C).copy(0.62f) else Color.White.copy(0.62f)
-    val chromeField  = if (isLightChrome) Color.Black.copy(0.10f) else Color.White.copy(0.10f)
+    // Fields sit over page patches that may be much lighter or darker than the sampled page average.
+    val chromeField  = if (isLightChrome) Color.Black.copy(0.12f) else Color(0xFF111318).copy(0.74f)
+    // The quick-actions sheet has a theme-owned surface, so its labels and button wells must follow
+    // that surface rather than the page luminance sampled for the floating reader chrome. Those
+    // can legitimately disagree (e.g. a light document while the app is in dark mode).
+    val quickActionFg = if (isDarkMode) Color.White else Color(0xFF15171C)
+    // Buttons refract the live document rather than the sheet's filled surface, so a faint field
+    // can still resolve to near-black over a dark page while keeping dark ink. Keep the material
+    // translucent, but bright/dark enough to guarantee contrast over either page luminance.
+    val quickActionField = if (isDarkMode) Color.Black.copy(alpha = 0.66f) else Color.White.copy(alpha = 0.80f)
 
     // The top visible page drives text extraction, the chrome-tint sampling, and (via
     // `selectionPageIndex`/toolbar targets) which page an action applies to — all of that needs to
@@ -1046,6 +1082,7 @@ fun PdfViewerScreen(
                             }
                             PdfContinuousPage(
                                 page               = page,
+                                backdrop           = backdrop,
                                 bitmap             = state.pageBitmaps.getOrNull(page),
                                 darkPageAppearance = darkPageAppearance,
                                 marks              = getPageMarks(page),
@@ -1093,7 +1130,7 @@ fun PdfViewerScreen(
                                     editingAnnoColor = when (m) {
                                         is PdfMarkup.TextBoxMarkup -> m.color
                                         is PdfMarkup.NoteMarkup    -> m.color
-                                        else -> Color(0xFF1976D2)
+                                        else -> LiquidGlassColors.Blue
                                     }
                                     controlsVisible = true
                                 },
@@ -1257,9 +1294,13 @@ fun PdfViewerScreen(
                 ) {
                     // No `surfaceColor`, exactly as Home calls it: the circle paints nothing of its own
                     // and is pure refraction. Only the icon's colour adapts to the page.
-                    LiquidIconButton(onClick = { requestExit() }, backdrop = contentBackdrop) {
-                        Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), topFg)
-                    }
+                    GlassBackButton(
+                        onBack = { requestExit() },
+                        backdrop = contentBackdrop,
+                        foreground = topFg,
+                        onLongPressBack = if (hasUnsavedEdits) ({ requestExit() }) else LocalBackToLibraryAction.current,
+                        longPressLabel = if (hasUnsavedEdits) stringResource(R.string.back) else null
+                    )
                     // A weighted Box rather than two weighted spacers: the back circle and the
                     // search circle are the same 40 dp, so this centres the pill on the row exactly
                     // the way Home's header does, and a long "Page 100 / 1000" grows symmetrically.
@@ -1389,10 +1430,14 @@ fun PdfViewerScreen(
                 val activeItem = activeImageLoc()?.third
 
                 PdfViewerBottomToolbar(
+                    readerTourStep     = readerTourStep,
+                    onReaderTourNext   = { if (readerTourStep == 0) readerTourStep = 1 else finishReaderTour() },
+                    onReaderTourDismiss = ::finishReaderTour,
                     activeTool         = activeTool,
                     drawingToolActive  = drawingToolActive,
                     showFindBar        = showFindBar,
                     showSignaturePad   = showSignaturePad,
+                    quickActionsVisible = quickActionsOpen,
                     activeImageId      = activeImageId,
                     currentColor       = currentColor,
                     currentColorLong   = currentColorLong,
@@ -1470,6 +1515,12 @@ fun PdfViewerScreen(
                     // .docx used to always leave as the converted PDF, silently. The dialog lets the
                     // user pick the original file vs a PDF (and encrypt the PDF). See ExportShareDialog.
                     onShareDocument    = { showShareDialog = true },
+                    onOpenQuickActions = {
+                        textSelection.clear()
+                        quickActionsOpen = true
+                        controlsVisible = true
+                        lastInteractionAtMs = System.currentTimeMillis()
+                    },
                     onRecolorSignature = { cl ->
                         activeImageLoc()?.let { (pg, idx, sig) ->
                             if (sig.isSignature) getPageMarks(pg)[idx] = sig.copy(bitmap = recolorSignatureBitmap(sig.bitmap, Color(cl).toArgb()))
@@ -1649,6 +1700,69 @@ fun PdfViewerScreen(
             backdrop = contentBackdrop,
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 112.dp)
         )
+
+        // Keep the reader action sheet on the screen's top overlay layer. It must cover the
+        // selection toolbar and bottom controls, otherwise those floating controls intercept
+        // taps on the sheet's lower actions.
+        GlassBottomSheet(
+            visible = quickActionsOpen,
+            onDismiss = { quickActionsOpen = false },
+            backdrop = contentBackdrop
+        ) {
+            BasicText(
+                stringResource(R.string.viewer_quick_actions),
+                modifier = Modifier.padding(start = 18.dp, top = 8.dp, bottom = 14.dp),
+                style = TextStyle(quickActionFg, 20.sp, FontWeight.SemiBold)
+            )
+            LiquidButton(
+                onClick = {
+                    quickActionsOpen = false
+                    showSignaturePad = true
+                    controlsVisible = true
+                },
+                backdrop = contentBackdrop,
+                surfaceColor = quickActionField,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Edit, null, Modifier.size(20.dp), quickActionFg)
+                    BasicText(stringResource(R.string.viewer_sign), style = TextStyle(quickActionFg, 15.sp, FontWeight.Medium))
+                }
+            }
+            LiquidButton(
+                onClick = {
+                    quickActionsOpen = false
+                    activeTool = PdfEditTool.Note
+                    controlsVisible = true
+                },
+                backdrop = contentBackdrop,
+                surfaceColor = quickActionField,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.AutoMirrored.Rounded.NoteAdd, null, Modifier.size(20.dp), quickActionFg)
+                    BasicText(stringResource(R.string.anno_note_title), style = TextStyle(quickActionFg, 15.sp, FontWeight.Medium))
+                }
+            }
+            LiquidButton(
+                onClick = {
+                    quickActionsOpen = false
+                    autoScroll = !autoScroll
+                    controlsVisible = true
+                },
+                backdrop = contentBackdrop,
+                surfaceColor = quickActionField,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(if (autoScroll) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null, Modifier.size(20.dp), quickActionFg)
+                    BasicText(
+                        stringResource(if (autoScroll) R.string.viewer_auto_scroll_pause else R.string.viewer_auto_scroll_start),
+                        style = TextStyle(quickActionFg, 15.sp, FontWeight.Medium)
+                    )
+                }
+            }
+        }
 
         // ── Page-jump popup (in-window, so it samples the liquid-glass backdrop) ──
         LiquidPageJumpPopup(

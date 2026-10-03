@@ -49,6 +49,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CropSquare
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.FormatListNumbered
 import androidx.compose.material.icons.rounded.Gesture
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
@@ -60,7 +61,6 @@ import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Undo
 import androidx.compose.material.icons.rounded.ZoomIn
 import androidx.compose.material.icons.rounded.ZoomOut
-import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.LaunchedEffect
@@ -86,6 +86,7 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 import com.chethan616.clearpdf.ui.components.GlassMotion
+import com.chethan616.clearpdf.ui.components.GlassGuideCallout
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.ShareMorphButton
@@ -123,11 +124,15 @@ private fun ViewerGlassOverflowSurface(
 
 @Composable
 internal fun PdfViewerBottomToolbar(
+    readerTourStep: Int,
+    onReaderTourNext: () -> Unit,
+    onReaderTourDismiss: () -> Unit,
     // display state
     activeTool: PdfEditTool,
     drawingToolActive: Boolean,
     showFindBar: Boolean,
     showSignaturePad: Boolean,
+    quickActionsVisible: Boolean,
     activeImageId: Long?,
     currentColor: Color,
     currentColorLong: Long,
@@ -162,6 +167,7 @@ internal fun PdfViewerBottomToolbar(
     onOpenExportedFile: () -> Unit,
     onOpenAnotherPdf: () -> Unit,
     onShareDocument: () -> Unit,
+    onOpenQuickActions: () -> Unit,
     onEditorOpenChanged: (Boolean) -> Unit = {},
     // Same purpose as [onEditorOpenChanged]: a long-press on the share capsule is a gesture the
     // viewer cannot see, so without this the 5s chrome auto-hide fires mid-hold and takes the button
@@ -179,7 +185,7 @@ internal fun PdfViewerBottomToolbar(
     // "coming soon" placeholder instead of the annotation tools.
     docKind: DocKind = DocKind.Pdf
 ) {
-    val accent = Color(0xFF1976D2)
+    val accent = LiquidGlassColors.Blue
 
     // The floating pills paint nothing at all, exactly as Home's controls do: `LiquidIconButton` is
     // called there with no `surfaceColor`, so its `onDrawSurface` is a no-op and the button is pure
@@ -222,6 +228,7 @@ internal fun PdfViewerBottomToolbar(
     // Collapsed by default (just the "Editor Tools" pill + "Open PDF" circle). Tapping
     // the pill expands the tool set above it. Image selection auto-expands so its tools show.
     var editorOpen by remember { mutableStateOf(false) }
+    val quickActionsOpen = quickActionsVisible
     // Idle: the tool panels cover the FULL width (scale 1). While the share capsule is morphed up,
     // the panels above the Editor-Tools pill COMPRESS horizontally toward the left (scaleX), freeing
     // room for the cylinder — the whole pill + its buttons shrink together, so nothing is cut.
@@ -236,7 +243,9 @@ internal fun PdfViewerBottomToolbar(
         label = "toolCompress"
     )
     // Tell the viewer when the Editor Tools panel is open so it won't auto-hide the chrome.
-    LaunchedEffect(editorOpen) { onEditorOpenChanged(editorOpen) }
+    LaunchedEffect(editorOpen, quickActionsOpen, showSignaturePad) {
+        onEditorOpenChanged(editorOpen || quickActionsOpen || showSignaturePad)
+    }
     // Any active tool implies the editor is open (survives the chrome auto-hiding/returning).
     LaunchedEffect(activeTool, activeImageId) {
         if (activeTool != PdfEditTool.None || activeImageId != null) editorOpen = true
@@ -378,7 +387,7 @@ internal fun PdfViewerBottomToolbar(
                                         }
                                     }
 
-                                    LiquidButton(onClick = onReplaceImage, backdrop = backdrop, tint = Color(0xFF1976D2)) {
+                                    LiquidButton(onClick = onReplaceImage, backdrop = backdrop, tint = LiquidGlassColors.Blue) {
                                         Row(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalAlignment = Alignment.CenterVertically,
@@ -473,7 +482,7 @@ internal fun PdfViewerBottomToolbar(
                     exportMessage != null -> {
                         BasicText(exportMessage, style = TextStyle(Color(0xFFB9F6CA), 12.sp))
                         if (lastExportedUri != null) {
-                            LiquidButton(onClick = onOpenExportedFile, backdrop = backdrop, tint = Color(0xFF1976D2)) {
+                            LiquidButton(onClick = onOpenExportedFile, backdrop = backdrop, tint = LiquidGlassColors.Blue) {
                                 BasicText(stringResource(R.string.open), style = TextStyle(Color.White, 11.sp, FontWeight.Medium))
                             }
                         }
@@ -710,7 +719,7 @@ internal fun PdfViewerBottomToolbar(
                 }
 
                 if (hasEdits && !isExporting) {
-                    LiquidButton(onClick = onShowSaveDialog, backdrop = backdrop, tint = Color(0xFF1976D2)) {
+                    LiquidButton(onClick = onShowSaveDialog, backdrop = backdrop, tint = LiquidGlassColors.Blue) {
                         BasicText(stringResource(R.string.viewer_save_edits), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
                     }
                 }
@@ -745,7 +754,8 @@ internal fun PdfViewerBottomToolbar(
                     },
                     backdrop = backdrop,
                     tint = if (editorOpen) accent else Color.Unspecified,
-                    surfaceColor = if (editorOpen) Color.Unspecified else pillGlass,
+                    surfaceColor = if (editorOpen) Color.Unspecified
+                    else if (readerTourStep == 0) LiquidGlassColors.Blue.copy(alpha = 0.22f) else pillGlass,
                     modifier = Modifier.weight(1f)
                 ) {
                     Row(
@@ -761,40 +771,68 @@ internal fun PdfViewerBottomToolbar(
                         )
                     }
                 }
-                // Reserve both bottom-right actions: direct Share and the existing Open another PDF
-                // morph control. Tool panels above cover full width and only fade during a morph.
-                Spacer(Modifier.width(108.dp).height(52.dp))
+                // ShareMorph overlays the final 52 dp slot. Keep this separate glass action
+                // immediately beside it so neither control obscures the other.
+                Box(Modifier.width(52.dp).height(52.dp), contentAlignment = Alignment.Center) {
+                    LiquidIconButton(
+                        onClick = onOpenQuickActions,
+                        backdrop = backdrop,
+                        modifier = Modifier.size(40.dp),
+                        tint = if (quickActionsOpen) accent else Color.Unspecified,
+                        surfaceColor = if (quickActionsOpen) accent.copy(alpha = 0.22f) else Color.Unspecified
+                    ) {
+                        Icon(
+                            Icons.Rounded.MoreHoriz,
+                            stringResource(R.string.viewer_quick_actions),
+                            Modifier.size(22.dp),
+                            if (quickActionsOpen) Color.White else fg
+                        )
+                    }
+                }
+                Spacer(Modifier.width(52.dp).height(52.dp))
             }
         }
         }
 
         // ── File actions OVERLAY ───────────────────────────────────────────
-        // These sit over their reserved bottom-right slots. The explicit Share button makes the
-        // common action discoverable; the morph capsule keeps the quick Open another PDF action.
+        // The morph capsule owns both reader actions: tap to open another file, hold and swipe up to share.
         AnimatedVisibility(
             visible = selectorGate && !showFindBar && !showSignaturePad,
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(FaceHandoffMillis)),
             modifier = Modifier.align(Alignment.BottomEnd).zIndex(3f)
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
-                LiquidIconButton(
-                    onClick = onShareDocument,
-                    backdrop = backdrop,
-                    modifier = Modifier.size(48.dp),
-                    surfaceColor = pillGlass
-                ) {
-                    Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), fg)
-                }
-                ShareMorphButton(
-                    backdrop = backdrop,
-                    glass = pillGlass,
-                    fg = fg,
-                    onOpen = onOpenAnotherPdf,
-                    onShare = onShareDocument,
-                    onShareModeChanged = { shareActive = it; onShareHoldChanged(it) }
-                )
-            }
+            ShareMorphButton(
+                backdrop = backdrop,
+                glass = if (readerTourStep == 1) LiquidGlassColors.Blue.copy(alpha = 0.2f) else pillGlass,
+                fg = fg,
+                onOpen = onOpenAnotherPdf,
+                onShare = onShareDocument,
+                onShareModeChanged = { shareActive = it; onShareHoldChanged(it) }
+            )
         }
+
+        GlassGuideCallout(
+            visible = readerTourStep == 0,
+            title = stringResource(R.string.tour_reader_tools_title),
+            message = stringResource(R.string.tour_reader_tools_message),
+            backdrop = backdrop,
+            isLastStep = false,
+            onNext = onReaderTourNext,
+            onSkip = onReaderTourDismiss,
+            modifier = Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 116.dp).zIndex(5f)
+        )
+        GlassGuideCallout(
+            visible = readerTourStep == 1,
+            title = stringResource(R.string.tour_reader_share_title),
+            message = stringResource(R.string.tour_reader_share_message),
+            backdrop = backdrop,
+            isLastStep = true,
+            arrowAtEnd = true,
+            onNext = onReaderTourNext,
+            onSkip = onReaderTourDismiss,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 116.dp).zIndex(5f)
+        )
+
     }
 }

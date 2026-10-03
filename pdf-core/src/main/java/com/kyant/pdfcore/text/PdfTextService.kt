@@ -147,6 +147,20 @@ class PdfTextServiceImpl : PdfTextService {
 
         return segments.mapIndexedNotNull { lineIdx, linePositions ->
             val byX = linePositions.sortedBy { it.x }
+            val avgGlyphWidth = byX.map { it.width }.filter { it > 0f }.average().toFloat()
+                .takeIf { it.isFinite() && it > 0f } ?: 1f
+            val naturalGaps = byX.zipWithNext { previous, next -> next.x - (previous.x + previous.width) }
+                // Large outliers are word spaces, not a useful estimate of glyph tracking.
+                .filter { it.isFinite() && it > 0f && it < avgGlyphWidth * 0.55f }
+                .sorted()
+            val typicalTracking = naturalGaps.getOrNull(naturalGaps.size / 2) ?: 0f
+            // A gap is a word break only when it clearly exceeds both the line's ordinary
+            // tracking and a fraction of the average glyph width. Using just the current glyph's
+            // width split tracked/justified words (especially after narrow letters) into pieces.
+            val inferredWordGap = maxOf(
+                avgGlyphWidth * 0.42f,
+                (typicalTracking * 1.6f + avgGlyphWidth * 0.08f).coerceAtMost(avgGlyphWidth * 0.85f)
+            )
             // Build the line text AND per-character x bounds together so indices stay aligned.
             val sb = StringBuilder()
             val cl = ArrayList<Float>()
@@ -156,7 +170,7 @@ class PdfTextServiceImpl : PdfTextService {
                 val u = tp.unicode ?: ""
                 if (u.isEmpty()) return@forEach
                 val gap = tp.x - lastRight
-                if (lastRight > -Float.MAX_VALUE && gap > tp.width * 0.4f) {
+                if (lastRight > -Float.MAX_VALUE && gap > inferredWordGap) {
                     sb.append(' '); cl.add(lastRight); cr.add(tp.x)
                 }
                 val x0 = tp.x; val x1 = tp.x + tp.width; val n = u.length

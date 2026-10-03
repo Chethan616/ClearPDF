@@ -77,6 +77,7 @@ fun LiquidButton(
     // top of another glass panel (dialog actions) passes that panel's blur so it reads as the same
     // frosted sheet with a lensed rim instead of a sharp window punched through it.
     blurRadius: Dp = 2.dp,
+    horizontalContentPadding: Dp = 16.dp,
     content: @Composable RowScope.() -> Unit
 ) {
     val animationScope = rememberCoroutineScope()
@@ -153,7 +154,7 @@ fun LiquidButton(
                 }
             )
             .height(48f.dp)
-            .padding(horizontal = 16f.dp),
+            .padding(horizontal = horizontalContentPadding),
         horizontalArrangement = Arrangement.spacedBy(8f.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
         content = content
