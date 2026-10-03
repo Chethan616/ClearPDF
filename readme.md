@@ -27,7 +27,7 @@ ClearPDF is an Android document toolkit for reading and annotating PDFs, managin
 
 ## Featured by HowToMen
 
-ClearPDF was featured by HowToMen. [Watch the video from 0:18](https://www.youtube.com/watch?v=TYNzg59ke30&t=18s).
+ClearPDF was featured by HowToMen. [Watch the video from 9:08](https://www.youtube.com/watch?v=TYNzg59ke30&t=548s).
 
 ## Screenshots
 
