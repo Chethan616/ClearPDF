@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.selection
 
+import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.magnifier
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -21,11 +21,15 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.nativeCanvas
@@ -44,6 +48,7 @@ import com.chethan616.clearpdf.R
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -205,6 +210,7 @@ fun PdfSelectionHandles(
     state: PdfTextSelectionState,
     listState: LazyListState,
     autoScroller: SelectionAutoScroller,
+    pageBitmaps: List<Bitmap?>,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalTextSelectionColors.current
@@ -246,6 +252,9 @@ fun PdfSelectionHandles(
     val hasSelection by remember(state) { derivedStateOf { state.hasSelection } }
     val startDesc = stringResource(R.string.selection_start_handle)
     val endDesc = stringResource(R.string.selection_end_handle)
+    val pageImages = remember(pageBitmaps) {
+        pageBitmaps.map { bitmap -> bitmap?.takeUnless { it.isRecycled }?.asImageBitmap() }
+    }
 
     // Coordinates of this overlay, used to turn handle-local pointer positions into screen positions.
     val overlayCoords = remember { arrayOfNulls<LayoutCoordinates>(1) }
@@ -254,8 +263,6 @@ fun PdfSelectionHandles(
         modifier
             .fillMaxSize()
             .onGloballyPositioned { overlayCoords[0] = it; autoScroller.viewport = Size(it.size.width.toFloat(), it.size.height.toFloat()) }
-            // Platform loupe (API 28+; a no-op below). Inactive while the centre is Unspecified.
-            .magnifier(sourceCenter = { state.magnifierCenter })
     ) {
         if (!hasSelection) return@Box
 
@@ -342,6 +349,53 @@ fun PdfSelectionHandles(
                         }
                     }
             )
+        }
+
+        // Use the rendered page as a consistent loupe source across Android versions and OEMs.
+        Canvas(Modifier.fillMaxSize()) {
+            val source = state.magnifierCenter
+            if (!source.isSpecified) return@Canvas
+            val page = state.pageAtScreen(source) ?: return@Canvas
+            val bitmap = pageBitmaps.getOrNull(page)?.takeUnless { it.isRecycled } ?: return@Canvas
+            val image = pageImages.getOrNull(page) ?: return@Canvas
+            val pageOrigin = state.pageOrigin(page) ?: return@Canvas
+            val pageSize = state.pageSize(page) ?: return@Canvas
+            if (pageSize.width <= 0f || pageSize.height <= 0f) return@Canvas
+
+            val magnification = 2.35f
+            val diameter = with(density) { 112.dp.toPx() }
+            val radius = diameter / 2f
+            val center = Offset(source.x, source.y - with(density) { 92.dp.toPx() })
+            val local = state.transform.screenToPage(source, pageOrigin)
+            val bitmapCenter = Offset(local.x / pageSize.width * bitmap.width, local.y / pageSize.height * bitmap.height)
+            val pageScale = state.transform.scale.coerceAtLeast(0.01f)
+            val sourceWidth = diameter / (magnification * pageScale) / pageSize.width * bitmap.width
+            val sourceHeight = diameter / (magnification * pageScale) / pageSize.height * bitmap.height
+            val left = (bitmapCenter.x - sourceWidth / 2f).coerceIn(0f, (bitmap.width - sourceWidth).coerceAtLeast(0f))
+            val top = (bitmapCenter.y - sourceHeight / 2f).coerceIn(0f, (bitmap.height - sourceHeight).coerceAtLeast(0f))
+            val srcLeft = left.roundToInt().coerceIn(0, bitmap.width - 1)
+            val srcTop = top.roundToInt().coerceIn(0, bitmap.height - 1)
+            val srcRight = (left + sourceWidth).roundToInt().coerceIn(srcLeft + 1, bitmap.width)
+            val srcBottom = (top + sourceHeight).roundToInt().coerceIn(srcTop + 1, bitmap.height)
+            val lens = Rect(center.x - radius, center.y - radius, center.x + radius, center.y + radius)
+
+            drawCircle(Color(0xD91B2028), radius + with(density) { 3.dp.toPx() }, center)
+            val clip = Path().apply { addOval(lens) }
+            clipPath(clip) {
+                drawRect(Color(0xFFF4F6F9), lens.topLeft, lens.size)
+                drawImage(
+                    image = image,
+                    srcOffset = IntOffset(srcLeft, srcTop),
+                    srcSize = IntSize(srcRight - srcLeft, srcBottom - srcTop),
+                    dstOffset = IntOffset(lens.left.roundToInt(), lens.top.roundToInt()),
+                    dstSize = IntSize(diameter.roundToInt(), diameter.roundToInt()),
+                    filterQuality = FilterQuality.High
+                )
+                val tick = with(density) { 8.dp.toPx() }
+                drawLine(Color.White.copy(alpha = 0.72f), Offset(center.x - tick, center.y), Offset(center.x + tick, center.y), with(density) { 1.dp.toPx() })
+                drawLine(Color.White.copy(alpha = 0.72f), Offset(center.x, center.y - tick), Offset(center.x, center.y + tick), with(density) { 1.dp.toPx() })
+            }
+            drawCircle(Color.White.copy(alpha = 0.9f), radius, center, style = androidx.compose.ui.graphics.drawscope.Stroke(with(density) { 1.5.dp.toPx() }))
         }
     }
 }
