@@ -28,7 +28,8 @@ fun Modifier.liquidGlassPanel(
     // When set, overrides the theme-based tint. Used by the PDF viewer chrome, which
     // renders white text over a backdrop that may be a bright page — it needs a dark,
     // mostly-opaque base so text stays readable while the glass refraction is kept.
-    containerColorOverride: Color? = null
+    containerColorOverride: Color? = null,
+    reducedEffects: Boolean = false
 ): Modifier {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
@@ -39,8 +40,15 @@ fun Modifier.liquidGlassPanel(
         shape = { RoundedRectangle(28f.dp) },
         effects = {
             vibrancy()
-            blur(8f.dp.toPx())
-            lens(20f.dp.toPx(), 40f.dp.toPx(), depthEffect = true)
+            if (reducedEffects) {
+                // Large surfaces that move over live content are the most expensive glass layers.
+                // A smaller blur and no depth map preserve translucency while cutting their scroll cost.
+                blur(3f.dp.toPx())
+                lens(12f.dp.toPx(), 24f.dp.toPx(), depthEffect = false)
+            } else {
+                blur(8f.dp.toPx())
+                lens(20f.dp.toPx(), 40f.dp.toPx(), depthEffect = true)
+            }
         },
         highlight = { Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f)) },
         shadow = { Shadow(radius = 8f.dp, color = Color.Black.copy(alpha = 0.1f)) },
