@@ -1253,6 +1253,23 @@ fun PdfViewerScreen(
                     },
                     onShowSignaturePad = { showSignaturePad = true },
                     onPickImage        = { activeImageId = null; imagePickerLauncher.launch("image/*") },
+                    onZoomStep         = { step ->
+                        val startScale = scale
+                        val targetScale = (startScale + step).coerceIn(1f, 5f)
+                        if (targetScale != startScale) {
+                            // Keep the point under the viewport centre steady while the glass
+                            // zoom rail changes scale, just like a focal pinch or double tap.
+                            val focusY = containerHeightPx / 2f
+                            val scrollDelta = focusY * (1f / startScale - 1f / targetScale)
+                            val focalSpec = androidx.compose.animation.core.spring<Float>(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                            viewerScope.launch { animateZoomPan(targetScale, Offset(offsetX, 0f)) }
+                            viewerScope.launch { listState.animateScrollBy(scrollDelta, focalSpec) }
+                        }
+                        lastInteractionAtMs = System.currentTimeMillis()
+                    },
                     onResetZoom        = { scope.launch { animateZoomPan(1f, Offset.Zero) }
                                           lastInteractionAtMs = System.currentTimeMillis() },
                     onShowSaveDialog   = { showSaveDialog = true },

@@ -58,6 +58,8 @@ import androidx.compose.material.icons.rounded.Slideshow
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Undo
+import androidx.compose.material.icons.rounded.ZoomIn
+import androidx.compose.material.icons.rounded.ZoomOut
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Icon
@@ -148,6 +150,7 @@ internal fun PdfViewerBottomToolbar(
     onToggleFindBar: () -> Unit,
     onShowSignaturePad: () -> Unit,
     onPickImage: () -> Unit,
+    onZoomStep: (Float) -> Unit,
     onResetZoom: () -> Unit,
     onShowSaveDialog: () -> Unit,
     onImageDone: () -> Unit,
@@ -665,11 +668,32 @@ internal fun PdfViewerBottomToolbar(
                 }
 
                 if (zoomScale > 1.01f) {
+                    LiquidIconButton(
+                        onClick = { onZoomStep(-0.5f) },
+                        backdrop = backdrop,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.Rounded.ZoomOut, stringResource(R.string.viewer_zoom_out), Modifier.size(17.dp), fg)
+                    }
+                    LiquidIconButton(
+                        onClick = { onZoomStep(0.5f) },
+                        backdrop = backdrop,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.Rounded.ZoomIn, stringResource(R.string.viewer_zoom_in), Modifier.size(17.dp), fg)
+                    }
                     LiquidButton(onClick = onResetZoom, backdrop = backdrop, surfaceColor = chip) {
                         BasicText(
                             stringResource(R.string.viewer_reset_zoom, (zoomScale * 100 + 0.5f).toInt()),
                             style = TextStyle(fg, 12.sp, FontWeight.Medium)
                         )
+                    }
+                } else {
+                    LiquidButton(onClick = { onZoomStep(0.5f) }, backdrop = backdrop, surfaceColor = chip) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Rounded.ZoomIn, stringResource(R.string.viewer_zoom_in), Modifier.size(14.dp), fg)
+                            BasicText(stringResource(R.string.viewer_zoom), style = TextStyle(fg, 12.sp, FontWeight.Medium))
+                        }
                     }
                 }
 

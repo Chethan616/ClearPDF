@@ -225,6 +225,9 @@
     <string name="viewer_replace">Reemplazar</string>
     <string name="viewer_saving">Guardando PDF editado&#8230;</string>
     <string name="viewer_reset_zoom">Restablecer zoom %1$d%%</string>
+    <string name="viewer_zoom">Zoom</string>
+    <string name="viewer_zoom_in">Acercar</string>
+    <string name="viewer_zoom_out">Alejar</string>
     <string name="viewer_size">Tamaño</string>
     <string name="viewer_jump_to_page">Ir a la página</string>
     <string name="viewer_page_label">Página</string>
