@@ -725,33 +725,40 @@ internal fun PdfViewerBottomToolbar(
                         )
                     }
                 }
-                // Reserve the circle's slot at the home-bar level so the pill never sits under the
-                // share button. (The tool panels above cover full width and only FADE on morph.)
-                Spacer(Modifier.size(52.dp))
+                // Reserve both bottom-right actions: direct Share and the existing Open another PDF
+                // morph control. Tool panels above cover full width and only fade during a morph.
+                Spacer(Modifier.width(108.dp).height(52.dp))
             }
         }
         }
 
-        // ── Share capsule OVERLAY ──────────────────────────────────────────
-        // Sits over the reserved slot at the bottom-right. Because it's a sibling of the column
-        // (not inside it) and bottom-anchored, morphing it taller grows only this wrapper Box
-        // upward — the column (tool panels + pill) stays pinned to the base and never moves.
+        // ── File actions OVERLAY ───────────────────────────────────────────
+        // These sit over their reserved bottom-right slots. The explicit Share button makes the
+        // common action discoverable; the morph capsule keeps the quick Open another PDF action.
         AnimatedVisibility(
-            // Sits in the pill row's reserved slot, so it rides the same `selectorGate` and fades out
-            // alongside the pill instead of popping away on its own.
             visible = selectorGate && !showFindBar && !showSignaturePad,
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(FaceHandoffMillis)),
             modifier = Modifier.align(Alignment.BottomEnd).zIndex(3f)
         ) {
-            ShareMorphButton(
-                backdrop = backdrop,
-                glass = pillGlass,
-                fg = fg,
-                onOpen = onOpenAnotherPdf,
-                onShare = onShareDocument,
-                onShareModeChanged = { shareActive = it; onShareHoldChanged(it) }
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+                LiquidIconButton(
+                    onClick = onShareDocument,
+                    backdrop = backdrop,
+                    modifier = Modifier.size(48.dp),
+                    surfaceColor = pillGlass
+                ) {
+                    Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), fg)
+                }
+                ShareMorphButton(
+                    backdrop = backdrop,
+                    glass = pillGlass,
+                    fg = fg,
+                    onOpen = onOpenAnotherPdf,
+                    onShare = onShareDocument,
+                    onShareModeChanged = { shareActive = it; onShareHoldChanged(it) }
+                )
+            }
         }
     }
 }
