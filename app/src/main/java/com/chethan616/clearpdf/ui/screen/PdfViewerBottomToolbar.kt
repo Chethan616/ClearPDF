@@ -38,8 +38,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
@@ -62,7 +64,8 @@ import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Undo
 import androidx.compose.material.icons.rounded.ZoomIn
 import androidx.compose.material.icons.rounded.ZoomOut
-import androidx.compose.material.icons.rounded.UploadFile
+import androidx.compose.material.icons.rounded.IosShare
+import androidx.compose.material.icons.rounded.Comment
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -199,6 +202,7 @@ internal fun PdfViewerBottomToolbar(
     // export-feedback strip): those are dense rows of controls that need a plate to sit on, and they
     // cover the document rather than floating over it.
     val pillGlass = Color.Transparent
+    val usePresentationDock = docKind == DocKind.Ppt
 
     val showDrawTools  = drawingToolActive
     val showImageTools = activeTool == PdfEditTool.Image && activeImageId != null
@@ -234,7 +238,7 @@ internal fun PdfViewerBottomToolbar(
     // room for the cylinder — the whole pill + its buttons shrink together, so nothing is cut.
     var shareActive by remember { mutableStateOf(false) }
     val toolCompress by animateFloatAsState(
-        if (shareActive) 0.84f else 1f,
+        if (shareActive) if (usePresentationDock) 0.68f else 0.84f else 1f,
         // Bounce, matching the share capsule's own morph — both now run on GlassMotion.morph(), so the
         // pill springs shut (and back open) with the same weight the cylinder has instead of deflating
         // limply beside it. Safe to overshoot because this drives `scaleX`, a DRAW-time property: no
@@ -731,35 +735,34 @@ internal fun PdfViewerBottomToolbar(
             }
         }
 
-        // ── Collapsed home bar: circular Editor Tools and auto-scroll controls at the
-        // leading edge, balanced by the ShareMorph capsule at the trailing edge.
+        // ── Compact reader dock: auto-scroll, annotations, and ShareMorph in one glass capsule.
         AnimatedVisibility(
             // Same `selectorGate` as the tool chips above, so the controls fade out together
             // before the focused sub-toolbar arrives.
             visible = selectorGate && !showFindBar && !showSignaturePad,
             enter   = fadeIn(tween(180)),
-            exit    = fadeOut(tween(FaceHandoffMillis))
+            exit    = fadeOut(tween(FaceHandoffMillis)),
+            modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.Bottom
-            ) {
-                Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
-                    LiquidIconButton(
-                        onClick = {
-                            editorOpen = !editorOpen
-                            if (!editorOpen) onSetActiveTool(PdfEditTool.None)
-                        },
-                        backdrop = backdrop,
-                        modifier = Modifier.size(52.dp),
-                        tint = if (editorOpen) accent else Color.Unspecified,
-                        surfaceColor = if (!editorOpen && readerTourStep == 0) LiquidGlassColors.Blue.copy(alpha = 0.22f) else Color.Unspecified
-                    ) {
-                        Icon(Icons.Rounded.Edit, stringResource(R.string.viewer_editor_tools), Modifier.size(21.dp), if (editorOpen) Color.White else fg)
-                    }
-                }
-                Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+            if (usePresentationDock) {
+                Box(
+                    Modifier.widthIn(max = 320.dp).fillMaxWidth(),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                // Keep the background at its resting height. The morph button is a sibling so its
+                // capsule can grow upward without clipping the glass or re-blurring a moving panel.
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                        .align(Alignment.BottomCenter)
+                        .viewerGlass(backdrop, pillGlass, shape = { com.kyant.shapes.Capsule })
+                )
+                Row(
+                    Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     LiquidIconButton(
                         onClick = onToggleAutoScroll,
                         backdrop = backdrop,
@@ -769,45 +772,109 @@ internal fun PdfViewerBottomToolbar(
                         Icon(
                             if (autoScrollActive) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             stringResource(if (autoScrollActive) R.string.viewer_auto_scroll_pause else R.string.viewer_auto_scroll_start),
-                            Modifier.size(21.dp),
+                            Modifier.size(24.dp),
                             if (autoScrollActive) Color.White else fg
                         )
                     }
+                    LiquidIconButton(
+                        onClick = {
+                            editorOpen = !editorOpen
+                            if (!editorOpen) onSetActiveTool(PdfEditTool.None)
+                        },
+                        backdrop = backdrop,
+                        modifier = Modifier.size(52.dp),
+                        tint = if (editorOpen) accent else Color.Unspecified,
+                        surfaceColor = if (!editorOpen && readerTourStep == 0) LiquidGlassColors.Blue.copy(alpha = 0.16f) else Color.Unspecified
+                    ) {
+                        Icon(Icons.Rounded.Comment, stringResource(R.string.viewer_editor_tools), Modifier.size(24.dp), if (editorOpen) Color.White else fg)
+                    }
+                    // Reserve the final slot for the morphing share action layered over this row.
+                    Spacer(Modifier.size(52.dp))
                 }
-                Spacer(Modifier.weight(1f))
-                // Reserve the ShareMorph footprint at the trailing edge; its capsule is layered above.
-                Spacer(Modifier.size(52.dp))
+                ShareMorphButton(
+                    backdrop = backdrop,
+                    glass = if (readerTourStep == 1) LiquidGlassColors.Blue.copy(alpha = 0.16f) else pillGlass,
+                    fg = fg,
+                    onOpen = onShareDocument,
+                    onShare = onShareDocument,
+                    onShareModeChanged = { shareActive = it; onShareHoldChanged(it) },
+                    idleIcon = Icons.Rounded.IosShare,
+                    idleContentDesc = stringResource(R.string.viewer_share_document),
+                    modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-33).dp)
+                )
+            }
+            } else {
+                // Restore the reader controls used by PDFs, Word, and other document types.
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                        LiquidIconButton(
+                            onClick = {
+                                editorOpen = !editorOpen
+                                if (!editorOpen) onSetActiveTool(PdfEditTool.None)
+                            },
+                            backdrop = backdrop,
+                            modifier = Modifier.size(52.dp),
+                            tint = if (editorOpen) accent else Color.Unspecified,
+                            surfaceColor = if (!editorOpen && readerTourStep == 0) LiquidGlassColors.Blue.copy(alpha = 0.22f) else Color.Unspecified
+                        ) {
+                            Icon(Icons.Rounded.Edit, stringResource(R.string.viewer_editor_tools), Modifier.size(21.dp), if (editorOpen) Color.White else fg)
+                        }
+                    }
+                    Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                        LiquidIconButton(
+                            onClick = onToggleAutoScroll,
+                            backdrop = backdrop,
+                            modifier = Modifier.size(52.dp),
+                            tint = if (autoScrollActive) LiquidGlassColors.Green else Color.Unspecified
+                        ) {
+                            Icon(
+                                if (autoScrollActive) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                stringResource(if (autoScrollActive) R.string.viewer_auto_scroll_pause else R.string.viewer_auto_scroll_start),
+                                Modifier.size(21.dp),
+                                if (autoScrollActive) Color.White else fg
+                            )
+                        }
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.size(52.dp))
+                }
             }
         }
         }
 
-        // ── File actions OVERLAY ───────────────────────────────────────────
-        // The morph capsule owns both reader actions: tap to open another file, hold and swipe up to share.
-        AnimatedVisibility(
-            visible = selectorGate && !showFindBar && !showSignaturePad,
-            enter = fadeIn(tween(180)),
-            exit = fadeOut(tween(FaceHandoffMillis)),
-            modifier = Modifier.align(Alignment.BottomEnd).zIndex(3f)
-        ) {
-            ShareMorphButton(
-                backdrop = backdrop,
-                glass = if (readerTourStep == 1) LiquidGlassColors.Blue.copy(alpha = 0.2f) else pillGlass,
-                fg = fg,
-                onOpen = onOpenAnotherPdf,
-                onShare = onShareDocument,
-                onShareModeChanged = { shareActive = it; onShareHoldChanged(it) }
-            )
+        if (!usePresentationDock) {
+            // PDFs and the other readers keep the original ShareMorph placement and open-file tap.
+            AnimatedVisibility(
+                visible = selectorGate && !showFindBar && !showSignaturePad,
+                enter = fadeIn(tween(180)),
+                exit = fadeOut(tween(FaceHandoffMillis)),
+                modifier = Modifier.align(Alignment.BottomEnd).zIndex(3f)
+            ) {
+                ShareMorphButton(
+                    backdrop = backdrop,
+                    glass = if (readerTourStep == 1) LiquidGlassColors.Blue.copy(alpha = 0.2f) else pillGlass,
+                    fg = fg,
+                    onOpen = onOpenAnotherPdf,
+                    onShare = onShareDocument,
+                    onShareModeChanged = { shareActive = it; onShareHoldChanged(it) }
+                )
+            }
         }
 
         GlassGuideCallout(
             visible = readerTourStep == 0,
             title = stringResource(R.string.tour_reader_tools_title),
-            message = stringResource(R.string.tour_reader_tools_message),
+            message = stringResource(if (usePresentationDock) R.string.tour_reader_tools_ppt_message else R.string.tour_reader_tools_message),
             backdrop = backdrop,
             isLastStep = false,
             onNext = onReaderTourNext,
             onSkip = onReaderTourDismiss,
-            modifier = Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 116.dp).zIndex(5f)
+            modifier = if (usePresentationDock) Modifier.align(Alignment.BottomCenter).padding(start = 12.dp, end = 12.dp, bottom = 116.dp).zIndex(5f)
+                else Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 116.dp).zIndex(5f)
         )
         GlassGuideCallout(
             visible = readerTourStep == 1,
@@ -818,7 +885,8 @@ internal fun PdfViewerBottomToolbar(
             arrowAtEnd = true,
             onNext = onReaderTourNext,
             onSkip = onReaderTourDismiss,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 116.dp).zIndex(5f)
+            modifier = if (usePresentationDock) Modifier.align(Alignment.BottomCenter).padding(start = 12.dp, end = 12.dp, bottom = 116.dp).zIndex(5f)
+                else Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 116.dp).zIndex(5f)
         )
 
     }

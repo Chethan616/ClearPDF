@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -114,12 +115,14 @@ internal fun PdfSearchBar(
         ) {
             Icon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.next), Modifier.size(20.dp), fg)
         }
+        val closeTint = if (fg.luminance() > 0.5f) Color(0xFFD78A92) else Color(0xFFA84D58)
         LiquidIconButton(
             onClick = onClose,
             backdrop = backdrop,
-            modifier = Modifier.size(FindBarButtonSize)
+            modifier = Modifier.size(FindBarButtonSize),
+            surfaceColor = closeTint.copy(alpha = 0.12f)
         ) {
-            CloseCrossIcon(Modifier.size(13.dp), fg)
+            CloseCrossIcon(Modifier.size(13.dp), closeTint)
         }
     }
 }

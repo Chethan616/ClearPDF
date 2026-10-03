@@ -44,6 +44,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -88,9 +90,22 @@ internal fun PageScrubber(
      */
     onDraggingChange: (Boolean) -> Unit = {},
     isScrolling: Boolean = false,
+    darkPageAppearance: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val isDark = LocalIsDarkMode.current
+    val isDark = LocalIsDarkMode.current || darkPageAppearance
+    val pageColorFilter = remember(darkPageAppearance) {
+        if (!darkPageAppearance) null else ColorFilter.colorMatrix(
+            ColorMatrix(
+                floatArrayOf(
+                    -1f, 0f, 0f, 0f, 255f,
+                    0f, -1f, 0f, 0f, 255f,
+                    0f, 0f, -1f, 0f, 255f,
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
+        )
+    }
     val view = LocalView.current
     val accent = Color(0xFF0A84FF)
     // Idle thumb: soft light blue — visible on both themes, not harsh like pure white.
@@ -242,7 +257,8 @@ internal fun PageScrubber(
                             bitmap = shown.asImageBitmap(),
                             contentDescription = stringResource(R.string.preview_page, dragPage + 1),
                             contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
+                            colorFilter = pageColorFilter
                         )
                     } else {
                         // Nothing rendered yet at all → a faint spinner (only on the very first preview).

@@ -1207,7 +1207,7 @@ fun PdfViewerScreen(
             visible = controlsVisible && autoScroll && state.document != null && safePageCount > 1 && scale <= 1.01f && activeTool == PdfEditTool.None,
             enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.94f),
             exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.96f),
-            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 92.dp)
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 76.dp)
         ) {
             Row(
                 Modifier
@@ -1267,7 +1267,8 @@ fun PdfViewerScreen(
                 onPageChange     = { page -> scrollToPage(page) },
                 onPageScrubbing  = { page -> viewModel.renderPage(context, page, 400); lastInteractionAtMs = System.currentTimeMillis() },
                 onDraggingChange = { scrubberDragging = it },
-                isScrolling      = listState.isScrollInProgress
+                isScrolling      = listState.isScrollInProgress,
+                darkPageAppearance = darkPageAppearance
             )
         }
 

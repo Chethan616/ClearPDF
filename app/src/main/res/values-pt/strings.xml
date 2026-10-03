@@ -534,6 +534,7 @@
     <string name="tour_done">Percebi</string>
     <string name="tour_reader_tools_title">Ferramentas de leitura</string>
     <string name="tour_reader_tools_message">Toque no ícone de edição para realçar, desenhar, adicionar notas ou assinar.</string>
+    <string name="tour_reader_tools_ppt_message">Toque no ícone de notas para realçar, desenhar, adicionar notas ou assinar.</string>
     <string name="tour_reader_share_title">Partilhar ou abrir outro ficheiro</string>
     <string name="tour_reader_share_message">Toque na cápsula para abrir outro ficheiro. Para partilhar, mantenha-a premida e deslize para cima.</string>
     <string name="tour_sheet_title">Editar uma folha de cálculo</string>
