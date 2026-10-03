@@ -600,6 +600,18 @@ internal fun PdfViewerBottomToolbar(
                     tint = Color(0xFF0097A7), surfaceColor = toolDim(drawOn)
                 ) { BasicText(stringResource(R.string.viewer_draw_tools), style = TextStyle(Color.White, 12.sp, FontWeight.Medium)) }
 
+                val lassoOn = activeTool == PdfEditTool.Lasso
+                LiquidButton(
+                    onClick = { onSetActiveTool(if (lassoOn) PdfEditTool.None else PdfEditTool.Lasso) },
+                    backdrop = backdrop,
+                    tint = Color(0xFF0A84FF), surfaceColor = toolDim(lassoOn)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Rounded.Gesture, null, Modifier.size(14.dp), Color.White)
+                        BasicText(stringResource(R.string.viewer_lasso), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
+                    }
+                }
+
                 val imgOn = activeTool == PdfEditTool.Image
                 LiquidButton(
                     onClick  = { onPickImage() },

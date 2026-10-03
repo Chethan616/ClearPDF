@@ -125,7 +125,10 @@ internal fun PdfContinuousPage(
     onEditShape: (Int) -> Unit = {},
     // Generic markup selection (shapes / text / notes) for move + resize.
     selectedMarkupIndex: Int = -1,
+    selectedMarkupIndices: Set<Int> = emptySet(),
     onSelectMarkup: (Int) -> Unit = {},
+    onSelectMarkups: (Set<Int>) -> Unit = {},
+    onMoveMarkups: (Set<Int>, Offset) -> Unit = { _, _ -> },
     onDeleteMarkup: (Int) -> Unit = {},
     /** The viewer's text selection: this page draws its slice of the highlight and registers its coordinates. */
     textSelection: PdfTextSelectionState
@@ -133,6 +136,7 @@ internal fun PdfContinuousPage(
     var draftPoints    by remember(page, activeTool) { mutableStateOf<List<Offset>>(emptyList()) }
     var draftRectStart by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
     var draftRectEnd   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
+    var draftLasso by remember(page, activeTool) { mutableStateOf<List<Offset>>(emptyList()) }
     val selectionColors = LocalTextSelectionColors.current
     DisposableEffect(page, textSelection) { onDispose { textSelection.unregisterPage(page, null) } }
     // Accessibility: expose the page's extracted text to TalkBack, plus a "select page text" action.
@@ -297,6 +301,25 @@ internal fun PdfContinuousPage(
                 }
             }
 
+            if (activeTool == PdfEditTool.Lasso && draftLasso.size > 1) {
+                val lassoPath = Path().apply {
+                    moveTo(draftLasso.first().x, draftLasso.first().y)
+                    draftLasso.drop(1).forEach { lineTo(it.x, it.y) }
+                    close()
+                }
+                drawPath(lassoPath, Color(0xFF0A84FF).copy(alpha = 0.18f))
+                drawPath(lassoPath, Color(0xFF0A84FF), style = Stroke(width = 3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+            }
+
+            if (activeTool == PdfEditTool.None && selectedMarkupIndices.size > 1) {
+                val groupBounds = selectedMarkupIndices.mapNotNull { marks.getOrNull(it)?.movableBounds() }
+                    .reduceOrNull { a, b -> Rect(min(a.left, b.left), min(a.top, b.top), max(a.right, b.right), max(a.bottom, b.bottom)) }
+                groupBounds?.let { b ->
+                    drawRoundRect(Color(0xFF0A84FF), Offset(b.left - 8f, b.top - 8f),
+                        Size(b.width + 16f, b.height + 16f), CornerRadius(12f, 12f), style = Stroke(3f))
+                }
+            }
+
             // Selection frame + handles for the selected shape / text / note.
             if (activeTool == PdfEditTool.None) {
                 marks.getOrNull(selectedMarkupIndex)?.takeIf { it.isTransformable() }?.let { selM ->
@@ -444,6 +467,7 @@ internal fun PdfContinuousPage(
                     } else {
                         // Missed everything → clear any selection (tap propagates to container).
                         if (selectedMarkupIndex >= 0) onSelectMarkup(-1)
+                        else if (selectedMarkupIndices.isNotEmpty()) onSelectMarkups(emptySet())
                     }
                 }
             })
@@ -538,6 +562,47 @@ internal fun PdfContinuousPage(
                     onInteraction()
                 })
             })
+        }
+
+        if (activeTool == PdfEditTool.Lasso) {
+            Box(Modifier.matchParentSize().pointerInput(page, activeTool, marks.size) {
+                detectDragGestures(
+                    onDragStart = { start -> onInteraction(); draftLasso = listOf(start) },
+                    onDrag = { change, _ ->
+                        change.consume()
+                        draftLasso = draftLasso + change.position
+                    },
+                    onDragCancel = { draftLasso = emptyList() },
+                    onDragEnd = {
+                        val selection = marks.indices.filter { marks[it].intersectsLasso(draftLasso) }.toSet()
+                        draftLasso = emptyList()
+                        onSelectMarkup(-1)
+                        onSelectMarkups(selection)
+                        onActiveToolChanged(PdfEditTool.None)
+                        onShowControls()
+                        onInteraction()
+                    }
+                )
+            })
+        }
+
+        if (activeTool == PdfEditTool.None && selectedMarkupIndices.size > 1) {
+            val bounds = selectedMarkupIndices.mapNotNull { marks.getOrNull(it)?.movableBounds() }
+                .reduceOrNull { a, b -> Rect(min(a.left, b.left), min(a.top, b.top), max(a.right, b.right), max(a.bottom, b.bottom)) }
+            bounds?.let { group ->
+                val density2 = LocalDensity.current
+                Box(
+                    Modifier.offset { IntOffset(group.left.roundToInt(), group.top.roundToInt()) }
+                        .size(with(density2) { group.width.coerceAtLeast(1f).toDp() }, with(density2) { group.height.coerceAtLeast(1f).toDp() })
+                        .pointerInput(page, selectedMarkupIndices) {
+                            detectDragGestures(onDragStart = { onInteraction() }, onDrag = { change, drag ->
+                                change.consume()
+                                onMoveMarkups(selectedMarkupIndices, drag)
+                                onInteraction()
+                            })
+                        }
+                )
+            }
         }
 
         if (activeTool == PdfEditTool.Text || activeTool == PdfEditTool.Note) {
