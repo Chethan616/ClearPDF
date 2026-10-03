@@ -343,8 +343,11 @@ internal fun PdfViewerBottomToolbar(
                                 )
                                 drawTools.forEach { (tool, icon, labelRes) ->
                                     val active = activeTool == tool
+                                    // Inactive tools are clear glass with adaptive ink, like the top
+                                    // bar's circles; `chip` (a 74% near-black on dark pages) made them
+                                    // read as heavy black discs. The active tool fills with the ink.
                                     val surf by animateColorAsState(
-                                        if (active) currentColor.copy(0.95f) else chip,
+                                        if (active) currentColor.copy(0.95f) else Color.Transparent,
                                         tween(150), label = "toolSurface"
                                     )
                                     val ink by animateColorAsState(if (active) Color.White else fg, tween(150), label = "toolInk")
@@ -359,7 +362,6 @@ internal fun PdfViewerBottomToolbar(
                                 LiquidIconButton(
                                     onClick  = onUndo,
                                     backdrop = backdrop,
-                                    surfaceColor = chip,
                                     modifier = Modifier.size(40.dp)
                                 ) { Icon(Icons.Rounded.Undo, stringResource(R.string.viewer_undo), Modifier.size(19.dp), fg.copy(if (canUndo) 1f else 0.35f)) }
                                 LiquidIconButton(
@@ -434,7 +436,7 @@ internal fun PdfViewerBottomToolbar(
                     if (showDrawTools) {
                         listOf("S" to 3f, "M" to 6f, "L" to 11f, "XL" to 18f).forEach { (label, w) ->
                             val sel = currentStrokeWidth == w
-                            val surf by animateColorAsState(if (sel) currentColor.copy(0.85f) else chip, tween(150), label = "sizeSurface")
+                            val surf by animateColorAsState(if (sel) currentColor.copy(0.85f) else Color.Transparent, tween(150), label = "sizeSurface")
                             val ink by animateColorAsState(if (sel) Color.White else fg, tween(150), label = "sizeInk")
                             LiquidButton(onClick = { onSetStrokeWidth(w) }, backdrop = backdrop, surfaceColor = surf) {
                                 BasicText(label, style = TextStyle(ink, 12.sp, FontWeight.Medium))
@@ -777,7 +779,9 @@ internal fun PdfViewerBottomToolbar(
                     LiquidIconButton(
                         onClick = onOpenQuickActions,
                         backdrop = backdrop,
-                        modifier = Modifier.size(40.dp),
+                        // 48 dp: the Editor Tools pill's height, so the row reads as one family
+                        // (pill · circle · 52 dp share capsule) instead of a small dot between two.
+                        modifier = Modifier.size(48.dp),
                         tint = if (quickActionsOpen) accent else Color.Unspecified,
                         surfaceColor = if (quickActionsOpen) accent.copy(alpha = 0.22f) else Color.Unspecified
                     ) {

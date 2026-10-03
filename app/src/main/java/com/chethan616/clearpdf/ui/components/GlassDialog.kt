@@ -3,6 +3,24 @@ package com.chethan616.clearpdf.ui.components
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -101,9 +119,11 @@ fun GlassDialog(
     BackHandler(enabled = visible) { onDismiss() }
 
     val isLight = !LocalIsDarkMode.current
-    // Lighter wash + scrim than the catalog so the live screen behind stays visible through the
-    // glass — a heavy scrim leaves the lens nothing to refract.
-    val containerColor = if (isLight) Color(0xFFFAFAFA).copy(0.5f) else Color(0xFF121212).copy(0.34f)
+    // Theme-owned wash, dense enough that the dialog's text holds contrast over ANY page behind it
+    // (a 34-50% wash let a black PDF page turn the light-theme panel charcoal under dark text, and a
+    // white page turn the dark panel pale under white text). The lens rim and blur still refract the
+    // live screen, so it keeps reading as glass rather than a card.
+    val containerColor = glassDialogSurface(!isLight)
     val dimColor = if (isLight) Color(0xFF29293A).copy(0.16f) else Color(0xFF000000).copy(0.32f)
     val blurDp = if (isLight) 16.dp else 8.dp
     val contentColor = LiquidGlassColors.text(!isLight)
@@ -227,7 +247,10 @@ fun RowScope.GlassDialogAction(
             .weight(1f)
             .graphicsLayer { alpha = if (enabled) 1f else 0.4f },
         tint = pillTint,
-        surfaceColor = if (pillTint == Color.Unspecified) LocalDialogSurface.current else Color.Unspecified,
+        // Neutral pills get a SOLID theme platter, not the panel's wash: they refract the screen
+        // behind the dialog (not the panel), so a translucent fill let a white page show through
+        // under white ink — the blank "Cancel" pills. Primary/destructive pills are vivid tints.
+        surfaceColor = if (pillTint == Color.Unspecified) glassDialogPlatter(isDark) else Color.Unspecified,
         blurRadius = LocalDialogBlur.current,
         // Three equal actions must still leave room for translated labels such as “Discard”.
         horizontalContentPadding = 8.dp
@@ -237,5 +260,144 @@ fun RowScope.GlassDialogAction(
             style = TextStyle(fg, 16.sp, if (primary || destructive) FontWeight.SemiBold else FontWeight.Medium),
             maxLines = 1
         )
+    }
+}
+
+
+// ── Dialog material, shared by every in-window glass dialog ─────────────────────────────────────
+
+/** Panel wash for in-window dialogs: translucent, but dense enough to own its text contrast. */
+fun glassDialogSurface(isDark: Boolean): Color =
+    if (isDark) Color(0xFF1C1D22).copy(0.68f) else Color(0xFFFAFAFC).copy(0.70f)
+
+/** Solid platter for neutral controls inside a dialog (buttons, fields, segment tracks). */
+fun glassDialogPlatter(isDark: Boolean): Color =
+    if (isDark) Color(0xFF2E3038).copy(0.94f) else Color.White.copy(0.94f)
+
+/** Ink for content inside a dialog. Follows the app theme, never the page under the dialog. */
+@Composable
+fun glassDialogInk(): Color = LiquidGlassColors.text(LocalIsDarkMode.current)
+
+@Composable
+fun glassDialogInkSoft(): Color = LiquidGlassColors.secondary(LocalIsDarkMode.current)
+
+/**
+ * Text field for [GlassDialog] content: a solid rounded platter (no glass-on-glass), theme ink,
+ * placeholder, optional focus requester.
+ */
+@Composable
+fun GlassDialogField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String = "",
+    singleLine: Boolean = true,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: androidx.compose.foundation.text.KeyboardActions = androidx.compose.foundation.text.KeyboardActions.Default,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    textStyle: TextStyle = TextStyle(fontSize = 16.sp),
+    minHeight: Dp = 48.dp,
+    focusRequester: FocusRequester? = null
+) {
+    val isDark = LocalIsDarkMode.current
+    val ink = LiquidGlassColors.text(isDark)
+    val shape = RoundedCornerShape(16.dp)
+    Box(
+        modifier
+            .heightIn(min = minHeight)
+            .clip(shape)
+            .background(glassDialogPlatter(isDark))
+            .border(1.dp, ink.copy(alpha = if (isDark) 0.10f else 0.08f), shape)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        if (value.isEmpty() && placeholder.isNotEmpty()) {
+            BasicText(
+                placeholder,
+                style = textStyle.merge(TextStyle(color = LiquidGlassColors.secondary(isDark))),
+                maxLines = if (singleLine) 1 else Int.MAX_VALUE
+            )
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = singleLine,
+            textStyle = textStyle.merge(TextStyle(color = ink)),
+            cursorBrush = SolidColor(LiquidGlassColors.Blue),
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            visualTransformation = visualTransformation,
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+        )
+    }
+}
+
+/**
+ * Segmented choice for [GlassDialog] content: a solid capsule track with a vivid sliding thumb
+ * (the "Get it" tint), springing between segments. Solid on purpose — a glass thumb inside a glass
+ * panel would refract the page behind the dialog, not the panel.
+ */
+@Composable
+fun GlassDialogSegmented(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    accent: Color = LiquidGlassColors.Blue
+) {
+    if (options.isEmpty()) return
+    val isDark = LocalIsDarkMode.current
+    val ink = LiquidGlassColors.text(isDark)
+    val haptics = LocalHapticFeedback.current
+    val index = selectedIndex.coerceIn(0, options.lastIndex)
+    val thumb by animateFloatAsState(index.toFloat(), GlassMotion.morph(), label = "dialogSegment")
+    BoxWithConstraints(
+        modifier
+            .fillMaxWidth()
+            .height(46.dp)
+            .clip(RoundedCornerShape(50))
+            .background(glassDialogPlatter(isDark))
+            .padding(4.dp)
+    ) {
+        val segment = maxWidth / options.size
+        Box(
+            Modifier
+                .width(segment)
+                .fillMaxHeight()
+                .graphicsLayer { translationX = thumb * segment.toPx() }
+                .clip(RoundedCornerShape(50))
+                .background(accent)
+                .background(Brush.verticalGradient(listOf(Color.White.copy(0.22f), Color.Transparent)))
+        )
+        Row(Modifier.fillMaxSize()) {
+            options.forEachIndexed { i, label ->
+                val sel = i == index
+                val labelColor by animateColorAsState(if (sel) Color.White else ink, label = "segInk$i")
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(50))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            if (i != index) {
+                                haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                                onSelect(i)
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    BasicText(
+                        label,
+                        style = TextStyle(labelColor, 15.sp, if (sel) FontWeight.SemiBold else FontWeight.Medium),
+                        maxLines = 1
+                    )
+                }
+            }
+        }
     }
 }

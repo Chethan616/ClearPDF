@@ -98,13 +98,11 @@ internal fun PdfSearchBar(
             }
         )
 
-        // 40 dp and `surface`, matching the top bar's circles exactly. `field` is only 6-10% alpha,
-        // which sets no value of its own and leaves the button refracting whatever is behind it —
-        // the same reason single-page chrome went invisible.
+        // 40 dp, no fill: the top bar's circles exactly (pure refraction, adaptive ink). A tinted
+        // fill here made the find controls read as grey slabs under clear glass up top.
         LiquidIconButton(
             onClick = onPrevMatch,
             backdrop = backdrop,
-            surfaceColor = surface,
             modifier = Modifier.size(FindBarButtonSize)
         ) {
             Icon(Icons.Rounded.KeyboardArrowUp, stringResource(R.string.previous), Modifier.size(20.dp), fg)
@@ -112,7 +110,6 @@ internal fun PdfSearchBar(
         LiquidIconButton(
             onClick = onNextMatch,
             backdrop = backdrop,
-            surfaceColor = surface,
             modifier = Modifier.size(FindBarButtonSize)
         ) {
             Icon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.next), Modifier.size(20.dp), fg)
@@ -120,7 +117,6 @@ internal fun PdfSearchBar(
         LiquidIconButton(
             onClick = onClose,
             backdrop = backdrop,
-            surfaceColor = Color(0xFFEF5350).copy(0.22f),
             modifier = Modifier.size(FindBarButtonSize)
         ) {
             CloseCrossIcon(Modifier.size(13.dp), fg)

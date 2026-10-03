@@ -451,8 +451,11 @@ internal fun PdfMarkup.hitTest(
 
 internal fun expandedTextHighlightRect(rect: Rect, verticalScale: Float = 1f): Rect {
     val padX = (rect.height * 0.05f).coerceIn(0.75f, 3f)
-    val padTop = rect.height * 0.13f * verticalScale
-    val padBottom = rect.height * 0.11f * verticalScale
+    // Line boxes now span the font's real ascent..descent (see PdfTextService), so only a hair of
+    // breathing room is added. The old 13%/11% padding compensated for boxes that stopped at the
+    // baseline and made adjacent lines' highlights overlap once the geometry was right.
+    val padTop = rect.height * 0.03f * verticalScale
+    val padBottom = rect.height * 0.03f * verticalScale
     return Rect(rect.left - padX, rect.top - padTop, rect.right + padX, rect.bottom + padBottom)
 }
 
