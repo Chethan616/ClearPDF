@@ -53,6 +53,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,6 +87,8 @@ import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 import androidx.compose.ui.graphics.graphicsLayer
 
@@ -110,12 +113,15 @@ fun SettingsScreen(
     val label = if (isLight) Color(0xFF444444) else Color(0xFFCCCCCC)
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
+    val settingsScope = rememberCoroutineScope()
     val openRepo = remember(context) {
         { openExternalLink(context, GitHubStarPromptManager.REPO_URL) }
     }
 
     var autoCompress by remember { mutableStateOf(AppSettingsManager.getAutoCompress(context)) }
     var keepOriginal by remember { mutableStateOf(AppSettingsManager.getKeepOriginal(context)) }
+    var rememberRecentFiles by remember { mutableStateOf(AppSettingsManager.getRememberRecentFiles(context)) }
+    var keepLocalCopies by remember { mutableStateOf(AppSettingsManager.getKeepLocalCopies(context)) }
     var defaultQuality by remember { mutableFloatStateOf(AppSettingsManager.getDefaultQuality(context)) }
 
     // Debounce quality slider persistence to prevent lag
@@ -511,6 +517,41 @@ fun SettingsScreen(
                 desc = stringResource(R.string.settings_keep_original_desc),
                 checked = keepOriginal,
                 onCheckedChange = { keepOriginal = it; AppSettingsManager.setKeepOriginal(context, it) },
+                backdrop = backdrop,
+                labelColor = label,
+                subColor = sub
+            )
+
+            Box(
+                Modifier.fillMaxWidth().padding(vertical = 4.dp).height(1.dp)
+                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
+            )
+
+            SettingsToggleRow(
+                icon = Icons.Rounded.Description,
+                title = stringResource(R.string.settings_remember_recent_files),
+                desc = stringResource(R.string.settings_remember_recent_files_desc),
+                checked = rememberRecentFiles,
+                onCheckedChange = {
+                    rememberRecentFiles = it
+                    AppSettingsManager.setRememberRecentFiles(context, it)
+                },
+                backdrop = backdrop,
+                labelColor = label,
+                subColor = sub
+            )
+
+            SettingsToggleRow(
+                icon = Icons.Rounded.FolderOpen,
+                title = stringResource(R.string.settings_keep_local_copies),
+                desc = stringResource(R.string.settings_keep_local_copies_desc),
+                checked = keepLocalCopies,
+                onCheckedChange = {
+                    keepLocalCopies = it
+                    settingsScope.launch(Dispatchers.IO) {
+                        AppSettingsManager.setKeepLocalCopies(context, it)
+                    }
+                },
                 backdrop = backdrop,
                 labelColor = label,
                 subColor = sub

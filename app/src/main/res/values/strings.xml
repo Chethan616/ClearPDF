@@ -178,6 +178,10 @@
     <string name="settings_auto_compress_desc">Automatically compress PDFs on import</string>
     <string name="settings_keep_original">Keep Original</string>
     <string name="settings_keep_original_desc">Preserve original file after editing</string>
+    <string name="settings_remember_recent_files">Show opened files in Recents</string>
+    <string name="settings_remember_recent_files_desc">Turn off to erase file history and saved reading positions</string>
+    <string name="settings_keep_local_copies">Keep local copies for reopening</string>
+    <string name="settings_keep_local_copies_desc">Helps reopen files shared from other apps. Turning it off deletes saved copies; temporary files needed to view documents may still be used.</string>
     <string name="settings_compression_quality">Compression Quality</string>
     <string name="settings_smaller_size">Smaller size</string>
     <string name="settings_higher_quality">Higher quality</string>
