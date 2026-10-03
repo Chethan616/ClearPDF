@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="viewer_auto_scroll_start">Iniciar desplazamiento automático</string>
+    <string name="viewer_auto_scroll_pause">Pausar desplazamiento automático</string>
+    <string name="viewer_auto_scroll_speed">Cambiar velocidad de desplazamiento</string>
     <string name="app_name">ClearPDF</string>
 
     <!-- Accesos directos de la app -->
