@@ -1042,7 +1042,8 @@ fun PdfViewerScreen(
         PdfSelectionHandles(
             state = textSelection,
             listState = listState,
-            autoScroller = selectionAutoScroller
+            autoScroller = selectionAutoScroller,
+            pageBitmaps = state.pageBitmaps
         )
 
         // ── Page scrubber (doubles as the fading scroll indicator) ─────────
