@@ -203,6 +203,9 @@
     <string name="viewer_auto_scroll_start">Start auto-scroll</string>
     <string name="viewer_auto_scroll_pause">Pause auto-scroll</string>
     <string name="viewer_auto_scroll_speed">Change auto-scroll speed</string>
+    <string name="viewer_bookmark_add">Bookmark this page</string>
+    <string name="viewer_bookmark_remove">Remove bookmark</string>
+    <string name="viewer_bookmark_page">Page %1$d</string>
     <string name="viewer_draw_tools">Draw Tools</string>
     <string name="viewer_select_text">Select Text</string>
     <string name="viewer_add_image">Add Image</string>

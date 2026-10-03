@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.offset
@@ -37,6 +39,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.BookmarkBorder
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -96,8 +101,11 @@ internal fun LiquidPageJumpPopup(
     fgSoft: Color,
     surface: Color,
     field: Color,
+    bookmarkedPages: List<Int>,
     onDismiss: () -> Unit,
-    onJumpToPage: (Int) -> Unit
+    onJumpToPage: (Int) -> Unit,
+    onToggleCurrentBookmark: () -> Unit,
+    onRemoveBookmark: (Int) -> Unit
 ) {
     var targetText by remember(visible, currentPage) { mutableStateOf((currentPage + 1).toString()) }
 
@@ -164,6 +172,56 @@ internal fun LiquidPageJumpPopup(
                         "/ $pageCount",
                         style = TextStyle(fgSoft, 16.sp, fontWeight = FontWeight.Medium)
                     )
+                }
+
+                LiquidButton(
+                    onClick = onToggleCurrentBookmark,
+                    backdrop = backdrop,
+                    surfaceColor = field,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(
+                            if (currentPage in bookmarkedPages) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                            null,
+                            Modifier.size(17.dp),
+                            if (currentPage in bookmarkedPages) Color(0xFF1976D2) else fg
+                        )
+                        BasicText(
+                            stringResource(if (currentPage in bookmarkedPages) R.string.viewer_bookmark_remove else R.string.viewer_bookmark_add),
+                            style = TextStyle(fg, 13.sp, FontWeight.Medium)
+                        )
+                    }
+                }
+
+                if (bookmarkedPages.isNotEmpty()) {
+                    Column(
+                        Modifier.fillMaxWidth().heightIn(max = 132.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        bookmarkedPages.forEach { page ->
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                LiquidButton(
+                                    onClick = { onJumpToPage(page) },
+                                    backdrop = backdrop,
+                                    surfaceColor = field,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    BasicText(
+                                        stringResource(R.string.viewer_bookmark_page, page + 1),
+                                        style = TextStyle(fg, 12.sp, FontWeight.Medium)
+                                    )
+                                }
+                                LiquidButton(onClick = { onRemoveBookmark(page) }, backdrop = backdrop, surfaceColor = field) {
+                                    Icon(Icons.Rounded.Close, stringResource(R.string.viewer_bookmark_remove), Modifier.size(15.dp), fgSoft)
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Row(

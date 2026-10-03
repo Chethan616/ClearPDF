@@ -3,6 +3,9 @@
     <string name="viewer_auto_scroll_start">Iniciar rolagem automática</string>
     <string name="viewer_auto_scroll_pause">Pausar rolagem automática</string>
     <string name="viewer_auto_scroll_speed">Alterar velocidade da rolagem</string>
+    <string name="viewer_bookmark_add">Adicionar favorito nesta página</string>
+    <string name="viewer_bookmark_remove">Remover favorito</string>
+    <string name="viewer_bookmark_page">Página %1$d</string>
     <string name="app_name">ClearPDF</string>
 
     <!-- App Shortcuts -->

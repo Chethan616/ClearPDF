@@ -3,6 +3,9 @@
     <string name="viewer_auto_scroll_start">Iniciar desplazamiento automático</string>
     <string name="viewer_auto_scroll_pause">Pausar desplazamiento automático</string>
     <string name="viewer_auto_scroll_speed">Cambiar velocidad de desplazamiento</string>
+    <string name="viewer_bookmark_add">Guardar esta página</string>
+    <string name="viewer_bookmark_remove">Quitar marcador</string>
+    <string name="viewer_bookmark_page">Página %1$d</string>
     <string name="app_name">ClearPDF</string>
 
     <!-- Accesos directos de la app -->
