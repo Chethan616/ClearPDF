@@ -378,6 +378,9 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
     }.getOrElse { null }
 
     private fun mirrorPdfToAppStorage(context: Context, sourceUri: Uri): Uri {
+        if (!com.chethan616.clearpdf.data.repository.AppSettingsManager.getKeepLocalCopies(context)) {
+            throw IllegalStateException("Unable to access selected document")
+        }
         val input = context.contentResolver.openInputStream(sourceUri)
             ?: throw IllegalStateException("Unable to access selected document")
         val baseDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.cacheDir

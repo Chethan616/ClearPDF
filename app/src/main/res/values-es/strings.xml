@@ -168,6 +168,10 @@
     <string name="settings_auto_compress_desc">Comprimir automáticamente los PDF al importarlos</string>
     <string name="settings_keep_original">Conservar el original</string>
     <string name="settings_keep_original_desc">Conservar el archivo original tras editar</string>
+    <string name="settings_remember_recent_files">Mostrar archivos abiertos en Recientes</string>
+    <string name="settings_remember_recent_files_desc">Desactívalo para borrar el historial y las posiciones de lectura guardadas</string>
+    <string name="settings_keep_local_copies">Guardar copias locales para volver a abrir</string>
+    <string name="settings_keep_local_copies_desc">Ayuda a reabrir archivos compartidos desde otras aplicaciones. Al desactivarlo, se borran las copias guardadas; aún pueden usarse archivos temporales necesarios para ver documentos.</string>
     <string name="settings_compression_quality">Calidad de compresión</string>
     <string name="settings_smaller_size">Menor tamaño</string>
     <string name="settings_higher_quality">Mayor calidad</string>

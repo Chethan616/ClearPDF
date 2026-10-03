@@ -95,6 +95,10 @@
     <string name="settings_auto_compress_desc">Comprimir PDFs automaticamente ao importar</string>
     <string name="settings_keep_original">Manter Original</string>
     <string name="settings_keep_original_desc">Preservar arquivo original ap&#243;s a edi&#231;&#227;o</string>
+    <string name="settings_remember_recent_files">Mostrar arquivos abertos em Recentes</string>
+    <string name="settings_remember_recent_files_desc">Desative para apagar o hist&#243;rico e as posi&#231;&#245;es de leitura salvas</string>
+    <string name="settings_keep_local_copies">Manter c&#243;pias locais para reabrir</string>
+    <string name="settings_keep_local_copies_desc">Ajuda a reabrir arquivos compartilhados por outros apps. Ao desativar, as c&#243;pias salvas s&#227;o apagadas; arquivos tempor&#225;rios necess&#225;rios para visualizar documentos ainda podem ser usados.</string>
     <string name="settings_compression_quality">Qualidade de compress&#227;o</string>
     <string name="settings_smaller_size">Menor tamanho</string>
     <string name="settings_higher_quality">Maior qualidade</string>
