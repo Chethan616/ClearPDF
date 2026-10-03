@@ -88,6 +88,8 @@ import kotlin.math.roundToInt
 import com.chethan616.clearpdf.ui.viewmodel.FindMatch
 import com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock
 import com.chethan616.clearpdf.ui.viewmodel.OcrTextRange
+import com.chethan616.clearpdf.ui.components.viewerGlass
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlin.math.max
 import kotlin.math.min
 
@@ -102,6 +104,7 @@ import kotlin.math.min
 @Composable
 internal fun PdfContinuousPage(
     page: Int,
+    backdrop: LayerBackdrop,
     bitmap: Bitmap?,
     darkPageAppearance: Boolean = false,
     marks: MutableList<PdfMarkup>,
@@ -749,9 +752,7 @@ internal fun PdfContinuousPage(
                     Row(
                         Modifier
                             .offset { IntOffset(bx.roundToInt(), by.roundToInt()) }
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFF232629))
-                            .border(1.dp, Color.White.copy(0.08f), RoundedCornerShape(10.dp))
+                            .viewerGlass(backdrop, Color(0xE522252A), shape = { RoundedCornerShape(14.dp) })
                             .padding(horizontal = 2.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {

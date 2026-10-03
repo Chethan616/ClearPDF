@@ -131,6 +131,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.AppSettingsManager
+import com.chethan616.clearpdf.data.repository.OnboardingManager
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.PdfPageBookmarksManager
 import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
@@ -138,6 +139,8 @@ import com.chethan616.clearpdf.ui.components.DecryptingAnimation
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.GlassTitlePill
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
+import com.chethan616.clearpdf.ui.components.GlassBackButton
+import com.chethan616.clearpdf.ui.components.LocalBackToLibraryAction
 import com.chethan616.clearpdf.ui.components.ViewerChromeGlass
 import com.chethan616.clearpdf.ui.components.LiquidSaveSheet
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
@@ -202,6 +205,7 @@ fun PdfViewerScreen(
     // ── Local UI state ─────────────────────────────────────────────────────
     var controlsVisible     by rememberSaveable { mutableStateOf(true) }
     var controlsPinned      by rememberSaveable { mutableStateOf(false) }
+    var readerTourStep      by rememberSaveable { mutableIntStateOf(-1) }
     var autoScroll by remember { mutableStateOf(false) }
     var autoScrollSpeed by rememberSaveable { mutableFloatStateOf(1f) }
     var viewerResumed by remember { mutableStateOf(true) }
@@ -248,6 +252,20 @@ fun PdfViewerScreen(
     var selectedMarkupGroupPage by remember { mutableStateOf<Int?>(null) }
     var selectedMarkupGroup by remember { mutableStateOf<Set<Int>>(emptySet()) }
     val density              = LocalDensity.current
+
+    LaunchedEffect(state.document?.uri) {
+        if (state.document != null && !OnboardingManager.hasSeenPdfReaderTour(context)) {
+            delay(650)
+            readerTourStep = 0
+            controlsPinned = true
+        }
+    }
+
+    fun finishReaderTour() {
+        readerTourStep = -1
+        controlsPinned = false
+        OnboardingManager.markPdfReaderTourSeen(context)
+    }
 
     // ── Zoom / pan state ───────────────────────────────────────────────────
     // Ported from Pdf_Tools (Karna14314): document-level zoom/pan is plain float
@@ -589,9 +607,7 @@ fun PdfViewerScreen(
                 ) {
                     // No `surfaceColor`, like Home's — this circle used to paint a white 8% wash that
                     // nothing else in the app does.
-                    LiquidIconButton(onClick = onBack, backdrop = backdrop) {
-                        Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
-                    }
+                    GlassBackButton(onBack = onBack, backdrop = backdrop, foreground = text)
                     Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         GlassTitlePill(stringResource(R.string.viewer_title), backdrop)
                     }
@@ -1046,6 +1062,7 @@ fun PdfViewerScreen(
                             }
                             PdfContinuousPage(
                                 page               = page,
+                                backdrop           = backdrop,
                                 bitmap             = state.pageBitmaps.getOrNull(page),
                                 darkPageAppearance = darkPageAppearance,
                                 marks              = getPageMarks(page),
@@ -1257,9 +1274,13 @@ fun PdfViewerScreen(
                 ) {
                     // No `surfaceColor`, exactly as Home calls it: the circle paints nothing of its own
                     // and is pure refraction. Only the icon's colour adapts to the page.
-                    LiquidIconButton(onClick = { requestExit() }, backdrop = contentBackdrop) {
-                        Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), topFg)
-                    }
+                    GlassBackButton(
+                        onBack = { requestExit() },
+                        backdrop = contentBackdrop,
+                        foreground = topFg,
+                        onLongPressBack = if (hasUnsavedEdits) ({ requestExit() }) else LocalBackToLibraryAction.current,
+                        longPressLabel = if (hasUnsavedEdits) stringResource(R.string.back) else null
+                    )
                     // A weighted Box rather than two weighted spacers: the back circle and the
                     // search circle are the same 40 dp, so this centres the pill on the row exactly
                     // the way Home's header does, and a long "Page 100 / 1000" grows symmetrically.
@@ -1389,6 +1410,9 @@ fun PdfViewerScreen(
                 val activeItem = activeImageLoc()?.third
 
                 PdfViewerBottomToolbar(
+                    readerTourStep     = readerTourStep,
+                    onReaderTourNext   = { if (readerTourStep == 0) readerTourStep = 1 else finishReaderTour() },
+                    onReaderTourDismiss = ::finishReaderTour,
                     activeTool         = activeTool,
                     drawingToolActive  = drawingToolActive,
                     showFindBar        = showFindBar,

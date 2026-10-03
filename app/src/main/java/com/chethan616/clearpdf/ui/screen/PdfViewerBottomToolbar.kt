@@ -60,7 +60,6 @@ import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Undo
 import androidx.compose.material.icons.rounded.ZoomIn
 import androidx.compose.material.icons.rounded.ZoomOut
-import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.LaunchedEffect
@@ -86,6 +85,7 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 import com.chethan616.clearpdf.ui.components.GlassMotion
+import com.chethan616.clearpdf.ui.components.GlassGuideCallout
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.ShareMorphButton
@@ -123,6 +123,9 @@ private fun ViewerGlassOverflowSurface(
 
 @Composable
 internal fun PdfViewerBottomToolbar(
+    readerTourStep: Int,
+    onReaderTourNext: () -> Unit,
+    onReaderTourDismiss: () -> Unit,
     // display state
     activeTool: PdfEditTool,
     drawingToolActive: Boolean,
@@ -761,40 +764,50 @@ internal fun PdfViewerBottomToolbar(
                         )
                     }
                 }
-                // Reserve both bottom-right actions: direct Share and the existing Open another PDF
-                // morph control. Tool panels above cover full width and only fade during a morph.
-                Spacer(Modifier.width(108.dp).height(52.dp))
+                // Reserve the morph control's footprint. The reader keeps one sharing affordance,
+                // so its long-press gesture and open-file tap stay visually discoverable as one tool.
+                Spacer(Modifier.width(52.dp).height(52.dp))
             }
         }
         }
 
         // ── File actions OVERLAY ───────────────────────────────────────────
-        // These sit over their reserved bottom-right slots. The explicit Share button makes the
-        // common action discoverable; the morph capsule keeps the quick Open another PDF action.
+        // The morph capsule owns both reader actions: tap to open another file, hold and swipe up to share.
         AnimatedVisibility(
             visible = selectorGate && !showFindBar && !showSignaturePad,
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(FaceHandoffMillis)),
             modifier = Modifier.align(Alignment.BottomEnd).zIndex(3f)
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
-                LiquidIconButton(
-                    onClick = onShareDocument,
-                    backdrop = backdrop,
-                    modifier = Modifier.size(48.dp),
-                    surfaceColor = pillGlass
-                ) {
-                    Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), fg)
-                }
-                ShareMorphButton(
-                    backdrop = backdrop,
-                    glass = pillGlass,
-                    fg = fg,
-                    onOpen = onOpenAnotherPdf,
-                    onShare = onShareDocument,
-                    onShareModeChanged = { shareActive = it; onShareHoldChanged(it) }
-                )
-            }
+            ShareMorphButton(
+                backdrop = backdrop,
+                glass = pillGlass,
+                fg = fg,
+                onOpen = onOpenAnotherPdf,
+                onShare = onShareDocument,
+                onShareModeChanged = { shareActive = it; onShareHoldChanged(it) }
+            )
         }
+
+        GlassGuideCallout(
+            visible = readerTourStep == 0,
+            title = stringResource(R.string.tour_reader_tools_title),
+            message = stringResource(R.string.tour_reader_tools_message),
+            backdrop = backdrop,
+            isLastStep = false,
+            onNext = onReaderTourNext,
+            onSkip = onReaderTourDismiss,
+            modifier = Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 116.dp).zIndex(5f)
+        )
+        GlassGuideCallout(
+            visible = readerTourStep == 1,
+            title = stringResource(R.string.tour_reader_share_title),
+            message = stringResource(R.string.tour_reader_share_message),
+            backdrop = backdrop,
+            isLastStep = true,
+            onNext = onReaderTourNext,
+            onSkip = onReaderTourDismiss,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 116.dp).zIndex(5f)
+        )
     }
 }

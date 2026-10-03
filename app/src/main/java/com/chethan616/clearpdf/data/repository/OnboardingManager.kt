@@ -14,6 +14,8 @@ object OnboardingManager {
     // installed this is behind [currentVersionCode], so the tour is shown again to surface
     // what changed in the update.
     private const val KEY_ONBOARDED_VERSION = "onboarded_version_code"
+    private const val KEY_PDF_READER_TOUR_SEEN = "pdf_reader_tour_seen"
+    private const val KEY_SPREADSHEET_READER_TOUR_SEEN = "spreadsheet_reader_tour_seen"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -34,15 +36,10 @@ object OnboardingManager {
         prefs(context).getInt(KEY_ONBOARDED_VERSION, -1)
 
     /**
-     * Onboarding is shown on the very first launch AND again after every app update — i.e.
-     * whenever the installed [currentVersionCode] is newer than the one the user last completed
-     * the tour on. Completing (or replaying) it records the current version so it won't repeat
-     * until the next update.
+     * The full welcome tour is shown on the first ordinary launch. Updates don't interrupt people
+     * with a repeat tour; document-specific guides teach controls the first time they open a reader.
      */
-    fun shouldShowOnboarding(context: Context): Boolean {
-        if (!hasCompletedOnboarding(context)) return true
-        return onboardedVersionCode(context) < currentVersionCode(context)
-    }
+    fun shouldShowOnboarding(context: Context): Boolean = !hasCompletedOnboarding(context)
 
     fun setOnboardingComplete(context: Context) =
         prefs(context).edit()
@@ -55,6 +52,18 @@ object OnboardingManager {
             .putBoolean(KEY_COMPLETED, false)
             .remove(KEY_ONBOARDED_VERSION)
             .apply()
+
+    fun hasSeenPdfReaderTour(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_PDF_READER_TOUR_SEEN, false)
+
+    fun markPdfReaderTourSeen(context: Context) =
+        prefs(context).edit().putBoolean(KEY_PDF_READER_TOUR_SEEN, true).apply()
+
+    fun hasSeenSpreadsheetReaderTour(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_SPREADSHEET_READER_TOUR_SEEN, false)
+
+    fun markSpreadsheetReaderTourSeen(context: Context) =
+        prefs(context).edit().putBoolean(KEY_SPREADSHEET_READER_TOUR_SEEN, true).apply()
 
     fun getSelectedLocale(context: Context): String =
         prefs(context).getString(KEY_LOCALE, "en") ?: "en"

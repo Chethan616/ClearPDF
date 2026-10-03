@@ -68,6 +68,7 @@ import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.components.GlassDialog
 import com.chethan616.clearpdf.ui.components.GlassDialogAction
+import com.chethan616.clearpdf.ui.components.LocalBackToLibraryAction
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.flow.collectLatest
@@ -193,6 +194,13 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
     ) {
         val backdrop = rememberLayerBackdrop()
         val navController = rememberNavController()
+        val backToLibrary: () -> Unit = remember(navController) {
+            {
+                if (!navController.popBackStack("home", inclusive = false)) {
+                    navController.navigate("home") { launchSingleTop = true }
+                }
+            }
+        }
         var selectedTab by rememberSaveable { mutableIntStateOf(0) }
         val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
         val showBottomTabs = currentRoute == "home" || currentRoute == "tools" || currentRoute == "settings"
@@ -240,7 +248,8 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
 
         CompositionLocalProvider(
             LocalResources provides localizedContext.resources,
-            LocalIsDarkMode provides isDarkMode
+            LocalIsDarkMode provides isDarkMode,
+            LocalBackToLibraryAction provides backToLibrary
         ) {
             Box(Modifier.fillMaxSize()) {
                 // Captured layer = wallpaper + the live screen. The floating tab bar

@@ -129,6 +129,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.GlassBottomSheet
+import com.chethan616.clearpdf.ui.components.GlassGuideCallout
+import com.chethan616.clearpdf.ui.components.GlassBackButton
+import com.chethan616.clearpdf.ui.components.LocalBackToLibraryAction
 import com.chethan616.clearpdf.ui.components.GlassColorPicker
 import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
 import com.chethan616.clearpdf.ui.components.rememberScreenBackdrop
@@ -147,6 +150,7 @@ import com.chethan616.clearpdf.ui.components.viewerChromeGlass
 import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
+import com.chethan616.clearpdf.data.repository.OnboardingManager
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.BorderPreset
 import com.chethan616.clearpdf.ui.viewmodel.SpreadsheetViewModel
@@ -164,6 +168,7 @@ import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.shapes.Capsule
 import com.kyant.shapes.RoundedRectangle
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** `liquidGlassPanel`'s corner curve, restated so the scrolling grid can be clipped to it. */
@@ -219,6 +224,17 @@ fun SpreadsheetViewerScreen(
     val chromeGlass = viewerChromeGlass(isDark)
 
     val wb = state.workbook
+    var showSpreadsheetTour by remember { mutableStateOf(false) }
+    LaunchedEffect(wb) {
+        if (wb != null && !OnboardingManager.hasSeenSpreadsheetReaderTour(context)) {
+            delay(500)
+            showSpreadsheetTour = true
+        }
+    }
+    fun finishSpreadsheetTour() {
+        showSpreadsheetTour = false
+        OnboardingManager.markSpreadsheetReaderTourSeen(context)
+    }
     val visibleSheets = remember(wb) { wb?.sheets?.indices?.filter { !wb.sheets[it].hidden } ?: emptyList() }
     var sheetIndex by remember { mutableIntStateOf(-1) }
     val idx = if (sheetIndex in visibleSheets) sheetIndex else visibleSheets.firstOrNull() ?: 0
@@ -429,9 +445,13 @@ fun SpreadsheetViewerScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    LiquidIconButton(onClick = { requestBack() }, backdrop = headerBackdrop) {
-                        Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
-                    }
+                    GlassBackButton(
+                        onBack = { requestBack() },
+                        backdrop = headerBackdrop,
+                        foreground = text,
+                        onLongPressBack = if (state.dirty || editing) ({ requestBack() }) else LocalBackToLibraryAction.current,
+                        longPressLabel = if (state.dirty || editing) stringResource(R.string.back) else null
+                    )
                     Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         GlassTitlePill(
                             text = (if (state.dirty) "• " else "") + state.fileName.ifBlank { stringResource(R.string.viewer_title) },
@@ -464,10 +484,10 @@ fun SpreadsheetViewerScreen(
                                 else { editMode = true; showSearch = false }
                             },
                             backdrop = headerBackdrop,
-                            surfaceColor = if (editMode) accent.copy(0.22f) else Color.Unspecified
+                            surfaceColor = if (editMode || showSpreadsheetTour) accent.copy(0.22f) else Color.Unspecified
                         ) {
                             if (editMode) BasicText(stringResource(R.string.sheet_done), style = TextStyle(accent, 13.sp, FontWeight.SemiBold))
-                            else Icon(Icons.Rounded.Edit, stringResource(R.string.sheet_edit), Modifier.size(19.dp), text)
+                            else Icon(Icons.Rounded.Edit, stringResource(R.string.sheet_edit), Modifier.size(19.dp), if (showSpreadsheetTour) accent else text)
                         }
                     }
                 }
@@ -783,6 +803,18 @@ fun SpreadsheetViewerScreen(
             body = stringResource(R.string.sheet_unsaved_body),
             saveLabel = stringResource(R.string.sheet_save),
             accent = accent
+        )
+
+        GlassGuideCallout(
+            visible = showSpreadsheetTour && !editMode && sheet != null,
+            title = stringResource(R.string.tour_sheet_title),
+            message = stringResource(R.string.tour_sheet_message),
+            backdrop = backdrop,
+            isLastStep = true,
+            pointsUp = true,
+            onNext = ::finishSpreadsheetTour,
+            onSkip = ::finishSpreadsheetTour,
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 112.dp, end = 12.dp)
         )
     }
 }

@@ -546,4 +546,14 @@
 
     <!-- Insignia del scrubber de filas del visor de hojas (compacta: "12/940") -->
     <string name="sheet_row_of">%1$d/%2$d</string>
+    <string name="tour_skip">Omitir</string>
+    <string name="tour_next">Siguiente</string>
+    <string name="tour_done">Entendido</string>
+    <string name="tour_reader_tools_title">Herramientas de lectura</string>
+    <string name="tour_reader_tools_message">Toca Herramientas para resaltar, dibujar, añadir notas o firmar.</string>
+    <string name="tour_reader_share_title">Compartir o abrir otro archivo</string>
+    <string name="tour_reader_share_message">Toca la cápsula para abrir otro archivo. Para compartir, mantenla pulsada y desliza hacia arriba.</string>
+    <string name="tour_sheet_title">Editar una hoja de cálculo</string>
+    <string name="tour_sheet_message">Toca el lápiz para mostrar las opciones de formato, color y diseño de celdas.</string>
+    <string name="back_to_library">Volver a la biblioteca</string>
 </resources>

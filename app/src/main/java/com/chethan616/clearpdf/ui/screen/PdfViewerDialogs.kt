@@ -78,6 +78,8 @@ import com.chethan616.clearpdf.ui.components.DestructiveGlassButton
 import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.components.viewerGlass
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
@@ -333,7 +335,7 @@ internal fun AnnotationEditorDialog(
                     }
 
                     // Colour picker — recolour the text / sticky note.
-                    AnnotationColorRow(selected = color, fgSoft = fgSoft, onPick = { color = it })
+                    AnnotationColorRow(selected = color, backdrop = backdrop, fgSoft = fgSoft, onPick = { color = it })
 
                     Row(
                         Modifier.fillMaxWidth(),
@@ -634,25 +636,32 @@ internal fun ExportShareDialog(
 // vivid accents for shapes and notes).
 internal val editorPalette: List<Color> = listOf(
     Color(0xFF1A1A1A), // near-black ink
-    Color(0xFF1976D2), // blue
-    Color(0xFFE53935), // red
-    Color(0xFF43A047), // green
-    Color(0xFFFB8C00), // orange
-    Color(0xFF8E24AA), // purple
-    Color(0xFF00ACC1), // teal
-    Color(0xFFFFC107)  // amber (notes)
+    LiquidGlassColors.Blue,
+    LiquidGlassColors.Red,
+    LiquidGlassColors.Green,
+    LiquidGlassColors.Orange,
+    LiquidGlassColors.Purple,
+    LiquidGlassColors.Teal,
+    Color(0xFFFFCC00) // amber (notes)
 )
 
 /** A horizontal row of tappable colour beads; the selected one gets a ring. */
 @Composable
 internal fun AnnotationColorRow(
     selected: Color,
+    backdrop: LayerBackdrop,
     fgSoft: Color,
     onPick: (Color) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BasicText(stringResource(R.string.viewer_color), style = TextStyle(fgSoft, 12.sp, FontWeight.Medium))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .viewerGlass(backdrop, Color.White.copy(alpha = 0.07f), shape = { RoundedCornerShape(24.dp) })
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             editorPalette.forEach { c ->
                 val isSel = c.value == selected.value
                 Box(
@@ -662,7 +671,7 @@ internal fun AnnotationColorRow(
                         .background(c)
                         .border(
                             width = if (isSel) 2.5.dp else 1.dp,
-                            color = if (isSel) Color.White else Color.White.copy(0.25f),
+                            color = if (isSel) LiquidGlassColors.Blue else fgSoft.copy(alpha = 0.42f),
                             shape = CircleShape
                         )
                         .clickable { onPick(c) }
@@ -729,7 +738,7 @@ internal fun ShapeEditorPopup(
                         style = TextStyle(fg, 16.sp, fontWeight = FontWeight.Bold)
                     )
 
-                    AnnotationColorRow(selected = color, fgSoft = fgSoft, onPick = { color = it; onColorChange(it) })
+                    AnnotationColorRow(selected = color, backdrop = backdrop, fgSoft = fgSoft, onPick = { color = it; onColorChange(it) })
 
                     Row(
                         Modifier.fillMaxWidth(),

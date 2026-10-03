@@ -254,6 +254,7 @@ fun SettingsScreen(
     GlassScreenScaffold(
         backdrop = backdrop,
         screenBackdrop = screenBackdrop,
+        contentBottomPadding = 84.dp,
         header = { headerBackdrop ->
             // No back button here, so the pill centres against the full width. Fade only — the pill
             // is glass, and translating glass re-runs its blur+lens.
