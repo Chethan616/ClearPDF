@@ -77,6 +77,8 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Pause
@@ -229,6 +231,7 @@ fun PdfViewerScreen(
     val passwordFocusRequester = remember { FocusRequester() }
     var showSignaturePad    by remember { mutableStateOf(false) }
     var showZoomHud         by remember { mutableStateOf(false) }
+    var darkPageAppearance by rememberSaveable { mutableStateOf(false) }
     var bookmarkedPages by remember { mutableStateOf<List<Int>>(emptyList()) }
     // Annotation (text box / sticky note) editing
     var editingAnnoId       by remember { mutableStateOf<Long?>(null) }
@@ -1044,6 +1047,7 @@ fun PdfViewerScreen(
                             PdfContinuousPage(
                                 page               = page,
                                 bitmap             = state.pageBitmaps.getOrNull(page),
+                                darkPageAppearance = darkPageAppearance,
                                 marks              = getPageMarks(page),
                                 ocrBlocks          = state.ocrBlocksByPage[page].orEmpty(),
                                 findMatches        = state.findMatches,
@@ -1286,6 +1290,17 @@ fun PdfViewerScreen(
                         backdrop = contentBackdrop
                     ) {
                         Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), topFg)
+                    }
+                    LiquidIconButton(
+                        onClick = { darkPageAppearance = !darkPageAppearance },
+                        backdrop = contentBackdrop
+                    ) {
+                        Icon(
+                            if (darkPageAppearance) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
+                            stringResource(if (darkPageAppearance) R.string.viewer_page_colors_original else R.string.viewer_page_dark_mode),
+                            Modifier.size(20.dp),
+                            topFg
+                        )
                     }
                 }
             }
