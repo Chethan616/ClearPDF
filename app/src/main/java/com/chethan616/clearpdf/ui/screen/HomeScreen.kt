@@ -340,7 +340,7 @@ fun HomeScreen(
                     Modifier
                         .fillMaxWidth()
                         .then(entrance.entranceModifier(2, density))
-                        .liquidGlassPanel(backdrop, uiSensor)
+                        .liquidGlassPanel(backdrop, uiSensor, reducedEffects = true)
                         // The container's own minimise animation. `animateContentSize` sits INSIDE the
                         // glass (after `liquidGlassPanel`, which is a pure draw modifier that paints at
                         // whatever size it measures), so the glass tracks the animated height frame by
