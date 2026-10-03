@@ -215,7 +215,7 @@ fun SpreadsheetViewerScreen(
     val isDark = LocalIsDarkMode.current
     val text = LiquidGlassColors.text(isDark)
     val sub = LiquidGlassColors.secondary(isDark)
-    val accent = Color(0xFF1E8E5A)   // spreadsheet green
+    val accent = LiquidGlassColors.Blue
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -812,6 +812,7 @@ fun SpreadsheetViewerScreen(
             backdrop = backdrop,
             isLastStep = true,
             pointsUp = true,
+            arrowAtEnd = true,
             onNext = ::finishSpreadsheetTour,
             onSkip = ::finishSpreadsheetTour,
             modifier = Modifier.align(Alignment.TopEnd).padding(top = 112.dp, end = 12.dp)

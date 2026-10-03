@@ -182,7 +182,7 @@ internal fun PdfViewerBottomToolbar(
     // "coming soon" placeholder instead of the annotation tools.
     docKind: DocKind = DocKind.Pdf
 ) {
-    val accent = Color(0xFF1976D2)
+    val accent = LiquidGlassColors.Blue
 
     // The floating pills paint nothing at all, exactly as Home's controls do: `LiquidIconButton` is
     // called there with no `surfaceColor`, so its `onDrawSurface` is a no-op and the button is pure
@@ -381,7 +381,7 @@ internal fun PdfViewerBottomToolbar(
                                         }
                                     }
 
-                                    LiquidButton(onClick = onReplaceImage, backdrop = backdrop, tint = Color(0xFF1976D2)) {
+                                    LiquidButton(onClick = onReplaceImage, backdrop = backdrop, tint = LiquidGlassColors.Blue) {
                                         Row(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalAlignment = Alignment.CenterVertically,
@@ -476,7 +476,7 @@ internal fun PdfViewerBottomToolbar(
                     exportMessage != null -> {
                         BasicText(exportMessage, style = TextStyle(Color(0xFFB9F6CA), 12.sp))
                         if (lastExportedUri != null) {
-                            LiquidButton(onClick = onOpenExportedFile, backdrop = backdrop, tint = Color(0xFF1976D2)) {
+                            LiquidButton(onClick = onOpenExportedFile, backdrop = backdrop, tint = LiquidGlassColors.Blue) {
                                 BasicText(stringResource(R.string.open), style = TextStyle(Color.White, 11.sp, FontWeight.Medium))
                             }
                         }
@@ -713,7 +713,7 @@ internal fun PdfViewerBottomToolbar(
                 }
 
                 if (hasEdits && !isExporting) {
-                    LiquidButton(onClick = onShowSaveDialog, backdrop = backdrop, tint = Color(0xFF1976D2)) {
+                    LiquidButton(onClick = onShowSaveDialog, backdrop = backdrop, tint = LiquidGlassColors.Blue) {
                         BasicText(stringResource(R.string.viewer_save_edits), style = TextStyle(Color.White, 12.sp, FontWeight.Medium))
                     }
                 }
@@ -748,7 +748,8 @@ internal fun PdfViewerBottomToolbar(
                     },
                     backdrop = backdrop,
                     tint = if (editorOpen) accent else Color.Unspecified,
-                    surfaceColor = if (editorOpen) Color.Unspecified else pillGlass,
+                    surfaceColor = if (editorOpen) Color.Unspecified
+                    else if (readerTourStep == 0) LiquidGlassColors.Blue.copy(alpha = 0.22f) else pillGlass,
                     modifier = Modifier.weight(1f)
                 ) {
                     Row(
@@ -781,7 +782,7 @@ internal fun PdfViewerBottomToolbar(
         ) {
             ShareMorphButton(
                 backdrop = backdrop,
-                glass = pillGlass,
+                glass = if (readerTourStep == 1) LiquidGlassColors.Blue.copy(alpha = 0.2f) else pillGlass,
                 fg = fg,
                 onOpen = onOpenAnotherPdf,
                 onShare = onShareDocument,
@@ -805,6 +806,7 @@ internal fun PdfViewerBottomToolbar(
             message = stringResource(R.string.tour_reader_share_message),
             backdrop = backdrop,
             isLastStep = true,
+            arrowAtEnd = true,
             onNext = onReaderTourNext,
             onSkip = onReaderTourDismiss,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 116.dp).zIndex(5f)

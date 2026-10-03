@@ -43,6 +43,7 @@ fun GlassGuideCallout(
     backdrop: LayerBackdrop,
     isLastStep: Boolean,
     pointsUp: Boolean = false,
+    arrowAtEnd: Boolean = false,
     onNext: () -> Unit,
     onSkip: () -> Unit,
     modifier: Modifier = Modifier
@@ -68,7 +69,12 @@ fun GlassGuideCallout(
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (arrowAtEnd) Arrangement.spacedBy(6.dp, Alignment.End)
+                else Arrangement.spacedBy(6.dp, Alignment.Start)
+            ) {
                 Icon(
                     if (pointsUp) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
                     null,

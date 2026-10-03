@@ -77,6 +77,7 @@ import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.selection.PdfTextSelectionState
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -195,7 +196,7 @@ internal fun PdfContinuousPage(
     ) {
         if (bitmap == null) {
             Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color(0xFF1976D2), strokeWidth = 2.dp)
+                CircularProgressIndicator(color = LiquidGlassColors.Blue, strokeWidth = 2.dp)
             }
             return@Box
         }
@@ -306,7 +307,7 @@ internal fun PdfContinuousPage(
                             var yy = markup.position.y + markup.fontSize
                             linesT.forEach { ln -> c.nativeCanvas.drawText(ln, markup.position.x, yy, paint); yy += markup.fontSize * 1.2f }
                         }
-                        if (markup.text.isEmpty()) drawRect(Color(0xFF1976D2).copy(0.5f),
+                        if (markup.text.isEmpty()) drawRect(LiquidGlassColors.Blue.copy(0.5f),
                             Offset(markup.position.x - 4f, markup.position.y - 4f), Size(markup.fontSize * 5f, markup.fontSize * 1.4f), style = Stroke(2f))
                     }
                     is PdfMarkup.NoteMarkup -> {

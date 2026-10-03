@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.viewmodel.ExportOverlay
 import com.chethan616.clearpdf.ui.viewmodel.FindMatch
 import com.chethan616.clearpdf.ui.viewmodel.NormalizedPoint
@@ -289,7 +290,7 @@ internal fun PdfMarkup.shapeColor(): Color = when (this) {
     is PdfMarkup.LineMarkup   -> color
     is PdfMarkup.TextBlockHighlightMarkup -> color
     is PdfMarkup.TextBlockLineMarkup      -> color
-    else -> Color(0xFF1976D2)
+    else -> LiquidGlassColors.Blue
 }
 
 internal fun PdfMarkup.recolored(c: Color): PdfMarkup = when (this) {

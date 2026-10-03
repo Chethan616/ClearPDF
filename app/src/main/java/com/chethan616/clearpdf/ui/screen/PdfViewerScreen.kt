@@ -192,7 +192,7 @@ fun PdfViewerScreen(
     val isLight        = !isDarkMode
     val text           = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
     val sub            = if (isLight) Color(0xFF888888) else Color(0xFFAAAAAA)
-    val accent         = Color(0xFF1976D2)
+    val accent         = LiquidGlassColors.Blue
     val uiSensor       = rememberUISensor()
     val context        = LocalContext.current
     val bookmarkUri    = state.originalUri ?: state.document?.uri
@@ -242,7 +242,7 @@ fun PdfViewerScreen(
     var editingAnnoPage     by remember { mutableStateOf(0) }
     var editingAnnoIsNote   by remember { mutableStateOf(false) }
     var annotationDraft     by remember { mutableStateOf("") }
-    var editingAnnoColor    by remember { mutableStateOf(Color(0xFF1976D2)) }
+    var editingAnnoColor    by remember { mutableStateOf(LiquidGlassColors.Blue) }
     // Shape (rect / oval / line / arrow / stroke) editing — identified by page + list index.
     var editingShapePage    by remember { mutableStateOf<Int?>(null) }
     var editingShapeIndex   by remember { mutableStateOf(-1) }
@@ -1110,7 +1110,7 @@ fun PdfViewerScreen(
                                     editingAnnoColor = when (m) {
                                         is PdfMarkup.TextBoxMarkup -> m.color
                                         is PdfMarkup.NoteMarkup    -> m.color
-                                        else -> Color(0xFF1976D2)
+                                        else -> LiquidGlassColors.Blue
                                     }
                                     controlsVisible = true
                                 },

@@ -306,7 +306,7 @@ fun SettingsScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector, val activeColor: Color)
                 val options = listOf(
-                    ThemeOption(0, stringResource(R.string.settings_theme_auto), Icons.Rounded.PhoneAndroid, Color(0xFF0088FF)),
+                    ThemeOption(0, stringResource(R.string.settings_theme_auto), Icons.Rounded.PhoneAndroid, LiquidGlassColors.Blue),
                     ThemeOption(1, stringResource(R.string.settings_theme_light), Icons.Rounded.LightMode, Color(0xFFFFA726)),
                     ThemeOption(2, stringResource(R.string.settings_theme_dark), Icons.Rounded.DarkMode, Color(0xFF7C4DFF))
                 )
@@ -374,7 +374,7 @@ fun SettingsScreen(
                     LangOption("pt-BR", stringResource(R.string.language_portuguese)),
                     LangOption("es", stringResource(R.string.language_spanish))
                 )
-                val accent = Color(0xFF0088FF)
+                val accent = LiquidGlassColors.Blue
                 langs.forEach { opt ->
                     val isSelected = selectedLocale == opt.code
                     val cc = if (isSelected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
@@ -412,7 +412,7 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), Color(0xFF1976D2))
+                Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), LiquidGlassColors.Blue)
                 BasicText(stringResource(R.string.settings_save_location), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
@@ -430,10 +430,10 @@ fun SettingsScreen(
                     Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF1976D2).copy(0.14f)),
+                        .background(LiquidGlassColors.Blue.copy(0.14f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Rounded.FolderOpen, null, Modifier.size(20.dp), Color(0xFF1976D2))
+                    Icon(Icons.Rounded.FolderOpen, null, Modifier.size(20.dp), LiquidGlassColors.Blue)
                 }
                 Column(Modifier.weight(1f)) {
                     BasicText(
@@ -581,18 +581,18 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), Color(0xFF1976D2))
+                    Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), LiquidGlassColors.Blue)
                     BasicText(stringResource(R.string.settings_compression_quality), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
                 }
                 Box(
                     Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF1976D2).copy(0.14f))
+                        .background(LiquidGlassColors.Blue.copy(0.14f))
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     BasicText(
                         "${(defaultQuality * 100).toInt()}%",
-                        style = TextStyle(Color(0xFF1976D2), 13.sp, fontWeight = FontWeight.Bold)
+                        style = TextStyle(LiquidGlassColors.Blue, 13.sp, fontWeight = FontWeight.Bold)
                     )
                 }
             }
@@ -728,10 +728,10 @@ fun SettingsScreen(
         ) {
             Box(
                 Modifier.size(56.dp).clip(CircleShape)
-                    .background(Color(0xFF0088FF).copy(0.12f)),
+                    .background(LiquidGlassColors.Blue.copy(0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Rounded.Info, null, Modifier.size(28.dp), Color(0xFF0088FF))
+                Icon(Icons.Rounded.Info, null, Modifier.size(28.dp), LiquidGlassColors.Blue)
             }
             BasicText("ClearPDF", style = TextStyle(text, 20.sp, fontWeight = FontWeight.Bold))
             BasicText(stringResource(R.string.settings_version), style = TextStyle(sub, 13.sp))
@@ -1039,7 +1039,7 @@ private fun LicenseItem(
         // looks exactly as before — only its behaviour changes.
         BasicText(
             url,
-            style = TextStyle(Color(0xFF0088FF), 11.sp),
+            style = TextStyle(LiquidGlassColors.Blue, 11.sp),
             modifier = Modifier.clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null

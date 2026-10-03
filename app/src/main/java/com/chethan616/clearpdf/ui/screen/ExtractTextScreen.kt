@@ -47,6 +47,7 @@ import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
 import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.ExtractTextViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
@@ -150,7 +151,7 @@ fun ExtractTextScreen(
                             context.startActivity(Intent.createChooser(send, context.getString(R.string.extract_share_text)))
                         },
                         backdrop = backdrop,
-                        tint = Color(0xFF0088FF),
+                        tint = LiquidGlassColors.Blue,
                         modifier = Modifier.size(44.dp)
                     ) {
                         Icon(Icons.Rounded.Share, stringResource(R.string.share), Modifier.size(20.dp), Color.White)

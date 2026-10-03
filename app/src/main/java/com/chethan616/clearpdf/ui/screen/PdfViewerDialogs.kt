@@ -187,7 +187,7 @@ internal fun LiquidPageJumpPopup(
                             if (currentPage in bookmarkedPages) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                             null,
                             Modifier.size(17.dp),
-                            if (currentPage in bookmarkedPages) Color(0xFF1976D2) else fg
+                            if (currentPage in bookmarkedPages) LiquidGlassColors.Blue else fg
                         )
                         BasicText(
                             stringResource(if (currentPage in bookmarkedPages) R.string.viewer_bookmark_remove else R.string.viewer_bookmark_add),
@@ -239,7 +239,7 @@ internal fun LiquidPageJumpPopup(
                             if (p != null) onJumpToPage(p)
                         },
                         backdrop = backdrop,
-                        tint = Color(0xFF1976D2)
+                        tint = LiquidGlassColors.Blue
                     ) {
                         BasicText(stringResource(R.string.viewer_go), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
                     }
@@ -346,7 +346,7 @@ internal fun AnnotationEditorDialog(
                         LiquidButton(onClick = onDismiss, backdrop = backdrop, surfaceColor = field) {
                             BasicText(stringResource(R.string.cancel), style = TextStyle(fg, 13.sp))
                         }
-                        LiquidButton(onClick = { onSave(text, color) }, backdrop = backdrop, tint = Color(0xFF1976D2)) {
+                        LiquidButton(onClick = { onSave(text, color) }, backdrop = backdrop, tint = LiquidGlassColors.Blue) {
                             BasicText(stringResource(R.string.anno_save), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
                         }
                     }
@@ -495,7 +495,7 @@ internal fun ExportShareDialog(
                                     LiquidButton(
                                         onClick = { encrypt = enc },
                                         backdrop = backdrop,
-                                        tint = if (sel) Color(0xFF1976D2) else Color.Unspecified,
+                                        tint = if (sel) LiquidGlassColors.Blue else Color.Unspecified,
                                         surfaceColor = if (sel) Color.Unspecified else field,
                                         modifier = Modifier.weight(1f)
                                     ) {
@@ -551,7 +551,7 @@ internal fun ExportShareDialog(
                                 )
                             },
                             backdrop = backdrop,
-                            tint = if (canShare) Color(0xFF1976D2) else Color(0xFF1976D2).copy(0.4f)
+                            tint = if (canShare) LiquidGlassColors.Blue else LiquidGlassColors.Blue.copy(0.4f)
                         ) {
                             BasicText(stringResource(R.string.viewer_share_button), style = TextStyle(Color.White, 13.sp, fontWeight = FontWeight.Bold))
                         }
@@ -746,7 +746,7 @@ internal fun ShapeEditorPopup(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         DestructiveGlassButton(stringResource(R.string.delete), onDelete, backdrop)
-                        LiquidButton(onClick = onDismiss, backdrop = backdrop, tint = Color(0xFF1976D2)) {
+                        LiquidButton(onClick = onDismiss, backdrop = backdrop, tint = LiquidGlassColors.Blue) {
                             BasicText(stringResource(R.string.viewer_done), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
                         }
                     }
