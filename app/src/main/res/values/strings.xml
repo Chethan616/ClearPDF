@@ -200,6 +200,8 @@
     <string name="viewer_pick_pdf">Pick a PDF</string>
     <string name="viewer_select_file">Select a PDF file from your device to view it</string>
     <string name="viewer_page_of">Page %1$d / %2$d</string>
+    <string name="viewer_page_dark_mode">Enable dark page colors</string>
+    <string name="viewer_page_colors_original">Restore original page colors</string>
     <string name="viewer_draw_tools">Draw Tools</string>
     <string name="viewer_select_text">Select Text</string>
     <string name="viewer_add_image">Add Image</string>

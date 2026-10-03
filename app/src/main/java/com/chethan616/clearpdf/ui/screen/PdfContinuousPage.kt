@@ -53,6 +53,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -101,6 +103,7 @@ import kotlin.math.min
 internal fun PdfContinuousPage(
     page: Int,
     bitmap: Bitmap?,
+    darkPageAppearance: Boolean = false,
     marks: MutableList<PdfMarkup>,
     ocrBlocks: List<OcrTextBlock>,
     findMatches: List<FindMatch>,
@@ -198,7 +201,21 @@ internal fun PdfContinuousPage(
             bitmap = bitmap.asImageBitmap(),
             contentDescription = null,
             contentScale = ContentScale.FillWidth,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colorFilter = if (darkPageAppearance) {
+                remember {
+                    ColorFilter.colorMatrix(
+                        ColorMatrix(
+                            floatArrayOf(
+                                -1f, 0f, 0f, 0f, 255f,
+                                0f, -1f, 0f, 0f, 255f,
+                                0f, 0f, -1f, 0f, 255f,
+                                0f, 0f, 0f, 1f, 0f
+                            )
+                        )
+                    )
+                }
+            } else null
         )
 
         // The image fills the box width and the box height follows it, so the content

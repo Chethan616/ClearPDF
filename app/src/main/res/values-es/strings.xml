@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="viewer_page_dark_mode">Activar colores oscuros de página</string>
+    <string name="viewer_page_colors_original">Restaurar los colores originales</string>
     <string name="app_name">ClearPDF</string>
 
     <!-- Accesos directos de la app -->
