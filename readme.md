@@ -16,6 +16,7 @@ Read and annotate PDFs, sign forms, work with Office documents, edit spreadsheet
 <p>
   <a href="https://github.com/Chethan616/ClearPDF/stargazers"><img src="https://img.shields.io/github/stars/Chethan616/ClearPDF?style=flat-square&color=FF9F0A" alt="GitHub stars"></a>
   <a href="https://github.com/Chethan616/ClearPDF/releases/latest"><img src="https://img.shields.io/github/v/release/Chethan616/ClearPDF?style=flat-square&color=0A84FF&label=latest%20release" alt="Latest release"></a>
+  <a href="https://github.com/Chethan616/ClearPDF/releases"><img src="https://img.shields.io/github/downloads/Chethan616/ClearPDF/total?style=flat-square&color=BF5AF2&label=downloads" alt="Total GitHub downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/Chethan616/ClearPDF?style=flat-square&color=30D158" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/Android-6.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android 6.0 or newer">
   <a href="https://github.com/Chethan616/ClearPDF/actions/workflows/android.yml"><img src="https://img.shields.io/github/actions/workflow/status/Chethan616/ClearPDF/android.yml?branch=main&style=flat-square&label=Android%20build" alt="Android build status"></a>
