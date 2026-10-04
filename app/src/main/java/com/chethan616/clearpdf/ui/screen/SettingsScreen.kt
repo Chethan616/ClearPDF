@@ -365,7 +365,8 @@ fun SettingsScreen(
                 val langs = listOf(
                     LangOption("en", stringResource(R.string.language_english)),
                     LangOption("pt-BR", stringResource(R.string.language_portuguese)),
-                    LangOption("es", stringResource(R.string.language_spanish))
+                    LangOption("es", stringResource(R.string.language_spanish)),
+                    LangOption("it", stringResource(R.string.language_italian))
                 )
                 val accent = Color(0xFF0088FF)
                 langs.forEach { opt ->

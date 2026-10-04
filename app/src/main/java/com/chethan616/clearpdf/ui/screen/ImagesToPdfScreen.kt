@@ -205,7 +205,7 @@ fun ImagesToPdfScreen(
                 backdrop = backdrop, tint = accent, modifier = Modifier.fillMaxWidth()
             ) {
                 BasicText(
-                    if (state.isSaving) "Creating…" else "Create PDF (${state.imageUris.size})",
+                    if (state.isSaving) stringResource(R.string.images_to_pdf_working) else "${stringResource(R.string.tool_create)} (${state.imageUris.size})",
                     style = TextStyle(Color.White, 15.sp, FontWeight.Medium),
                     modifier = Modifier.padding(vertical = 8.dp)
                 )

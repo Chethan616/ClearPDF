@@ -104,7 +104,13 @@
     <string name="extract_pages_hint">e.g. 1-3, 5, 8-10</string>
     <string name="extract_pages_total">of %1$d</string>
     <string name="extract_pages_action">Extract Pages</string>
+    <string name="extract_selected_action">Extract Selected</string>
+    <string name="extract_pages_selected_action">Extract Selected Pages</string>
     <string name="extract_pages_working">Extracting…</string>
+    <string name="split_all_action">Split All</string>
+    <string name="split_all_hint">This will generate one PDF per page.</string>
+    <string name="split_all_pages_action">Split All Pages</string>
+    <string name="split_all_working">Splitting…</string>
     <string name="tool_page_numbers">Page Numbers</string>
     <string name="tool_page_numbers_sub">Number every page</string>
     <string name="page_numbers_position">Position</string>
@@ -132,6 +138,9 @@
     <string name="image_tools_processing">Processing…</string>
     <string name="image_tools_save">Save</string>
     <string name="image_tools_share">Share</string>
+    <string name="images_to_pdf_working">Creating…</string>
+    <string name="compress_action">Compress Now</string>
+    <string name="compress_working">Compressing…</string>
     <string name="tool_html_to_pdf">Web to PDF</string>
     <string name="tool_html_to_pdf_sub">URL or HTML to PDF</string>
     <string name="html_to_pdf_mode_web">Web URL</string>
@@ -304,6 +313,7 @@
     <string name="language_english">English</string>
     <string name="language_portuguese">Portuguese</string>
     <string name="language_spanish">Spanish</string>
+    <string name="language_italian">Italian</string>
     <string name="recents_open">Open</string>
     <string name="recents_share">Share</string>
     <string name="recents_details">Details</string>
@@ -404,6 +414,7 @@
     <string name="file_preview_open">Open document</string>
     <string name="tool_merge_description">Select two or more PDF files to merge into one</string>
     <string name="tool_split_description">Choose a mode, then run one clear primary action.</string>
+    <string name="tool_organizer_description">Pick a PDF, drag pages to rearrange, then save a new copy. Original text &amp; quality are preserved.</string>
     <string name="files_selected">%1$d files selected</string>
     <string name="reorder_files_hint">Reorder files before merging. Top to bottom = output order.</string>
     <string name="select_two_pdfs">Select at least 2 PDFs to continue.</string>
@@ -414,6 +425,7 @@
     <string name="split_quick_odd">Odd</string>
     <string name="split_quick_even">Even</string>
     <string name="create_pdf_subtitle">Create with scans, images, or blank pages</string>
+    <string name="create_hint">Image-first creation is now default. Text is available as an advanced mode.</string>
     <string name="create_scan_or_images_hint">Scan or add images to start your PDF draft.</string>
     <string name="create_page_label">Page %1$d</string>
     <string name="create_reorder_hint">Tap arrows to reorder</string>
@@ -441,6 +453,7 @@
     <string name="select_all">Select all</string>
     <string name="organize_rotate">Rotate</string>
     <string name="organize_drag">Drag</string>
+    <string name="organizer_hint">Long-press a page to drag · tap to select.</string>
     <string name="nav_home">Home</string>
     <string name="nav_tools">Tools</string>
     <string name="nav_settings">Settings</string>
@@ -448,6 +461,14 @@
     <string name="previous">Previous</string>
     <string name="next">Next</string>
     <string name="undo">Undo</string>
+    <string name="source">Source</string>
+    <string name="move">Move</string>
+    <string name="estimated_output">Estimated output</string>
+    <string name="approximation">about</string>
+    <string name="page_numeral">page</string>
+    <string name="select_numeral">selected</string>
+    <string name="count_singular_f"></string>
+    <string name="count_plural_f">s</string>
     <string name="change_folder">Change folder</string>
     <string name="selected_folder">Selected folder</string>
     <string name="save_document">Save document</string>
@@ -477,6 +498,7 @@
     <string name="scan_vivid">Vivid</string>
     <string name="saving">Saving...</string>
     <string name="save_as_pdf">Save as PDF</string>
+    <string name="save_as_new_pdf">Save as PDF</string>
     <string name="pdf_saved_successfully">PDF saved successfully!</string>
     <string name="pdf_save_failed">Failed to save PDF</string>
     <string name="size_kb">Size: %1$d KB</string>
@@ -498,6 +520,7 @@
     <string name="operation_failed">Something went wrong. Please try again.</string>
     <string name="open_pdf_failed">Could not open this PDF.</string>
     <string name="save_pdf_failed_generic">Could not save the PDF.</string>
+    <string name="open_image_failed">Couldn\'t open this image.</string>
     <string name="merge_min_files">Select at least 2 PDFs</string>
     <string name="merge_success">Merged %1$d files -&gt; %2$s\nSaved to %3$s</string>
     <string name="merge_failed">Merge failed.</string>
@@ -653,7 +676,7 @@
     <string name="sheet_edit">Edit</string>
     <string name="sheet_done">Done</string>
     <string name="sheet_save">Save</string>
-    <string name="sheet_save_as">Save as</string>
+    <string name="sheet_save_as">Save as...</string>
     <string name="sheet_saved">Saved</string>
     <string name="sheet_save_failed">Couldn\'t save the spreadsheet</string>
     <string name="sheet_unsaved_title">Save changes?</string>
@@ -686,5 +709,6 @@
     <string name="sheet_formula_hint">Enter a value or =formula</string>
     <string name="sheet_read_only">This file can be viewed but not edited</string>
     <string name="sheet_invalid_value">That value isn\'t in this cell\'s list</string>
+    <string name="sheet_empty">Empty spreadsheet</string>
     <string name="office_engine_rendered">Rendered by Office engine</string>
 </resources>

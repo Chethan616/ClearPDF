@@ -170,7 +170,7 @@ fun ImageEditorScreen(
                     CircularProgressIndicator(color = LiquidGlassColors.Blue, strokeWidth = 2.5.dp)
                 }
                 state.error != null || state.preview == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    BasicText(state.error ?: "Couldn't open this image.", style = TextStyle(sub, 14.sp))
+                    BasicText(state.error ?: stringResource(R.string.open_image_failed), style = TextStyle(sub, 14.sp))
                 }
                 state.tool == Tool.Crop && state.crop != null -> EditorCropStage(
                     session = state.crop!!,
