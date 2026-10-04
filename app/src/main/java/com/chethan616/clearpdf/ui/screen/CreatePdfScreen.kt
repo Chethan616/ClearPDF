@@ -215,7 +215,7 @@ fun CreatePdfScreen(
             Icon(Icons.AutoMirrored.Rounded.NoteAdd, null, Modifier.size(52.dp), accent)
             BasicText(stringResource(R.string.create_pdf_subtitle), style = TextStyle(text, 19.sp, fontWeight = FontWeight.SemiBold))
             BasicText(
-                "Image-first creation is now default. Text is available as an advanced mode.",
+                stringResource(R.string.create_hint),
                 style = TextStyle(sub, 13.sp, textAlign = TextAlign.Center)
             )
         }
@@ -473,7 +473,7 @@ fun CreatePdfScreen(
                     Icon(Icons.AutoMirrored.Rounded.NoteAdd, null, Modifier.size(20.dp), Color.White)
                 }
                 BasicText(
-                    if (state.isCreating) "Creating..." else createLabel,
+                    if (state.isCreating) stringResource(R.string.images_to_pdf_working) else createLabel,
                     style = TextStyle(Color.White, 16.sp, fontWeight = FontWeight.SemiBold)
                 )
             }

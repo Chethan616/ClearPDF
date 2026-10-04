@@ -459,7 +459,8 @@ private fun LanguageChooser(
         listOf(
             "en" to R.string.language_english,
             "pt-BR" to R.string.language_portuguese,
-            "es" to R.string.language_spanish
+            "es" to R.string.language_spanish,
+            "it" to R.string.language_italian
         ).forEach { (code, res) ->
             val selected = selectedLocale == code
             LiquidButton(

@@ -502,7 +502,7 @@ fun SpreadsheetViewerScreen(
                     CircularProgressIndicator(color = accent, strokeWidth = 2.5.dp)
                 }
                 sheet == null || layout == null || painter == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    BasicText(state.error ?: "Empty spreadsheet", style = TextStyle(sub, 14.sp))
+                    BasicText(state.error ?: stringResource(R.string.sheet_empty), style = TextStyle(sub, 14.sp))
                 }
                 else -> Column(
                     Modifier

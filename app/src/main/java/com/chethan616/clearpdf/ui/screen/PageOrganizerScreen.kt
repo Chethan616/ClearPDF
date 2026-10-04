@@ -2,7 +2,6 @@ package com.chethan616.clearpdf.ui.screen
 
 import androidx.compose.ui.res.stringResource
 import com.chethan616.clearpdf.R
-
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -33,7 +32,9 @@ import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DragIndicator
+import androidx.compose.material.icons.rounded.Numbers
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
+import androidx.compose.material.icons.rounded.Reorder
 import androidx.compose.material.icons.rounded.RotateRight
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
@@ -78,8 +79,8 @@ import com.chethan616.clearpdf.ui.viewmodel.PageOrganizerViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
-
 import androidx.compose.ui.graphics.graphicsLayer
+import java.util.Locale
 
 @Composable
 fun PageOrganizerScreen(
@@ -189,9 +190,10 @@ fun PageOrganizerScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    Icon(Icons.Rounded.Reorder, null, Modifier.size(56.dp), accent)
                     BasicText(stringResource(R.string.organize_title), style = TextStyle(text, 18.sp, fontWeight = FontWeight.SemiBold))
                     BasicText(
-                        "Pick a PDF, drag pages to rearrange, then save a new copy. Original text & quality are preserved.",
+                        stringResource(R.string.tool_organizer_description),
                         style = TextStyle(sub, 13.sp)
                     )
                     LiquidButton(onClick = { picker.launch(arrayOf("application/pdf")) }, backdrop = backdrop, tint = accent) {
@@ -218,7 +220,19 @@ fun PageOrganizerScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             BasicText(
-                if (selCount > 0) "$selCount selected" else "${state.pages.size} pages",
+                if (selCount == 1) "$selCount ${stringResource(R.string.select_numeral)}${
+                    stringResource(
+                        R.string.count_singular_f
+                    )
+                }" else if (selCount > 1) "$selCount ${stringResource(R.string.select_numeral)}${if (Locale.getDefault().language != "en")
+                    stringResource(
+                        R.string.count_plural_f
+                    )
+                else ""}" else "${state.pages.size} ${stringResource(R.string.page_numeral)}${
+                    stringResource(
+                        R.string.count_plural_f
+                    )
+                }",
                 style = TextStyle(text, 13.sp, FontWeight.SemiBold),
                 modifier = Modifier.weight(1f)
             )
@@ -240,7 +254,7 @@ fun PageOrganizerScreen(
         }
 
         BasicText(
-            "Long-press a page to drag · tap to select",
+            stringResource(R.string.organizer_hint),
             style = TextStyle(sub, 11.sp), modifier = Modifier.fillMaxWidth()
         )
 
@@ -327,7 +341,7 @@ fun PageOrganizerScreen(
                         Column(Modifier.weight(1f)) {
                             BasicText(stringResource(R.string.create_page_label, index + 1), style = TextStyle(text, 14.sp, FontWeight.Medium))
                             BasicText(
-                                "Source #${page.originalIndex + 1}" + if (page.rotation != 0) " · ${page.rotation}°" else "",
+                                "${stringResource(R.string.source)} #${page.originalIndex + 1}" + if (page.rotation != 0) " · ${page.rotation}°" else "",
                                 style = TextStyle(sub, 11.sp)
                             )
                         }
@@ -380,7 +394,11 @@ fun PageOrganizerScreen(
                             )
                         }
                         BasicText(
-                            if (draggingIds.size > 1) "${draggingIds.size} pages" else "Move",
+                            if (draggingIds.size > 1) "${draggingIds.size} ${stringResource(R.string.page_numeral)}${
+                                stringResource(
+                                    R.string.count_plural_f
+                                )
+                            }" else stringResource(R.string.move),
                             style = TextStyle(Color.White, 13.sp, FontWeight.SemiBold)
                         )
                     }
@@ -406,7 +424,7 @@ fun PageOrganizerScreen(
             backdrop = backdrop, tint = accent, modifier = Modifier.fillMaxWidth()
         ) {
             BasicText(
-                if (state.isSaving) "Saving…" else "Save as new PDF",
+                if (state.isSaving) stringResource(R.string.saving) else stringResource(R.string.save_as_new_pdf),
                 style = TextStyle(Color.White, 15.sp, FontWeight.Medium),
                 modifier = Modifier.padding(vertical = 8.dp)
             )
