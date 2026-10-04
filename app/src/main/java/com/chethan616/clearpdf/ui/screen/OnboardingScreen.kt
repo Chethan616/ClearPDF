@@ -444,7 +444,7 @@ private fun LanguageChooser(
     onLocaleSelected: (String) -> Unit,
     isDark: Boolean
 ) {
-    val accent = Color(0xFF0088FF)
+    val accent = LiquidGlassColors.Blue
     Column(
         Modifier
             .fillMaxWidth()
@@ -527,7 +527,7 @@ private fun AppearanceChooser(
 
     data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector, val accent: Color)
     val options = listOf(
-        ThemeOption(0, stringResource(R.string.settings_theme_auto), Icons.Rounded.PhoneAndroid, Color(0xFF0088FF)),
+        ThemeOption(0, stringResource(R.string.settings_theme_auto), Icons.Rounded.PhoneAndroid, LiquidGlassColors.Blue),
         ThemeOption(1, stringResource(R.string.settings_theme_light), Icons.Rounded.LightMode, Color(0xFFFFA726)),
         ThemeOption(2, stringResource(R.string.settings_theme_dark), Icons.Rounded.DarkMode, Color(0xFF7C4DFF))
     )

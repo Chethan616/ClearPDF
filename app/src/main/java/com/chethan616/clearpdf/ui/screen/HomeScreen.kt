@@ -100,6 +100,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
+import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 import com.chethan616.clearpdf.ui.components.GlassCapsuleMenu
 import com.chethan616.clearpdf.ui.components.GlassMotion
@@ -150,6 +151,7 @@ fun HomeScreen(
     val homeScope = rememberCoroutineScope()
 
     var recents by remember { mutableStateOf(RecentFilesManager.getRecents(context)) }
+    var recentFilesEnabled by remember { mutableStateOf(AppSettingsManager.getRememberRecentFiles(context)) }
     var showAllRecents by remember { mutableStateOf(false) }
     var recentQuery by remember { mutableStateOf("") }
     var searchActive by remember { mutableStateOf(false) }
@@ -189,6 +191,7 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                recentFilesEnabled = AppSettingsManager.getRememberRecentFiles(context)
                 recents = RecentFilesManager.getRecents(context)
             }
         }
@@ -241,7 +244,12 @@ fun HomeScreen(
         ) {
             // Welcome card. It collapses while searching so results own the fold.
             item(key = "hero") {
-                AnimatedVisibility(
+                val centerHero = !recentFilesEnabled && !searchActive
+                Box(
+                    Modifier.fillMaxWidth().then(if (centerHero) Modifier.fillParentMaxHeight() else Modifier),
+                    contentAlignment = if (centerHero) Alignment.Center else Alignment.TopCenter
+                ) {
+                    AnimatedVisibility(
                     visible = !searchActive,
                     // Desync the fade from the height so the glass is invisible whenever its size is
                     // moving — an alpha-0 liquidGlassPanel draws nothing, so the collapse can't show
@@ -249,7 +257,8 @@ fun HomeScreen(
                     // than a shimmer. Open the height first, then fade in; fade out fast, then finish
                     // shrinking unseen.
                     enter = expandVertically(tween(240)) + fadeIn(tween(200, delayMillis = 110)),
-                    exit = fadeOut(tween(120)) + shrinkVertically(tween(240))
+                    exit = fadeOut(tween(120)) + shrinkVertically(tween(240)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         Modifier
@@ -330,12 +339,14 @@ fun HomeScreen(
                         }
                     }
                 }
+                }
             }
 
             // Recent files. The rows stay inside a single glass panel — one refraction
             // pass for the whole list rather than one per row — and the list is capped at
             // MAX_RECENTS (20), so composing them together is cheap.
             item(key = "recents") {
+                if (recentFilesEnabled) {
                 Column(
                     Modifier
                         .fillMaxWidth()
@@ -487,6 +498,7 @@ fun HomeScreen(
                             )
                         }
                     }
+                }
                 }
             }
 

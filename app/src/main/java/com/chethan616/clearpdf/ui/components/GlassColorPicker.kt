@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -340,21 +341,38 @@ private fun SwatchRow(
                 return@forEach
             }
             val isSel = c.copy(alpha = 1f).toArgb() == selArgb
+            val swatchShape = RoundedCornerShape(if (tight) 3.dp else 6.dp)
             Box(
                 Modifier
                     .weight(1f)
                     .aspectRatio(if (tight) 1.25f else 1f)
-                    .clip(RoundedCornerShape(if (tight) 3.dp else 6.dp))
+                    .clip(swatchShape)
                     .background(c)
                     .border(
                         width = if (isSel) 2.dp else 0.5.dp,
                         color = if (isSel) ring else outline,
-                        shape = RoundedCornerShape(if (tight) 3.dp else 6.dp)
+                        shape = swatchShape
                     )
                     .semantics { contentDescription = "#" + c.hex(false) }
                     .clickable(role = Role.Button) { onPick(c) },
                 contentAlignment = Alignment.Center
             ) {
+                // Lightweight specular sheen ties the dense Office palette to ClearPDF's glass
+                // controls without putting a separate blur/lens layer on dozens of tiny swatches.
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = 0.30f),
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.10f)
+                                )
+                            ),
+                            swatchShape
+                        )
+                )
                 if (isSel && !tight) {
                     Icon(
                         Icons.Rounded.Check,

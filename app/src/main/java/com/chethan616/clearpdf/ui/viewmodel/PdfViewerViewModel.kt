@@ -182,6 +182,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
     }
 
     private val renderingPages = mutableSetOf<Pair<Uri, Int>>()
+    private val pendingRenderWidths = mutableMapOf<Pair<Uri, Int>, Int>()
     private val renderedPageWidths = mutableMapOf<Int, Int>()
     private val textLoadingPages = mutableSetOf<Int>()
 
@@ -215,6 +216,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         _uiState.value.document?.let { openPdfUseCase.close(it) }
         recycleBitmaps(_uiState.value.pageBitmaps)
         renderingPages.clear()
+        pendingRenderWidths.clear()
         renderedPageWidths.clear()
         textLoadingPages.clear()
         _uiState.value = _uiState.value.copy(
@@ -272,10 +274,15 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                 val displayName = queryFileName(context, uri)
                     ?: RecentFilesManager.getRecents(context).firstOrNull { it.uriString == uri.toString() }?.name
                     ?: doc.name
+                val resumePage = RecentFilesManager.getRecents(context)
+                    .firstOrNull { it.uriString == uri.toString() }
+                    ?.currentPage
+                    ?.coerceIn(0, (doc.pageCount - 1).coerceAtLeast(0))
+                    ?: 0
                 _uiState.value = _uiState.value.copy(
                     fileName = displayName,
                     pageCount = doc.pageCount,
-                    currentPage = 0,
+                    currentPage = resumePage,
                     isLoading = false,
                     decrypting = false,
                     passwordRequired = false,
@@ -373,6 +380,9 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
     }.getOrElse { null }
 
     private fun mirrorPdfToAppStorage(context: Context, sourceUri: Uri): Uri {
+        if (!com.chethan616.clearpdf.data.repository.AppSettingsManager.getKeepLocalCopies(context)) {
+            throw IllegalStateException("Unable to access selected document")
+        }
         val input = context.contentResolver.openInputStream(sourceUri)
             ?: throw IllegalStateException("Unable to access selected document")
         val baseDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.cacheDir
@@ -406,7 +416,10 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
 
         val documentUri = doc.uri
         val renderKey = documentUri to pageIndex
-        if (!renderingPages.add(renderKey)) return
+        if (!renderingPages.add(renderKey)) {
+            pendingRenderWidths[renderKey] = maxOf(pendingRenderWidths[renderKey] ?: 0, renderWidth)
+            return
+        }
 
         viewModelScope.launch {
             try {
@@ -428,18 +441,26 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                 // through the viewport a frame later. That eviction is now solely `trimBitmapCache`
                 // (below), which the caller in `PdfViewerScreen` debounces — this function's only job
                 // is to place the bitmap it just rendered.
-                val bitmaps = currentState.pageBitmaps.toMutableList()
-                val previous = bitmaps[pageIndex]
-                if (previous != null && previous != bitmap && !previous.isRecycled) previous.recycle()
-                bitmaps[pageIndex] = bitmap
-                if (bitmap == null) renderedPageWidths.remove(pageIndex)
-                else renderedPageWidths[pageIndex] = renderWidth
-                _uiState.value = currentState.copy(pageBitmaps = bitmaps)
+                if (bitmap != null) {
+                    val bitmaps = currentState.pageBitmaps.toMutableList()
+                    val previous = bitmaps[pageIndex]
+                    if (previous != null && previous != bitmap && !previous.isRecycled) previous.recycle()
+                    bitmaps[pageIndex] = bitmap
+                    renderedPageWidths[pageIndex] = renderWidth
+                    _uiState.value = currentState.copy(pageBitmaps = bitmaps)
+                }
 
                 // Load text for page if not already done (async, IO thread)
                 loadTextPage(context, doc, pageIndex)
             } finally {
                 renderingPages.remove(renderKey)
+                val pendingWidth = pendingRenderWidths.remove(renderKey)
+                val latest = _uiState.value
+                if (pendingWidth != null && latest.document?.uri == documentUri &&
+                    (renderedPageWidths[pageIndex] ?: 0) < pendingWidth
+                ) {
+                    renderPage(context, pageIndex, pendingWidth)
+                }
             }
         }
     }

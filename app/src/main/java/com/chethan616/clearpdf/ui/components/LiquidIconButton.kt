@@ -43,6 +43,7 @@ fun LiquidIconButton(
     tint: Color = Color.Unspecified,
     surfaceColor: Color = Color.Unspecified,
     onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
     content: @Composable () -> Unit
 ) {
     val animationScope = rememberCoroutineScope()
@@ -106,6 +107,7 @@ fun LiquidIconButton(
                         indication = null,
                         role = Role.Button,
                         onClick = onClick,
+                        onLongClickLabel = onLongClickLabel,
                         onLongClick = onLongClick
                     )
                 else

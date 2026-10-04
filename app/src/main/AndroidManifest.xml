@@ -4,10 +4,10 @@
 
     <!-- Camera permission for document scanning -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- ClearPDF declares no network permissions here (note: merged ML Kit/datatransport library
-         manifests still contribute INTERNET). The play flavor itself is offline (the optional Office engine
-         arrives through Play Feature Delivery). Only the foss flavor adds INTERNET, solely to
-         download that engine on request - see src/foss/AndroidManifest.xml.
+    <!-- The main manifest does not declare INTERNET. Bundled libraries may contribute it when
+         manifests are merged. The Play build gets the optional Office engine through Play Feature
+         Delivery. The FOSS flavor declares INTERNET for the on-request engine download and the
+         user-entered URL-to-PDF flow - see src/foss/AndroidManifest.xml.
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> -->
     <!-- Legacy read access for older providers on Android 12L and below. -->
@@ -174,8 +174,8 @@
             android:exported="false"
             android:process=":office" />
 
-        <!-- WebViews only ever render local content; opt out of Safe Browsing lookups and
-             WebView usage metrics so nothing is sent even in builds that hold INTERNET. -->
+        <!-- Local-content WebViews block external loads. URL-to-PDF intentionally loads the
+             address entered by the user. Disable Safe Browsing lookups and WebView metrics. -->
         <meta-data
             android:name="android.webkit.WebView.EnableSafeBrowsing"
             android:value="false" />

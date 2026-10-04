@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.data.repository.SaveLocationManager
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.kyant.backdrop.Backdrop
 
@@ -151,7 +152,7 @@ private fun SaveDocumentBody(
     onSave: (fileName: String, locationUri: Uri?) -> Unit
 ) {
     val context = LocalContext.current
-    val accent = Color(0xFF1976D2)
+    val accent = LiquidGlassColors.Blue
     // Soft violet accent for the "choose location" affordance — a contextual, important action.
     val folderAccent = Color(0xFF7C5CFF)
 

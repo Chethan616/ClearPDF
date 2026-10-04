@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="viewer_page_dark_mode">Ativar cores escuras da página</string>
+    <string name="viewer_page_colors_original">Restaurar cores originais da página</string>
+    <string name="viewer_auto_scroll_start">Iniciar rolagem automática</string>
+    <string name="viewer_auto_scroll_pause">Pausar rolagem automática</string>
+    <string name="viewer_auto_scroll_speed">Alterar velocidade da rolagem</string>
+    <string name="viewer_bookmark_add">Adicionar marcador nesta página</string>
+    <string name="viewer_bookmark_remove">Remover marcador</string>
+    <string name="viewer_bookmark_page">Página %1$d</string>
     <string name="app_name">ClearPDF</string>
 
     <!-- App Shortcuts -->
@@ -95,6 +103,10 @@
     <string name="settings_auto_compress_desc">Comprimir PDFs automaticamente ao importar</string>
     <string name="settings_keep_original">Manter Original</string>
     <string name="settings_keep_original_desc">Preservar arquivo original ap&#243;s a edi&#231;&#227;o</string>
+    <string name="settings_remember_recent_files">Mostrar arquivos abertos em Recentes</string>
+    <string name="settings_remember_recent_files_desc">Desative para apagar o hist&#243;rico e as posi&#231;&#245;es de leitura salvas</string>
+    <string name="settings_keep_local_copies">Manter c&#243;pias locais para reabrir</string>
+    <string name="settings_keep_local_copies_desc">Ajuda a reabrir arquivos compartilhados por outros apps. Ao desativar, as c&#243;pias salvas s&#227;o apagadas; arquivos tempor&#225;rios necess&#225;rios para visualizar documentos ainda podem ser usados.</string>
     <string name="settings_compression_quality">Qualidade de compress&#227;o</string>
     <string name="settings_smaller_size">Menor tamanho</string>
     <string name="settings_higher_quality">Maior qualidade</string>
@@ -117,6 +129,9 @@
     <string name="viewer_select_text">Selecionar Texto</string>
     <string name="viewer_add_image">Adicionar Imagem</string>
     <string name="viewer_eraser">Borracha</string>
+    <string name="viewer_lasso">La&#231;o</string>
+    <string name="viewer_lasso_selected_count">%1$d selecionados — arraste para mover</string>
+    <string name="viewer_lasso_done">Concluir</string>
     <string name="viewer_save_edits">Salvar Edi&#231;&#245;es</string>
     <string name="viewer_sign">Assinar</string>
     <string name="viewer_find">Buscar</string>
@@ -152,6 +167,9 @@
     <string name="viewer_replace">Substituir</string>
     <string name="viewer_saving">Salvando PDF editado&#8230;</string>
     <string name="viewer_reset_zoom">Redefinir zoom %1$d%%</string>
+    <string name="viewer_zoom">Zoom</string>
+    <string name="viewer_zoom_in">Ampliar</string>
+    <string name="viewer_zoom_out">Reduzir</string>
     <string name="viewer_size">Tamanho</string>
     <string name="viewer_jump_to_page">Ir para a p&#225;gina</string>
 
@@ -512,4 +530,15 @@
     <string name="fill_form_flatten_desc">Tornar os valores preenchidos permanentes</string>
     <string name="fill_form_action">Salvar PDF preenchido</string>
     <string name="fill_form_working">Salvando…</string>
+    <string name="tour_skip">Ignorar</string>
+    <string name="tour_next">Seguinte</string>
+    <string name="tour_done">Percebi</string>
+    <string name="tour_reader_tools_title">Ferramentas de leitura</string>
+    <string name="tour_reader_tools_message">Toque no ícone de edição para realçar, desenhar, adicionar notas ou assinar.</string>
+    <string name="tour_reader_tools_ppt_message">Toque no ícone de notas para realçar, desenhar, adicionar notas ou assinar.</string>
+    <string name="tour_reader_share_title">Partilhar ou abrir outro ficheiro</string>
+    <string name="tour_reader_share_message">Toque na cápsula para abrir outro ficheiro. Para partilhar, mantenha-a premida e deslize para cima.</string>
+    <string name="tour_sheet_title">Editar uma folha de cálculo</string>
+    <string name="tour_sheet_message">Toque no lápis para mostrar as opções de formatação, cor e disposição das células.</string>
+    <string name="back_to_library">Voltar à biblioteca</string>
 </resources>

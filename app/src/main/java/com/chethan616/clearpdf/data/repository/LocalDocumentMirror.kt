@@ -60,6 +60,7 @@ object LocalDocumentMirror {
      *   without a dot — so the mirror's filename still sniffs as the right format downstream.
      */
     fun resolve(context: Context, original: Uri, extensionHint: String): Uri {
+        if (!AppSettingsManager.getKeepLocalCopies(context)) return original
         val originalSize = runCatching {
             context.contentResolver.openFileDescriptor(original, "r")?.use { it.statSize }
         }.getOrNull()
@@ -112,5 +113,18 @@ object LocalDocumentMirror {
         val savedPath = prefs(context).getString(key(original), null) ?: return
         runCatching { File(savedPath).delete() }
         prefs(context).edit().remove(key(original)).apply()
+    }
+
+    /** Removes all durable document recovery copies created by ClearPDF. */
+    fun clearAll(context: Context) {
+        prefs(context).edit().clear().apply()
+        val base = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: context.filesDir
+        listOf(
+            File(base, "mirrored"),
+            File(base, "imported_pdfs"),
+            File(context.cacheDir, "imported_pdfs")
+        ).distinct().forEach { dir ->
+            runCatching { dir.deleteRecursively() }
+        }
     }
 }

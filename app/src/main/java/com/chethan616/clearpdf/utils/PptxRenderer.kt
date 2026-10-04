@@ -293,6 +293,14 @@ internal object PptxRenderer {
 
         /** Tables arrive wrapped in a graphic frame; charts and SmartArt also do, and are skipped. */
         private fun drawGraphicFrame(canvas: Canvas, frame: OoxmlNode, ctx: SlideContext, transform: Transform) {
+            // Legacy Equation.3 objects carry a picture inside mc:Fallback. Android cannot open
+            // the embedded OLE object, but its fallback is the exact equation artwork Office
+            // displays; draw it through the same relationship/geometry path as ordinary pictures.
+            if (frame.find("p:oleObj") != null) {
+                frame.find("p:pic")?.let { drawPicture(canvas, it, ctx, transform) }
+                return
+            }
+
             val box = frame.find("p:xfrm")?.let { boxOf(it) }?.let { transform.apply(it) } ?: return
             val table = frame.find("a:tbl") ?: return
             val grid = table.find("a:tblGrid")?.childrenNamed("a:gridCol").orEmpty()

@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="viewer_page_dark_mode">Activar colores oscuros de página</string>
+    <string name="viewer_page_colors_original">Restaurar los colores originales</string>
+    <string name="viewer_auto_scroll_start">Iniciar desplazamiento automático</string>
+    <string name="viewer_auto_scroll_pause">Pausar desplazamiento automático</string>
+    <string name="viewer_auto_scroll_speed">Cambiar velocidad de desplazamiento</string>
+    <string name="viewer_bookmark_add">Guardar esta página</string>
+    <string name="viewer_bookmark_remove">Quitar marcador</string>
+    <string name="viewer_bookmark_page">Página %1$d</string>
     <string name="app_name">ClearPDF</string>
 
     <!-- Accesos directos de la app -->
@@ -168,6 +176,10 @@
     <string name="settings_auto_compress_desc">Comprimir automáticamente los PDF al importarlos</string>
     <string name="settings_keep_original">Conservar el original</string>
     <string name="settings_keep_original_desc">Conservar el archivo original tras editar</string>
+    <string name="settings_remember_recent_files">Mostrar archivos abiertos en Recientes</string>
+    <string name="settings_remember_recent_files_desc">Desactívalo para borrar el historial y las posiciones de lectura guardadas</string>
+    <string name="settings_keep_local_copies">Guardar copias locales para volver a abrir</string>
+    <string name="settings_keep_local_copies_desc">Ayuda a reabrir archivos compartidos desde otras aplicaciones. Al desactivarlo, se borran las copias guardadas; aún pueden usarse archivos temporales necesarios para ver documentos.</string>
     <string name="settings_compression_quality">Calidad de compresión</string>
     <string name="settings_smaller_size">Menor tamaño</string>
     <string name="settings_higher_quality">Mayor calidad</string>
@@ -190,6 +202,9 @@
     <string name="viewer_select_text">Seleccionar texto</string>
     <string name="viewer_add_image">Añadir imagen</string>
     <string name="viewer_eraser">Borrador</string>
+    <string name="viewer_lasso">Lazo</string>
+    <string name="viewer_lasso_selected_count">%1$d seleccionados — arrastra para mover</string>
+    <string name="viewer_lasso_done">Listo</string>
     <string name="viewer_save_edits">Guardar cambios</string>
     <string name="viewer_sign">Firmar</string>
     <string name="viewer_find">Buscar</string>
@@ -221,6 +236,9 @@
     <string name="viewer_replace">Reemplazar</string>
     <string name="viewer_saving">Guardando PDF editado&#8230;</string>
     <string name="viewer_reset_zoom">Restablecer zoom %1$d%%</string>
+    <string name="viewer_zoom">Zoom</string>
+    <string name="viewer_zoom_in">Acercar</string>
+    <string name="viewer_zoom_out">Alejar</string>
     <string name="viewer_size">Tamaño</string>
     <string name="viewer_jump_to_page">Ir a la página</string>
     <string name="viewer_page_label">Página</string>
@@ -529,4 +547,15 @@
 
     <!-- Insignia del scrubber de filas del visor de hojas (compacta: "12/940") -->
     <string name="sheet_row_of">%1$d/%2$d</string>
+    <string name="tour_skip">Omitir</string>
+    <string name="tour_next">Siguiente</string>
+    <string name="tour_done">Entendido</string>
+    <string name="tour_reader_tools_title">Herramientas de lectura</string>
+    <string name="tour_reader_tools_message">Toca el icono de edición para resaltar, dibujar, añadir notas o firmar.</string>
+    <string name="tour_reader_tools_ppt_message">Toca el icono de notas para resaltar, dibujar, añadir notas o firmar.</string>
+    <string name="tour_reader_share_title">Compartir o abrir otro archivo</string>
+    <string name="tour_reader_share_message">Toca la cápsula para abrir otro archivo. Para compartir, mantenla pulsada y desliza hacia arriba.</string>
+    <string name="tour_sheet_title">Editar una hoja de cálculo</string>
+    <string name="tour_sheet_message">Toca el lápiz para mostrar las opciones de formato, color y diseño de celdas.</string>
+    <string name="back_to_library">Volver a la biblioteca</string>
 </resources>

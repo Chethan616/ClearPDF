@@ -12,6 +12,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -53,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,9 +86,10 @@ import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.LiquidToggle
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
-import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 import androidx.compose.ui.graphics.graphicsLayer
 
@@ -108,14 +112,16 @@ fun SettingsScreen(
     val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
     val sub = if (isLight) Color(0xFF888888) else Color(0xFFAAAAAA)
     val label = if (isLight) Color(0xFF444444) else Color(0xFFCCCCCC)
-    val uiSensor = rememberUISensor()
     val context = LocalContext.current
+    val settingsScope = rememberCoroutineScope()
     val openRepo = remember(context) {
         { openExternalLink(context, GitHubStarPromptManager.REPO_URL) }
     }
 
     var autoCompress by remember { mutableStateOf(AppSettingsManager.getAutoCompress(context)) }
     var keepOriginal by remember { mutableStateOf(AppSettingsManager.getKeepOriginal(context)) }
+    var rememberRecentFiles by remember { mutableStateOf(AppSettingsManager.getRememberRecentFiles(context)) }
+    var keepLocalCopies by remember { mutableStateOf(AppSettingsManager.getKeepLocalCopies(context)) }
     var defaultQuality by remember { mutableFloatStateOf(AppSettingsManager.getDefaultQuality(context)) }
 
     // Debounce quality slider persistence to prevent lag
@@ -248,6 +254,7 @@ fun SettingsScreen(
     GlassScreenScaffold(
         backdrop = backdrop,
         screenBackdrop = screenBackdrop,
+        contentBottomPadding = 84.dp,
         header = { headerBackdrop ->
             // No back button here, so the pill centres against the full width. Fade only — the pill
             // is glass, and translating glass re-runs its blur+lens.
@@ -259,23 +266,25 @@ fun SettingsScreen(
             )
         }
     ) { contentPadding ->
-    val settingsScroll = rememberScrollState()
+    val settingsListState = rememberLazyListState()
     val officeEngineRequester = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
     LaunchedEffect(Unit) {
         if (com.chethan616.clearpdf.office.OfficeEngine.focusSettingsSection.value) {
             com.chethan616.clearpdf.office.OfficeEngine.focusSettingsSection.value = false
             delay(350L) // let the screen's entrance settle before scrolling
+            settingsListState.animateScrollToItem(7)
+            delay(120L) // let the lazy item attach its bring-into-view target
             officeEngineRequester.bringIntoView()
         }
     }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(settingsScroll)
-            .padding(contentPadding),
+    LazyColumn(
+        state = settingsListState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // ── Theme Mode Selector ──
+        item(key = "settings-section-1") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -299,7 +308,7 @@ fun SettingsScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector, val activeColor: Color)
                 val options = listOf(
-                    ThemeOption(0, stringResource(R.string.settings_theme_auto), Icons.Rounded.PhoneAndroid, Color(0xFF0088FF)),
+                    ThemeOption(0, stringResource(R.string.settings_theme_auto), Icons.Rounded.PhoneAndroid, LiquidGlassColors.Blue),
                     ThemeOption(1, stringResource(R.string.settings_theme_light), Icons.Rounded.LightMode, Color(0xFFFFA726)),
                     ThemeOption(2, stringResource(R.string.settings_theme_dark), Icons.Rounded.DarkMode, Color(0xFF7C4DFF))
                 )
@@ -339,8 +348,10 @@ fun SettingsScreen(
                 style = TextStyle(sub, 12.sp)
             )
         }
+        }
 
         // ── Language ──
+        item(key = "settings-section-2") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -368,7 +379,7 @@ fun SettingsScreen(
                     LangOption("es", stringResource(R.string.language_spanish)),
                     LangOption("it", stringResource(R.string.language_italian))
                 )
-                val accent = Color(0xFF0088FF)
+                val accent = LiquidGlassColors.Blue
                 langs.forEach { opt ->
                     val isSelected = selectedLocale == opt.code
                     val cc = if (isSelected) Color.White else (if (isLight) Color(0xFF2C2C2E) else Color(0xFFE0E0E0))
@@ -389,8 +400,10 @@ fun SettingsScreen(
                 }
             }
         }
+        }
 
         // ── Save Location ──
+        item(key = "settings-section-3") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -406,7 +419,7 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), Color(0xFF1976D2))
+                Icon(Icons.Rounded.FolderOpen, null, Modifier.size(22.dp), LiquidGlassColors.Blue)
                 BasicText(stringResource(R.string.settings_save_location), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
             }
 
@@ -424,10 +437,10 @@ fun SettingsScreen(
                     Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF1976D2).copy(0.14f)),
+                        .background(LiquidGlassColors.Blue.copy(0.14f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Rounded.FolderOpen, null, Modifier.size(20.dp), Color(0xFF1976D2))
+                    Icon(Icons.Rounded.FolderOpen, null, Modifier.size(20.dp), LiquidGlassColors.Blue)
                 }
                 Column(Modifier.weight(1f)) {
                     BasicText(
@@ -467,8 +480,10 @@ fun SettingsScreen(
                 }
             }
         }
+        }
 
         // ── File Handling ──
+        item(key = "settings-section-4") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -517,9 +532,46 @@ fun SettingsScreen(
                 subColor = sub
             )
 
+            Box(
+                Modifier.fillMaxWidth().padding(vertical = 4.dp).height(1.dp)
+                    .background(if (isLight) Color.Black.copy(0.04f) else Color.White.copy(0.06f))
+            )
+
+            SettingsToggleRow(
+                icon = Icons.Rounded.Description,
+                title = stringResource(R.string.settings_remember_recent_files),
+                desc = stringResource(R.string.settings_remember_recent_files_desc),
+                checked = rememberRecentFiles,
+                onCheckedChange = {
+                    rememberRecentFiles = it
+                    AppSettingsManager.setRememberRecentFiles(context, it)
+                },
+                backdrop = backdrop,
+                labelColor = label,
+                subColor = sub
+            )
+
+            SettingsToggleRow(
+                icon = Icons.Rounded.FolderOpen,
+                title = stringResource(R.string.settings_keep_local_copies),
+                desc = stringResource(R.string.settings_keep_local_copies_desc),
+                checked = keepLocalCopies,
+                onCheckedChange = {
+                    keepLocalCopies = it
+                    settingsScope.launch(Dispatchers.IO) {
+                        AppSettingsManager.setKeepLocalCopies(context, it)
+                    }
+                },
+                backdrop = backdrop,
+                labelColor = label,
+                subColor = sub
+            )
+
+        }
         }
 
         // ── Default Quality ──
+        item(key = "settings-section-5") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -540,18 +592,18 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), Color(0xFF1976D2))
+                    Icon(Icons.Rounded.HighQuality, null, Modifier.size(22.dp), LiquidGlassColors.Blue)
                     BasicText(stringResource(R.string.settings_compression_quality), style = TextStyle(text, 17.sp, fontWeight = FontWeight.SemiBold))
                 }
                 Box(
                     Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF1976D2).copy(0.14f))
+                        .background(LiquidGlassColors.Blue.copy(0.14f))
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     BasicText(
                         "${(defaultQuality * 100).toInt()}%",
-                        style = TextStyle(Color(0xFF1976D2), 13.sp, fontWeight = FontWeight.Bold)
+                        style = TextStyle(LiquidGlassColors.Blue, 13.sp, fontWeight = FontWeight.Bold)
                     )
                 }
             }
@@ -575,8 +627,10 @@ fun SettingsScreen(
                 BasicText(stringResource(R.string.settings_higher_quality), style = TextStyle(sub.copy(0.7f), 11.sp))
             }
         }
+        }
 
         // ── Personalization ──
+        item(key = "settings-section-6") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -671,8 +725,10 @@ fun SettingsScreen(
                 }
             }
         }
+        }
 
         // ── About & Open Source ──
+        item(key = "settings-section-7") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -687,10 +743,10 @@ fun SettingsScreen(
         ) {
             Box(
                 Modifier.size(56.dp).clip(CircleShape)
-                    .background(Color(0xFF0088FF).copy(0.12f)),
+                    .background(LiquidGlassColors.Blue.copy(0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Rounded.Info, null, Modifier.size(28.dp), Color(0xFF0088FF))
+                Icon(Icons.Rounded.Info, null, Modifier.size(28.dp), LiquidGlassColors.Blue)
             }
             BasicText("ClearPDF", style = TextStyle(text, 20.sp, fontWeight = FontWeight.Bold))
             BasicText(stringResource(R.string.settings_version), style = TextStyle(sub, 13.sp))
@@ -722,8 +778,10 @@ fun SettingsScreen(
                 style = TextStyle(sub.copy(0.7f), 11.sp, textAlign = TextAlign.Center)
             )
         }
+        }
 
         // ── Office engine (optional, powered by LibreOffice) ──
+        item(key = "settings-office-engine") {
         OfficeEngineSettingsSection(
             backdrop = backdrop,
             isLight = isLight,
@@ -741,8 +799,10 @@ fun SettingsScreen(
                 .liquidGlassSection(isLight)
                 .padding(20.dp)
         )
+        }
 
         // ── Licenses ──
+        item(key = "settings-section-8") {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -793,9 +853,8 @@ fun SettingsScreen(
                 style = TextStyle(sub.copy(0.7f), 11.sp, lineHeight = 16.sp)
             )
         }
+        }
 
-        // Clear the floating bottom navigation bar + system nav inset.
-        Spacer(Modifier.height(120.dp))
     }
 
     }
@@ -998,7 +1057,7 @@ private fun LicenseItem(
         // looks exactly as before — only its behaviour changes.
         BasicText(
             url,
-            style = TextStyle(Color(0xFF0088FF), 11.sp),
+            style = TextStyle(LiquidGlassColors.Blue, 11.sp),
             modifier = Modifier.clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null

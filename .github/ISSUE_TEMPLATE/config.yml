@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/Chethan616/ClearPDF/security/advisories/new
+    about: Use GitHub's private vulnerability reporting form. Do not post security details publicly.

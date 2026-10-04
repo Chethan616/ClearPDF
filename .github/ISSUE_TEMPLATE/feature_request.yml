@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an improvement that fits ClearPDF's offline-first mission.
+description: Describe a user problem and a change that could solve it.
 title: "[Feature]: "
 labels: [enhancement]
 body:
@@ -7,7 +7,7 @@ body:
     id: problem
     attributes:
       label: Problem to solve
-      description: What user workflow is difficult or missing today?
+      description: What task or workflow is difficult or missing?
     validations:
       required: true
   - type: textarea
@@ -20,12 +20,29 @@ body:
     id: alternatives
     attributes:
       label: Alternatives considered
-  - type: checkboxes
-    id: principles
+      description: Optional. What workarounds or other approaches have you tried?
+  - type: dropdown
+    id: area
     attributes:
-      label: Project principles
+      label: Area
+      description: Optional; choose the closest match.
+      multiple: true
       options:
-        - label: This can work offline and does not require ads, accounts, or cloud processing.
-          required: true
-        - label: I have checked for existing issues or pull requests.
+        - PDF reading or annotations
+        - PDF tools
+        - Office documents or spreadsheets
+        - Image editor or scanner
+        - Performance or accessibility
+        - Other
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Include a mockup, example, or constraints if useful.
+  - type: checkboxes
+    id: prior_search
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked existing issues and pull requests for a similar request.
           required: true

@@ -88,6 +88,7 @@ fun FillFormScreen(
         title = stringResource(R.string.tool_fill_form),
         backdrop = backdrop,
         onBack = requestBack,
+        onBackLongPress = requestBack,
         overlay = { screenGlass ->
             UnsavedChangesDialog(
                 visible = confirmExit,

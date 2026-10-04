@@ -14,6 +14,8 @@ data class RecentFile(
     val timestamp: Long,
     val pageCount: Int = -1,
     val sizeBytes: Long = -1,
+    /** Last page opened in the PDF reader, zero-based. */
+    val currentPage: Int = 0,
     /** Pinned entries sort to the top and survive the [RecentFilesManager] trim. */
     val pinned: Boolean = false
 ) {
@@ -34,6 +36,7 @@ object RecentFilesManager {
 
     /** Pinned first, then newest first. Stable across every read, so the UI never has to re-sort. */
     fun getRecents(context: Context): List<RecentFile> {
+        if (!AppSettingsManager.getRememberRecentFiles(context)) return emptyList()
         val raw = prefs(context).getString(KEY_RECENTS, null) ?: return emptyList()
         return try {
             json.decodeFromString<List<RecentFile>>(raw)
@@ -44,11 +47,15 @@ object RecentFilesManager {
     }
 
     fun addRecent(context: Context, file: RecentFile) {
+        if (!AppSettingsManager.getRememberRecentFiles(context)) return
         val current = getRecents(context).toMutableList()
         // Re-opening a pinned file must not silently unpin it — carry the flag forward.
-        val wasPinned = current.any { it.uriString == file.uriString && it.pinned }
+        val existing = current.firstOrNull { it.uriString == file.uriString }
         current.removeAll { it.uriString == file.uriString }
-        current.add(0, if (wasPinned) file.copy(pinned = true) else file)
+        current.add(0, file.copy(
+            pinned = file.pinned || existing?.pinned == true,
+            currentPage = existing?.currentPage ?: file.currentPage
+        ))
         // Trim to max, but a pin is an explicit "keep this" — pinned entries are exempt.
         val (pinned, unpinned) = current.partition { it.pinned }
         val trimmed = pinned + unpinned.take((MAX_RECENTS - pinned.size).coerceAtLeast(0))
@@ -68,8 +75,30 @@ object RecentFilesManager {
             .apply()
     }
 
+    /** Stores reading progress without changing the entry's recency or pinned state. */
+    fun updateProgress(context: Context, uri: Uri, currentPage: Int, pageCount: Int) {
+        if (!AppSettingsManager.getRememberRecentFiles(context)) return
+        val target = uri.toString()
+        val updated = getRecents(context).map { file ->
+            if (file.uriString == target) {
+                file.copy(
+                    currentPage = currentPage.coerceIn(0, (pageCount - 1).coerceAtLeast(0)),
+                    pageCount = pageCount
+                )
+            } else file
+        }
+        prefs(context).edit()
+            .putString(KEY_RECENTS, json.encodeToString(updated))
+            .apply()
+    }
+
     fun clearRecents(context: Context) {
         getRecents(context).forEach { LocalDocumentMirror.forget(context, it.uri) }
+        prefs(context).edit().remove(KEY_RECENTS).apply()
+    }
+
+    /** Clears browsing history while preserving separately opted-in recovery copies. */
+    fun clearHistoryOnly(context: Context) {
         prefs(context).edit().remove(KEY_RECENTS).apply()
     }
 
@@ -131,6 +160,8 @@ object AppSettingsManager {
     private const val KEY_DEFAULT_QUALITY = "default_quality"
     private const val KEY_THEME_MODE = "theme_mode" // 0: System, 1: Light, 2: Dark
     private const val KEY_SHOW_WALLPAPER = "show_wallpaper"
+    private const val KEY_REMEMBER_RECENT_FILES = "remember_recent_files"
+    private const val KEY_KEEP_LOCAL_COPIES = "keep_local_document_copies"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -156,6 +187,22 @@ object AppSettingsManager {
 
     fun setAutoCompress(context: Context, value: Boolean) =
         prefs(context).edit().putBoolean(KEY_AUTO_COMPRESS, value).apply()
+
+    fun getRememberRecentFiles(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_REMEMBER_RECENT_FILES, true)
+
+    fun setRememberRecentFiles(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_REMEMBER_RECENT_FILES, value).apply()
+        if (!value) RecentFilesManager.clearHistoryOnly(context)
+    }
+
+    fun getKeepLocalCopies(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_KEEP_LOCAL_COPIES, true)
+
+    fun setKeepLocalCopies(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_KEEP_LOCAL_COPIES, value).apply()
+        if (!value) LocalDocumentMirror.clearAll(context)
+    }
 
     fun getKeepOriginal(context: Context): Boolean =
         prefs(context).getBoolean(KEY_KEEP_ORIGINAL, true)

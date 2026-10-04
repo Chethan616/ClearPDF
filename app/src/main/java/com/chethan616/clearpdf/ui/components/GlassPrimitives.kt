@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +50,31 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.LayerBackdrop
+
+/** Nav action used by glass back controls when a person holds the back button. */
+val LocalBackToLibraryAction = compositionLocalOf<(() -> Unit)?> { null }
+
+@Composable
+fun GlassBackButton(
+    onBack: () -> Unit,
+    backdrop: Backdrop,
+    foreground: Color,
+    modifier: Modifier = Modifier,
+    surfaceColor: Color = Color.White.copy(alpha = 0.08f),
+    onLongPressBack: (() -> Unit)? = LocalBackToLibraryAction.current,
+    longPressLabel: String? = null
+) {
+    LiquidIconButton(
+        onClick = onBack,
+        onLongClick = onLongPressBack,
+        onLongClickLabel = onLongPressBack?.let { longPressLabel ?: stringResource(R.string.back_to_library) },
+        backdrop = backdrop,
+        modifier = modifier,
+        surfaceColor = surfaceColor
+    ) {
+        Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), foreground)
+    }
+}
 
 /**
  * Shared glass design-system primitives (Item 4). These are thin wrappers over the
@@ -162,6 +188,7 @@ fun ToolScaffold(
     backdrop: LayerBackdrop,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onBackLongPress: (() -> Unit)? = LocalBackToLibraryAction.current,
     /** Retained for source compatibility; the title pill has a fixed 13 sp label like the viewer's. */
     @Suppress("UNUSED_PARAMETER") titleFontSize: TextUnit = 18.sp,
     headerTrailing: (@Composable RowScope.() -> Unit)? = null,
@@ -210,9 +237,12 @@ fun ToolScaffold(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                LiquidIconButton(onClick = onBack, backdrop = headerBackdrop, surfaceColor = Color.White.copy(0.08f)) {
-                    Icon(Icons.Rounded.ArrowBackIosNew, stringResource(R.string.back), Modifier.size(16.dp), text)
-                }
+                GlassBackButton(
+                    onBack = onBack,
+                    backdrop = headerBackdrop,
+                    foreground = text,
+                    onLongPressBack = onBackLongPress
+                )
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     GlassTitlePill(text = title, backdrop = headerBackdrop)
                 }
