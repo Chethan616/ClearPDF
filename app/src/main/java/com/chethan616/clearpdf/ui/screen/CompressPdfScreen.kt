@@ -170,7 +170,7 @@ fun CompressPdfScreen(
                         val currentKb = state.originalSizeBytes / 1024
                         val estimateKb = state.estimatedSizeBytes / 1024
                         BasicText(
-                            "Estimated output  $currentKb KB  ->  about $estimateKb KB",
+                            "${stringResource(R.string.estimated_output)}  $currentKb KB  ->  ${stringResource(R.string.approximation)} $estimateKb KB",
                             style = TextStyle(sub, 12.sp, fontWeight = FontWeight.Medium)
                         )
                     }
@@ -189,7 +189,7 @@ fun CompressPdfScreen(
                             Icon(Icons.Rounded.Compress, null, Modifier.size(18.dp), Color.White)
                         }
                         BasicText(
-                            if (state.isCompressing) "Compressing..." else "Compress Now",
+                            if (state.isCompressing) stringResource(R.string.compress_working) else stringResource(R.string.compress_action),
                             style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium),
                             maxLines = 1
                         )

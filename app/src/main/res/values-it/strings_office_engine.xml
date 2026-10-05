@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="office_engine_module_title">Motore Office (basato su LibreOffice)</string>
+    <string name="office_engine_title">Motore Office</string>
+    <string name="office_engine_powered_by">Basato su LibreOffice</string>
+    <string name="office_engine_description">Apre file Word, Excel, PowerPoint e OpenDocument con il layout di LibreOffice per risultati più fedeli possibile. Opzionale — i renderer integrati funzionano anche senza di esso.</string>
+    <string name="office_engine_not_installed">Non installato · ~%1$s da scaricare</string>
+    <string name="office_engine_installed">Installato · %1$s · v%2$s</string>
+    <string name="office_engine_update_available">Aggiornamento disponibile · %1$s</string>
+    <string name="office_engine_downloading">Scaricamento…</string>
+    <string name="office_engine_downloading_progress">Scaricamento · %1$s of %2$s</string>
+    <string name="office_engine_waiting_network">In attesa della rete…</string>
+    <string name="office_engine_installing">Verifica e installazione…</string>
+    <string name="office_engine_needs_confirmation">Google Play richiede il tuo consenso per scaricare</string>
+    <string name="office_engine_failed">Installazione fallita: %1$s</string>
+    <string name="office_engine_download">Scarica</string>
+    <string name="office_engine_install">Installa</string>
+    <string name="office_engine_update">Aggiorna</string>
+    <string name="office_engine_delete">Elimina</string>
+    <string name="office_engine_cancel">Annulla</string>
+    <string name="office_engine_retry">Riprova</string>
+    <string name="office_engine_approve">Accetta</string>
+    <string name="office_engine_use_for_office">Usa per file di Office</string>
+    <string name="office_engine_use_for_office_sub">Usa i renderer integrati se un file da errori</string>
+    <string name="office_engine_licences">Licenze LibreOffice (MPL-2.0)</string>
+    <string name="office_engine_delete_title">Eliminare Motore Office?</string>
+    <string name="office_engine_delete_message">Libera %1$s. I file di Office si apriranno con i renderer integrati. Puoi scaricarlo nuovamente quando vuoi.</string>
+    <string name="office_engine_notification_channel">Scaricamento Motore Office</string>
+    <string name="office_engine_hint">Migliora fedeltà con il Motore Office</string>
+    <string name="office_engine_hint_sub">Scaricamento facoltativo · basato su LibreOffice</string>
+    <string name="office_engine_hint_action">Ottieni</string>
+</resources>

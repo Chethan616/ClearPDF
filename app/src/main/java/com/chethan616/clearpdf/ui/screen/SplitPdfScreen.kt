@@ -62,6 +62,7 @@ import com.chethan616.clearpdf.ui.viewmodel.SplitMode
 import com.chethan616.clearpdf.ui.viewmodel.SplitPdfViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
+import java.util.Locale
 
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -191,7 +192,7 @@ fun SplitPdfScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     BasicText(
-                        "Extract Selected",
+                        stringResource(R.string.extract_selected_action),
                         style = TextStyle(if (state.mode == SplitMode.EXTRACT_SELECTED) Color.White else text, 13.sp, FontWeight.Medium)
                     )
                 }
@@ -204,7 +205,7 @@ fun SplitPdfScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     BasicText(
-                        "Split All",
+                        stringResource(R.string.split_all_action),
                         style = TextStyle(if (state.mode == SplitMode.SPLIT_ALL) Color.White else text, 13.sp, FontWeight.Medium)
                     )
                 }
@@ -219,7 +220,12 @@ fun SplitPdfScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     BasicText(
-                        "${state.selectedPages.size} page${if (state.selectedPages.size == 1) "" else "s"} selected",
+                        "${state.selectedPages.size} ${stringResource(R.string.page_numeral)}${if (state.selectedPages.size == 1) stringResource(R.string.count_singular_f) else stringResource(R.string.count_plural_f)} ${stringResource(R.string.select_numeral)}${
+                            if (state.selectedPages.size == 1) {stringResource(
+                                R.string.count_singular_f
+                            )} else if (Locale.getDefault().language != "en") {stringResource(R.string.count_plural_f)}
+                            else ""
+                        }",
                         style = TextStyle(text, 14.sp, FontWeight.Medium)
                     )
 
@@ -297,15 +303,15 @@ fun SplitPdfScreen(
             } else {
                 Column(Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(14.dp)) {
                     BasicText(
-                        "This will generate one PDF per page.",
+                        stringResource(R.string.split_all_hint),
                         style = TextStyle(sub, 13.sp)
                     )
                 }
             }
 
             val actionLabel = when (state.mode) {
-                SplitMode.SPLIT_ALL -> if (state.isSplitting) "Splitting..." else "Split All Pages"
-                SplitMode.EXTRACT_SELECTED -> if (state.isSplitting) "Extracting..." else "Extract Selected Pages"
+                SplitMode.SPLIT_ALL -> if (state.isSplitting) stringResource(R.string.split_all_working) else stringResource(R.string.split_all_pages_action)
+                SplitMode.EXTRACT_SELECTED -> if (state.isSplitting) stringResource(R.string.extract_pages_working) else stringResource(R.string.extract_pages_selected_action)
             }
 
             LiquidButton(
