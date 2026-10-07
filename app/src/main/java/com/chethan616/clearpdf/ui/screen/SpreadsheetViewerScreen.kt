@@ -611,16 +611,6 @@ fun SpreadsheetViewerScreen(
                             modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp)
                         )
                     }
-                    SheetTabs(
-                        wb = wb!!,
-                        indices = visibleSheets,
-                        selected = idx,
-                        backdrop = backdrop,
-                        glass = chromeGlass,
-                        text = text, sub = sub, accent = accent,
-                        onSelect = { i -> if (editing) commitDraft(); sheetIndex = i },
-                        modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp)
-                    )
                     AnimatedVisibility(
                         visible = editMode,
                         enter = fadeIn(GlassMotion.fade()),
@@ -651,6 +641,28 @@ fun SpreadsheetViewerScreen(
                     }
                 }
             }
+        }
+
+        // A floating sheet dock sits above the grid and the system gesture area without adding a
+        // second plate or stealing height from the spreadsheet viewport.
+        AnimatedVisibility(
+            visible = sheet != null && visibleSheets.size > 1 && !showSearch,
+            enter = fadeIn(GlassMotion.fade()) + slideInVertically { it / 3 },
+            exit = fadeOut(GlassMotion.fade()) + slideOutVertically { it / 3 },
+            modifier = Modifier.align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(bottom = if (editMode) 72.dp else 10.dp)
+        ) {
+            SheetTabs(
+                wb = wb!!,
+                indices = visibleSheets,
+                selected = idx,
+                backdrop = backdrop,
+                text = text,
+                accent = accent,
+                onSelect = { i -> if (editing) commitDraft(); sheetIndex = i }
+            )
         }
 
         // Share / export (reading mode): tap = open as PDF, long-press + swipe up = share.
@@ -901,61 +913,42 @@ private fun SheetTabs(
     indices: List<Int>,
     selected: Int,
     backdrop: LayerBackdrop,
-    glass: Color,
     text: Color,
-    sub: Color,
     accent: Color,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    onSelect: (Int) -> Unit
 ) {
     if (indices.isEmpty()) return
-    val scroll = rememberScrollState()
     val selectedSlot = indices.indexOf(selected).coerceAtLeast(0)
-    val density = LocalDensity.current
-    val compactWidth = (LocalConfiguration.current.screenWidthDp.dp - 32.dp)
-        .coerceAtMost(320.dp)
-        .coerceAtLeast(104.dp)
-    BoxWithConstraints(
-        modifier.width(compactWidth).height(64.dp),
-        contentAlignment = Alignment.Center
+    val maxWidth = (LocalConfiguration.current.screenWidthDp.dp - 128.dp)
+        .coerceAtMost(240.dp)
+        .coerceAtLeast(96.dp)
+    val compactWidth = (80.dp * indices.size.toFloat() + 8.dp).coerceAtMost(maxWidth).coerceAtLeast(96.dp)
+
+    LiquidBottomTabs(
+        selectedTabIndex = { selectedSlot },
+        onTabSelected = { slot -> indices.getOrNull(slot)?.let(onSelect) },
+        backdrop = backdrop,
+        tabsCount = indices.size,
+        modifier = Modifier.width(compactWidth).height(44.dp),
+        barHeight = 44.dp,
+        surfaceColor = Color.Transparent
     ) {
-        val tabWidth = (maxWidth / 3).coerceIn(104.dp, 136.dp)
-        val tabWidthPx = with(density) { tabWidth.toPx() }
-        val viewportPx = with(density) { maxWidth.toPx() }
-        val contentWidth = tabWidth * indices.size + 8.dp
-        LaunchedEffect(selectedSlot, tabWidthPx, viewportPx) {
-            val target = (selectedSlot * tabWidthPx - (viewportPx - tabWidthPx) / 2f)
-                .coerceIn(0f, (with(density) { contentWidth.toPx() } - viewportPx).coerceAtLeast(0f))
-            scroll.animateScrollTo(target.roundToInt())
-        }
-        Box(Modifier.horizontalScroll(scroll)) {
-            LiquidBottomTabs(
-                selectedTabIndex = { selectedSlot },
-                onTabSelected = { slot -> indices.getOrNull(slot)?.let(onSelect) },
-                backdrop = backdrop,
-                tabsCount = indices.size,
-                modifier = Modifier.width(contentWidth).height(48.dp),
-                barHeight = 48.dp,
-                surfaceColor = Color.Transparent
-            ) {
-                indices.forEachIndexed { slot, sheetIndex ->
-                    val sheet = wb.sheets[sheetIndex]
-                    val tabColor = sheet.tabColor?.resolve(wb.styles.themeColors, wb.styles.indexedColors)?.let(::Color)
-                    LiquidBottomTab(onClick = { onSelect(sheetIndex) }) {
-                        if (tabColor != null) Box(Modifier.size(5.dp).clip(CircleShape).background(tabColor))
-                        BasicText(
-                            sheet.name,
-                            Modifier.fillMaxWidth().padding(horizontal = 5.dp),
-                            style = TextStyle(
-                                if (slot == selectedSlot) accent else text,
-                                11.sp,
-                                if (slot == selectedSlot) FontWeight.SemiBold else FontWeight.Medium
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
+        indices.forEachIndexed { slot, sheetIndex ->
+            val sheet = wb.sheets[sheetIndex]
+            val tabColor = sheet.tabColor?.resolve(wb.styles.themeColors, wb.styles.indexedColors)?.let(::Color)
+            LiquidBottomTab(onClick = { onSelect(sheetIndex) }) {
+                if (tabColor != null) Box(Modifier.size(5.dp).clip(CircleShape).background(tabColor))
+                BasicText(
+                    sheet.name,
+                    Modifier.fillMaxWidth().padding(horizontal = 5.dp),
+                    style = TextStyle(
+                        if (slot == selectedSlot) accent else text,
+                        11.sp,
+                        if (slot == selectedSlot) FontWeight.SemiBold else FontWeight.Medium
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }

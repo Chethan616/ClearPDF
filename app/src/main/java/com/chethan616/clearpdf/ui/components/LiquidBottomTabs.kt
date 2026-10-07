@@ -17,6 +17,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -99,7 +100,8 @@ fun LiquidBottomTabs(
 
         val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
         val animationScope = rememberCoroutineScope()
-        var currentIndex by remember(selectedTabIndex) {
+        val selectedTabIndexState = rememberUpdatedState(selectedTabIndex)
+        var currentIndex by remember {
             mutableIntStateOf(selectedTabIndex())
         }
         val dampedDragAnimation = remember(animationScope) {
@@ -133,8 +135,8 @@ fun LiquidBottomTabs(
                 }
             )
         }
-        LaunchedEffect(selectedTabIndex) {
-            snapshotFlow { selectedTabIndex() }
+        LaunchedEffect(Unit) {
+            snapshotFlow { selectedTabIndexState.value() }
                 .collectLatest { index ->
                     currentIndex = index
                 }
