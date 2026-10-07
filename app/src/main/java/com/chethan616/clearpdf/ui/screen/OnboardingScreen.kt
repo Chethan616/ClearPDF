@@ -460,7 +460,8 @@ private fun LanguageChooser(
             "en" to R.string.language_english,
             "pt-BR" to R.string.language_portuguese,
             "es" to R.string.language_spanish,
-            "it" to R.string.language_italian
+            "it" to R.string.language_italian,
+            "ru" to R.string.language_russian
         ).forEach { (code, res) ->
             val selected = selectedLocale == code
             LiquidButton(
