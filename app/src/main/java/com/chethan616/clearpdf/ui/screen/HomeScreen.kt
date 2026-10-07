@@ -1,5 +1,20 @@
 package com.chethan616.clearpdf.ui.screen
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.rounded.DocumentScanner
+import androidx.compose.material.icons.rounded.Lock
+import com.chethan616.clearpdf.ui.components.AccentIconTile
+import com.chethan616.clearpdf.ui.components.GlassDialog
+import com.chethan616.clearpdf.ui.components.GlassDialogAction
+import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
+import com.chethan616.clearpdf.ui.components.ToolPrimaryButton
+import com.chethan616.clearpdf.ui.components.rememberScreenBackdrop
+import com.chethan616.clearpdf.ui.theme.ToolAccents
 import android.content.Intent
 import android.net.Uri
 import android.view.HapticFeedbackConstants
@@ -41,6 +56,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
@@ -63,6 +79,7 @@ import androidx.compose.material.icons.rounded.Scanner
 import androidx.compose.material.icons.rounded.Slideshow
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -112,6 +129,7 @@ import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
+import com.chethan616.clearpdf.ui.theme.LocalIsScrolling
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.utils.DocKind
 import com.chethan616.clearpdf.utils.docKindOf
@@ -127,6 +145,9 @@ private val SourGummyFontFamily = FontFamily(
     Font(R.font.sour_gummy_regular, FontWeight.Normal),
     Font(R.font.sour_gummy_bold, FontWeight.Bold)
 )
+
+/** Clearance under the content for the floating tab bar (64 dp capsule + its 12 dp margins + air). */
+private val TabBarClearance = 84.dp
 
 @Composable
 fun HomeScreen(
@@ -144,13 +165,16 @@ fun HomeScreen(
     val isLight = !isDarkMode
     val text = LiquidGlassColors.text(isDarkMode)
     val sub = LiquidGlassColors.secondary(isDarkMode)
-    val accent = LiquidGlassColors.Blue
+    val accent = ToolAccents.Open
     val redAccent = LiquidGlassColors.Red
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
     val homeScope = rememberCoroutineScope()
+    // Hoisted so the file-info dialog (outside the scaffold) can refract the live screen.
+    val screenBackdrop = rememberScreenBackdrop(backdrop)
 
     var recents by remember { mutableStateOf(RecentFilesManager.getRecents(context)) }
+    // AppSettingsManager.KEY_REMEMBER_RECENT_FILES ("Remember recent files" in Settings).
     var recentFilesEnabled by remember { mutableStateOf(AppSettingsManager.getRememberRecentFiles(context)) }
     var showAllRecents by remember { mutableStateOf(false) }
     var recentQuery by remember { mutableStateOf("") }
@@ -175,18 +199,15 @@ fun HomeScreen(
         menuCanDelete = kotlinx.coroutines.withContext(Dispatchers.IO) { canDeleteDocument(context, r.uri) }
     }
     var infoRecent by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
+    // The dialog keeps its content through its exit spring, after `infoRecent` has gone null.
+    var shownInfo by remember { mutableStateOf<com.chethan616.clearpdf.data.repository.RecentFile?>(null) }
+    LaunchedEffect(infoRecent) { infoRecent?.let { shownInfo = it } }
     val lifecycleOwner = LocalLifecycleOwner.current
-
 
     // Category filter for the recents list. Null = show everything.
     var recentFilter by remember { mutableStateOf<DocKind?>(null) }
     var filterMenuOpen by remember { mutableStateOf(false) }
     var filterAnchorY by remember { mutableStateOf(0f) }   // root-space BOTTOM of the filter glyph
-    val filterTransition = updateTransition(filterMenuOpen, label = "recentsFilterMenu")
-    val filterProgress by filterTransition.animateFloat(
-        transitionSpec = { spring(dampingRatio = 0.82f, stiffness = 220f) },
-        label = "filterProgress"
-    ) { if (it) 1f else 0f }
 
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
@@ -199,13 +220,20 @@ fun HomeScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // Recents switched off in Settings: there is nothing left to search or filter.
+    LaunchedEffect(recentFilesEnabled) {
+        if (!recentFilesEnabled) {
+            searchActive = false
+            recentQuery = ""
+            filterMenuOpen = false
+        }
+    }
+
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { isVisible = true }
 
-    val density = LocalDensity.current.density
-    // One transition for the whole entrance. Previously six independent
-    // animateFloatAsState calls ran on three frame clocks; this is one clock with a
-    // per-section delay, so the sections can't drift apart on a busy frame.
+    // One transition for the whole entrance — one frame clock with a per-section delay, so the
+    // sections can't drift apart on a busy frame.
     val entrance = updateTransition(isVisible, label = "homeEntrance")
 
     val query = recentQuery.trim()
@@ -218,296 +246,244 @@ fun HomeScreen(
     Box(Modifier.fillMaxSize()) {
         GlassScreenScaffold(
             backdrop = backdrop,
+            screenBackdrop = screenBackdrop,
             contentHorizontalPadding = 16.dp,
             headerHorizontalPadding = 16.dp,
             header = { headerBackdrop ->
-                // Pinned above the list: the header samples the content layer, so cards scroll
-                // *under* it and its glass refracts them instead of only the wallpaper.
-                GlassSearchHeader(
-                    title = "ClearPDF",
-                    backdrop = headerBackdrop,
-                    uiSensor = uiSensor,
-                    query = recentQuery,
-                    onQueryChange = { recentQuery = it },
-                    active = searchActive,
-                    onActiveChange = { searchActive = it },
-                    searchHint = stringResource(R.string.recents_search_hint),
-                    modifier = entrance.entranceModifier(0, density),
-                    titleFontFamily = SourGummyFontFamily
-                )
+                if (recentFilesEnabled) {
+                    // Pinned above the list: the header samples the content layer, so cards scroll
+                    // *under* it and its glass refracts them instead of only the wallpaper.
+                    GlassSearchHeader(
+                        title = "ClearPDF",
+                        backdrop = headerBackdrop,
+                        uiSensor = uiSensor,
+                        query = recentQuery,
+                        onQueryChange = { recentQuery = it },
+                        active = searchActive,
+                        onActiveChange = { searchActive = it },
+                        searchHint = stringResource(R.string.recents_search_hint),
+                        modifier = entrance.glassFade(0),
+                        titleFontFamily = SourGummyFontFamily
+                    )
+                } else {
+                    // Search only ever searched recents. With recents off there is nothing behind
+                    // the circle, so the header is just the centred title pill.
+                    GlassScreenHeaderRow(
+                        title = "ClearPDF",
+                        backdrop = headerBackdrop,
+                        onBack = null,
+                        titleFontFamily = SourGummyFontFamily,
+                        modifier = entrance.glassFade(0)
+                    )
+                }
             }
         ) { contentPadding ->
-        LazyColumn(
-            Modifier.fillMaxSize(),
-            contentPadding = contentPadding,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Welcome card. It collapses while searching so results own the fold.
-            item(key = "hero") {
-                val centerHero = !recentFilesEnabled && !searchActive
-                Box(
-                    Modifier.fillMaxWidth().then(if (centerHero) Modifier.fillParentMaxHeight() else Modifier),
-                    contentAlignment = if (centerHero) Alignment.Center else Alignment.TopCenter
+            if (!recentFilesEnabled) {
+                HomeLaunchpad(
+                    contentPadding = contentPadding,
+                    backdrop = backdrop,
+                    uiSensor = uiSensor,
+                    entrance = entrance,
+                    onOpen = onNavigateToOpenPdf,
+                    onScan = onNavigateToScan
+                )
+            } else {
+                val lazyListState = rememberLazyListState()
+                val isScrolling = remember(lazyListState) { { lazyListState.isScrollInProgress } }
+                CompositionLocalProvider(LocalIsScrolling provides isScrolling) {
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    state = lazyListState,
+                    contentPadding = contentPadding,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    AnimatedVisibility(
-                    visible = !searchActive,
-                    // Desync the fade from the height so the glass is invisible whenever its size is
-                    // moving — an alpha-0 liquidGlassPanel draws nothing, so the collapse can't show
-                    // its per-frame re-blur, and the recents panel's rise reads as a clean fade rather
-                    // than a shimmer. Open the height first, then fade in; fade out fast, then finish
-                    // shrinking unseen.
-                    enter = expandVertically(tween(240)) + fadeIn(tween(200, delayMillis = 110)),
-                    exit = fadeOut(tween(120)) + shrinkVertically(tween(240)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .then(entrance.entranceModifier(1, density))
-                            .liquidGlassPanel(backdrop, uiSensor)
-                            .padding(horizontal = 20.dp, vertical = 18.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            Icons.Rounded.Description, contentDescription = null,
-                            tint = accent, modifier = Modifier.size(36.dp)
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        // The ON-DEVICE badge moved here from the header — the header is now the
-                        // viewer's compact pill, which has no room for an action chip.
-                        Box(
-                            Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(accent.copy(alpha = if (isLight) 0.12f else 0.18f))
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                    // Welcome card. It collapses while searching so results own the fold.
+                    item(key = "hero", contentType = "hero") {
+                        AnimatedVisibility(
+                            visible = !searchActive,
+                            // Desync the fade from the height so the glass is invisible whenever its
+                            // size is moving — an alpha-0 liquidGlassPanel draws nothing, so the
+                            // collapse can't show its per-frame re-blur. Open the height first, then
+                            // fade in; fade out fast, then finish shrinking unseen.
+                            enter = expandVertically(tween(240)) + fadeIn(tween(200, delayMillis = 110)),
+                            exit = fadeOut(tween(120)) + shrinkVertically(tween(240)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            BasicText(
-                                stringResource(R.string.home_on_device),
-                                style = TextStyle(accent, 10.sp, FontWeight.Bold)
-                            )
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        BasicText(
-                            stringResource(R.string.home_tagline),
-                            style = TextStyle(
-                                color = text,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = SourGummyFontFamily,
-                                textAlign = TextAlign.Center
-                            )
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        BasicText(
-                            stringResource(R.string.home_subtitle),
-                            style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center)
-                        )
-                        Spacer(Modifier.height(18.dp))
-
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            LiquidButton(
-                                onClick = onNavigateToOpenPdf,
+                            HomeHeroCard(
                                 backdrop = backdrop,
-                                tint = accent,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Rounded.FileOpen, null, Modifier.size(18.dp), Color.White)
-                                    BasicText(stringResource(R.string.home_open_pdf), style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
-                                }
-                            }
-                            LiquidButton(
-                                onClick = onNavigateToScan,
-                                backdrop = backdrop,
-                                tint = LiquidGlassColors.Green,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Rounded.Scanner, null, Modifier.size(18.dp), Color.White)
-                                    BasicText(stringResource(R.string.home_scan), style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
-                                }
-                            }
+                                uiSensor = uiSensor,
+                                onOpen = onNavigateToOpenPdf,
+                                onScan = onNavigateToScan,
+                                modifier = entrance.glassFade(1)
+                            )
                         }
                     }
-                }
-                }
-            }
 
-            // Recent files. The rows stay inside a single glass panel — one refraction
-            // pass for the whole list rather than one per row — and the list is capped at
-            // MAX_RECENTS (20), so composing them together is cheap.
-            item(key = "recents") {
-                if (recentFilesEnabled) {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .then(entrance.entranceModifier(2, density))
-                        .liquidGlassPanel(backdrop, uiSensor)
-                        // The container's own minimise animation. `animateContentSize` sits INSIDE the
-                        // glass (after `liquidGlassPanel`, which is a pure draw modifier that paints at
-                        // whatever size it measures), so the glass tracks the animated height frame by
-                        // frame — the whole panel springs shut when a row leaves, rather than the row
-                        // collapsing on its own while the panel snaps. A lightly-underdamped spring
-                        // gives the elastic "settle" bounce; because the size delta of a single removed
-                        // row is small, the re-blur this costs is a short, snappy window, not the long
-                        // spring tail the old per-row collapse used to burn.
-                        .animateContentSize(
-                            animationSpec = spring(dampingRatio = 0.65f, stiffness = 400f)
-                        )
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    // Recent files. The rows stay inside a single glass panel — one refraction
+                    // pass for the whole list rather than one per row — and the list is capped at
+                    // MAX_RECENTS (20), so composing them together is cheap.
+                    item(key = "recents", contentType = "recents") {
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .then(entrance.glassFade(2))
+                                .liquidGlassPanel(backdrop, uiSensor)
+                                // The container's own minimise animation. `animateContentSize` sits
+                                // INSIDE the glass, so the glass tracks the animated height frame by
+                                // frame — the whole panel springs shut when a row leaves, rather than
+                                // the row collapsing on its own while the panel snaps.
+                                .animateContentSize(
+                                    animationSpec = spring(dampingRatio = 0.65f, stiffness = 400f)
+                                )
+                                .padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            BasicText(stringResource(R.string.home_recents), style = TextStyle(text, 18.sp, FontWeight.Bold))
-                            // Category selector. One glyph, no chip row — the filter is a
-                            // secondary control and shouldn't compete with the list.
-                            if (recents.isNotEmpty()) {
-                                val filterActive = recentFilter != null
-                                Box(
-                                    Modifier
-                                        .size(26.dp)
-                                        .onGloballyPositioned {
-                                            val o = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero)
-                                            filterAnchorY = o.y + it.size.height
-                                        }
-                                        .clip(RoundedCornerShape(50))
-                                        .background(
-                                            if (filterActive) accent.copy(0.20f)
-                                            else if (isLight) Color.Black.copy(0.05f) else Color.White.copy(0.08f)
-                                        )
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) { filterMenuOpen = !filterMenuOpen },
-                                    contentAlignment = Alignment.Center
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Row(
+                                    Modifier.weight(1f),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        Icons.Rounded.FilterList,
-                                        stringResource(R.string.recents_filter),
-                                        Modifier.size(15.dp),
-                                        if (filterActive) accent else sub
+                                    BasicText(
+                                        stringResource(R.string.home_recents),
+                                        style = TextStyle(text, 18.sp, FontWeight.Bold),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    // Category selector. One glyph, no chip row — the filter is a
+                                    // secondary control and shouldn't compete with the list.
+                                    if (recents.isNotEmpty()) {
+                                        val filterActive = recentFilter != null
+                                        Box(
+                                            Modifier
+                                                .size(28.dp)
+                                                .onGloballyPositioned {
+                                                    val o = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero)
+                                                    filterAnchorY = o.y + it.size.height
+                                                }
+                                                .clip(RoundedCornerShape(50))
+                                                .background(
+                                                    if (filterActive) accent.copy(0.20f)
+                                                    else if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f)
+                                                )
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) { filterMenuOpen = !filterMenuOpen },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Rounded.FilterList,
+                                                stringResource(R.string.recents_filter),
+                                                Modifier.size(16.dp),
+                                                if (filterActive) accent else sub
+                                            )
+                                        }
+                                    }
+                                }
+                                if (filtered.size > homeRecentLimit) {
+                                    BasicText(
+                                        if (showAllRecents) stringResource(R.string.home_see_less) else "${stringResource(R.string.home_see_all)} (${filtered.size})",
+                                        style = TextStyle(accent, 13.sp, FontWeight.SemiBold),
+                                        maxLines = 1,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50))
+                                            .clickable { showAllRecents = !showAllRecents }
+                                            .padding(horizontal = 6.dp, vertical = 6.dp)
+                                    )
+                                }
+                                if (recents.isNotEmpty()) {
+                                    LiquidIconButton(
+                                        onClick = {
+                                            RecentFilesManager.clearRecents(context)
+                                            recents = emptyList()
+                                            showAllRecents = false
+                                        },
+                                        backdrop = backdrop,
+                                        tint = redAccent,
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        CloseCrossIcon(Modifier.size(14.dp), Color.White)
+                                    }
+                                }
+                            }
+
+                            if (recents.isEmpty()) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(36.dp), sub.copy(0.6f))
+                                    BasicText(
+                                        stringResource(R.string.home_no_recents),
+                                        style = TextStyle(text, 14.sp, FontWeight.Medium, textAlign = TextAlign.Center)
+                                    )
+                                    BasicText(
+                                        stringResource(R.string.home_no_recents_subtitle),
+                                        style = TextStyle(sub, 12.sp, textAlign = TextAlign.Center)
+                                    )
+                                }
+                            } else {
+                                if (filtered.isEmpty()) {
+                                    BasicText(
+                                        stringResource(R.string.recents_no_matches),
+                                        style = TextStyle(sub, 13.sp),
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+                                    )
+                                }
+                                visibleRecents.forEach { recent ->
+                                    // `key` on the URI, not the index: a swipe-removed row must take its
+                                    // offset animation state with it instead of handing it to its successor.
+                                    key(recent.uriString) {
+                                        RecentRow(
+                                            recent = recent,
+                                            isLight = isLight,
+                                            textColor = text,
+                                            secondaryColor = sub,
+                                            // Set by the long-press menu's "Remove". When it matches this
+                                            // row, the row plays the same exit as a swipe before it is dropped.
+                                            pendingDelete = pendingDeleteUri == recent.uriString,
+                                            lifted = selectedRecent?.uriString == recent.uriString,
+                                            onClick = { onRecentFileSelected(recent.uri, recent.name) },
+                                            onLongClick = { bounds ->
+                                                selectedRecentBounds = bounds
+                                                menuRecent = recent
+                                                selectedRecent = recent
+                                            },
+                                            onDelete = {
+                                                // Called once the row has finished fading. Drop it from the
+                                                // list (cheap, keyed rows) — the container's animateContentSize
+                                                // springs the gap shut — and persist off the main thread.
+                                                pendingDeleteUri = null
+                                                recents = recents.filterNot { it.uriString == recent.uriString }
+                                                homeScope.launch(Dispatchers.IO) { RecentFilesManager.removeRecent(context, recent.uri) }
+                                            }
+                                        )
+                                    }
+                                }
+                                if (!searching && filtered.size > homeRecentLimit && !showAllRecents) {
+                                    BasicText(
+                                        stringResource(R.string.recents_long_press_hint),
+                                        style = TextStyle(sub, 11.sp, textAlign = TextAlign.Center),
+                                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                                     )
                                 }
                             }
                         }
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (filtered.size > homeRecentLimit) {
-                                BasicText(
-                                    if (showAllRecents) stringResource(R.string.home_see_less) else "${stringResource(R.string.home_see_all)} (${filtered.size})",
-                                    style = TextStyle(accent, 12.sp, FontWeight.SemiBold),
-                                    modifier = Modifier.clickable { showAllRecents = !showAllRecents }
-                                )
-                            }
-                            if (recents.isNotEmpty()) {
-                                LiquidIconButton(
-                                    onClick = {
-                                        RecentFilesManager.clearRecents(context)
-                                        recents = emptyList()
-                                        showAllRecents = false
-                                    },
-                                    backdrop = backdrop,
-                                    tint = redAccent,
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    CloseCrossIcon(Modifier.size(16.dp), Color.White)
-                                }
-                            }
-                        }
                     }
 
-                    if (recents.isEmpty()) {
-                        Column(
-                            Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(36.dp), sub.copy(0.5f))
-                            BasicText(
-                                stringResource(R.string.home_no_recents),
-                                style = TextStyle(sub, 14.sp, FontWeight.Medium, textAlign = TextAlign.Center)
-                            )
-                            BasicText(
-                                stringResource(R.string.home_no_recents_subtitle),
-                                style = TextStyle(sub.copy(0.7f), 12.sp, textAlign = TextAlign.Center)
-                            )
-                        }
-                    } else {
-                        if (filtered.isEmpty()) {
-                            BasicText(
-                                stringResource(R.string.recents_no_matches),
-                                style = TextStyle(sub, 13.sp),
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
-                            )
-                        }
-                        visibleRecents.forEach { recent ->
-                            // `key` on the URI, not the index: a swipe-removed row must take its
-                            // offset animation state with it instead of handing it to its successor.
-                            key(recent.uriString) {
-                                RecentRow(
-                                    recent = recent,
-                                    isLight = isLight,
-                                    textColor = text,
-                                    secondaryColor = sub,
-                                    // Set by the long-press menu's "Remove". When it matches this row,
-                                    // the row plays the same exit as a swipe before it is dropped.
-                                    pendingDelete = pendingDeleteUri == recent.uriString,
-                                    lifted = selectedRecent?.uriString == recent.uriString,
-                                    onClick = { onRecentFileSelected(recent.uri, recent.name) },
-                                    onLongClick = { bounds ->
-                                        selectedRecentBounds = bounds
-                                        menuRecent = recent
-                                        selectedRecent = recent
-                                    },
-                                    onDelete = {
-                                        // Called once the row has finished fading. Drop it from the
-                                        // list (cheap, keyed rows) — the container's animateContentSize
-                                        // springs the gap shut — and persist off the main thread so the
-                                        // terminal relayout never blocks a frame during the exit.
-                                        pendingDeleteUri = null
-                                        recents = recents.filterNot { it.uriString == recent.uriString }
-                                        homeScope.launch(Dispatchers.IO) { RecentFilesManager.removeRecent(context, recent.uri) }
-                                    }
-                                )
-                            }
-                        }
-                        if (!searching && filtered.size > homeRecentLimit && !showAllRecents) {
-                            BasicText(
-                                stringResource(R.string.recents_long_press_hint),
-                                style = TextStyle(sub.copy(0.6f), 11.sp, textAlign = TextAlign.Center),
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
-                            )
-                        }
+                    // Tab bar + breathing room. The nav-bar inset is already in `contentPadding`.
+                    item(key = "bottomSpacer", contentType = "spacer") {
+                        Spacer(Modifier.height(TabBarClearance))
                     }
                 }
                 }
             }
-
-            // Tab bar (64dp) + breathing room (20dp). The nav-bar inset is already in
-            // `contentPadding`, supplied by the scaffold.
-            item(key = "bottomSpacer") {
-                Spacer(Modifier.height(84.dp))
-            }
-        }
         }
 
         // ── Recents context menu (long-press) ──
@@ -603,148 +579,86 @@ fun HomeScreen(
         }
 
         // ── Category filter menu ──
-        // Same capsule as the long-press menu, anchored just under the filter glyph.
-        AnimatedVisibility(
-            visible = filterMenuOpen,
-            enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessHigh)),
-            exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessHigh))
-        ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { filterMenuOpen = false },
-                contentAlignment = Alignment.TopCenter
-            ) {
-                val neutral = if (isLight) Color(0xFF8E8E93) else Color(0xFF636366)
-                // Labels resolved up front: `stringResource` is @Composable, so it can't be called
-                // from inside a plain local helper.
-                val categories = listOf(
-                    Triple(null as DocKind?, Icons.Rounded.Apps, stringResource(R.string.recents_filter_all)) to accent,
-                    Triple(DocKind.Pdf, Icons.Rounded.PictureAsPdf, stringResource(R.string.recents_filter_pdf)) to Color(0xFFE53935),
-                    Triple(DocKind.Word, Icons.Rounded.Description, stringResource(R.string.recents_filter_word)) to Color(0xFF2B579A),
-                    Triple(DocKind.Excel, Icons.Rounded.GridOn, stringResource(R.string.recents_filter_excel)) to Color(0xFF217346),
-                    Triple(DocKind.Ppt, Icons.Rounded.Slideshow, stringResource(R.string.recents_filter_ppt)) to Color(0xFFD24726),
-                    Triple(DocKind.Image, Icons.Rounded.Image, stringResource(R.string.recents_filter_image)) to Color(0xFF7E57C2)
-                )
+        RecentsFilterMenu(
+            open = filterMenuOpen,
+            anchorY = filterAnchorY,
+            selected = recentFilter,
+            accent = accent,
+            isLight = isLight,
+            backdrop = backdrop,
+            uiSensor = uiSensor,
+            onSelect = { kind ->
+                recentFilter = kind
+                filterMenuOpen = false
+                showAllRecents = false
+            },
+            onDismiss = { filterMenuOpen = false }
+        )
 
-                GlassCapsuleMenu(
-                    actions = categories.map { (spec, tint) ->
-                        val (kind, icon, label) = spec
-                        GlassMenuAction(
-                            icon,
-                            label,
-                            // The active category is the only one that carries its colour —
-                            // selection reads at a glance without a chip row.
-                            if (recentFilter == kind) tint else neutral
-                        ) {
-                            recentFilter = kind
-                            filterMenuOpen = false
-                            showAllRecents = false
-                        }
-                    },
-                    backdrop = backdrop,
-                    uiSensor = uiSensor,
-                    progress = filterProgress,
-                    modifier = Modifier
-                        .offset { IntOffset(0, (filterAnchorY + 8f * density).toInt()) }
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { /* Consume inner taps */ }
+        // ── File information ── the app's standard GlassDialog, refracting the live screen.
+        GlassDialog(
+            visible = infoRecent != null,
+            onDismiss = { infoRecent = null },
+            backdrop = screenBackdrop.glass,
+            title = null,
+            actions = {
+                GlassDialogAction(
+                    stringResource(R.string.done),
+                    onClick = { infoRecent = null },
+                    primary = true,
+                    tint = accent
                 )
             }
-        }
-
-        // File information dialog. Keep it in the same glass layer as the action sheet
-        // so the action has an immediate, readable result instead of silently closing.
-        AnimatedVisibility(
-            visible = infoRecent != null,
-            enter = fadeIn() + scaleIn(initialScale = 0.94f),
-            exit = fadeOut() + scaleOut(targetScale = 0.96f)
         ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    // Very light dim + NO ripple, so the screen stays in focus (not greyed out).
-                    .background(Color.Black.copy(alpha = 0.14f))
-                    .clickable(
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                        indication = null
-                    ) { infoRecent = null },
-                contentAlignment = Alignment.Center
-            ) {
-                infoRecent?.let { recent ->
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp)
-                            .liquidGlassPanel(backdrop, uiSensor)
-                            .clickable(
-                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                indication = null
-                            ) { /* Consume inner taps */ }
-                            .padding(22.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+            shownInfo?.let { recent ->
+                val kind = docKindOf(recent.name)
+                val (kIcon, kColor, _) = kindVisual(kind)
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Box(
-                                Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFE53935).copy(alpha = if (isLight) 0.14f else 0.25f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(24.dp), Color(0xFFE53935))
-                            }
-                            Column(Modifier.weight(1f)) {
-                                BasicText(
-                                    stringResource(R.string.recents_file_info),
-                                    style = TextStyle(text, 18.sp, FontWeight.SemiBold)
-                                )
-                                BasicText(
-                                    recent.name,
-                                    style = TextStyle(sub, 12.sp),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-
                         Box(
                             Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.08f))
-                        )
-
-                        InfoRow(
-                            stringResource(
-                                if (docKindOf(recent.name) == DocKind.Excel) R.string.recents_sheets
-                                else R.string.recents_pages
-                            ),
-                            if (recent.pageCount > 0) recent.pageCount.toString() else stringResource(R.string.recents_unknown),
-                            text, sub
-                        )
-                        InfoRow(stringResource(R.string.recents_size_label), if (recent.sizeBytes > 0) formatFileSize(recent.sizeBytes) else stringResource(R.string.recents_unknown), text, sub)
-                        InfoRow(stringResource(R.string.recents_added), formatTimestamp(recent.timestamp), text, sub)
-                        InfoRow(stringResource(R.string.recents_location), recent.uri.toString(), text, sub, maxLines = 3)
-
-                        LiquidButton(
-                            onClick = { infoRecent = null },
-                            backdrop = backdrop,
-                            tint = accent,
-                            modifier = Modifier.fillMaxWidth()
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(kColor.copy(alpha = if (isLight) 0.14f else 0.25f)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            BasicText(stringResource(R.string.done), style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold))
+                            Icon(kIcon, null, Modifier.size(24.dp), kColor)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            BasicText(
+                                stringResource(R.string.recents_file_info),
+                                style = TextStyle(text, 18.sp, FontWeight.SemiBold),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            BasicText(
+                                recent.name,
+                                style = TextStyle(sub, 12.sp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
+
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.08f))
+                    )
+
+                    InfoRow(
+                        stringResource(if (kind == DocKind.Excel) R.string.recents_sheets else R.string.recents_pages),
+                        if (recent.pageCount > 0) recent.pageCount.toString() else stringResource(R.string.recents_unknown),
+                        text, sub
+                    )
+                    InfoRow(stringResource(R.string.recents_size_label), if (recent.sizeBytes > 0) formatFileSize(recent.sizeBytes) else stringResource(R.string.recents_unknown), text, sub)
+                    InfoRow(stringResource(R.string.recents_added), formatTimestamp(recent.timestamp), text, sub)
+                    InfoRow(stringResource(R.string.recents_location), recent.uri.toString(), text, sub, maxLines = 3)
                 }
             }
         }
@@ -752,28 +666,309 @@ fun HomeScreen(
 }
 
 /**
- * Staggered entrance for one top-level section. All sections read from the same
- * [Transition], so they share a frame clock and only the delay differs.
+ * The welcome card above recents: mark, on-device badge, tagline, and the two vivid primary
+ * actions, each in its own screen accent (Open = blue, Scan = green).
  */
 @Composable
-private fun Transition<Boolean>.entranceModifier(index: Int, density: Float): Modifier {
-    val alpha by animateFloat(
-        transitionSpec = { tween(560, delayMillis = 90 * index, easing = FastOutSlowInEasing) },
-        label = "entranceAlpha"
+private fun HomeHeroCard(
+    backdrop: LayerBackdrop,
+    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
+    onOpen: () -> Unit,
+    onScan: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isDark = LocalIsDarkMode.current
+    Column(
+        modifier
+            .fillMaxWidth()
+            .liquidGlassPanel(backdrop, uiSensor)
+            .padding(horizontal = 20.dp, vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AccentIconTile(Icons.Rounded.Description, ToolAccents.Open, size = 52, iconSize = 28)
+        Spacer(Modifier.height(10.dp))
+        OnDeviceBadge()
+        Spacer(Modifier.height(10.dp))
+        BasicText(
+            stringResource(R.string.home_tagline),
+            style = TextStyle(
+                color = LiquidGlassColors.text(isDark),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = SourGummyFontFamily,
+                textAlign = TextAlign.Center
+            )
+        )
+        Spacer(Modifier.height(6.dp))
+        BasicText(
+            stringResource(R.string.home_subtitle),
+            style = TextStyle(LiquidGlassColors.secondary(isDark), 14.sp, lineHeight = 19.sp, textAlign = TextAlign.Center)
+        )
+        Spacer(Modifier.height(18.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ToolPrimaryButton(
+                text = stringResource(R.string.home_open_pdf),
+                onClick = onOpen,
+                backdrop = backdrop,
+                accent = ToolAccents.Open,
+                icon = Icons.Rounded.FileOpen,
+                modifier = Modifier.weight(1f)
+            )
+            ToolPrimaryButton(
+                text = stringResource(R.string.home_scan),
+                onClick = onScan,
+                backdrop = backdrop,
+                accent = ToolAccents.Scan,
+                icon = Icons.Rounded.DocumentScanner,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun OnDeviceBadge() {
+    val isDark = LocalIsDarkMode.current
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(50))
+            .background(ToolAccents.Open.copy(alpha = if (isDark) 0.20f else 0.12f))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Icon(Icons.Rounded.Lock, null, Modifier.size(11.dp), ToolAccents.Open)
+        BasicText(
+            stringResource(R.string.home_on_device),
+            style = TextStyle(ToolAccents.Open, 10.sp, FontWeight.Bold, letterSpacing = 0.6.sp)
+        )
+    }
+}
+
+/**
+ * Home when "Remember recent files" is off. There is no list to anchor the screen, so instead of a
+ * lone card stranded at the top it becomes a launchpad: one glass card, optically centred between
+ * the header and the tab bar, with the two actions full-width and a "works with" strip of the
+ * formats Open accepts, so the space reads as designed rather than left over.
+ *
+ * Centred when it fits; when it doesn't (small phone, large font) it simply scrolls.
+ */
+@Composable
+private fun HomeLaunchpad(
+    contentPadding: PaddingValues,
+    backdrop: LayerBackdrop,
+    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
+    entrance: Transition<Boolean>,
+    onOpen: () -> Unit,
+    onScan: () -> Unit
+) {
+    val isDark = LocalIsDarkMode.current
+    val text = LiquidGlassColors.text(isDark)
+    val sub = LiquidGlassColors.secondary(isDark)
+    // The mark lands with a small pop once the card has faded in. Flat content (not glass), so it
+    // is free to scale.
+    val markScale by entrance.animateFloat(
+        transitionSpec = { spring(dampingRatio = 0.55f, stiffness = 380f) },
+        label = "launchpadMark"
+    ) { if (it) 1f else 0.72f }
+
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val top = contentPadding.calculateTopPadding()
+        val bottom = contentPadding.calculateBottomPadding() + TabBarClearance
+        val visibleHeight = (maxHeight - top - bottom).coerceAtLeast(0.dp)
+        val launchpadScroll = rememberScrollState()
+        val isScrolling = remember(launchpadScroll) { { launchpadScroll.isScrollInProgress } }
+        CompositionLocalProvider(LocalIsScrolling provides isScrolling) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(launchpadScroll)
+                .padding(start = 16.dp, end = 16.dp, top = top, bottom = bottom)
+                .heightIn(min = visibleHeight),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Column(
+                Modifier
+                    .widthIn(max = 480.dp)
+                    .fillMaxWidth()
+                    .then(entrance.glassFade(1))
+                    .liquidGlassPanel(backdrop, uiSensor)
+                    .padding(horizontal = 24.dp, vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(Modifier.graphicsLayer { scaleX = markScale; scaleY = markScale }) {
+                    AccentIconTile(Icons.Rounded.Description, ToolAccents.Open, size = 72, iconSize = 38)
+                }
+                Spacer(Modifier.height(16.dp))
+                OnDeviceBadge()
+                Spacer(Modifier.height(14.dp))
+                BasicText(
+                    stringResource(R.string.home_tagline),
+                    style = TextStyle(
+                        color = text,
+                        fontSize = 25.sp,
+                        lineHeight = 30.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = SourGummyFontFamily,
+                        textAlign = TextAlign.Center
+                    )
+                )
+                Spacer(Modifier.height(8.dp))
+                BasicText(
+                    stringResource(R.string.home_subtitle),
+                    style = TextStyle(sub, 15.sp, lineHeight = 21.sp, textAlign = TextAlign.Center),
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+                Spacer(Modifier.height(26.dp))
+                ToolPrimaryButton(
+                    text = stringResource(R.string.home_open_pdf),
+                    onClick = onOpen,
+                    backdrop = backdrop,
+                    accent = ToolAccents.Open,
+                    icon = Icons.Rounded.FileOpen,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(10.dp))
+                ToolPrimaryButton(
+                    text = stringResource(R.string.home_scan),
+                    onClick = onScan,
+                    backdrop = backdrop,
+                    accent = ToolAccents.Scan,
+                    icon = Icons.Rounded.DocumentScanner,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(26.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.07f))
+                )
+                Spacer(Modifier.height(16.dp))
+                BasicText(
+                    stringResource(R.string.home_works_with).uppercase(),
+                    style = TextStyle(sub, 11.sp, FontWeight.SemiBold, letterSpacing = 0.8.sp)
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FormatMark(R.drawable.ic_format_pdf, "PDF", sub)
+                    FormatMark(R.drawable.ic_format_word, "DOC", sub)
+                    FormatMark(R.drawable.ic_format_excel, "XLS", sub)
+                    FormatMark(R.drawable.ic_format_ppt, "PPT", sub)
+                    FormatMark(R.drawable.ic_format_image, "IMG", sub)
+                }
+            }
+        }
+        }
+    }
+}
+
+@Composable
+private fun FormatMark(@androidx.annotation.DrawableRes icon: Int, label: String, labelColor: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Image(painterResource(icon), contentDescription = label, modifier = Modifier.size(30.dp))
+        BasicText(label, style = TextStyle(labelColor, 10.sp, FontWeight.Bold, letterSpacing = 0.4.sp))
+    }
+}
+
+/**
+ * The recents category menu. Its own composable so the open/close spring — read every frame —
+ * recomposes only this overlay, not the whole Home screen and its list.
+ */
+@Composable
+private fun RecentsFilterMenu(
+    open: Boolean,
+    anchorY: Float,
+    selected: DocKind?,
+    accent: Color,
+    isLight: Boolean,
+    backdrop: LayerBackdrop,
+    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
+    onSelect: (DocKind?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val filterTransition = updateTransition(open, label = "recentsFilterMenu")
+    val filterProgress by filterTransition.animateFloat(
+        transitionSpec = { spring(dampingRatio = 0.82f, stiffness = 220f) },
+        label = "filterProgress"
     ) { if (it) 1f else 0f }
-    val offsetY by animateFloat(
-        transitionSpec = { tween(560, delayMillis = 90 * index, easing = FastOutSlowInEasing) },
-        label = "entranceOffsetY"
-    ) { if (it) 0f else 22f }
+    val density = LocalDensity.current.density
+
+    AnimatedVisibility(
+        visible = open,
+        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessHigh)),
+        exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessHigh))
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                ),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            val neutral = if (isLight) Color(0xFF8E8E93) else Color(0xFF636366)
+            // Labels resolved up front: `stringResource` is @Composable, so it can't be called
+            // from inside a plain local helper.
+            val categories = listOf(
+                Triple(null as DocKind?, Icons.Rounded.Apps, stringResource(R.string.recents_filter_all)) to accent,
+                Triple(DocKind.Pdf, Icons.Rounded.PictureAsPdf, stringResource(R.string.recents_filter_pdf)) to Color(0xFFE53935),
+                Triple(DocKind.Word, Icons.Rounded.Description, stringResource(R.string.recents_filter_word)) to Color(0xFF2B579A),
+                Triple(DocKind.Excel, Icons.Rounded.GridOn, stringResource(R.string.recents_filter_excel)) to Color(0xFF217346),
+                Triple(DocKind.Ppt, Icons.Rounded.Slideshow, stringResource(R.string.recents_filter_ppt)) to Color(0xFFD24726),
+                Triple(DocKind.Image, Icons.Rounded.Image, stringResource(R.string.recents_filter_image)) to Color(0xFF7E57C2)
+            )
+
+            GlassCapsuleMenu(
+                actions = categories.map { (spec, tint) ->
+                    val (kind, icon, label) = spec
+                    GlassMenuAction(
+                        icon,
+                        label,
+                        // The active category is the only one that carries its colour —
+                        // selection reads at a glance without a chip row.
+                        if (selected == kind) tint else neutral
+                    ) { onSelect(kind) }
+                },
+                backdrop = backdrop,
+                uiSensor = uiSensor,
+                progress = filterProgress,
+                modifier = Modifier
+                    .offset { IntOffset(0, (anchorY + 8f * density).toInt()) }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { /* Consume inner taps */ }
+            )
+        }
+    }
+}
+
+/**
+ * Staggered entrance for a section that **is or contains glass**: opacity only. A glass surface
+ * samples the backdrop under the region it covers, so sliding one up re-ran its blur + lens on every
+ * frame of the entrance (the old version translated the hero and recents panels 22 dp). All sections
+ * read from the same [Transition], so they share a frame clock and only the delay differs.
+ */
+@Composable
+private fun Transition<Boolean>.glassFade(index: Int): Modifier {
+    val alpha by animateFloat(
+        transitionSpec = { tween(480, delayMillis = 80 * index, easing = FastOutSlowInEasing) },
+        label = "entranceAlpha$index"
+    ) { if (it) 1f else 0f }
     return Modifier.graphicsLayer {
         this.alpha = alpha
-        translationY = offsetY * density
         // Modulate alpha per draw-op instead of compositing to an offscreen buffer. The glass panels
         // carry a soft `drawBackdrop` shadow that extends BEYOND their bounds; an offscreen layer
-        // (the default when alpha < 1) clips that overspill, so the shadow stayed invisible through
-        // the whole fade and then snapped in at full strength the instant alpha reached 1 and the
-        // offscreen switched off. Modulating avoids the buffer entirely, so the shadow fades in with
-        // its container — the way the Tools screen's panels already come in.
+        // (the default when alpha < 1) clips that overspill, so the shadow would snap in at full
+        // strength the instant alpha reached 1.
         compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
     }
 }

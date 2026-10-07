@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -47,16 +49,17 @@ val ToolTileHeight = 120.dp
  * release, with no grey ripple. Same feel as the recents rows on Home.
  */
 @Composable
-private fun rememberPressScale(interaction: MutableInteractionSource): Float {
+private fun rememberPressScale(interaction: MutableInteractionSource): State<Float> {
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
+    // Returned as State and read only inside `graphicsLayer {}`. Returning the Float read it during
+    // composition, which recomposed the whole tile (icon, two texts) on every frame of the spring.
+    return animateFloatAsState(
         if (pressed) 0.96f else 1f,
         // Slightly under-damped and a touch stiffer than the rest of the app: release kicks back
         // with a visible bounce. Scoped to the tool tiles on purpose — everything else stays damped.
         spring(dampingRatio = 0.42f, stiffness = Spring.StiffnessMedium),
         label = "toolTilePress"
     )
-    return scale
 }
 
 /**
@@ -79,8 +82,10 @@ fun ToolTile(
 
     Column(
         modifier
-            .height(ToolTileHeight)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            // A floor, not a fixed height: Spanish / Portuguese names ("Herramientas de imagen")
+            // wrap to a second line instead of ellipsizing. The grid row equalises the pair.
+            .heightIn(min = ToolTileHeight)
+            .graphicsLayer { val s = scale.value; scaleX = s; scaleY = s }
             .clip(RoundedCornerShape(20.dp))
             .background(accent.copy(alpha = if (isLight) 0.10f else 0.15f))
             .clickable(
@@ -93,22 +98,24 @@ fun ToolTile(
     ) {
         ToolIconTile(icon, accent, title)
         Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(10.dp))
         BasicText(
             title,
             style = TextStyle(
                 color = LiquidGlassColors.text(!isLight),
                 fontSize = 15.sp,
+                lineHeight = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = (-0.2).sp
             ),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
         Spacer(Modifier.height(2.dp))
         BasicText(
             subtitle,
-            style = TextStyle(color = LiquidGlassColors.secondary(!isLight), fontSize = 11.5.sp),
-            maxLines = 1,
+            style = TextStyle(color = LiquidGlassColors.secondary(!isLight), fontSize = 11.5.sp, lineHeight = 14.sp),
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
     }
@@ -134,7 +141,7 @@ fun ToolTileWide(
     Row(
         modifier
             .fillMaxWidth()
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .graphicsLayer { val s = scale.value; scaleX = s; scaleY = s }
             .clip(RoundedCornerShape(22.dp))
             .background(accent.copy(alpha = if (isLight) 0.12f else 0.18f))
             .clickable(

@@ -37,6 +37,12 @@ internal object ExcelCellFormat {
         48 to "##0.0E+0", 49 to "@"
     )
 
+    // Compiled once. These were built inside `apply`/`isDateCode`/`colorFor` — a fresh regex compile
+    // for every cell formatted, and the grid formats every cell it draws.
+    /** `[Red]`, `[$-409]`, `[<=100]` … but not the elapsed-time `[h]` / `[hh]` tokens. */
+    private val BracketSection = Regex("\\[(?!h+]|hh+])[^]]*]", RegexOption.IGNORE_CASE)
+    private val ColorSection = Regex("\\[(Black|Blue|Cyan|Green|Magenta|Red|White|Yellow|Color\\s*(\\d+))]", RegexOption.IGNORE_CASE)
+
     /** `numFmtId` 14 is "short date" in the *user's* locale, so it gets the device's pattern. */
     private val ShortDatePattern: String by lazy {
         runCatching {
@@ -66,7 +72,7 @@ internal object ExcelCellFormat {
     /** True when [code] renders serials as dates/times. */
     fun isDateCode(code: String?): Boolean {
         if (code.isNullOrBlank() || code.equals("General", true)) return false
-        val body = splitSections(code).firstOrNull()?.replace(Regex("\\[(?!h+]|hh+])[^]]*]", RegexOption.IGNORE_CASE), "") ?: return false
+        val body = splitSections(code).firstOrNull()?.replace(BracketSection, "") ?: return false
         return runCatching { isDateTime(body) }.getOrDefault(false)
     }
 
@@ -83,8 +89,7 @@ internal object ExcelCellFormat {
             value == 0.0 && sections.size >= 3 -> sections[2]
             else -> sections[0]
         }
-        val m = Regex("\\[(Black|Blue|Cyan|Green|Magenta|Red|White|Yellow|Color\\s*(\\d+))]", RegexOption.IGNORE_CASE)
-            .find(section) ?: return null
+        val m = ColorSection.find(section) ?: return null
         return when (m.groupValues[1].lowercase().replace(" ", "").takeWhile { it.isLetter() }) {
             "black" -> 0xFF000000.toInt()
             "blue" -> 0xFF0000FF.toInt()
@@ -118,7 +123,7 @@ internal object ExcelCellFormat {
             value == 0.0 && sections.size >= 3 -> sections[2]
             else -> sections[0]
         }
-        val body = section.replace(Regex("\\[(?!h+]|hh+])[^]]*]", RegexOption.IGNORE_CASE), "")
+        val body = section.replace(BracketSection, "")
         if (body.isBlank()) return raw
 
         return runCatching {

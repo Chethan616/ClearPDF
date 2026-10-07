@@ -29,6 +29,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        // Belt-and-suspenders against the translucent scrim Android can draw behind the nav bar
+        // (API 29-34; reported as a "grey band" around it on some OEM skins/Android versions even
+        // with enableEdgeToEdge()). The app paints its own full-bleed background in every screen,
+        // so that scrim is never needed and only ever shows as a seam.
+        if (Build.VERSION.SDK_INT in Build.VERSION_CODES.Q..Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            window.isNavigationBarContrastEnforced = false
+        }
 
         // A locale change restarts this Activity. DocsApp animates both halves of that restart, so
         // the system's own cross-fade would just stack on top of ours.

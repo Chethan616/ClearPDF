@@ -72,7 +72,15 @@ internal sealed class PdfMarkup {
         val color: Color,
         val alpha: Float = 0.30f,
         val start: Int = 0,
-        val end: Int = -1
+        val end: Int = -1,
+        // One highlight gesture over a multi-line / multi-sentence selection produces one of
+        // these PER LINE (the text layout breaks the selection at line boundaries), so a single
+        // "highlight this paragraph" tap created several sibling markups sharing no link back to
+        // each other. Tapping any one of them to delete it only ever removed that one line, which
+        // read as "deletes a word, not the group I selected" for anything spanning more than one
+        // line. All siblings created by the same [applyToSelection] call share this id (0L = none,
+        // only ever produced by code predating this field); deleting one deletes the whole id.
+        val groupId: Long = 0L
     ) : PdfMarkup()
 
     data class TextBlockLineMarkup(
@@ -82,7 +90,9 @@ internal sealed class PdfMarkup {
         val alpha: Float = 1f,
         val strikeThrough: Boolean = false,
         val start: Int = 0,
-        val end: Int = -1
+        val end: Int = -1,
+        /** See [TextBlockHighlightMarkup.groupId]. */
+        val groupId: Long = 0L
     ) : PdfMarkup()
 
     data class ImageMarkup(
@@ -135,8 +145,7 @@ internal sealed class PdfMarkup {
         }
         is TextBoxMarkup -> {
             val lines = if (text.isEmpty()) 1 else text.split("\n").size
-            val w = (text.split("\n").maxOfOrNull { it.length } ?: 1).coerceAtLeast(1) * fontSize * 0.6f
-            val r = Rect(position.x - 6f, position.y - 6f, position.x + w + 6f, position.y + fontSize * 1.2f * lines + 6f)
+            val r = Rect(position.x - 6f, position.y - 6f, position.x + measuredTextWidth() + 6f, position.y + fontSize * 1.2f * lines + 6f)
             r.contains(p)
         }
         is NoteMarkup -> {
@@ -163,6 +172,25 @@ internal fun PdfMarkup.isTransformable(): Boolean = this is PdfMarkup.StrokeMark
 /** Whether a bottom-right resize handle applies (notes are a fixed-size icon → move only). */
 internal fun PdfMarkup.isResizable(): Boolean = isTransformable() && this !is PdfMarkup.NoteMarkup
 
+/**
+ * Real glyph-measured width of a [PdfMarkup.TextBoxMarkup]'s widest line at its current font size,
+ * instead of the old `charCount * fontSize * 0.6` guess. That guess was reused by [hitTest] and
+ * [movableBounds] to place BOTH the selection outline and the bottom-right resize handle — an
+ * estimate that drifts further from the real rendered glyphs as [PdfMarkup.TextBoxMarkup.fontSize]
+ * grows (narrow vs. wide character mixes, non-Latin scripts), so a resize drag's handle hit test
+ * raced ahead of or behind the finger and the selection frame visibly swam away from the text being
+ * resized — reported as "the text moves while resizing" (#48).
+ */
+private fun PdfMarkup.TextBoxMarkup.measuredTextWidth(): Float {
+    val paint = cachedTextBoxPaint
+    paint.textSize = fontSize
+    val lines = if (text.isEmpty()) listOf("") else text.split("\n")
+    return (lines.maxOfOrNull { paint.measureText(it) } ?: 0f).coerceAtLeast(fontSize * 1.2f)
+}
+
+/** One reusable [android.graphics.Paint] for text measurement — avoids allocating one per call. */
+private val cachedTextBoxPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+
 /** Content-space bounding box used for the selection frame + hit-testing during transform. */
 internal fun PdfMarkup.movableBounds(): Rect? = when (this) {
     is PdfMarkup.StrokeMarkup -> {
@@ -178,8 +206,7 @@ internal fun PdfMarkup.movableBounds(): Rect? = when (this) {
     is PdfMarkup.ImageMarkup -> Rect(min(start.x, end.x), min(start.y, end.y), max(start.x, end.x), max(start.y, end.y))
     is PdfMarkup.TextBoxMarkup -> {
         val lines = if (text.isEmpty()) 1 else text.split("\n").size
-        val w = ((text.split("\n").maxOfOrNull { it.length } ?: 1).coerceAtLeast(3)) * fontSize * 0.6f
-        Rect(position.x, position.y, position.x + w, position.y + fontSize * 1.2f * lines)
+        Rect(position.x, position.y, position.x + measuredTextWidth(), position.y + fontSize * 1.2f * lines)
     }
     is PdfMarkup.NoteMarkup -> Rect(anchor.x, anchor.y, anchor.x + 30f, anchor.y + 30f)
     else -> null
@@ -277,7 +304,11 @@ internal fun PdfMarkup.resizedBy(drag: Offset, bounds: Rect): PdfMarkup = when (
         copy(points = points.map { pivot + (it - pivot) * f })
     }
     is PdfMarkup.TextBoxMarkup -> {
-        val factor = ((bounds.height + drag.y) / bounds.height.coerceAtLeast(1f)).coerceIn(0.3f, 6f)
+        // Half-sensitivity: at a typical ~48px line height, an ordinary 15-20px per-event drag
+        // used to read as a 30-40% font-size jump in one frame — "cumbersome" (#48). A fast swipe
+        // still reaches the same range over a few frames; it just no longer overshoots on the first one.
+        val dampedDrag = drag.y * 0.5f
+        val factor = ((bounds.height + dampedDrag) / bounds.height.coerceAtLeast(1f)).coerceIn(0.3f, 6f)
         copy(fontSize = (fontSize * factor).coerceIn(10f, 400f))
     }
     else -> this

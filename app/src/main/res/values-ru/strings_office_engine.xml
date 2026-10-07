@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="office_engine_module_title">Движок Office (на основе LibreOffice)</string>
+    <string name="office_engine_title">Движок Office</string>
+    <string name="office_engine_powered_by">На основе LibreOffice</string>
+    <string name="office_engine_description">Открывает файлы Word, Excel, PowerPoint и OpenDocument с использованием макета LibreOffice для максимально точного отображения. Это необязательный компонент — встроенные средства отображения работают и без него.</string>
+    <string name="office_engine_not_installed">Не установлен · ~%1$s для загрузки</string>
+    <string name="office_engine_installed">Установлен · %1$s · v%2$s</string>
+    <string name="office_engine_update_available">Доступно обновление · %1$s</string>
+    <string name="office_engine_downloading">Загрузка…</string>
+    <string name="office_engine_downloading_progress">Загрузка · %1$s из %2$s</string>
+    <string name="office_engine_waiting_network">Ожидание сети…</string>
+    <string name="office_engine_installing">Проверка и установка…</string>
+    <string name="office_engine_needs_confirmation">Google Play требует вашего подтверждения для загрузки</string>
+    <string name="office_engine_failed">Установка не удалась: %1$s</string>
+    <string name="office_engine_download">Загрузить</string>
+    <string name="office_engine_install">Установить</string>
+    <string name="office_engine_update">Обновить</string>
+    <string name="office_engine_delete">Удалить</string>
+    <string name="office_engine_cancel">Отмена</string>
+    <string name="office_engine_retry">Повторить</string>
+    <string name="office_engine_approve">Разрешить</string>
+    <string name="office_engine_use_for_office">Использовать для файлов Office</string>
+    <string name="office_engine_use_for_office_sub">При ошибке переключается на встроенные средства отображения</string>
+    <string name="office_engine_licences">Лицензии LibreOffice (MPL-2.0)</string>
+    <string name="office_engine_delete_title">Удалить движок Office?</string>
+    <string name="office_engine_delete_message">Освободит %1$s. Файлы Office будут открываться встроенными средствами отображения. Вы можете загрузить его снова в любое время.</string>
+    <string name="office_engine_notification_channel">Загрузка движка Office</string>
+    <string name="office_engine_hint">Повысьте точность отображения с движком Office</string>
+    <string name="office_engine_hint_sub">Необязательная загрузка · на основе LibreOffice</string>
+    <string name="office_engine_hint_action">Получить</string>
+</resources>

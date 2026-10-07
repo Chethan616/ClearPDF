@@ -49,6 +49,7 @@ object LocaleHelper {
             locale.language.equals("pt", ignoreCase = true) -> "pt-BR"
             locale.language.equals("es", ignoreCase = true) -> "es"
             locale.language.equals("it", ignoreCase = true) -> "it"
+            locale.language.equals("ru", ignoreCase = true) -> "ru"
             else -> "en"
         }
     }
@@ -107,6 +108,7 @@ object LocaleHelper {
             "es" -> "Español"
             "en" -> "English"
             "it" -> "Italiano"
+            "ru" -> "Русский"
             else -> "English"
         }
     }

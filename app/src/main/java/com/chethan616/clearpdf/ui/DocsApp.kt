@@ -64,6 +64,7 @@ import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.navigation.DocsNavGraph
 import com.chethan616.clearpdf.ui.navigation.ROUTE_ONBOARDING
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
+import com.chethan616.clearpdf.ui.theme.LocalReducedGlassMotion
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.components.GlassDialog
@@ -108,6 +109,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
 
     var themeMode by rememberSaveable { mutableIntStateOf(AppSettingsManager.getThemeMode(context)) }
     var showWallpaper by rememberSaveable { mutableStateOf(AppSettingsManager.getShowWallpaper(context)) }
+    var reduceGlassMotion by rememberSaveable { mutableStateOf(AppSettingsManager.getReduceGlassMotion(context)) }
     var customWallpaper by rememberSaveable { mutableStateOf(AppSettingsManager.getCustomWallpaper(context)) }
     // Decode the user's chosen background off the main thread (downsampled to the screen).
     var customWallpaperBitmap by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
@@ -249,6 +251,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
         CompositionLocalProvider(
             LocalResources provides localizedContext.resources,
             LocalIsDarkMode provides isDarkMode,
+            LocalReducedGlassMotion provides reduceGlassMotion,
             LocalBackToLibraryAction provides backToLibrary
         ) {
             Box(Modifier.fillMaxSize()) {
@@ -303,6 +306,11 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     onShowWallpaperChanged = {
                         showWallpaper = it
                         AppSettingsManager.setShowWallpaper(context, it)
+                    },
+                    reduceGlassMotion = reduceGlassMotion,
+                    onReduceGlassMotionChanged = {
+                        reduceGlassMotion = it
+                        AppSettingsManager.setReduceGlassMotion(context, it)
                     },
                     hasCustomWallpaper = customWallpaper != null,
                     onCustomWallpaperChanged = { customWallpaper = it },
