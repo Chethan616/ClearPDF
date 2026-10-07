@@ -17,7 +17,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -38,7 +37,6 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
-import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.utils.DampedDragAnimation
 import com.chethan616.clearpdf.ui.utils.InteractiveHighlight
 import com.kyant.backdrop.Backdrop
@@ -72,9 +70,12 @@ fun LiquidBottomTabs(
 ) {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
-    val accentColor = LiquidGlassColors.Blue
-    val containerColor = surfaceColor ?: if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f)
-    else Color(0xFF121212).copy(0.4f)
+    val accentColor =
+        if (isLightTheme) Color(0xFF0088FF)
+        else Color(0xFF0091FF)
+    val containerColor =
+        surfaceColor ?: if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f)
+        else Color(0xFF121212).copy(0.4f)
     val contentHeight = (barHeight - 8.dp).coerceAtLeast(0.dp)
 
     val tabsBackdrop = rememberLayerBackdrop()
@@ -100,8 +101,7 @@ fun LiquidBottomTabs(
 
         val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
         val animationScope = rememberCoroutineScope()
-        val selectedTabIndexState = rememberUpdatedState(selectedTabIndex)
-        var currentIndex by remember {
+        var currentIndex by remember(selectedTabIndex) {
             mutableIntStateOf(selectedTabIndex())
         }
         val dampedDragAnimation = remember(animationScope) {
@@ -135,8 +135,8 @@ fun LiquidBottomTabs(
                 }
             )
         }
-        LaunchedEffect(Unit) {
-            snapshotFlow { selectedTabIndexState.value() }
+        LaunchedEffect(selectedTabIndex) {
+            snapshotFlow { selectedTabIndex() }
                 .collectLatest { index ->
                     currentIndex = index
                 }
