@@ -2,9 +2,12 @@ package com.chethan616.clearpdf.ui.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
+import com.chethan616.clearpdf.ui.theme.LocalIsScrolling
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
@@ -34,17 +37,33 @@ fun Modifier.liquidGlassPanel(
     val isLightTheme = !isDarkMode
     val containerColor = containerColorOverride
         ?: if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f) else Color(0xFF1E1E1E).copy(0.4f)
-    return this.drawBackdrop(
-        backdrop = backdrop,
-        shape = { RoundedRectangle(28f.dp) },
-        effects = {
-            vibrancy()
-            blur(8f.dp.toPx())
-            lens(20f.dp.toPx(), 40f.dp.toPx(), depthEffect = true)
-        },
-        highlight = { Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f)) },
-        shadow = { Shadow(radius = 8f.dp, color = Color.Black.copy(alpha = 0.1f)) },
-        innerShadow = { InnerShadow(radius = 3f.dp, alpha = 0.3f) },
-        onDrawSurface = { drawRect(containerColor) }
+    // A flatter, more opaque stand-in for the scrolling window: cheap to draw, and dense enough
+    // that it doesn't flash a visibly different material for the ~100ms it's on screen.
+    val scrollingColor = containerColor.copy(alpha = (containerColor.alpha * 2.25f).coerceAtMost(0.92f))
+    // A plain (non-deferred) read, not LocalIsScrolling.current used inside a draw-phase lambda:
+    // this recomposes on scroll start/stop (rare) so it can branch the modifier chain itself and
+    // skip drawBackdrop's own backdrop CAPTURE while scrolling, not just its vibrancy/blur/lens
+    // shaders. A screen with many panels (Settings has ~10) was still paying for that capture on
+    // every one, every scroll frame, even with the shaders skipped -- see LiquidButton's own note,
+    // where the same upgrade was needed for its many small per-chip/pill instances.
+    val isScrolling = LocalIsScrolling.current()
+    return this.then(
+        if (isScrolling) {
+            Modifier.clip(RoundedRectangle(28f.dp)).drawBehind { drawRect(scrollingColor) }
+        } else {
+            Modifier.drawBackdrop(
+                backdrop = backdrop,
+                shape = { RoundedRectangle(28f.dp) },
+                effects = {
+                    vibrancy()
+                    blur(8f.dp.toPx())
+                    lens(20f.dp.toPx(), 40f.dp.toPx(), depthEffect = true)
+                },
+                highlight = { Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f)) },
+                shadow = { Shadow(radius = 8f.dp, color = Color.Black.copy(alpha = 0.1f)) },
+                innerShadow = { InnerShadow(radius = 3f.dp, alpha = 0.3f) },
+                onDrawSurface = { drawRect(containerColor) }
+            )
+        }
     )
 }

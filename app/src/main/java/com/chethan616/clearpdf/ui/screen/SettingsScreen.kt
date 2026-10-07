@@ -55,6 +55,7 @@ import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -96,6 +97,7 @@ import com.chethan616.clearpdf.ui.components.ToolPrimaryButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.components.rememberScreenBackdrop
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
+import com.chethan616.clearpdf.ui.theme.LocalIsScrolling
 import com.chethan616.clearpdf.ui.theme.ToolAccents
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.Backdrop
@@ -192,6 +194,7 @@ fun SettingsScreen(
             }
         ) { contentPadding ->
             val scrollState = rememberScrollState()
+            val isScrolling = remember(scrollState) { { scrollState.isScrollInProgress } }
             val officeEngineRequester = remember { BringIntoViewRequester() }
             LaunchedEffect(Unit) {
                 if (OfficeEngine.focusSettingsSection.value) {
@@ -200,6 +203,7 @@ fun SettingsScreen(
                     officeEngineRequester.bringIntoView()
                 }
             }
+            CompositionLocalProvider(LocalIsScrolling provides isScrolling) {
             Column(
                 Modifier.fillMaxSize().verticalScroll(scrollState).padding(contentPadding),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -470,6 +474,7 @@ fun SettingsScreen(
                     SettingsDivider(isLight)
                     BasicText(stringResource(R.string.settings_license_notice), style = TextStyle(sub.copy(0.7f), 11.sp, lineHeight = 16.sp))
                 }
+            }
             }
         }
     }

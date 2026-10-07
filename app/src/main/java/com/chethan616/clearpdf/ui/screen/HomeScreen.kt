@@ -56,6 +56,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
@@ -78,6 +79,7 @@ import androidx.compose.material.icons.rounded.Scanner
 import androidx.compose.material.icons.rounded.Slideshow
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -127,6 +129,7 @@ import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
+import com.chethan616.clearpdf.ui.theme.LocalIsScrolling
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.utils.DocKind
 import com.chethan616.clearpdf.utils.docKindOf
@@ -285,8 +288,12 @@ fun HomeScreen(
                     onScan = onNavigateToScan
                 )
             } else {
+                val lazyListState = rememberLazyListState()
+                val isScrolling = remember(lazyListState) { { lazyListState.isScrollInProgress } }
+                CompositionLocalProvider(LocalIsScrolling provides isScrolling) {
                 LazyColumn(
                     Modifier.fillMaxSize(),
+                    state = lazyListState,
                     contentPadding = contentPadding,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -474,6 +481,7 @@ fun HomeScreen(
                     item(key = "bottomSpacer", contentType = "spacer") {
                         Spacer(Modifier.height(TabBarClearance))
                     }
+                }
                 }
             }
         }
@@ -768,10 +776,13 @@ private fun HomeLaunchpad(
         val top = contentPadding.calculateTopPadding()
         val bottom = contentPadding.calculateBottomPadding() + TabBarClearance
         val visibleHeight = (maxHeight - top - bottom).coerceAtLeast(0.dp)
+        val launchpadScroll = rememberScrollState()
+        val isScrolling = remember(launchpadScroll) { { launchpadScroll.isScrollInProgress } }
+        CompositionLocalProvider(LocalIsScrolling provides isScrolling) {
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(launchpadScroll)
                 .padding(start = 16.dp, end = 16.dp, top = top, bottom = bottom)
                 .heightIn(min = visibleHeight),
             verticalArrangement = Arrangement.Center,
@@ -852,6 +863,7 @@ private fun HomeLaunchpad(
                     FormatMark(R.drawable.ic_format_image, "IMG", sub)
                 }
             }
+        }
         }
     }
 }

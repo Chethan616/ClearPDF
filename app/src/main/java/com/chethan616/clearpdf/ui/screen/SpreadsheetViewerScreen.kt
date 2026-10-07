@@ -149,7 +149,6 @@ import com.chethan616.clearpdf.ui.components.LiquidBottomTab
 import com.chethan616.clearpdf.ui.components.LiquidBottomTabs
 import com.chethan616.clearpdf.ui.components.LiquidToggle
 import com.chethan616.clearpdf.ui.components.OfficeStandardColors
-import com.chethan616.clearpdf.ui.components.ShareMorphButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.components.viewerChromeGlass
 import com.chethan616.clearpdf.ui.components.viewerGlass
@@ -683,7 +682,10 @@ fun SpreadsheetViewerScreen(
                 onLongClick = { viewModel.exportToPdf(context) { u -> u?.let(onOpenPdf) } },
                 onLongClickLabel = stringResource(R.string.sheet_export_pdf),
                 backdrop = screenBackdrop.glass,
-                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 12.dp).size(52.dp)
+                // bottom = 6.dp centers this 52dp button on the sheet dock's 44dp-tall, 10dp-bottom-
+                // padded capsule (10 + 44/2 = 32dp center; a 52dp button centers there at 32 - 26 = 6dp).
+                // Matching the dock's own bottom padding (10dp) left the button sitting visibly lower.
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 12.dp, bottom = 6.dp).size(52.dp)
             ) {
                 Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), text)
             }
@@ -940,8 +942,10 @@ private fun SheetTabs(
         backdrop = backdrop,
         tabsCount = indices.size,
         modifier = Modifier.width(compactWidth).height(44.dp),
-        barHeight = 44.dp,
-        surfaceColor = Color.Transparent
+        barHeight = 44.dp
+        // surfaceColor left at its default (theme-consistent wash): a fully transparent base here
+        // read as a flat grey/dark smudge, not glass -- without that frost tint the capsule had
+        // nothing of its own to show, so the blur over a mostly-blank grid area just looked dull.
     ) {
         indices.forEachIndexed { slot, sheetIndex ->
             val sheet = wb.sheets[sheetIndex]
