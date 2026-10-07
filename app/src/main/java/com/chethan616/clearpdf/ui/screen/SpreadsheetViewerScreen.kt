@@ -81,6 +81,7 @@ import androidx.compose.material.icons.rounded.FormatItalic
 import androidx.compose.material.icons.rounded.FormatStrikethrough
 import androidx.compose.material.icons.rounded.FormatUnderlined
 import androidx.compose.material.icons.rounded.Numbers
+import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.SaveAs
 import androidx.compose.material.icons.rounded.Search
@@ -168,6 +169,7 @@ import com.chethan616.clearpdf.utils.xlsx.ValidationKind
 import com.chethan616.clearpdf.utils.xlsx.XlsxColors
 import com.chethan616.clearpdf.utils.xlsx.XlsxPainter
 import com.chethan616.clearpdf.utils.xlsx.XlsxRefs
+import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.shapes.Capsule
 import com.kyant.shapes.RoundedRectangle
@@ -249,7 +251,11 @@ fun SpreadsheetViewerScreen(
     var editing by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
     val formulaFocus = remember { FocusRequester() }
-    var zoom by remember { mutableFloatStateOf(1f) }
+    // Owned here but MUTATED by SpreadsheetGrid's own pinch gesture directly on this
+    // MutableFloatState (not an onZoom callback bouncing a new value back up each frame) -
+    // part of the xlsx perf pass. Kept unwrapped (no `by`) so this file can still pass the
+    // state object itself into the grid.
+    val zoom = remember { mutableFloatStateOf(1f) }
     var panel by remember { mutableStateOf(Panel.NONE) }
     var dropdown by remember { mutableStateOf<DropdownState?>(null) }
     var showSearch by remember { mutableStateOf(false) }
@@ -374,7 +380,7 @@ fun SpreadsheetViewerScreen(
         val lay = layout ?: return
         if (r >= (sheet?.frozenRows ?: 0)) scope.launch { listState.animateScrollToItem((lay.itemIndexOf(r) - 2).coerceAtLeast(0)) }
         val density = context.resources.displayMetrics.density
-        val target = ((lay.colX[c] - lay.frozenWidth) * density * zoom - 24 * density).coerceAtLeast(0f)
+        val target = ((lay.colX[c] - lay.frozenWidth) * density * zoom.floatValue - 24 * density).coerceAtLeast(0f)
         if (c >= (sheet?.frozenCols ?: 0)) scrollX.floatValue = target
     }
     LaunchedEffect(matches) {
@@ -587,7 +593,6 @@ fun SpreadsheetViewerScreen(
                                 } else startEditing()
                             },
                             onDropdown = { r, c, anchor -> if (state.editable) openDropdown(r, c, anchor) },
-                            onZoom = { z -> zoom = (zoom * z).coerceIn(0.5f, 2.5f) },
                             onColumnResize = { c, w -> viewModel.setColWidth(idx, c, w) },
                             // Own layer: the glass panel around the grid redraws on every motion-sensor
                             // tick (its highlight follows gravity). Without isolation each of those
@@ -655,25 +660,33 @@ fun SpreadsheetViewerScreen(
                 wb = wb!!,
                 indices = visibleSheets,
                 selected = idx,
-                backdrop = backdrop,
+                // The *live* backdrop (wallpaper + the grid actually on screen), not the
+                // wallpaper-only one: this dock floats outside the captured content layer, so
+                // sampling plain `backdrop` gave it nothing to refract but the flat grey/near-
+                // black fallback fill whenever the wallpaper is off (the app default) -- a dock
+                // that read as a dull grey slab instead of glass over the sheet.
+                backdrop = screenBackdrop.glass,
                 text = text,
                 accent = accent,
                 onSelect = { i -> if (editing) commitDraft(); sheetIndex = i }
             )
         }
 
-        // Share / export (reading mode): tap = open as PDF, long-press + swipe up = share.
+        // A single plain share button, not the reader's hold-and-swipe ShareMorph gesture — the
+        // sheet already has an explicit "export as PDF" entry point elsewhere in its tools, so this
+        // one control only needs to do the one thing its icon says. Long-press keeps the PDF export
+        // reachable (same as the back circle's long-press-for-library convention) instead of losing
+        // it outright.
         if (sheet != null && !showSearch && !editMode) {
-            ShareMorphButton(
-                backdrop = backdrop,
-                glass = chromeGlass,
-                fg = text,
-                onOpen = { viewModel.exportToPdf(context) { u -> u?.let(onOpenPdf) } },
-                onShare = { viewModel.shareableUri(context) { u -> u?.let { shareFile(context, it) } } },
-                idleIcon = Icons.Rounded.PictureAsPdf,
-                idleContentDesc = stringResource(R.string.sheet_export_pdf),
-                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 12.dp)
-            )
+            LiquidIconButton(
+                onClick = { viewModel.shareableUri(context) { u -> u?.let { shareFile(context, it) } } },
+                onLongClick = { viewModel.exportToPdf(context) { u -> u?.let(onOpenPdf) } },
+                onLongClickLabel = stringResource(R.string.sheet_export_pdf),
+                backdrop = screenBackdrop.glass,
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 12.dp).size(52.dp)
+            ) {
+                Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), text)
+            }
         }
 
         AnimatedVisibility(
@@ -909,7 +922,7 @@ private fun SheetTabs(
     wb: com.chethan616.clearpdf.utils.xlsx.XlsxWorkbook,
     indices: List<Int>,
     selected: Int,
-    backdrop: LayerBackdrop,
+    backdrop: Backdrop,
     text: Color,
     accent: Color,
     onSelect: (Int) -> Unit
