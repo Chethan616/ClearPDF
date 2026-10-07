@@ -19,6 +19,7 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -759,9 +760,12 @@ private val MarkupBarHeight = 48.dp
 
 /**
  * Contextual Edit / Delete / dismiss capsule for a selected markup (shape, text box, note, text
- * highlight/underline/strike). Same frosted material and theme ink as the selection toolbar and the
- * dialogs, instead of the old near-opaque dark slab with hard-coded English labels. Dismissal also
- * works by tapping anywhere else in the viewer or pressing Back.
+ * highlight/underline/strike). Clear chrome glass — pure refraction, like the bottom toolbar's own
+ * circles and [com.chethan616.clearpdf.ui.components.ShareMorphButton]'s idle state — instead of a
+ * dialog-weight platter, since this floats over the document the same way that chrome does. The
+ * entrance is the same family of spring ShareMorph uses: a real overshoot on scale (not clamped away)
+ * while alpha stays critically damped, so it springs in with actual weight instead of a flat fade.
+ * Dismissal also works by tapping anywhere else in the viewer or pressing Back.
  */
 @Composable
 private fun MarkupActionBar(
@@ -777,25 +781,29 @@ private fun MarkupActionBar(
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
-    val pop by androidx.compose.animation.core.animateFloatAsState(
+    // Alpha settles critically damped (a bouncing alpha reads as a flicker, per GlassMotion's own
+    // rule); scale is left to overshoot past 1 and spring back — the actual "pop" ShareMorph has.
+    val alpha by androidx.compose.animation.core.animateFloatAsState(
         if (shown) 1f else 0f,
+        com.chethan616.clearpdf.ui.components.GlassMotion.fade(),
+        label = "markupBarAlpha"
+    )
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        if (shown) 1f else 0.72f,
         com.chethan616.clearpdf.ui.components.GlassMotion.pop(),
-        label = "markupBarPop"
+        label = "markupBarScale"
     )
     Row(
         modifier
             .width(MarkupBarWidth)
             .height(MarkupBarHeight)
             .graphicsLayer {
-                alpha = pop.coerceIn(0f, 1f)
-                val sc = 0.9f + 0.1f * pop
-                scaleX = sc; scaleY = sc
+                this.alpha = alpha.coerceIn(0f, 1f)
+                scaleX = scale; scaleY = scale
             }
-            .viewerGlass(
-                backdrop,
-                com.chethan616.clearpdf.ui.components.glassDialogSurface(isDark),
-                shape = { com.kyant.shapes.Capsule }
-            )
+            // Clear glass: only the backdrop refraction + lens carry the material, same as the
+            // toolbar's own circles. A tinted/opaque fill here is what read as "not liquid glass".
+            .viewerGlass(backdrop, Color.Transparent, shape = { com.kyant.shapes.Capsule })
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -809,37 +817,44 @@ private fun MarkupActionBar(
             onDelete()
         }
         Box(Modifier.width(1.dp).height(22.dp).background(ink.copy(0.12f)))
-        Box(
-            Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .clickable(onClick = onDismiss),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Rounded.Close, stringResource(R.string.done), Modifier.size(18.dp), ink.copy(0.85f))
+        MarkupBarItem(Icons.Rounded.Close, stringResource(R.string.done), ink.copy(0.85f), Modifier.width(44.dp), iconOnly = true) {
+            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.ContextClick)
+            onDismiss()
         }
     }
 }
 
+/** One pill of [MarkupActionBar]: presses down and springs back, like [LiquidButton]'s deformation —
+ *  the old plain `clickable` had no press feedback at all, the one thing that most read as "not a
+ *  real button" next to ShareMorph and the rest of the toolbar. */
 @Composable
 private fun MarkupBarItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     color: Color,
     modifier: Modifier = Modifier,
+    iconOnly: Boolean = false,
     onClick: () -> Unit
 ) {
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val press by androidx.compose.animation.core.animateFloatAsState(
+        if (pressed) com.chethan616.clearpdf.ui.components.GlassMotion.PressedScale else 1f,
+        com.chethan616.clearpdf.ui.components.GlassMotion.press(),
+        label = "markupItemPress"
+    )
     Row(
         modifier
             .fillMaxHeight()
             .padding(vertical = 4.dp)
+            .graphicsLayer { scaleX = press; scaleY = press }
             .clip(com.kyant.shapes.Capsule)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .padding(horizontal = if (iconOnly) 0.dp else 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, Modifier.size(17.dp), color)
-        BasicText(label, style = TextStyle(color, 14.sp, FontWeight.SemiBold), maxLines = 1)
+        Icon(icon, if (iconOnly) label else null, Modifier.size(17.dp), color)
+        if (!iconOnly) BasicText(label, style = TextStyle(color, 14.sp, FontWeight.SemiBold), maxLines = 1)
     }
 }

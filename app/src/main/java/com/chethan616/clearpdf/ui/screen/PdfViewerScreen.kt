@@ -78,6 +78,7 @@ import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material.icons.rounded.Edit
@@ -1189,7 +1190,32 @@ fun PdfViewerScreen(
                                     }
                                 },
                                 onDeleteMarkup          = { idx ->
-                                    val m = getPageMarks(page); if (idx in m.indices) m.removeAt(idx)
+                                    val m = getPageMarks(page)
+                                    val target = m.getOrNull(idx)
+                                    // A highlight/underline/strike over a multi-line selection is
+                                    // several sibling markups (one per line) stamped with the same
+                                    // groupId when they were created. Deleting one must delete the
+                                    // whole passage, on every page it touches, or tapping the ONE
+                                    // line under your finger only ever "deleted a word" out of the
+                                    // paragraph you actually selected.
+                                    val groupId = when (target) {
+                                        is PdfMarkup.TextBlockHighlightMarkup -> target.groupId
+                                        is PdfMarkup.TextBlockLineMarkup -> target.groupId
+                                        else -> 0L
+                                    }
+                                    if (groupId != 0L) {
+                                        annotationsByPage.keys.toList().forEach { pg ->
+                                            val pageMarks = getPageMarks(pg)
+                                            val before = pageMarks.size
+                                            pageMarks.removeAll { mk ->
+                                                (mk is PdfMarkup.TextBlockHighlightMarkup && mk.groupId == groupId) ||
+                                                    (mk is PdfMarkup.TextBlockLineMarkup && mk.groupId == groupId)
+                                            }
+                                            if (pageMarks.size != before) recordEdit(pg)
+                                        }
+                                    } else if (idx in m.indices) {
+                                        m.removeAt(idx)
+                                    }
                                     selectedAnnoPage = null; selectedAnnoIndex = -1
                                     selectedMarkupGroupPage = null; selectedMarkupGroup = emptySet()
                                 },
@@ -1380,20 +1406,43 @@ fun PdfViewerScreen(
                 exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.96f),
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 88.dp)
             ) {
-                LiquidButton(
-                    onClick = {
-                        selectedMarkupGroup = emptySet()
-                        selectedMarkupGroupPage = null
-                        lastInteractionAtMs = System.currentTimeMillis()
-                    },
-                    backdrop = contentBackdrop,
-                    surfaceColor = chromeField
-                ) {
-                    BasicText(
-                        stringResource(R.string.viewer_lasso_selected_count, selectedMarkupGroup.size) +
-                            " · " + stringResource(R.string.viewer_lasso_done),
-                        style = TextStyle(bottomFg, 13.sp, fontWeight = FontWeight.SemiBold)
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // Lasso-selecting several markups and asking to delete them was previously only
+                    // possible one at a time (the group pill only offered "Done"/deselect) — the same
+                    // "selecting a group doesn't let you delete the group" complaint as the highlight
+                    // groupId fix above, for the lasso tool's own multi-select.
+                    LiquidButton(
+                        onClick = {
+                            val page = selectedMarkupGroupPage
+                            if (page != null) {
+                                val m = getPageMarks(page)
+                                selectedMarkupGroup.sortedDescending().forEach { i -> if (i in m.indices) m.removeAt(i) }
+                                recordEdit(page)
+                            }
+                            selectedMarkupGroup = emptySet()
+                            selectedMarkupGroupPage = null
+                            lastInteractionAtMs = System.currentTimeMillis()
+                        },
+                        backdrop = contentBackdrop,
+                        tint = LiquidGlassColors.Red
+                    ) {
+                        Icon(Icons.Rounded.Delete, stringResource(R.string.delete), Modifier.size(16.dp), Color.White)
+                    }
+                    LiquidButton(
+                        onClick = {
+                            selectedMarkupGroup = emptySet()
+                            selectedMarkupGroupPage = null
+                            lastInteractionAtMs = System.currentTimeMillis()
+                        },
+                        backdrop = contentBackdrop,
+                        surfaceColor = chromeField
+                    ) {
+                        BasicText(
+                            stringResource(R.string.viewer_lasso_selected_count, selectedMarkupGroup.size) +
+                                " · " + stringResource(R.string.viewer_lasso_done),
+                            style = TextStyle(bottomFg, 13.sp, fontWeight = FontWeight.SemiBold)
+                        )
+                    }
                 }
             }
 
@@ -1572,8 +1621,13 @@ fun PdfViewerScreen(
         }
         fun applyToSelection(
             snapToWords: Boolean = false,
-            block: (page: Int, marks: MutableList<PdfMarkup>, range: OcrTextRange) -> Boolean
+            block: (page: Int, marks: MutableList<PdfMarkup>, range: OcrTextRange, groupId: Long) -> Boolean
         ) {
+            // One id for every markup this single call creates, even across pages (a highlight can
+            // span a page break) and across the several per-line markups one multi-line selection
+            // becomes. Lets a later tap-to-delete remove the whole passage instead of one line of it
+            // — see [PdfMarkup.TextBlockHighlightMarkup.groupId].
+            val groupId = System.nanoTime()
             textSelection.rangesByPage().forEach { (page, ranges) ->
                 val marks = getPageMarks(page)
                 var changed = false
@@ -1582,7 +1636,7 @@ fun PdfViewerScreen(
                 val pageBlocks = if (snapToWords) state.ocrBlocksByPage[page].orEmpty().associateBy { it.id } else emptyMap()
                 ranges.forEach { raw ->
                     val r = if (snapToWords) pageBlocks[raw.blockId]?.let { raw.snappedToWords(it.text) } ?: raw else raw
-                    if (block(page, marks, r)) changed = true
+                    if (block(page, marks, r, groupId)) changed = true
                 }
                 if (changed) recordEdit(page)
             }
@@ -1619,33 +1673,56 @@ fun PdfViewerScreen(
             },
             onHighlight = { colorLong ->
                 currentColorLong = colorLong
-                applyToSelection(snapToWords = true) { _, m, r ->
+                applyToSelection(snapToWords = true) { _, m, r, groupId ->
                     // Re-highlighting replaces (recolours) highlights inside the range instead of stacking.
                     m.removeAll { it is PdfMarkup.TextBlockHighlightMarkup && it.blockId == r.blockId && it.start >= r.start && it.end <= r.end }
-                    m.add(PdfMarkup.TextBlockHighlightMarkup(r.blockId, Color(colorLong), 0.38f, r.start, r.end))
+                    m.add(PdfMarkup.TextBlockHighlightMarkup(r.blockId, Color(colorLong), 0.38f, r.start, r.end, groupId))
                     true
                 }
                 textSelection.clear()
             },
             onUnderline = {
-                applyToSelection(snapToWords = true) { _, m, r ->
+                applyToSelection(snapToWords = true) { _, m, r, groupId ->
                     if (m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == r.blockId && it.start == r.start && it.end == r.end && !it.strikeThrough }) false
-                    else m.add(PdfMarkup.TextBlockLineMarkup(r.blockId, Color(currentColorLong), 3f, 1f, false, r.start, r.end))
+                    else m.add(PdfMarkup.TextBlockLineMarkup(r.blockId, Color(currentColorLong), 3f, 1f, false, r.start, r.end, groupId))
                 }
                 textSelection.clear()
             },
             onStrike = {
-                applyToSelection(snapToWords = true) { _, m, r ->
+                applyToSelection(snapToWords = true) { _, m, r, groupId ->
                     if (m.any { it is PdfMarkup.TextBlockLineMarkup && it.blockId == r.blockId && it.start == r.start && it.end == r.end && it.strikeThrough }) false
-                    else m.add(PdfMarkup.TextBlockLineMarkup(r.blockId, Color(currentColorLong), 3f, 1f, true, r.start, r.end))
+                    else m.add(PdfMarkup.TextBlockLineMarkup(r.blockId, Color(currentColorLong), 3f, 1f, true, r.start, r.end, groupId))
                 }
                 textSelection.clear()
             },
             onRemoveHighlight = {
                 textSelection.rangesByPage().forEach { (page, ranges) ->
-                    getPageMarks(page).removeAll { m ->
-                        m is PdfMarkup.TextBlockHighlightMarkup && ranges.any { r -> r.blockId == m.blockId && m.start < r.end && m.end > r.start }
+                    val marks = getPageMarks(page)
+                    var changed = false
+                    ranges.forEach { r ->
+                        // Trim, don't blanket-remove: a highlighted PARAGRAPH is one or more
+                        // TextBlockHighlightMarkup per line (see groupId above), and each line's own
+                        // markup can easily cover more than the word you then select inside it —
+                        // removing the whole markup on any overlap deleted the highlight off the
+                        // entire line for a one-word selection. Split the overlapping markup instead,
+                        // keeping whatever's left on either side of the removed span.
+                        var i = 0
+                        while (i < marks.size) {
+                            val m = marks[i] as? PdfMarkup.TextBlockHighlightMarkup
+                            if (m == null || m.blockId != r.blockId || m.start >= r.end || m.end <= r.start) {
+                                i++; continue
+                            }
+                            val replacements = buildList {
+                                if (m.start < r.start) add(m.copy(start = m.start, end = r.start))
+                                if (m.end > r.end) add(m.copy(start = r.end, end = m.end))
+                            }
+                            marks.removeAt(i)
+                            marks.addAll(i, replacements)
+                            i += replacements.size
+                            changed = true
+                        }
                     }
+                    if (changed) recordEdit(page)
                 }
                 textSelection.clear()
             },
