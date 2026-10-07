@@ -3,16 +3,13 @@ package com.chethan616.clearpdf.ui.screen
 import android.os.SystemClock
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.gestures.ScrollableDefaults
@@ -24,7 +21,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,25 +28,34 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.shapes.Capsule
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -88,32 +93,47 @@ internal fun SheetRowScrubber(
     if (rowCount < 60) return
 
     val view = LocalView.current
+    val scope = rememberCoroutineScope()
     var isDragging by remember { mutableStateOf(false) }
     var dragRow by remember { mutableIntStateOf(0) }
     val lastSpan = (rowCount - 1).coerceAtLeast(1)
 
-    // Follow normal (non-rail) scrolling when the rail itself isn't being touched.
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
+    // The thumb's position, as a fraction of the track. Driven from a snapshotFlow into an
+    // Animatable and read only in draw/layout lambdas below. Before, `firstVisibleItemIndex` was
+    // copied into a state the scrubber read in composition and fed through `animateFloatAsState`
+    // into a `padding(top = …)`: every row scrolled past recomposed and re-measured the scrubber,
+    // and every frame of the follow-spring did it again — continuous recomposition for as long as
+    // the sheet was moving.
+    val thumb = remember { Animatable(0f) }
+    LaunchedEffect(listState, lastSpan) {
+        snapshotFlow { if (isDragging) dragRow else listState.firstVisibleItemIndex }
             .distinctUntilChanged()
-            .collect { idx -> if (!isDragging) dragRow = idx.coerceIn(0, lastSpan) }
+            .collectLatest { idx ->
+                thumb.animateTo(
+                    (idx.toFloat() / lastSpan).coerceIn(0f, 1f),
+                    spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy)
+                )
+            }
     }
 
     // Haptic tick + live scroll on every row the drag crosses.
-    LaunchedEffect(dragRow, isDragging) {
-        if (isDragging) {
-            runCatching { view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }
-            runCatching { listState.scrollToItem(dragRow) }
-        }
+    LaunchedEffect(listState) {
+        snapshotFlow { if (isDragging) dragRow else -1 }
+            .filter { it >= 0 }
+            .distinctUntilChanged()
+            .collect { row ->
+                runCatching { view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK) }
+                runCatching { listState.scrollToItem(row) }
+            }
     }
 
-    val fraction by animateFloatAsState(
-        targetValue = (dragRow.toFloat() / lastSpan).coerceIn(0f, 1f),
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy),
-        label = "sheetScrubFraction"
+    // 0 idle → 1 while dragging; widens the track and lengthens the thumb. A State read in draw.
+    val active = animateFloatAsState(
+        if (isDragging) 1f else 0f,
+        spring(stiffness = Spring.StiffnessMedium),
+        label = "sheetScrubActive"
     )
-    val trackWidth by animateDpAsState(if (isDragging) 8.dp else 4.dp, spring(stiffness = Spring.StiffnessMedium), label = "sheetTrackWidth")
-    val thumbHeight by animateDpAsState(if (isDragging) 40.dp else 30.dp, spring(stiffness = Spring.StiffnessMedium), label = "sheetThumbHeight")
+    val trackColor = if (isDark) Color.White.copy(0.14f) else Color.Black.copy(0.10f)
 
     Box(modifier) {
         Box(
@@ -124,15 +144,17 @@ internal fun SheetRowScrubber(
                 .pointerInput(rowCount) {
                     detectTapGestures { offset ->
                         val target = ((offset.y / size.height) * lastSpan).roundToInt().coerceIn(0, lastSpan)
-                        dragRow = target
                         runCatching { view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK) }
+                        // Tap-to-jump used to only move `dragRow`, which nothing scrolled to outside
+                        // a drag, so a tap on the rail did nothing.
+                        scope.launch { runCatching { listState.scrollToItem(target) } }
                     }
                 }
                 .pointerInput(rowCount) {
                     detectDragGestures(
                         onDragStart = { start ->
-                            isDragging = true
                             dragRow = ((start.y / size.height) * lastSpan).roundToInt().coerceIn(0, lastSpan)
+                            isDragging = true
                         },
                         onDrag = { change, _ ->
                             change.consume()
@@ -141,27 +163,18 @@ internal fun SheetRowScrubber(
                         onDragEnd = { isDragging = false },
                         onDragCancel = { isDragging = false }
                     )
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                Modifier
-                    .width(trackWidth)
-                    .height(SheetScrubberTrackHeight)
-                    .clip(RoundedCornerShape(50))
-                    .background(if (isDark) Color.White.copy(0.14f) else Color.Black.copy(0.10f)),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                Box(
-                    Modifier
-                        .padding(top = ((SheetScrubberTrackHeight - thumbHeight) * fraction).coerceAtLeast(0.dp))
-                        .width(if (isDragging) 8.dp else 4.dp)
-                        .height(thumbHeight)
-                        .clip(RoundedCornerShape(50))
-                        .background(if (isDragging) accent else accent.copy(0.55f))
-                )
-            }
-        }
+                }
+                .drawBehind {
+                    val p = active.value
+                    val trackW = (4.dp + 4.dp * p).toPx()
+                    val thumbH = (30.dp + 10.dp * p).toPx()
+                    val x = (size.width - trackW) / 2f
+                    val radius = CornerRadius(trackW / 2f)
+                    drawRoundRect(trackColor, Offset(x, 0f), Size(trackW, size.height), radius)
+                    val y = (size.height - thumbH) * thumb.value
+                    drawRoundRect(lerp(accent.copy(alpha = 0.55f), accent, p), Offset(x, y), Size(trackW, thumbH), radius)
+                }
+        )
 
         // A small pill badge — "12/940", not "Row 12 / 940" in a wide card. Sized to match the 40 dp
         // search-icon circle it sits beside: a plain `CircleShape` can't hold a 4-digit fraction
@@ -169,14 +182,18 @@ internal fun SheetRowScrubber(
         // as the digits actually need, via `defaultMinSize` rather than a fixed wide padding.
         AnimatedVisibility(
             visible = isDragging,
-            enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.9f, animationSpec = tween(160)),
-            exit = fadeOut(tween(180)) + scaleOut(targetScale = 0.92f),
+            enter = fadeIn(tween(140)),
+            exit = fadeOut(tween(180)),
             modifier = Modifier.align(Alignment.CenterEnd)
         ) {
-            val yOffset = (SheetScrubberTrackHeight * fraction - SheetScrubberTrackHeight / 2f).coerceIn(-90.dp, 90.dp)
             Box(
                 Modifier
-                    .offset(x = (-32).dp, y = yOffset)
+                    // Follows the thumb in the layout phase only; no recomposition per frame.
+                    .offset {
+                        val track = SheetScrubberTrackHeight.toPx()
+                        val y = (track * thumb.value - track / 2f).coerceIn(-90.dp.toPx(), 90.dp.toPx())
+                        IntOffset((-32).dp.roundToPx(), y.roundToInt())
+                    }
                     .defaultMinSize(minWidth = 26.dp, minHeight = 26.dp)
                     .viewerGlass(backdrop, chromeGlass, shape = { Capsule })
                     .padding(horizontal = 7.dp, vertical = 4.dp),
