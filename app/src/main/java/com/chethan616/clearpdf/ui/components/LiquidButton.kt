@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -20,6 +22,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtMost
 import androidx.compose.ui.util.lerp
+import com.chethan616.clearpdf.ui.theme.LocalIsScrolling
 import com.chethan616.clearpdf.ui.utils.InteractiveHighlight
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
@@ -84,58 +87,80 @@ fun LiquidButton(
     val interactiveHighlight = remember(animationScope) {
         InteractiveHighlight(animationScope = animationScope)
     }
+    // A plain (non-deferred) read: this recomposes LiquidButton on scroll start/stop, which is rare
+    // -- not on every frame -- so it's cheap, and it is the only way to skip drawBackdrop's own
+    // backdrop CAPTURE, not just its vibrancy/blur/lens shaders. A screen like Settings has a few
+    // dozen of these (every chip, pill, action button); reading this from inside `effects` instead
+    // (as liquidGlassPanel does, where panel counts are much lower) still paid for that capture on
+    // every one of them every scroll frame and left Settings at ~75-80% jank despite the shader skip.
+    val isScrolling = LocalIsScrolling.current()
 
     Row(
         modifier
-            .drawBackdrop(
-                backdrop = backdrop,
-                shape = { Capsule },
-                effects = {
-                    vibrancy()
-                    blur(blurRadius.toPx())
-                    lens(12f.dp.toPx(), 24f.dp.toPx())
-                },
-                layerBlock = if (isInteractive) {
-                    {
-                        val width = size.width
-                        val height = size.height
-
-                        val progress = interactiveHighlight.pressProgress
-                        val scale = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress)
-
-                        val maxOffset = size.minDimension
-                        val initialDerivative = 0.05f
-                        val offset = interactiveHighlight.offset
-                        translationX = maxOffset * tanh(initialDerivative * offset.x / maxOffset)
-                        translationY = maxOffset * tanh(initialDerivative * offset.y / maxOffset)
-
-                        val maxDragScale = 4f.dp.toPx() / size.height
-                        val offsetAngle = atan2(offset.y, offset.x)
-                        scaleX =
-                            scale +
-                                    maxDragScale * abs(cos(offsetAngle) * offset.x / size.maxDimension) *
-                                    (width / height).fastCoerceAtMost(1f)
-                        scaleY =
-                            scale +
-                                    maxDragScale * abs(sin(offsetAngle) * offset.y / size.maxDimension) *
-                                    (height / width).fastCoerceAtMost(1f)
+            .then(
+                if (isScrolling) {
+                    Modifier.clip(Capsule).drawBehind {
+                        if (tint.isSpecified) {
+                            drawRect(Color.White.copy(alpha = 0.42f))
+                            drawRect(tint, blendMode = BlendMode.Hue)
+                            drawRect(tint.copy(alpha = 0.8f))
+                        }
+                        if (surfaceColor.isSpecified) {
+                            drawRect(surfaceColor)
+                        }
                     }
                 } else {
-                    null
-                },
-                onDrawSurface = {
-                    if (tint.isSpecified) {
-                        // "Get it" look everywhere: a tinted pill only read vivid over light content
-                        // (the tint composited onto white); over the dark wallpaper the same 75% tint
-                        // went murky. A soft white base first makes the colour come out bright and
-                        // saturated on any backdrop while the lens rim still refracts.
-                        drawRect(Color.White.copy(alpha = 0.42f))
-                        drawRect(tint, blendMode = BlendMode.Hue)
-                        drawRect(tint.copy(alpha = 0.8f))
-                    }
-                    if (surfaceColor.isSpecified) {
-                        drawRect(surfaceColor)
-                    }
+                    Modifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { Capsule },
+                        effects = {
+                            vibrancy()
+                            blur(blurRadius.toPx())
+                            lens(12f.dp.toPx(), 24f.dp.toPx())
+                        },
+                        layerBlock = if (isInteractive) {
+                            {
+                                val width = size.width
+                                val height = size.height
+
+                                val progress = interactiveHighlight.pressProgress
+                                val scale = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress)
+
+                                val maxOffset = size.minDimension
+                                val initialDerivative = 0.05f
+                                val offset = interactiveHighlight.offset
+                                translationX = maxOffset * tanh(initialDerivative * offset.x / maxOffset)
+                                translationY = maxOffset * tanh(initialDerivative * offset.y / maxOffset)
+
+                                val maxDragScale = 4f.dp.toPx() / size.height
+                                val offsetAngle = atan2(offset.y, offset.x)
+                                scaleX =
+                                    scale +
+                                            maxDragScale * abs(cos(offsetAngle) * offset.x / size.maxDimension) *
+                                            (width / height).fastCoerceAtMost(1f)
+                                scaleY =
+                                    scale +
+                                            maxDragScale * abs(sin(offsetAngle) * offset.y / size.maxDimension) *
+                                            (height / width).fastCoerceAtMost(1f)
+                            }
+                        } else {
+                            null
+                        },
+                        onDrawSurface = {
+                            if (tint.isSpecified) {
+                                // "Get it" look everywhere: a tinted pill only read vivid over light content
+                                // (the tint composited onto white); over the dark wallpaper the same 75% tint
+                                // went murky. A soft white base first makes the colour come out bright and
+                                // saturated on any backdrop while the lens rim still refracts.
+                                drawRect(Color.White.copy(alpha = 0.42f))
+                                drawRect(tint, blendMode = BlendMode.Hue)
+                                drawRect(tint.copy(alpha = 0.8f))
+                            }
+                            if (surfaceColor.isSpecified) {
+                                drawRect(surfaceColor)
+                            }
+                        }
+                    )
                 }
             )
             .clickable(

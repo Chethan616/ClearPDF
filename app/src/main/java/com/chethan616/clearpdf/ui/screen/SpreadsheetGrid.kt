@@ -20,11 +20,15 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableFloatState
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
@@ -39,6 +43,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
@@ -50,6 +55,7 @@ import com.chethan616.clearpdf.utils.xlsx.XlsxPainter
 import com.chethan616.clearpdf.utils.xlsx.XlsxRefs
 import com.chethan616.clearpdf.utils.xlsx.XlsxSheet
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /** The selected range plus the cell typing goes into. */
 data class GridSelection(val anchorR: Int, val anchorC: Int, val range: CellRange) {
@@ -62,14 +68,27 @@ data class GridSelection(val anchorR: Int, val anchorC: Int, val range: CellRang
     }
 }
 
-/** Colours for the grid chrome (headers, selection), derived from the app theme. */
+/**
+ * Colours for the grid chrome (headers, selection), derived from the app theme. The ARGB forms are
+ * resolved once here: the gutter and header paint with `android.graphics`, and converting (or
+ * `copy(alpha)`-ing) a Compose colour per row per frame was pure allocation on the draw path.
+ */
 class GridColors(
     val surface: Color,
     val headerBand: Color,
     val headerText: Color,
     val headerDivider: Color,
     val accent: Color
-)
+) {
+    val headerBandArgb = headerBand.toArgb()
+    val headerTextArgb = headerText.toArgb()
+    val headerDividerArgb = headerDivider.toArgb()
+    val accentArgb = accent.toArgb()
+    /** Header / gutter band behind a selected column or row. */
+    val selBandArgb = accent.copy(alpha = 0.14f).toArgb()
+    /** …and behind a whole selected column or row. */
+    val wholeSelBandArgb = accent.copy(alpha = 0.30f).toArgb()
+}
 
 /**
  * The spreadsheet grid.
@@ -79,6 +98,11 @@ class GridColors(
  * scrolling is a plain scroll offset read only in the draw phase, so panning sideways never
  * recomposes or re-lays-out a row. Frozen rows sit above the list and frozen columns are painted in
  * place by the painter; the column-letter header and the row-number gutter are sticky.
+ *
+ * Zoom follows the same rule: it lives in [zoom] and is read only in layout (row heights), draw
+ * and gesture code, through [Geo]. A pinch used to write a `var zoom` the whole viewer read during
+ * composition, so every pointer event of a pinch recomposed the entire screen and every visible row;
+ * now it re-measures the rows and redraws, nothing more.
  */
 @Composable
 internal fun SpreadsheetGrid(
@@ -86,7 +110,7 @@ internal fun SpreadsheetGrid(
     layout: SheetLayout,
     painter: XlsxPainter,
     version: Int,
-    zoom: Float,
+    zoom: MutableFloatState,
     listState: LazyListState,
     scrollX: MutableFloatState,
     selection: GridSelection?,
@@ -98,16 +122,12 @@ internal fun SpreadsheetGrid(
     onSelect: (GridSelection) -> Unit,
     onTapSelected: (Int, Int) -> Unit,
     onDropdown: (r: Int, c: Int, anchorInRoot: Rect) -> Unit,
-    onZoom: (Float) -> Unit,
     onColumnResize: (Int, Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    val scale = density.density * zoom
     val headerH = with(density) { 28.dp.toPx() }
     val gutterW = with(density) { ((layout.nRows.toString().length * 7 + 22).dp).toPx() }
-    val frozenW = layout.frozenWidth * scale
-    val frozenH = layout.frozenHeight * scale
     val fc = sheet.frozenCols.coerceAtMost(layout.nCols)
     val handleR = with(density) { 7.dp.toPx() }
     val chevronW = with(density) { 22.dp.toPx() }
@@ -116,10 +136,15 @@ internal fun SpreadsheetGrid(
     val currentOnSelect by rememberUpdatedState(onSelect)
     val currentOnTapSelected by rememberUpdatedState(onTapSelected)
     val currentOnDropdown by rememberUpdatedState(onDropdown)
-    val currentOnZoom by rememberUpdatedState(onZoom)
     val currentOnResize by rememberUpdatedState(onColumnResize)
     val currentEdit by rememberUpdatedState(editMode)
-    val geo = rememberUpdatedState(Geo(layout, scale, frozenW, frozenH, fc, gutterW, headerH))
+    // Geometry for the current zoom. A derived state, so it is only rebuilt when the zoom or the
+    // layout really changes — the old `rememberUpdatedState(Geo(...))` handed every row a new object
+    // on every recomposition of this function (a selection change, a keystroke in the formula bar),
+    // which invalidated the draw of every visible row even when nothing about them had moved.
+    val geo: State<Geo> = remember(layout, density, gutterW, headerH, fc, zoom) {
+        derivedStateOf { Geo.of(layout, density.density * zoom.floatValue, fc, gutterW, headerH) }
+    }
 
     var gridOrigin by remember { mutableStateOf(Offset.Zero) }
     /** Column being resized and its live width in Excel px. */
@@ -132,27 +157,37 @@ internal fun SpreadsheetGrid(
             textSize = with(density) { 12.dp.toPx() }
         }
     }
+    // Baseline offset of the header labels, measured once (fake-bold doesn't move the metrics).
+    val headerTextDy = remember(headerPaint) { headerPaint.fontMetrics.let { -(it.ascent + it.descent) / 2f } }
     val bandPaint = remember { Paint() }
+    // Row numbers and column letters, built once per label instead of once per row per frame.
+    val labels = remember(layout) { GridLabels(layout.nRows, layout.nCols) }
 
-    // Horizontal pan: an offset in px, clamped to the scrollable width.
-    var viewportW by remember { mutableStateOf(0f) }
-    val maxScroll = ((layout.totalWidth - layout.frozenWidth) * scale - (viewportW - gutterW - frozenW)).coerceAtLeast(0f)
-    // Keep the scroll offset out of composition: a pointer pan updates it every frame and the
-    // previous read here subscribed the whole grid composable to every horizontal pixel.
-    LaunchedEffect(maxScroll) {
-        val current = scrollX.floatValue
-        if (current > maxScroll) scrollX.floatValue = maxScroll
+    // Horizontal pan: an offset in px, clamped to the scrollable width. Width and offset are read
+    // only in callbacks and draw lambdas, never in composition.
+    val viewportW = remember { mutableFloatStateOf(0f) }
+    fun maxScroll(g: Geo): Float =
+        ((g.layout.totalWidth - g.layout.frozenWidth) * g.scale - (viewportW.floatValue - g.gutterW - g.frozenW)).coerceAtLeast(0f)
+    LaunchedEffect(geo) {
+        snapshotFlow { maxScroll(geo.value) }.collect { max ->
+            if (scrollX.floatValue > max) scrollX.floatValue = max
+        }
     }
     val hState = rememberScrollableState { delta ->
         val old = scrollX.floatValue
-        val next = (old - delta).coerceIn(0f, maxScroll)
+        val next = (old - delta).coerceIn(0f, maxScroll(geo.value))
         scrollX.floatValue = next
         old - next
     }
 
     fun rowRect(g: Geo, r: Int): Pair<Float, Float>? {
-        if (r < sheet.frozenRows) return g.layout.rowY[r] * g.scale to g.layout.rowY[r + 1] * g.scale
-        val first = listState.layoutInfo.visibleItemsInfo.firstOrNull() ?: return null
+        if (r < sheet.frozenRows) return g.frozenTop(r) to g.frozenTop(r + 1)
+        val visible = listState.layoutInfo.visibleItemsInfo
+        val first = visible.firstOrNull() ?: return null
+        // Exact for a row on screen. Item heights are whole pixels, so deriving a row's position by
+        // summing the sheet's fractional heights drifted ~0.5 px per row and put the selection
+        // frame visibly off its cell a screen further down.
+        for (item in visible) if (item.key == r) return g.frozenH + item.offset to g.frozenH + item.offset + item.size
         val firstRow = g.layout.scrollRows.getOrNull(first.index) ?: return null
         val top = g.frozenH + first.offset + (g.layout.rowY[r.coerceAtMost(g.layout.nRows)] - g.layout.rowY[firstRow]) * g.scale
         val bottom = top + (g.layout.rowY[(r + 1).coerceAtMost(g.layout.nRows)] - g.layout.rowY[r.coerceAtMost(g.layout.nRows)]) * g.scale
@@ -167,7 +202,11 @@ internal fun SpreadsheetGrid(
 
     /** Grid-body point → (row, col); col −1 = row gutter. Null below the last row. */
     fun hit(g: Geo, p: Offset): Pair<Int, Int>? {
-        val r = if (p.y < g.frozenH) g.layout.rowAt(p.y / g.scale) else {
+        val r = if (p.y < g.frozenH) {
+            var fr = 0
+            while (fr < sheet.frozenRows - 1 && g.frozenTop(fr + 1) <= p.y) fr++
+            fr
+        } else {
             val y = p.y - g.frozenH
             val item = listState.layoutInfo.visibleItemsInfo.firstOrNull { y >= it.offset && y < it.offset + it.size } ?: return null
             g.layout.scrollRows.getOrNull(item.index) ?: return null
@@ -202,9 +241,9 @@ internal fun SpreadsheetGrid(
     Column(
         modifier
             .fillMaxSize()
-            .onGloballyPositioned { viewportW = it.size.width.toFloat(); gridOrigin = it.positionInRoot() }
+            .onGloballyPositioned { viewportW.floatValue = it.size.width.toFloat(); gridOrigin = it.positionInRoot() }
             .scrollable(hState, Orientation.Horizontal)
-            .pointerInput(Unit) {
+            .pointerInput(zoom) {
                 // Pinch to zoom; single-finger gestures pass through to scrolling.
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -212,7 +251,10 @@ internal fun SpreadsheetGrid(
                         val e = awaitPointerEvent()
                         if (e.changes.count { it.pressed } >= 2) {
                             val z = e.calculateZoom()
-                            if (z != 1f) { currentOnZoom(z); e.changes.forEach { it.consume() } }
+                            if (z != 1f) {
+                                zoom.floatValue = (zoom.floatValue * z).coerceIn(0.5f, 2.5f)
+                                e.changes.forEach { it.consume() }
+                            }
                         }
                     } while (e.changes.any { it.pressed })
                 }
@@ -270,6 +312,7 @@ internal fun SpreadsheetGrid(
                         val nc = cv.nativeCanvas
                         nc.save()
                         nc.clipRect(g.gutterW, 0f, size.width, size.height)
+                        val baseline = size.height / 2f + headerTextDy
                         fun drawCol(c: Int) {
                             val w = g.layout.colW(c) * g.scale
                             if (w <= 0f) return
@@ -277,14 +320,13 @@ internal fun SpreadsheetGrid(
                             if (x > size.width || x + w < g.gutterW) return
                             val inSel = sel != null && c in sel.range.c1..sel.range.c2
                             if (inSel) {
-                                bandPaint.color = colors.accent.copy(alpha = if (sel!!.isWholeColumn) 0.30f else 0.14f).toArgb()
+                                bandPaint.color = if (sel!!.isWholeColumn) colors.wholeSelBandArgb else colors.selBandArgb
                                 nc.drawRect(x, 0f, x + w, size.height, bandPaint)
                             }
-                            headerPaint.color = (if (inSel) colors.accent else colors.headerText).toArgb()
+                            headerPaint.color = if (inSel) colors.accentArgb else colors.headerTextArgb
                             headerPaint.isFakeBoldText = inSel
-                            val fm = headerPaint.fontMetrics
-                            nc.drawText(XlsxRefs.colLetter(c), x + w / 2f, size.height / 2f - (fm.ascent + fm.descent) / 2f, headerPaint)
-                            bandPaint.color = colors.headerDivider.toArgb()
+                            nc.drawText(labels.col(c), x + w / 2f, baseline, headerPaint)
+                            bandPaint.color = colors.headerDividerArgb
                             nc.drawRect(x + w - 1f, size.height * 0.22f, x + w, size.height * 0.78f, bandPaint)
                         }
                         // Scrolling columns, then frozen ones over them.
@@ -371,11 +413,10 @@ internal fun SpreadsheetGrid(
             Column(Modifier.fillMaxSize()) {
                 // Frozen rows: pinned above the scrolling list.
                 for (r in 0 until sheet.frozenRows.coerceAtMost(layout.nRows)) {
-                    val h = layout.rowH(r) * scale
-                    if (h <= 0f) continue
+                    if (layout.rowH(r) <= 0f) continue
                     Spacer(
-                        Modifier.fillMaxWidth().height(with(density) { h.toDp() })
-                            .drawBehind { drawGridRow(r, painter, layout, geo.value, scrollX.floatValue, colors, headerPaint, bandPaint, currentSelection) { m -> m.r1 == r } }
+                        Modifier.fillMaxWidth().rowHeight(layout, r, geo)
+                            .drawBehind { drawGridRow(r, painter, layout, geo.value, scrollX.floatValue, colors, headerPaint, headerTextDy, bandPaint, labels, currentSelection) { m -> m.r1 == r } }
                     )
                 }
                 LazyColumn(
@@ -385,12 +426,11 @@ internal fun SpreadsheetGrid(
                 ) {
                     items(count = layout.scrollRows.size, key = { layout.scrollRows[it] }) { i ->
                         val r = layout.scrollRows[i]
-                        val h = layout.rowH(r) * scale
                         Spacer(
-                            Modifier.fillMaxWidth().height(with(density) { h.toDp() })
+                            Modifier.fillMaxWidth().rowHeight(layout, r, geo)
                                 .drawBehind {
                                     @Suppress("UNUSED_EXPRESSION") version
-                                    drawGridRow(r, painter, layout, geo.value, scrollX.floatValue, colors, headerPaint, bandPaint, currentSelection) { m ->
+                                    drawGridRow(r, painter, layout, geo.value, scrollX.floatValue, colors, headerPaint, headerTextDy, bandPaint, labels, currentSelection) { m ->
                                         val firstRow = layout.scrollRows.getOrElse(listState.firstVisibleItemIndex) { 0 }
                                         r == maxOf(m.r1, firstRow, sheet.frozenRows)
                                     }
@@ -399,14 +439,16 @@ internal fun SpreadsheetGrid(
                     }
                 }
             }
-            if (frozenH > 0f) {
+            if (layout.frozenHeight > 0f) {
                 Spacer(Modifier.fillMaxSize().drawBehind {
-                    drawLine(colors.headerDivider, Offset(0f, frozenH), Offset(size.width, frozenH), 2f)
+                    val fh = geo.value.frozenH
+                    drawLine(colors.headerDivider, Offset(0f, fh), Offset(size.width, fh), 2f)
                 })
             }
-            if (frozenW > 0f) {
+            if (layout.frozenWidth > 0f) {
                 Spacer(Modifier.fillMaxSize().drawBehind {
-                    drawLine(colors.headerDivider, Offset(gutterW + frozenW, 0f), Offset(gutterW + frozenW, size.height), 2f)
+                    val g = geo.value
+                    drawLine(colors.headerDivider, Offset(g.gutterW + g.frozenW, 0f), Offset(g.gutterW + g.frozenW, size.height), 2f)
                 })
             }
 
@@ -417,15 +459,19 @@ internal fun SpreadsheetGrid(
                     @Suppress("UNUSED_EXPRESSION") version
                     clipRect(g.gutterW) {
                         if (matches.isNotEmpty()) {
-                            val first = listState.firstVisibleItemIndex
-                            val firstRow = layout.scrollRows.getOrElse(first) { 0 }
-                            val lastRow = layout.scrollRows.getOrElse(first + listState.layoutInfo.visibleItemsInfo.size + 1) { layout.nRows }
-                            for (m in matches) {
-                                if (m.first !in (if (m.first < sheet.frozenRows) 0 else firstRow)..lastRow) continue
-                                val rect = selectionRect(g, GridSelection.cell(m.first, m.second, sheet)) ?: continue
-                                val cur = m == currentMatch
-                                drawRect(colors.accent.copy(alpha = if (cur) 0.45f else 0.18f), rect.topLeft, rect.size)
+                            fun paint(m: Pair<Int, Int>) {
+                                val rect = selectionRect(g, GridSelection.cell(m.first, m.second, sheet)) ?: return
+                                drawRect(colors.accent.copy(alpha = if (m == currentMatch) 0.45f else 0.18f), rect.topLeft, rect.size)
                             }
+                            // Matches come out of the scan sorted by row, so only the slice that is on
+                            // screen is visited — not all (up to 5 000) on every scroll frame.
+                            var i = 0
+                            while (i < matches.size && matches[i].first < sheet.frozenRows) paint(matches[i++])
+                            val visible = listState.layoutInfo.visibleItemsInfo
+                            val firstRow = (visible.firstOrNull()?.key as? Int) ?: 0
+                            val lastRow = (visible.lastOrNull()?.key as? Int) ?: layout.nRows
+                            var j = lowerBoundByRow(matches, maxOf(firstRow, sheet.frozenRows))
+                            while (j < matches.size && matches[j].first <= lastRow) paint(matches[j++])
                         }
                         val sel = currentSelection ?: return@clipRect
                         val rect = selectionRect(g, sel) ?: return@clipRect
@@ -467,16 +513,60 @@ internal fun SpreadsheetGrid(
     }
 }
 
-/** Frozen geometry for one frame, captured so gesture handlers never see a stale layout. */
+/** First index in [matches] (sorted by row) whose row is ≥ [row]. */
+private fun lowerBoundByRow(matches: List<Pair<Int, Int>>, row: Int): Int {
+    var lo = 0
+    var hi = matches.size
+    while (lo < hi) {
+        val mid = (lo + hi) ushr 1
+        if (matches[mid].first < row) lo = mid + 1 else hi = mid
+    }
+    return lo
+}
+
+/**
+ * A row's height at the current zoom, read in the *measure* pass. A zoom change re-measures the
+ * rows; it never recomposes them.
+ */
+private fun Modifier.rowHeight(sheetLayout: SheetLayout, r: Int, geo: State<Geo>): Modifier =
+    layout { measurable, constraints ->
+        val h = (sheetLayout.rowH(r) * geo.value.scale).roundToInt().coerceAtLeast(0)
+        val p = measurable.measure(constraints.copy(minHeight = h, maxHeight = h))
+        layout(p.width, h) { p.place(0, 0) }
+    }
+
+/** Lazily built row-number and column-letter strings. */
+internal class GridLabels(nRows: Int, nCols: Int) {
+    private val rows = arrayOfNulls<String>(nRows + 1)
+    private val cols = arrayOfNulls<String>(nCols + 1)
+    fun row(r: Int): String = rows.getOrNull(r)?: (r + 1).toString().also { if (r in rows.indices) rows[r] = it }
+    fun col(c: Int): String = cols.getOrNull(c) ?: XlsxRefs.colLetter(c).also { if (c in cols.indices) cols[c] = it }
+}
+
+/** Geometry for one zoom level, captured so gesture handlers never see a stale layout. */
 internal class Geo(
     val layout: SheetLayout,
     val scale: Float,
     val frozenW: Float,
+    /** Height of the frozen band as laid out: the sum of the rows' whole-pixel heights. */
     val frozenH: Float,
     val fc: Int,
     val gutterW: Float,
-    val headerH: Float
-)
+    val headerH: Float,
+    private val frozenTops: FloatArray
+) {
+    /** Top of frozen row [r] (or the band's bottom for `r == frozenRows`), in laid-out pixels. */
+    fun frozenTop(r: Int): Float = frozenTops[r.coerceIn(0, frozenTops.size - 1)]
+
+    companion object {
+        fun of(layout: SheetLayout, scale: Float, fc: Int, gutterW: Float, headerH: Float): Geo {
+            val fr = layout.sheet.frozenRows.coerceAtMost(layout.nRows)
+            val tops = FloatArray(fr + 1)
+            for (r in 0 until fr) tops[r + 1] = tops[r] + (layout.rowH(r) * scale).roundToInt().coerceAtLeast(0)
+            return Geo(layout, scale, layout.frozenWidth * scale, tops[fr], fc, gutterW, headerH, tops)
+        }
+    }
+}
 
 private inline fun DrawScope.clipRect(left: Float, block: DrawScope.() -> Unit) {
     drawContext.canvas.save()
@@ -494,7 +584,9 @@ private fun DrawScope.drawGridRow(
     scrollX: Float,
     colors: GridColors,
     headerPaint: Paint,
+    headerTextDy: Float,
     bandPaint: Paint,
+    labels: GridLabels,
     sel: GridSelection?,
     drawsMerge: (CellRange) -> Boolean
 ) {
@@ -509,17 +601,16 @@ private fun DrawScope.drawGridRow(
 
         // Sticky row-number gutter, drawn last so nothing paints over it.
         val inSel = sel != null && r in sel.range.r1..sel.range.r2
-        bandPaint.color = colors.headerBand.toArgb()
+        bandPaint.color = colors.headerBandArgb
         nc.drawRect(0f, 0f, g.gutterW, h, bandPaint)
         if (inSel) {
-            bandPaint.color = colors.accent.copy(alpha = if (sel!!.isWholeRow) 0.30f else 0.14f).toArgb()
+            bandPaint.color = if (sel!!.isWholeRow) colors.wholeSelBandArgb else colors.selBandArgb
             nc.drawRect(0f, 0f, g.gutterW, h, bandPaint)
         }
-        headerPaint.color = (if (inSel) colors.accent else colors.headerText).toArgb()
+        headerPaint.color = if (inSel) colors.accentArgb else colors.headerTextArgb
         headerPaint.isFakeBoldText = inSel
-        val fm = headerPaint.fontMetrics
-        if (h > headerPaint.textSize * 0.8f) nc.drawText((r + 1).toString(), g.gutterW / 2f, h / 2f - (fm.ascent + fm.descent) / 2f, headerPaint)
-        bandPaint.color = colors.headerDivider.toArgb()
+        if (h > headerPaint.textSize * 0.8f) nc.drawText(labels.row(r), g.gutterW / 2f, h / 2f + headerTextDy, headerPaint)
+        bandPaint.color = colors.headerDividerArgb
         nc.drawRect(g.gutterW - 1f, 0f, g.gutterW, h, bandPaint)
         nc.drawRect(g.gutterW * 0.25f, h - 1f, g.gutterW * 0.75f, h, bandPaint)
     }

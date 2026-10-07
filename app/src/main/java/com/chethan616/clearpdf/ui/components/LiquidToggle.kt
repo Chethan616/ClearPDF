@@ -178,7 +178,9 @@ fun LiquidToggle(
                     shape = { Capsule },
                     effects = {
                         val progress = dampedDragAnimation.pressProgress
-                        blur(8f.dp.toPx() * (1f - progress))
+                        // At rest the thumb is an opaque white capsule (see onDrawSurface), so a blur
+                        // of what is under it would be invisible work. Only refract once pressed.
+                        if (progress > 0f) blur(8f.dp.toPx() * (1f - progress))
                         lens(
                             5f.dp.toPx() * progress,
                             10f.dp.toPx() * progress,
@@ -187,7 +189,9 @@ fun LiquidToggle(
                     },
                     highlight = {
                         val progress = dampedDragAnimation.pressProgress
-                        Highlight.Ambient.copy(
+                        // Alpha 0 at rest: skip it outright, so an idle thumb never builds the
+                        // highlight shader at all.
+                        if (progress <= 0f) null else Highlight.Ambient.copy(
                             width = Highlight.Ambient.width / 1.5f,
                             blurRadius = Highlight.Ambient.blurRadius / 1.5f,
                             alpha = progress
@@ -201,10 +205,16 @@ fun LiquidToggle(
                     },
                     innerShadow = {
                         val progress = dampedDragAnimation.pressProgress
-                        InnerShadow(
+                        if (progress <= 0f) null else InnerShadow(
                             radius = 4f.dp * progress,
                             alpha = progress
                         )
+                    },
+                    // The backdrop is fully covered by the opaque white surface at rest; don't even
+                    // record it then. A scrolling list re-samples every visible glass node per frame,
+                    // and a page of idle toggles was paying for blurs nobody could see.
+                    onDrawBackdrop = { drawBackdrop ->
+                        if (dampedDragAnimation.pressProgress > 0f) drawBackdrop()
                     },
                     layerBlock = {
                         scaleX = dampedDragAnimation.scaleX

@@ -313,6 +313,7 @@
     <string name="language_portuguese">Portugués</string>
     <string name="language_spanish">Español</string>
     <string name="language_italian">Italiano</string>
+    <string name="language_russian">Ruso</string>
     <string name="recents_open">Abrir</string>
     <string name="recents_share">Compartir</string>
     <string name="recents_details">Detalles</string>
@@ -558,4 +559,5 @@
     <string name="tour_sheet_title">Editar una hoja de cálculo</string>
     <string name="tour_sheet_message">Toca el lápiz para mostrar las opciones de formato, color y diseño de celdas.</string>
     <string name="back_to_library">Volver a la biblioteca</string>
+    <string name="home_works_with">Compatible con</string>
 </resources>

@@ -186,7 +186,9 @@ fun LiquidSlider(
                     shape = { Capsule },
                     effects = {
                         val progress = dampedDragAnimation.pressProgress
-                        blur(8f.dp.toPx() * (1f - progress))
+                        // At rest the thumb is an opaque white capsule (see onDrawSurface), so a blur
+                        // of what is under it would be invisible work. Only refract once pressed.
+                        if (progress > 0f) blur(8f.dp.toPx() * (1f - progress))
                         lens(
                             10f.dp.toPx() * progress,
                             14f.dp.toPx() * progress,
@@ -195,7 +197,9 @@ fun LiquidSlider(
                     },
                     highlight = {
                         val progress = dampedDragAnimation.pressProgress
-                        Highlight.Ambient.copy(
+                        // Alpha 0 at rest: skip it outright, so an idle thumb never builds the
+                        // highlight shader at all.
+                        if (progress <= 0f) null else Highlight.Ambient.copy(
                             width = Highlight.Ambient.width / 1.5f,
                             blurRadius = Highlight.Ambient.blurRadius / 1.5f,
                             alpha = progress
@@ -206,7 +210,11 @@ fun LiquidSlider(
                     },
                     innerShadow = {
                         val progress = dampedDragAnimation.pressProgress
-                        InnerShadow(radius = 4f.dp * progress, alpha = progress)
+                        if (progress <= 0f) null else InnerShadow(radius = 4f.dp * progress, alpha = progress)
+                    },
+                    // Fully covered by the opaque white surface at rest — see LiquidToggle.
+                    onDrawBackdrop = { drawBackdrop ->
+                        if (dampedDragAnimation.pressProgress > 0f) drawBackdrop()
                     },
                     layerBlock = {
                         scaleX = dampedDragAnimation.scaleX

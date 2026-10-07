@@ -35,7 +35,11 @@ class InteractiveHighlight(
     val pressProgress: Float get() = pressProgressAnimation.value
     val offset: Offset get() = positionAnimation.value - startPosition
 
-    private val shader =
+    // Built on first press, not at construction. Every LiquidButton / LiquidIconButton / glass card
+    // owns one of these, and `RuntimeShader(...)` compiles its AGSL on the calling thread — so a
+    // screen of buttons used to pay one shader compile per button during composition (and a list
+    // paid it again for every row it scrolled in), for a highlight most buttons never show.
+    private val shader: RuntimeShader? by lazy(LazyThreadSafetyMode.NONE) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             RuntimeShader(
                 """
@@ -53,11 +57,13 @@ half4 main(float2 coord) {
         } else {
             null
         }
+    }
 
     val modifier: Modifier =
         Modifier.drawWithContent {
             val progress = pressProgressAnimation.value
             if (progress > 0f) {
+                val shader = this@InteractiveHighlight.shader
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && shader != null) {
                     drawRect(Color.White.copy(0.08f * progress), blendMode = BlendMode.Plus)
                     shader.apply {
