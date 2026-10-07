@@ -137,7 +137,7 @@ class XlsxPainter(private val wb: XlsxWorkbook, val theme: PaintTheme) {
     private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG)
     private val fm = Paint.FontMetrics()
     private val dash = DashPathEffect(floatArrayOf(4f, 3f), 0f)
-    private val typefaces = HashMap<Int, Typeface>()
+    private val typefaces = HashMap<String, Typeface>()
 
     /** Everything the draw path needs about one cell, derived once. */
     private class CellInfo(
@@ -195,25 +195,78 @@ class XlsxPainter(private val wb: XlsxWorkbook, val theme: PaintTheme) {
             rich = wb.textOf(cell)?.takeIf { it.isRich },
             multiline = text.indexOf('\n') >= 0,
             isDate = numeric && ExcelCellFormat.isDateCode(st.numFmtCode),
-            typeface = typeface(st)
+            typeface = typeface(st, text)
         ).also { infoCache[cell] = it }
     }
 
-    private fun typeface(st: ResolvedStyle): Typeface {
+    /**
+     * [text] is only used to notice when the typeface we're about to use can't actually render it
+     * (Devanagari and other complex scripts, #28) and swap to one that can — it never changes which
+     * font a *renderable* cell gets.
+     */
+    private fun typeface(st: ResolvedStyle, text: String): Typeface {
+        val style = (if (st.bold) Typeface.BOLD else 0) or (if (st.italic) Typeface.ITALIC else 0)
         val fam = when (st.fontName?.lowercase()) {
             null -> 0
             "times new roman", "cambria", "georgia", "garamond", "book antiqua", "palatino linotype" -> 1
             "courier new", "consolas", "lucida console", "courier" -> 2
             else -> 0
         }
-        val style = (if (st.bold) Typeface.BOLD else 0) or (if (st.italic) Typeface.ITALIC else 0)
-        val key = fam * 4 + style
-        return typefaces.getOrPut(key) {
-            Typeface.create(
+        // "Preserve the original font when possible": a workbook naming "Mangal" / "Nirmala UI" /
+        // "Noto Sans Devanagari" etc. (common Hindi-capable fonts Excel offers) previously had that
+        // name THROWN AWAY — only the 3-way serif/mono/sans bucket above survived, so every such
+        // cell silently became plain Roboto regardless of what the sheet actually asked for. Many
+        // Indian-market OEM builds register these by their real name, so try it first; `create`
+        // degrades to the default family instead of throwing when a name isn't installed, so this
+        // is free when it isn't available.
+        val requestedName = st.fontName?.takeIf { fam == 0 }
+        val key = "${requestedName ?: fam}|$style"
+        val resolved = typefaces.getOrPut(key) {
+            if (requestedName != null) Typeface.create(requestedName, style)
+            else Typeface.create(
                 when (fam) { 1 -> Typeface.SERIF; 2 -> Typeface.MONOSPACE; else -> Typeface.SANS_SERIF }, style
             )
         }
+        // Glyph-coverage guard: whatever we resolved above, confirm it can actually draw this cell's
+        // text. A workbook's named font not being installed is invisible from `create` alone (it
+        // silently hands back the default family), and that default family's fallback chain is not
+        // guaranteed to cover every script on every OEM skin — this is what used to show as missing/
+        // tofu glyphs for Hindi text instead of rendering it. `hasGlyph` is API 23+ (our minSdk).
+        // Manual codepoint walk, not String.codePoints() (API 24+) — minSdk here is 23.
+        var probe: String? = null
+        var i = 0
+        while (i < text.length) {
+            val cp = text.codePointAt(i)
+            val cc = Character.charCount(cp)
+            if (!isBasicLatinOrCommon(cp)) { probe = text.substring(i, i + cc); break }
+            i += cc
+        }
+        if (probe != null) {
+            glyphCheckPaint.typeface = resolved
+            if (!glyphCheckPaint.hasGlyph(probe)) {
+                val fallbackKey = "fallback-devanagari|$style"
+                return typefaces.getOrPut(fallbackKey) {
+                    // Try, in order, fonts actually declared to cover Devanagari (and most other
+                    // Indic/complex scripts) on stock and OEM Android builds; "sans-serif" last
+                    // forces Minikin's own full system fallback chain rather than returning tofu.
+                    listOf("Noto Sans Devanagari", "Nirmala UI", "Mangal", "sans-serif")
+                        .map { Typeface.create(it, style) }
+                        .firstOrNull { tf ->
+                            glyphCheckPaint.typeface = tf
+                            glyphCheckPaint.hasGlyph(probe)
+                        } ?: resolved
+                }
+            }
+        }
+        return resolved
     }
+
+    /** Codepoints Roboto itself already covers — no need to probe glyph support for these. */
+    private fun isBasicLatinOrCommon(cp: Int): Boolean =
+        cp < 0x250 || (cp in 0x2000..0x206F) // Latin-1/Latin Extended-A/B, general punctuation
+
+    /** Scratch [Paint] for [Paint.hasGlyph] probes only — never used to draw. */
+    private val glyphCheckPaint = Paint()
 
     /** Ink for a cell: explicit colour, number-format colour, or the theme's, kept legible. */
     private fun inkFor(st: ResolvedStyle, fill: Int?, cell: CellData?): Int {

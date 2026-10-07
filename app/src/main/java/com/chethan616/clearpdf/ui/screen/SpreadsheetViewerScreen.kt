@@ -249,7 +249,11 @@ fun SpreadsheetViewerScreen(
     var editing by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
     val formulaFocus = remember { FocusRequester() }
-    var zoom by remember { mutableFloatStateOf(1f) }
+    // Owned here but MUTATED by SpreadsheetGrid's own pinch gesture directly on this
+    // MutableFloatState (not an onZoom callback bouncing a new value back up each frame) -
+    // part of the xlsx perf pass. Kept unwrapped (no `by`) so this file can still pass the
+    // state object itself into the grid.
+    val zoom = remember { mutableFloatStateOf(1f) }
     var panel by remember { mutableStateOf(Panel.NONE) }
     var dropdown by remember { mutableStateOf<DropdownState?>(null) }
     var showSearch by remember { mutableStateOf(false) }
@@ -374,7 +378,7 @@ fun SpreadsheetViewerScreen(
         val lay = layout ?: return
         if (r >= (sheet?.frozenRows ?: 0)) scope.launch { listState.animateScrollToItem((lay.itemIndexOf(r) - 2).coerceAtLeast(0)) }
         val density = context.resources.displayMetrics.density
-        val target = ((lay.colX[c] - lay.frozenWidth) * density * zoom - 24 * density).coerceAtLeast(0f)
+        val target = ((lay.colX[c] - lay.frozenWidth) * density * zoom.floatValue - 24 * density).coerceAtLeast(0f)
         if (c >= (sheet?.frozenCols ?: 0)) scrollX.floatValue = target
     }
     LaunchedEffect(matches) {
@@ -587,7 +591,6 @@ fun SpreadsheetViewerScreen(
                                 } else startEditing()
                             },
                             onDropdown = { r, c, anchor -> if (state.editable) openDropdown(r, c, anchor) },
-                            onZoom = { z -> zoom = (zoom * z).coerceIn(0.5f, 2.5f) },
                             onColumnResize = { c, w -> viewModel.setColWidth(idx, c, w) },
                             // Own layer: the glass panel around the grid redraws on every motion-sensor
                             // tick (its highlight follows gravity). Without isolation each of those
