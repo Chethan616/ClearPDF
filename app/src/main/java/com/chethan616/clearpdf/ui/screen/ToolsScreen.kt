@@ -1,26 +1,31 @@
 package com.chethan616.clearpdf.ui.screen
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.Transition
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.CallMerge
 import androidx.compose.material.icons.automirrored.rounded.CallSplit
@@ -51,6 +56,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
@@ -62,6 +68,7 @@ import com.chethan616.clearpdf.ui.components.ToolTileWide
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
+import com.chethan616.clearpdf.ui.theme.ToolAccents
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.backdrops.LayerBackdrop
@@ -110,47 +117,48 @@ fun ToolsScreen(
 
     val openPdf = ToolSpec(
         "open", stringResource(R.string.tool_open_pdf), stringResource(R.string.tool_open_pdf_sub),
-        LiquidGlassColors.Blue, Icons.Rounded.FileOpen, onNavigateToOpenPdf
+        ToolAccents.Open, Icons.Rounded.FileOpen, onNavigateToOpenPdf
     )
 
     // Built fresh each composition on purpose. The previous version memoised this behind a
     // remember() with 34 dependency keys, which cost more to compare than these 17 small objects
     // cost to allocate — and invalidated wholesale whenever any single callback changed identity.
+    // Accents come from ToolAccents, so each tile matches the colour of the screen it opens.
     val sections = listOf(
         ToolSection(
             stringResource(R.string.tools_section_organize),
             listOf(
-                ToolSpec("merge", stringResource(R.string.tool_merge), stringResource(R.string.tool_merge_sub), LiquidGlassColors.Red, Icons.AutoMirrored.Rounded.CallMerge, onNavigateToMergePdf),
-                ToolSpec("split", stringResource(R.string.tool_split), stringResource(R.string.tool_split_sub), LiquidGlassColors.Purple, Icons.AutoMirrored.Rounded.CallSplit, onNavigateToSplitPdf),
-                ToolSpec("organize", stringResource(R.string.tool_organize), stringResource(R.string.tool_organize_sub), LiquidGlassColors.Teal, Icons.Rounded.Reorder, onNavigateToOrganizePdf),
-                ToolSpec("extract_pages", stringResource(R.string.tool_extract_pages), stringResource(R.string.tool_extract_pages_sub), Color(0xFF00897B), Icons.Rounded.ContentCut, onNavigateToExtractPages)
+                ToolSpec("merge", stringResource(R.string.tool_merge), stringResource(R.string.tool_merge_sub), ToolAccents.Merge, Icons.AutoMirrored.Rounded.CallMerge, onNavigateToMergePdf),
+                ToolSpec("split", stringResource(R.string.tool_split), stringResource(R.string.tool_split_sub), ToolAccents.Split, Icons.AutoMirrored.Rounded.CallSplit, onNavigateToSplitPdf),
+                ToolSpec("organize", stringResource(R.string.tool_organize), stringResource(R.string.tool_organize_sub), ToolAccents.Organize, Icons.Rounded.Reorder, onNavigateToOrganizePdf),
+                ToolSpec("extract_pages", stringResource(R.string.tool_extract_pages), stringResource(R.string.tool_extract_pages_sub), ToolAccents.ExtractPages, Icons.Rounded.ContentCut, onNavigateToExtractPages)
             )
         ),
         ToolSection(
             stringResource(R.string.tools_section_convert),
             listOf(
-                ToolSpec("images", stringResource(R.string.tool_images), stringResource(R.string.tool_images_sub), LiquidGlassColors.Indigo, Icons.Rounded.Image, onNavigateToImagesToPdf),
-                ToolSpec("pdf_to_images", stringResource(R.string.tool_pdf_to_images), stringResource(R.string.tool_pdf_to_images_sub), Color(0xFF00ACC1), Icons.Rounded.Collections, onNavigateToPdfToImages),
-                ToolSpec("extract", stringResource(R.string.tool_extract), stringResource(R.string.tool_extract_sub), Color(0xFF5AC8FA), Icons.Rounded.TextSnippet, onNavigateToExtractText),
-                ToolSpec("create", stringResource(R.string.tool_create), stringResource(R.string.tool_create_sub), LiquidGlassColors.Orange, Icons.AutoMirrored.Rounded.NoteAdd, onNavigateToCreatePdf)
+                ToolSpec("images", stringResource(R.string.tool_images), stringResource(R.string.tool_images_sub), ToolAccents.ImagesToPdf, Icons.Rounded.Image, onNavigateToImagesToPdf),
+                ToolSpec("pdf_to_images", stringResource(R.string.tool_pdf_to_images), stringResource(R.string.tool_pdf_to_images_sub), ToolAccents.PdfToImages, Icons.Rounded.Collections, onNavigateToPdfToImages),
+                ToolSpec("extract", stringResource(R.string.tool_extract), stringResource(R.string.tool_extract_sub), ToolAccents.ExtractText, Icons.Rounded.TextSnippet, onNavigateToExtractText),
+                ToolSpec("create", stringResource(R.string.tool_create), stringResource(R.string.tool_create_sub), ToolAccents.Create, Icons.AutoMirrored.Rounded.NoteAdd, onNavigateToCreatePdf)
             )
         ),
         ToolSection(
             stringResource(R.string.tools_section_edit),
             listOf(
-                ToolSpec("watermark", stringResource(R.string.tool_watermark), stringResource(R.string.tool_watermark_sub), Color(0xFFAD1457), Icons.Rounded.BrandingWatermark, onNavigateToWatermark),
-                ToolSpec("page_numbers", stringResource(R.string.tool_page_numbers), stringResource(R.string.tool_page_numbers_sub), Color(0xFF3949AB), Icons.Rounded.Numbers, onNavigateToPageNumbers),
-                ToolSpec("fill_form", stringResource(R.string.tool_fill_form), stringResource(R.string.tool_fill_form_sub), Color(0xFF00695C), Icons.Rounded.EditNote, onNavigateToFillForm),
-                ToolSpec("image_tools", stringResource(R.string.tool_image_tools), stringResource(R.string.tool_image_tools_sub), Color(0xFFF4511E), Icons.Rounded.PhotoSizeSelectLarge, onNavigateToImageTools)
+                ToolSpec("watermark", stringResource(R.string.tool_watermark), stringResource(R.string.tool_watermark_sub), ToolAccents.Watermark, Icons.Rounded.BrandingWatermark, onNavigateToWatermark),
+                ToolSpec("page_numbers", stringResource(R.string.tool_page_numbers), stringResource(R.string.tool_page_numbers_sub), ToolAccents.PageNumbers, Icons.Rounded.Numbers, onNavigateToPageNumbers),
+                ToolSpec("fill_form", stringResource(R.string.tool_fill_form), stringResource(R.string.tool_fill_form_sub), ToolAccents.FillForm, Icons.Rounded.EditNote, onNavigateToFillForm),
+                ToolSpec("image_tools", stringResource(R.string.tool_image_tools), stringResource(R.string.tool_image_tools_sub), ToolAccents.ImageTools, Icons.Rounded.PhotoSizeSelectLarge, onNavigateToImageTools)
             )
         ),
         ToolSection(
             stringResource(R.string.tools_section_optimize),
             listOf(
-                ToolSpec("compress", stringResource(R.string.tool_compress), stringResource(R.string.tool_compress_sub), LiquidGlassColors.Green, Icons.Rounded.Compress, onNavigateToCompressPdf),
-                ToolSpec("flatten", stringResource(R.string.tool_flatten), stringResource(R.string.tool_flatten_sub), Color(0xFF6D4C41), Icons.Rounded.Layers, onNavigateToFlatten),
-                ToolSpec("encrypt", stringResource(R.string.tool_encrypt_pdf), stringResource(R.string.tool_encrypt_pdf_sub), LiquidGlassColors.Indigo, Icons.Rounded.Lock, onNavigateToEncryptPdf),
-                ToolSpec("decrypt", stringResource(R.string.tool_decrypt_pdf), stringResource(R.string.tool_decrypt_pdf_sub), LiquidGlassColors.Purple, Icons.Rounded.LockOpen, onNavigateToDecryptPdf)
+                ToolSpec("compress", stringResource(R.string.tool_compress), stringResource(R.string.tool_compress_sub), ToolAccents.Compress, Icons.Rounded.Compress, onNavigateToCompressPdf),
+                ToolSpec("flatten", stringResource(R.string.tool_flatten), stringResource(R.string.tool_flatten_sub), ToolAccents.Flatten, Icons.Rounded.Layers, onNavigateToFlatten),
+                ToolSpec("encrypt", stringResource(R.string.tool_encrypt_pdf), stringResource(R.string.tool_encrypt_pdf_sub), ToolAccents.Encrypt, Icons.Rounded.Lock, onNavigateToEncryptPdf),
+                ToolSpec("decrypt", stringResource(R.string.tool_decrypt_pdf), stringResource(R.string.tool_decrypt_pdf_sub), ToolAccents.Decrypt, Icons.Rounded.LockOpen, onNavigateToDecryptPdf)
             )
         )
     )
@@ -191,52 +199,64 @@ fun ToolsScreen(
             }
         }
     ) { contentPadding ->
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = contentPadding,
-        verticalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
-        if (searching) {
-            item(key = "results") {
-                if (results.isEmpty()) {
-                    BasicText(
-                        stringResource(R.string.tools_no_matches),
-                        style = TextStyle(LiquidGlassColors.secondary(isDarkMode), 14.sp),
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
-                    )
-                } else {
-                    Column(
-                        Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        results.forEach { tool ->
-                            ToolTileWide(tool.title, tool.subtitle, tool.accent, tool.icon, tool.onClick)
+        // A plain scrolling Column, not a LazyColumn, on purpose. The grid is four sections — about
+        // two screens — and every section is a heavy item: a glass panel whose first draw builds
+        // its lens and highlight shaders, plus four tiles. LazyColumn composed and attached each
+        // section only as it scrolled in (and detached it again on the way out, dropping those
+        // shaders), so every scroll across a section boundary paid composition + shader setup
+        // inside a frame — the Tools scroll hitch. Composing the whole grid once, behind the
+        // entrance fade, leaves scrolling with nothing to do but move layers.
+        AnimatedContent(
+            targetState = searching,
+            transitionSpec = {
+                fadeIn(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow)) togetherWith
+                    fadeOut(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium))
+            },
+            label = "toolsSearchSwap"
+        ) { showResults ->
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(contentPadding),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                if (showResults) {
+                    if (results.isEmpty()) {
+                        BasicText(
+                            stringResource(R.string.tools_no_matches),
+                            style = TextStyle(LiquidGlassColors.secondary(isDarkMode), 14.sp, textAlign = TextAlign.Center),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp)
+                        )
+                    } else {
+                        Column(
+                            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            results.forEach { tool ->
+                                ToolTileWide(tool.title, tool.subtitle, tool.accent, tool.icon, tool.onClick)
+                            }
                         }
                     }
-                }
-            }
-        } else {
-            item(key = "primary") {
-                Box(entrance.tileEntranceModifier(0, density)) {
-                    ToolTileWide(openPdf.title, openPdf.subtitle, openPdf.accent, openPdf.icon, openPdf.onClick)
-                }
-            }
+                } else {
+                    Box(entrance.tileEntranceModifier(0, density)) {
+                        ToolTileWide(openPdf.title, openPdf.subtitle, openPdf.accent, openPdf.icon, openPdf.onClick)
+                    }
 
-            sections.forEachIndexed { index, section ->
-                item(key = section.label) {
-                    // Five stagger slots per section — the label, then its four tiles — so the whole
-                    // screen cascades top-to-bottom instead of four sections restarting in place.
-                    val base = 1 + index * 5
-                    Column {
-                        Box(entrance.tileEntranceModifier(base, density)) {
-                            GlassSectionLabel(section.label)
+                    sections.forEachIndexed { index, section ->
+                        // Five stagger slots per section — the label, then its four tiles — so the
+                        // whole screen cascades top-to-bottom instead of four sections restarting.
+                        val base = 1 + index * 5
+                        Column {
+                            Box(entrance.tileEntranceModifier(base, density)) {
+                                GlassSectionLabel(section.label)
+                            }
+                            ToolSectionPanel(section, backdrop, uiSensor, entrance, base, density)
                         }
-                        ToolSectionPanel(section, backdrop, uiSensor, entrance, base, density)
                     }
                 }
             }
         }
-    }
     }
 }
 
@@ -262,7 +282,12 @@ private fun ToolSectionPanel(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         section.tools.chunked(2).forEachIndexed { rowIdx, pair ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Intrinsic height: a pair shares one height, so a tile whose translated name wraps to
+            // two lines doesn't leave its neighbour short.
+            Row(
+                Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 pair.forEachIndexed { colIdx, tool ->
                     // Flat index across both rows: the label took slot `base`, so the four tiles
                     // occupy base+1..base+4 and the cascade keeps running top-to-bottom.
@@ -274,6 +299,7 @@ private fun ToolSectionPanel(
                         onClick = tool.onClick,
                         modifier = Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .then(entrance.tileEntranceModifier(base + 1 + rowIdx * 2 + colIdx, density))
                     )
                 }
@@ -309,7 +335,12 @@ private fun Transition<Boolean>.glassFadeModifier(index: Int): Modifier {
         transitionSpec = { tween(durationMillis = 320, delayMillis = StaggerStepMs * index, easing = FastOutSlowInEasing) },
         label = "glassFade$index"
     ) { if (it) 1f else 0f }
-    return Modifier.graphicsLayer { this.alpha = alpha }
+    return Modifier.graphicsLayer {
+        this.alpha = alpha
+        // Per-draw alpha instead of an offscreen buffer, so the panel's soft shadow (which spills
+        // past its bounds) fades with it instead of snapping in at the end.
+        compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+    }
 }
 
 /**
