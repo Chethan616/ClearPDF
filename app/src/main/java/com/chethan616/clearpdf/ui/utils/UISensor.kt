@@ -35,10 +35,14 @@ fun rememberUISensor(): UISensor {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiSensor = remember { UISensor(context) }
-    DisposableEffect(lifecycleOwner, uiSensor) {
+    // Settings -> Appearance -> "Reduce glass motion" (#53): with it on, the sensor simply never
+    // starts, so gravityAngle holds its fixed default and every liquidGlassPanel/capsule that reads
+    // it in draw stops re-publishing (and re-running blur+lens) on tilt. Off by default -- full glass.
+    val reducedMotion = com.chethan616.clearpdf.ui.theme.LocalReducedGlassMotion.current
+    DisposableEffect(lifecycleOwner, uiSensor, reducedMotion) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> uiSensor.start()
+                Lifecycle.Event.ON_RESUME -> if (!reducedMotion) uiSensor.start()
                 Lifecycle.Event.ON_PAUSE -> uiSensor.stop()
                 else -> Unit
             }
@@ -46,6 +50,7 @@ fun rememberUISensor(): UISensor {
         // addObserver replays the events up to the current state, so an already-resumed screen
         // starts listening immediately.
         lifecycleOwner.lifecycle.addObserver(observer)
+        if (reducedMotion) uiSensor.stop()
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             uiSensor.stop()

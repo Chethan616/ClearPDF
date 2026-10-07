@@ -179,6 +179,8 @@
     <string name="settings_theme_auto_desc">Follow system settings</string>
     <string name="settings_theme_light_desc">Always use light theme</string>
     <string name="settings_theme_dark_desc">Always use dark theme</string>
+    <string name="settings_reduce_glass_motion">Reduce glass motion</string>
+    <string name="settings_reduce_glass_motion_desc">Freezes the glass highlight that tracks the phone\'s tilt, for devices that feel it</string>
     <string name="settings_save_location">Save Location</string>
     <string name="settings_save_downloads">Downloads</string>
     <string name="settings_save_custom">Custom Folder</string>
@@ -333,6 +335,7 @@
     <string name="language_portuguese">Portuguese</string>
     <string name="language_spanish">Spanish</string>
     <string name="language_italian">Italian</string>
+    <string name="language_russian">Russian</string>
     <string name="recents_open">Open</string>
     <string name="recents_share">Share</string>
     <string name="recents_details">Details</string>

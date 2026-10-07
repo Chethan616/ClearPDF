@@ -162,6 +162,7 @@ object AppSettingsManager {
     private const val KEY_SHOW_WALLPAPER = "show_wallpaper"
     private const val KEY_REMEMBER_RECENT_FILES = "remember_recent_files"
     private const val KEY_KEEP_LOCAL_COPIES = "keep_local_document_copies"
+    private const val KEY_REDUCE_GLASS_MOTION = "reduce_glass_motion"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -171,6 +172,15 @@ object AppSettingsManager {
 
     fun setShowWallpaper(context: Context, value: Boolean) =
         prefs(context).edit().putBoolean(KEY_SHOW_WALLPAPER, value).apply()
+
+    // Opt-in (default off: full quality). Freezes the gravity-tracked specular highlight that
+    // every liquidGlassPanel/capsule reads instead of letting it keep publishing tilt updates —
+    // see UISensor's own KDoc for why that is the dominant redraw cost on devices sensitive to it.
+    fun getReduceGlassMotion(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_REDUCE_GLASS_MOTION, false)
+
+    fun setReduceGlassMotion(context: Context, value: Boolean) =
+        prefs(context).edit().putBoolean(KEY_REDUCE_GLASS_MOTION, value).apply()
 
     // Optional user-picked background image (content URI). Null = use the built-in wallpaper.
     fun getCustomWallpaper(context: Context): String? =
