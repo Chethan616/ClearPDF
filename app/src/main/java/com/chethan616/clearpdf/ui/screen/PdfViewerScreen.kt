@@ -990,13 +990,19 @@ fun PdfViewerScreen(
                         else Modifier.pointerInput(Unit) {
                             awaitEachGesture {
                                 awaitFirstDown(requireUnconsumed = false)
-                                autoScroll = false
+                                var accumulatedPan = Offset.Zero
                                 do {
                                     val event = awaitPointerEvent()
                                     // A selection drag owns the finger: no one-finger pan underneath it.
                                     if (textSelection.gestureActive) continue
                                     val zoomChange = event.calculateZoom()
                                     val panChange  = event.calculatePan()
+                                    accumulatedPan += panChange
+                                    // A tap may hide the chrome, but must not stop reading. Stop only
+                                    // after a real drag or pinch takes ownership of the page.
+                                    if (autoScroll && (zoomChange != 1f || accumulatedPan.getDistance() > viewConfiguration.touchSlop)) {
+                                        autoScroll = false
+                                    }
                                     val zoomed = scale > 1.001f
                                     if (zoomChange != 1f || zoomed) {
                                         val cw = size.width.toFloat()
@@ -1202,40 +1208,6 @@ fun PdfViewerScreen(
             autoScroller = selectionAutoScroller,
             pageBitmaps = state.pageBitmaps
         )
-
-        AnimatedVisibility(
-            visible = controlsVisible && autoScroll && state.document != null && safePageCount > 1 && scale <= 1.01f && activeTool == PdfEditTool.None,
-            enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.94f),
-            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.96f),
-            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 76.dp)
-        ) {
-            Row(
-                Modifier
-                    // Clear glass like every other floating control; the ink carries contrast.
-                    .viewerGlass(contentBackdrop, Color.Transparent, shape = { com.kyant.shapes.Capsule })
-                    .padding(horizontal = 7.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                BasicText(
-                    text = "${autoScrollSpeed}×",
-                    modifier = Modifier
-                        .semantics { contentDescription = context.getString(R.string.viewer_auto_scroll_speed) }
-                        .clip(RoundedCornerShape(50))
-                        .clickable {
-                            autoScrollSpeed = when (autoScrollSpeed) {
-                                0.75f -> 1f
-                                1f -> 1.5f
-                                1.5f -> 2f
-                                else -> 0.75f
-                            }
-                            lastInteractionAtMs = System.currentTimeMillis()
-                        }
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    style = TextStyle(bottomFg, 13.sp, FontWeight.SemiBold)
-                )
-            }
-        }
 
         // ── Page scrubber (doubles as the fading scroll indicator) ─────────
         // Always present on multi-page docs so fast scrubbing is one drag away,
@@ -1443,6 +1415,7 @@ fun PdfViewerScreen(
                     showFindBar        = showFindBar,
                     showSignaturePad   = showSignaturePad,
                     autoScrollActive = autoScroll,
+                    autoScrollSpeed = autoScrollSpeed,
                     activeImageId      = activeImageId,
                     currentColor       = currentColor,
                     currentColorLong   = currentColorLong,
@@ -1523,6 +1496,15 @@ fun PdfViewerScreen(
                     onToggleAutoScroll = {
                         autoScroll = !autoScroll
                         controlsVisible = true
+                        lastInteractionAtMs = System.currentTimeMillis()
+                    },
+                    onCycleAutoScrollSpeed = {
+                        autoScrollSpeed = when (autoScrollSpeed) {
+                            0.75f -> 1f
+                            1f -> 1.5f
+                            1.5f -> 2f
+                            else -> 0.75f
+                        }
                         lastInteractionAtMs = System.currentTimeMillis()
                     },
                     onRecolorSignature = { cl ->
