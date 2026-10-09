@@ -334,19 +334,19 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     onLocaleChanged = { code ->
                         val normalized = com.chethan616.clearpdf.ui.utils.LocaleHelper.normalizeForUi(code)
                         if (normalized != selectedLocale) {
-                            // Persist the choice, then recreate the Activity so attachBaseContext
-                            // rebuilds every resource in the new locale (the Compose-only path did
-                            // not actually switch strings). The recreate is deferred until the
-                            // fade-out finishes — see `localeSwitching` above.
+                            // Persist, then switch IN PLACE: the hoisted locale re-provides
+                            // LocalResources, so every stringResource re-resolves on the next frame
+                            // (the path Onboarding uses). No fade-out + Activity recreate — that was
+                            // the slow flicker after picking a language. attachBaseContext picks the
+                            // persisted choice up on the next launch for non-Compose strings.
                             com.chethan616.clearpdf.ui.utils.LocaleHelper.applyLocale(
                                 context = context,
                                 languageTag = normalized,
                                 recreate = false,
                                 updateAppCompat = false
                             )
-                            com.chethan616.clearpdf.ui.utils.LocaleHelper.markLocaleFadePending(context)
+                            OnboardingManager.setSelectedLocale(context, normalized)
                             selectedLocale = normalized
-                            localeSwitching = true
                         }
                     },
                     incomingPdfUri = incomingPdfUri,

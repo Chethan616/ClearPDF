@@ -466,7 +466,6 @@ private fun LanguageChooser(
             backdrop = backdrop,
             leadingIcon = Icons.Rounded.Language,
             accent = accent,
-            triggerSurface = if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.06f),
             contentColor = ink,
             modifier = Modifier.fillMaxWidth()
         )
