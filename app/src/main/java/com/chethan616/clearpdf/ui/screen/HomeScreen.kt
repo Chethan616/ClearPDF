@@ -323,7 +323,7 @@ fun HomeScreen(
                             Modifier
                                 .fillMaxWidth()
                                 .then(entrance.glassFade(2))
-                                .liquidGlassPanel(backdrop, uiSensor)
+                                .liquidGlassPanel(backdrop, uiSensor, withShadow = false)
                                 // The container's own minimise animation. `animateContentSize` sits
                                 // INSIDE the glass, so the glass tracks the animated height frame by
                                 // frame — the whole panel springs shut when a row leaves, rather than
@@ -675,7 +675,7 @@ private fun HomeHeroCard(
     Column(
         modifier
             .fillMaxWidth()
-            .liquidGlassPanel(backdrop, uiSensor)
+            .liquidGlassPanel(backdrop, uiSensor, withShadow = false)
             .padding(horizontal = 20.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -784,7 +784,7 @@ private fun HomeLaunchpad(
                     .widthIn(max = 480.dp)
                     .fillMaxWidth()
                     .then(entrance.glassFade(1))
-                    .liquidGlassPanel(backdrop, uiSensor)
+                    .liquidGlassPanel(backdrop, uiSensor, withShadow = false)
                     .padding(horizontal = 24.dp, vertical = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {

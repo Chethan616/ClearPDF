@@ -230,7 +230,7 @@ fun ToolsScreen(
                         )
                     } else {
                         Column(
-                            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(12.dp),
+                            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor, withShadow = false).padding(12.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             results.forEach { tool ->
@@ -277,7 +277,7 @@ private fun ToolSectionPanel(
         Modifier
             .fillMaxWidth()
             .then(entrance.glassFadeModifier(base))
-            .liquidGlassPanel(backdrop, uiSensor)
+            .liquidGlassPanel(backdrop, uiSensor, withShadow = false)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
