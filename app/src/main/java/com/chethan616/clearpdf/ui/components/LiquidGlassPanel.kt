@@ -13,7 +13,6 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.highlight.HighlightStyle
-import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.RoundedRectangle
 
@@ -32,19 +31,28 @@ fun Modifier.liquidGlassPanel(
 ): Modifier {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
+    // The title chips' tint (GlassTitlePill: 0.35), so a panel and the chip above it read as one
+    // material rather than a card under a lens.
     val containerColor = containerColorOverride
-        ?: if (isLightTheme) Color(0xFFFAFAFA).copy(0.4f) else Color(0xFF1E1E1E).copy(0.4f)
+        ?: if (isLightTheme) Color(0xFFFAFAFA).copy(0.35f) else Color(0xFF1E1E1E).copy(0.35f)
+    // Flat wallpaper: same pixels, none of the blur/lens/offscreen work — see FlatBackdrop.
+    val flat = flatColorOf(backdrop)
     return this.drawBackdrop(
         backdrop = backdrop,
         shape = { RoundedRectangle(28f.dp) },
-        effects = {
+        // Heavier frost than a chip on purpose: panels carry paragraphs of text, which a 2 dp blur
+        // over a busy custom wallpaper would leave unreadable.
+        effects = if (flat != null) ({}) else ({
             vibrancy()
             blur(8f.dp.toPx())
             lens(20f.dp.toPx(), 40f.dp.toPx(), depthEffect = true)
-        },
-        highlight = { Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f)) },
+        }),
+        // The chips' bright specular rim (falloff 1, LiquidButton's default) instead of the old narrow
+        // falloff-2 sheen plus a dark 3 dp inner shadow — that inset edge was what made panels read as
+        // tinted cards next to the glassy title chips. Still turns with the device tilt.
+        highlight = { Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle)) },
         shadow = { Shadow(radius = 8f.dp, color = Color.Black.copy(alpha = 0.1f)) },
-        innerShadow = { InnerShadow(radius = 3f.dp, alpha = 0.3f) },
+        onDrawBackdrop = if (flat != null) ({ _ -> drawFlatVibrantBackdrop(flat) }) else ({ it() }),
         onDrawSurface = { drawRect(containerColor) }
     )
 }

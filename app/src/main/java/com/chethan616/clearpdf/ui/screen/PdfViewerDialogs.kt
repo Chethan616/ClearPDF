@@ -7,6 +7,10 @@ import com.chethan616.clearpdf.ui.components.glassDialogPlatter
 import com.chethan616.clearpdf.ui.components.glassDialogInkSoft
 import com.chethan616.clearpdf.ui.components.glassDialogInk
 import com.chethan616.clearpdf.ui.components.GlassDialogSegmented
+import com.chethan616.clearpdf.ui.components.GlassDropdownOption
+import com.chethan616.clearpdf.ui.components.LiquidGlassDropdown
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.PictureAsPdf
 import com.chethan616.clearpdf.ui.components.GlassDialogField
 import com.chethan616.clearpdf.ui.components.GlassDialogAction
 import com.chethan616.clearpdf.ui.components.GlassDialog
@@ -282,9 +286,10 @@ internal enum class ShareFormat { ORIGINAL, PDF }
 
 /**
  * Share/export chooser on the shared [GlassDialog] card. For a converted document (a .docx opened as
- * a PDF) it offers the original file or a PDF; when PDF is the target it can encrypt with a password.
- * Both choices are [GlassDialogSegmented] controls — solid tracks with a vivid sliding thumb — so
- * every option is legible over any page (the old glass pills went blank on light pages).
+ * a PDF) it offers the original file or a PDF in a [LiquidGlassDropdown]; when PDF is the target it
+ * can encrypt with a password, chosen on a [GlassDialogSegmented]. Both controls sit on the solid
+ * dialog platter so every option is legible over any page (the old glass pills went blank on light
+ * pages) while their lensed rims still refract the screen.
  *
  * The dialog only collects intent — the file work (encrypt, wrap, chooser) runs off the UI thread in
  * the caller.
@@ -340,10 +345,18 @@ internal fun ExportShareDialog(
                     stringResource(R.string.viewer_share_format),
                     style = TextStyle(soft, 13.sp, FontWeight.Medium)
                 )
-                GlassDialogSegmented(
-                    options = listOf(originalExt.orEmpty(), stringResource(R.string.viewer_share_pdf)),
-                    selectedIndex = formatIndex,
-                    onSelect = { formatIndex = it }
+                // The share sheet's original bouncy glass dropdown (v3), back on the shared component.
+                LiquidGlassDropdown(
+                    options = listOf(
+                        GlassDropdownOption(0, originalExt.orEmpty(), icon = Icons.Rounded.Description),
+                        GlassDropdownOption(1, stringResource(R.string.viewer_share_pdf), icon = Icons.Rounded.PictureAsPdf)
+                    ),
+                    selected = formatIndex,
+                    onSelect = { formatIndex = it },
+                    backdrop = backdrop,
+                    leadingIcon = if (formatIndex == 1) Icons.Rounded.PictureAsPdf else Icons.Rounded.Description,
+                    triggerSurface = glassDialogPlatter(LocalIsDarkMode.current),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
             AnimatedVisibility(

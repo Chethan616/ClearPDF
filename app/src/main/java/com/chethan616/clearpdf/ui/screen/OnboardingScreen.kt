@@ -37,6 +37,7 @@ import androidx.compose.material.icons.automirrored.rounded.CallSplit
 import androidx.compose.material.icons.automirrored.rounded.MergeType
 import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.PhotoLibrary
@@ -74,7 +75,9 @@ import com.chethan616.clearpdf.ui.components.DemoToolsMenu
 import com.chethan616.clearpdf.ui.components.GlassMenuAction
 import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.LiquidButton
+import com.chethan616.clearpdf.ui.components.LiquidGlassDropdown
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
+import com.chethan616.clearpdf.ui.components.rememberLanguageOptions
 import com.chethan616.clearpdf.ui.components.LiquidToggle
 import com.chethan616.clearpdf.ui.components.viewerChromeGlass
 import com.chethan616.clearpdf.ui.components.viewerGlass
@@ -428,7 +431,7 @@ private fun OnboardingPage(
 }
 
 /**
- * Page 2 is the only interactive one — the real segmented control from Settings, not a replay.
+ * Page 2 is the only interactive one — the real language dropdown from Settings, not a replay.
  *
  * Selecting here does **not** restart the Activity; the caller updates the hoisted locale state and
  * re-provides `LocalResources`, so this whole screen re-composes translated. The restart, if the
@@ -456,33 +459,17 @@ private fun LanguageChooser(
             stringResource(R.string.onboarding_language_label),
             style = TextStyle(inkSoft, 13.sp, fontWeight = FontWeight.SemiBold)
         )
-        listOf(
-            "en" to R.string.language_english,
-            "pt-BR" to R.string.language_portuguese,
-            "es" to R.string.language_spanish,
-            "it" to R.string.language_italian,
-            "ru" to R.string.language_russian
-        ).forEach { (code, res) ->
-            val selected = selectedLocale == code
-            LiquidButton(
-                onClick = { onLocaleSelected(code) },
-                backdrop = backdrop,
-                tint = if (selected) accent else Color.Unspecified,
-                surfaceColor = if (selected) Color.Unspecified else (if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.06f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                BasicText(
-                    stringResource(res),
-                    style = TextStyle(
-                        if (selected) Color.White else ink,
-                        15.sp,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
+        LiquidGlassDropdown(
+            options = rememberLanguageOptions(),
+            selected = selectedLocale,
+            onSelect = onLocaleSelected,
+            backdrop = backdrop,
+            leadingIcon = Icons.Rounded.Language,
+            accent = accent,
+            triggerSurface = if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.06f),
+            contentColor = ink,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

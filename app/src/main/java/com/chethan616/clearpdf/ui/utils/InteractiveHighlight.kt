@@ -18,22 +18,39 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.util.fastCoerceIn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class InteractiveHighlight(
     val animationScope: CoroutineScope,
-    val position: (size: Size, offset: Offset) -> Offset = { _, offset -> offset }
+    val position: (size: Size, offset: Offset) -> Offset = { _, offset -> offset },
+    /**
+     * Holding a finger still past the platform long-press timeout "blooms" the control: [expandProgress]
+     * springs to 1 (the owner grows a little further on top of the press scale and glows brighter)
+     * and [onLongPressExpand] fires once — the owner's haptic. Off by default: tab bars and cards
+     * own their own long-press meaning.
+     */
+    private val longPressExpand: Boolean = false,
+    private val onLongPressExpand: (() -> Unit)? = null
 ) {
     private val pressProgressAnimationSpec = spring(0.5f, 300f, 0.001f)
     private val positionAnimationSpec = spring(0.5f, 300f, Offset.VisibilityThreshold)
+    // Bloom in on a soft, slightly slower spring; let go on a livelier one that undershoots rest
+    // a touch before settling — the "boing" that makes the release feel physical.
+    private val expandInSpec = spring(dampingRatio = 0.52f, stiffness = 340f, visibilityThreshold = 0.001f)
+    private val expandOutSpec = spring(dampingRatio = 0.46f, stiffness = 420f, visibilityThreshold = 0.001f)
 
     private val pressProgressAnimation = Animatable(0f, 0.001f)
     private val positionAnimation = Animatable(Offset.Zero, Offset.VectorConverter, Offset.VisibilityThreshold)
+    private val expandAnimation = Animatable(0f, 0.001f)
 
     private var startPosition = Offset.Zero
     private var positionUpdateJob: Job? = null
+    private var longPressJob: Job? = null
     val pressProgress: Float get() = pressProgressAnimation.value
     val offset: Offset get() = positionAnimation.value - startPosition
+    /** 0 at rest, 1 once a long-press has bloomed; briefly dips below 0 on the release bounce. */
+    val expandProgress: Float get() = expandAnimation.value
 
     // Built on first press, not at construction. Every LiquidButton / LiquidIconButton / glass card
     // owns one of these, and `RuntimeShader(...)` compiles its AGSL on the calling thread — so a
@@ -62,15 +79,17 @@ half4 main(float2 coord) {
     val modifier: Modifier =
         Modifier.drawWithContent {
             val progress = pressProgressAnimation.value
+            // A bloomed long-press lifts the glow a little further, so the control reads as "picked up".
+            val bloom = expandAnimation.value.fastCoerceIn(0f, 1f)
             if (progress > 0f) {
                 val shader = this@InteractiveHighlight.shader
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && shader != null) {
-                    drawRect(Color.White.copy(0.08f * progress), blendMode = BlendMode.Plus)
+                    drawRect(Color.White.copy(0.08f * progress + 0.05f * bloom), blendMode = BlendMode.Plus)
                     shader.apply {
                         val position = position(size, positionAnimation.value)
                         setFloatUniform("size", size.width, size.height)
-                        setColorUniform("color", Color.White.copy(0.15f * progress).toArgb())
-                        setFloatUniform("radius", size.minDimension * 1.5f)
+                        setColorUniform("color", Color.White.copy(0.15f * progress + 0.10f * bloom).toArgb())
+                        setFloatUniform("radius", size.minDimension * (1.5f + 0.5f * bloom))
                         setFloatUniform(
                             "position",
                             position.x.fastCoerceIn(0f, size.width),
@@ -85,32 +104,50 @@ half4 main(float2 coord) {
             drawContent()
         }
 
+    private fun release() {
+        positionUpdateJob?.cancel()
+        longPressJob?.cancel()
+        animationScope.launch {
+            launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
+            launch { positionAnimation.animateTo(startPosition, positionAnimationSpec) }
+            if (expandAnimation.value != 0f || expandAnimation.targetValue != 0f) {
+                launch { expandAnimation.animateTo(0f, expandOutSpec) }
+            }
+        }
+    }
+
     val gestureModifier: Modifier =
         Modifier.pointerInput(animationScope) {
+            val longPressMs = viewConfiguration.longPressTimeoutMillis
+            val slop = viewConfiguration.touchSlop
             inspectDragGestures(
                 onDragStart = { down ->
                     startPosition = down.position
                     positionUpdateJob?.cancel()
+                    longPressJob?.cancel()
                     animationScope.launch {
                         launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
                         launch { positionAnimation.snapTo(startPosition) }
                     }
-                },
-                onDragEnd = {
-                    positionUpdateJob?.cancel()
-                    animationScope.launch {
-                        launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
-                        launch { positionAnimation.animateTo(startPosition, positionAnimationSpec) }
+                    if (longPressExpand) {
+                        // Same timeout the platform uses for long-click, so a button that also has an
+                        // onLongClick blooms exactly as its own long-press fires.
+                        longPressJob = animationScope.launch {
+                            delay(longPressMs)
+                            onLongPressExpand?.invoke()
+                            expandAnimation.animateTo(1f, expandInSpec)
+                        }
                     }
                 },
-                onDragCancel = {
-                    positionUpdateJob?.cancel()
-                    animationScope.launch {
-                        launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
-                        launch { positionAnimation.animateTo(startPosition, positionAnimationSpec) }
-                    }
-                }
+                onDragEnd = { release() },
+                onDragCancel = { release() }
             ) { change, _ ->
+                // A finger that wanders before the bloom is a drag/scroll, not a hold.
+                if (longPressJob?.isActive == true && expandAnimation.targetValue == 0f &&
+                    (change.position - startPosition).getDistance() > slop
+                ) {
+                    longPressJob?.cancel()
+                }
                 // Pointer events can arrive faster than a frame. Keep only the
                 // newest position instead of queuing one coroutine per sample.
                 positionUpdateJob?.cancel()

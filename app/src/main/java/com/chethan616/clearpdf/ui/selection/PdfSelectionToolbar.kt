@@ -93,11 +93,17 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.GlassMotion
+import com.chethan616.clearpdf.ui.components.chipGlass
+import com.chethan616.clearpdf.ui.components.chipInk
+import com.chethan616.clearpdf.ui.components.glassMenu
 import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.kyant.backdrop.Backdrop
+import com.kyant.shapes.Capsule
 import com.kyant.shapes.RoundedRectangle
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -174,11 +180,15 @@ fun PdfSelectionToolbar(
     actions: PdfSelectionActions,
     highlightColor: Color,
     hasHighlightOverlap: () -> Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * Luminance (0..1) of the document inside a screen-space band. With it the capsule wears the
+     * title-chip glass ([chipGlass]) — nearly clear — and picks its ink from the page behind it, like
+     * the viewer's top bar; without it, the theme's dense platter.
+     */
+    luminanceAt: ((top: Float, bottom: Float) -> Float)? = null
 ) {
     val isDark = LocalIsDarkMode.current
-    val fg = LiquidGlassColors.text(isDark)
-    val glass = if (isDark) Color(0xFF1C1D22).copy(alpha = 0.72f) else Color.White.copy(alpha = 0.74f)
     val density = LocalDensity.current
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
@@ -218,6 +228,32 @@ fun PdfSelectionToolbar(
     LaunchedEffect(shown) { if (!shown) page = ToolbarPage.Main }
     // A new selection (not a toolbar action) resets the menu back to the capsule.
     LaunchedEffect(state.start, state.end) { page = ToolbarPage.Main }
+
+    // Ink follows the page under the capsule (it may sit above or below the selection, so sample a
+    // band spanning both), decided once per appearance — the capsule is hidden while anything moves.
+    var onLight by remember { mutableStateOf(!isDark) }
+    val currentLuminance by rememberUpdatedState(luminanceAt)
+    LaunchedEffect(shown) {
+        val lum = currentLuminance ?: return@LaunchedEffect
+        if (!shown) return@LaunchedEffect
+        val rects = state.selectionScreenRects()
+        if (rects.isEmpty()) return@LaunchedEffect
+        val top = rects.minOf { it.top } - with(density) { 72.dp.toPx() }
+        val bottom = rects.maxOf { it.bottom } + with(density) { 96.dp.toPx() }
+        onLight = lum(top, bottom) > 0.6f
+    }
+    val fg by animateColorAsState(
+        if (luminanceAt != null) chipInk(onLight) else LiquidGlassColors.text(isDark),
+        GlassMotion.fade(),
+        label = "selToolbarInk"
+    )
+    val glass by animateColorAsState(
+        if (luminanceAt != null) chipGlass(onLight)
+        else if (isDark) Color(0xFF1C1D22).copy(alpha = 0.72f) else Color.White.copy(alpha = 0.74f),
+        GlassMotion.fade(),
+        label = "selToolbarGlass"
+    )
+    val menuDark = if (luminanceAt != null) !onLight else isDark
 
     val alpha by animateFloatAsState(if (shown) 1f else 0f, GlassMotion.fade(), label = "selToolbarAlpha")
     val scale by animateFloatAsState(
@@ -320,7 +356,7 @@ fun PdfSelectionToolbar(
                     when (p) {
                         ToolbarPage.Main -> Row(
                             Modifier
-                                .viewerGlass(backdrop, glass, shape = { RoundedRectangle(24.dp) })
+                                .viewerGlass(backdrop, glass, shape = { Capsule })
                                 .height(48.dp)
                                 .padding(horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -332,7 +368,9 @@ fun PdfSelectionToolbar(
                         }
                         ToolbarPage.Overflow -> Column(
                             Modifier
-                                .viewerGlass(backdrop, glass, shape = { RoundedRectangle(22.dp) })
+                                // A menu of text rows: the frosted menu material (same as dropdowns),
+                                // so labels stay legible over page text.
+                                .glassMenu(backdrop, dark = menuDark, shape = { RoundedRectangle(22.dp) })
                                 .widthIn(min = 200.dp, max = 280.dp)
                                 .verticalScroll(rememberScrollState())
                                 .padding(vertical = 6.dp)
@@ -342,7 +380,7 @@ fun PdfSelectionToolbar(
                         }
                         ToolbarPage.Colors -> Row(
                             Modifier
-                                .viewerGlass(backdrop, glass, shape = { RoundedRectangle(24.dp) })
+                                .viewerGlass(backdrop, glass, shape = { Capsule })
                                 .height(48.dp)
                                 .padding(horizontal = 4.dp)
                                 .semantics { contentDescription = colorL },
@@ -545,10 +583,18 @@ private fun ColorDot(backdrop: Backdrop, color: Color, selected: Boolean, ring: 
 
 /** A brief liquid-glass "Copied" confirmation near the bottom of the viewer. [trigger] > 0 shows it. */
 @Composable
-fun PdfCopiedToast(trigger: Int, backdrop: Backdrop, modifier: Modifier = Modifier) {
+fun PdfCopiedToast(
+    trigger: Int,
+    backdrop: Backdrop,
+    modifier: Modifier = Modifier,
+    // Whether the content behind the toast is light; when given, it wears the chip glass with ink
+    // that follows the page (like the toolbar above), otherwise the theme platter.
+    onLight: Boolean? = null
+) {
     val isDark = LocalIsDarkMode.current
-    val fg = LiquidGlassColors.text(isDark)
-    val glass = if (isDark) Color(0xFF1C1D22).copy(alpha = 0.72f) else Color.White.copy(alpha = 0.74f)
+    val fg = if (onLight != null) chipInk(onLight) else LiquidGlassColors.text(isDark)
+    val glass = if (onLight != null) chipGlass(onLight)
+    else if (isDark) Color(0xFF1C1D22).copy(alpha = 0.72f) else Color.White.copy(alpha = 0.74f)
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(trigger) {
         if (trigger > 0) { visible = true; delay(1400); visible = false }
@@ -560,7 +606,7 @@ fun PdfCopiedToast(trigger: Int, backdrop: Backdrop, modifier: Modifier = Modifi
     Row(
         modifier
             .graphicsLayer { this.alpha = alpha; scaleX = scale; scaleY = scale }
-            .viewerGlass(backdrop, glass, shape = { RoundedRectangle(20.dp) })
+            .viewerGlass(backdrop, glass, shape = { Capsule })
             .height(40.dp)
             .padding(horizontal = 16.dp)
             .semantics { contentDescription = label; liveRegion = LiveRegionMode.Polite },

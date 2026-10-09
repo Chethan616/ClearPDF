@@ -125,6 +125,8 @@ import com.chethan616.clearpdf.ui.components.GlassSearchHeader
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.utils.liquidPressGlow
+import com.chethan616.clearpdf.ui.utils.DocumentOpenOrigin
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -351,29 +353,26 @@ fun HomeScreen(
                                     // secondary control and shouldn't compete with the list.
                                     if (recents.isNotEmpty()) {
                                         val filterActive = recentFilter != null
-                                        Box(
-                                            Modifier
-                                                .size(28.dp)
+                                        // A glass chip like the clear-all button beside it: vivid
+                                        // accent while a filter is on, clear glass otherwise.
+                                        LiquidIconButton(
+                                            onClick = { filterMenuOpen = !filterMenuOpen },
+                                            backdrop = backdrop,
+                                            tint = if (filterActive) accent else Color.Unspecified,
+                                            surfaceColor = if (filterActive) Color.Unspecified
+                                                else if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f),
+                                            modifier = Modifier
+                                                .size(32.dp)
                                                 .onGloballyPositioned {
                                                     val o = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero)
                                                     filterAnchorY = o.y + it.size.height
                                                 }
-                                                .clip(RoundedCornerShape(50))
-                                                .background(
-                                                    if (filterActive) accent.copy(0.20f)
-                                                    else if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f)
-                                                )
-                                                .clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null
-                                                ) { filterMenuOpen = !filterMenuOpen },
-                                            contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 Icons.Rounded.FilterList,
                                                 stringResource(R.string.recents_filter),
                                                 Modifier.size(16.dp),
-                                                if (filterActive) accent else sub
+                                                if (filterActive) Color.White else sub
                                             )
                                         }
                                     }
@@ -1141,10 +1140,22 @@ private fun RecentRow(
                 }
                 .clip(RoundedCornerShape(16.dp))
                 .background(if (isLight) Color.White.copy(0.18f) else Color.White.copy(0.06f))
+                .liquidPressGlow(rowInteraction, onLight = isLight)
                 .combinedClickable(
                     interactionSource = rowInteraction,
                     indication = null,
-                    onClick = onClick,
+                    onClick = {
+                        // The viewer grows out of this row (see DocumentOpenOrigin).
+                        val vw = view.width.toFloat()
+                        val vh = view.height.toFloat()
+                        if (vw > 0f && vh > 0f) {
+                            DocumentOpenOrigin.set(
+                                (metrics.leftX + metrics.width / 2f) / vw,
+                                (metrics.topY + metrics.height / 2f) / vh
+                            )
+                        }
+                        onClick()
+                    },
                     onLongClick = {
                         onLongClick(
                             androidx.compose.ui.geometry.Rect(

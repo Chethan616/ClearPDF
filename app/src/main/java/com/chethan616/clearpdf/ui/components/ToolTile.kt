@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
+import com.chethan616.clearpdf.ui.utils.liquidPressGlow
 
 /** Uniform height for the square-ish grid tiles, sized to fit two lines of Portuguese. */
 val ToolTileHeight = 120.dp
@@ -88,6 +89,7 @@ fun ToolTile(
             .graphicsLayer { val s = scale.value; scaleX = s; scaleY = s }
             .clip(RoundedCornerShape(20.dp))
             .background(accent.copy(alpha = if (isLight) 0.10f else 0.15f))
+            .liquidPressGlow(interaction, onLight = isLight)
             .clickable(
                 interactionSource = interaction,
                 indication = null,
@@ -144,6 +146,7 @@ fun ToolTileWide(
             .graphicsLayer { val s = scale.value; scaleX = s; scaleY = s }
             .clip(RoundedCornerShape(22.dp))
             .background(accent.copy(alpha = if (isLight) 0.12f else 0.18f))
+            .liquidPressGlow(interaction, onLight = isLight)
             .clickable(
                 interactionSource = interaction,
                 indication = null,

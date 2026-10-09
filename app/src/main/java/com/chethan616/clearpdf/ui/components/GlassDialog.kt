@@ -69,6 +69,20 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.RoundedRectangle
+import com.kyant.shapes.Capsule
+import com.kyant.backdrop.effects.vibrancy
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import kotlin.math.abs
 
 /** Backdrop the dialog panel samples, handed to [GlassDialogAction]s so the pills refract the same scene. */
 private val LocalDialogBackdrop = staticCompositionLocalOf<Backdrop?> { null }
@@ -181,23 +195,25 @@ fun GlassDialog(
                 )
                 .semantics { if (title != null) paneTitle = title }
         ) {
-            if (title != null) {
-                BasicText(
-                    title,
-                    Modifier.padding(28f.dp, 24f.dp, 28f.dp, 8f.dp),
-                    style = TextStyle(contentColor, 22f.sp, FontWeight.SemiBold)
-                )
-            } else {
-                Box(Modifier.height(16.dp))
-            }
-            Column(Modifier.fillMaxWidth().padding(horizontal = 24f.dp, vertical = 8f.dp)) {
-                content()
-            }
+            // Content controls (segmented choices, dropdown triggers) get the same scene as the
+            // action pills, so every control in the sheet is the same liquid glass.
             CompositionLocalProvider(
                 LocalDialogBackdrop provides backdrop,
                 LocalDialogBlur provides blurDp,
                 LocalDialogSurface provides containerColor
             ) {
+                if (title != null) {
+                    BasicText(
+                        title,
+                        Modifier.padding(28f.dp, 24f.dp, 28f.dp, 8f.dp),
+                        style = TextStyle(contentColor, 22f.sp, FontWeight.SemiBold)
+                    )
+                } else {
+                    Box(Modifier.height(16.dp))
+                }
+                Column(Modifier.fillMaxWidth().padding(horizontal = 24f.dp, vertical = 8f.dp)) {
+                    content()
+                }
                 Row(
                     Modifier
                         .padding(24f.dp, 12f.dp, 24f.dp, 24f.dp)
@@ -335,9 +351,16 @@ fun GlassDialogField(
 }
 
 /**
- * Segmented choice for [GlassDialog] content: a solid capsule track with a vivid sliding thumb
- * (the "Get it" tint), springing between segments. Solid on purpose — a glass thumb inside a glass
- * panel would refract the page behind the dialog, not the panel.
+ * Segmented choice for [GlassDialog] content, in the same liquid glass as the dialog's action pills:
+ * a lensed capsule track on the solid dialog platter (so labels stay legible over any page) with a
+ * vivid "Get it" glass thumb.
+ *
+ * The thumb is liquid: it slides on the morph spring and stretches along its travel in proportion to
+ * its speed, squashing slightly in height, then wobbles back into shape as it lands — the iOS 26
+ * segmented-control feel. A finger can also slide across the track; the selection follows it with a
+ * tick per segment. The pressed segment's label dips like a pressed button.
+ *
+ * Outside a [GlassDialog] (no dialog backdrop to refract) it falls back to the solid track.
  */
 @Composable
 fun GlassDialogSegmented(
@@ -351,48 +374,137 @@ fun GlassDialogSegmented(
     val isDark = LocalIsDarkMode.current
     val ink = LiquidGlassColors.text(isDark)
     val haptics = LocalHapticFeedback.current
+    val backdrop = LocalDialogBackdrop.current
+    val blurDp = LocalDialogBlur.current
+    val platter = glassDialogPlatter(isDark)
     val index = selectedIndex.coerceIn(0, options.lastIndex)
-    val thumb by animateFloatAsState(index.toFloat(), GlassMotion.morph(), label = "dialogSegment")
+    val currentIndex by rememberUpdatedState(index)
+    val currentOnSelect by rememberUpdatedState(onSelect)
+    val thumb = remember { Animatable(index.toFloat()) }
+    LaunchedEffect(index) { thumb.animateTo(index.toFloat(), GlassMotion.morph()) }
+    val thumbAccent by animateColorAsState(accent, GlassMotion.fade(), label = "segAccent")
+    var pressed by remember { mutableIntStateOf(-1) }
+
     BoxWithConstraints(
         modifier
             .fillMaxWidth()
-            .height(46.dp)
-            .clip(RoundedCornerShape(50))
-            .background(glassDialogPlatter(isDark))
+            .height(48.dp)
+            .then(
+                if (backdrop != null) {
+                    Modifier.drawBackdrop(
+                        backdrop = backdrop,
+                        shape = { Capsule },
+                        effects = {
+                            vibrancy()
+                            blur(blurDp.toPx())
+                            lens(12f.dp.toPx(), 24f.dp.toPx())
+                        },
+                        onDrawSurface = { drawRect(platter) }
+                    )
+                } else {
+                    Modifier.clip(RoundedCornerShape(50)).background(platter)
+                }
+            )
+            .pointerInput(options.size) {
+                // Tap a segment, or slide across them: the selection tracks the finger.
+                val count = options.size
+                fun segmentAt(x: Float): Int = ((x / size.width) * count).toInt().coerceIn(0, count - 1)
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    var current = segmentAt(down.position.x)
+                    pressed = current
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        val i = segmentAt(change.position.x)
+                        if (change.changedToUp()) {
+                            if (i != currentIndex) {
+                                haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                                currentOnSelect(i)
+                            }
+                            break
+                        }
+                        if (i != current) {
+                            current = i
+                            pressed = i
+                            if (i != currentIndex) {
+                                haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                                currentOnSelect(i)
+                            }
+                        }
+                    }
+                    pressed = -1
+                }
+            }
             .padding(4.dp)
     ) {
         val segment = maxWidth / options.size
-        Box(
-            Modifier
-                .width(segment)
-                .fillMaxHeight()
-                .graphicsLayer { translationX = thumb * segment.toPx() }
-                .clip(RoundedCornerShape(50))
-                .background(accent)
-                .background(Brush.verticalGradient(listOf(Color.White.copy(0.22f), Color.Transparent)))
-        )
+        val thumbModifier = Modifier
+            .width(segment)
+            .fillMaxHeight()
+            .graphicsLayer {
+                translationX = thumb.value * segment.toPx()
+                // Stretch with speed (segments/s), capped so a fast flick reads as liquid, not a bug.
+                val stretch = (abs(thumb.velocity) * 0.02f).fastCoerceIn(0f, 0.2f)
+                scaleX = 1f + stretch
+                scaleY = 1f - stretch * 0.35f
+            }
+        if (backdrop != null) {
+            Box(
+                thumbModifier.drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { Capsule },
+                    effects = {
+                        vibrancy()
+                        blur(blurDp.toPx())
+                        lens(10f.dp.toPx(), 20f.dp.toPx())
+                    },
+                    highlight = { Highlight.Default },
+                    onDrawSurface = {
+                        // LiquidButton's vivid tint recipe, so the thumb matches the primary pill.
+                        drawRect(Color.White.copy(alpha = 0.42f))
+                        drawRect(thumbAccent, blendMode = BlendMode.Hue)
+                        drawRect(thumbAccent.copy(alpha = 0.8f))
+                    }
+                )
+            )
+        } else {
+            Box(
+                thumbModifier
+                    .clip(RoundedCornerShape(50))
+                    .background(thumbAccent)
+                    .background(Brush.verticalGradient(listOf(Color.White.copy(0.22f), Color.Transparent)))
+            )
+        }
         Row(Modifier.fillMaxSize()) {
             options.forEachIndexed { i, label ->
                 val sel = i == index
                 val labelColor by animateColorAsState(if (sel) Color.White else ink, label = "segInk$i")
+                val labelScale by animateFloatAsState(
+                    if (pressed == i) GlassMotion.PressedScale else 1f,
+                    GlassMotion.press(),
+                    label = "segPress$i"
+                )
                 Box(
                     Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clip(RoundedCornerShape(50))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            if (i != index) {
-                                haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                                onSelect(i)
+                        .semantics(mergeDescendants = true) {
+                            role = Role.Tab
+                            selected = sel
+                            onClick(label = label) {
+                                if (i != currentIndex) currentOnSelect(i)
+                                true
                             }
                         },
                     contentAlignment = Alignment.Center
                 ) {
                     BasicText(
                         label,
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = labelScale
+                            scaleY = labelScale
+                        },
                         style = TextStyle(labelColor, 15.sp, if (sel) FontWeight.SemiBold else FontWeight.Medium),
                         maxLines = 1
                     )

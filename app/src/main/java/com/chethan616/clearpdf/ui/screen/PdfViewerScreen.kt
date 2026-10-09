@@ -354,6 +354,7 @@ fun PdfViewerScreen(
 
     // ── Text selection (long-press, native-style handles, glass toolbar) ─────────────────────
     val textSelection = remember { PdfTextSelectionState() }
+    val markupBarHost = remember { MarkupBarHost() }
     textSelection.blocksProvider = { p -> viewModel.uiState.value.ocrBlocksByPage[p].orEmpty() }
     var containerWidthPx by remember { mutableIntStateOf(0) }
     textSelection.transformProvider = { PdfViewportTransform(containerWidthPx.toFloat(), scale, offsetX) }
@@ -1219,7 +1220,8 @@ fun PdfViewerScreen(
                                     selectedAnnoPage = null; selectedAnnoIndex = -1
                                     selectedMarkupGroupPage = null; selectedMarkupGroup = emptySet()
                                 },
-                                textSelection = textSelection
+                                textSelection = textSelection,
+                                markupBar = markupBarHost
                             )
                         }
                     }
@@ -1760,18 +1762,32 @@ fun PdfViewerScreen(
                 }
             }
         }
+        // Floating contextual chrome, in the title-chip glass over the live page, with ink sampled from
+        // the document behind each control (same band sampling as the bars).
+        val pageLuminanceAt: (Float, Float) -> Float = { top, bottom ->
+            bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, top, bottom, darkPageAppearance)
+        }
+        PdfMarkupBarLayer(
+            host = markupBarHost,
+            textSelection = textSelection,
+            listState = listState,
+            backdrop = contentBackdrop,
+            luminanceAt = pageLuminanceAt
+        )
         PdfSelectionToolbar(
             state = textSelection,
             listState = listState,
             backdrop = contentBackdrop,
             actions = selectionActions,
             highlightColor = currentColor,
-            hasHighlightOverlap = hasHighlightOverlap
+            hasHighlightOverlap = hasHighlightOverlap,
+            luminanceAt = pageLuminanceAt
         )
         PdfCopiedToast(
             trigger = copiedTick,
             backdrop = contentBackdrop,
-            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 112.dp)
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 112.dp),
+            onLight = bottomBarLight
         )
 
         // ── Page-jump popup (in-window, so it samples the liquid-glass backdrop) ──
@@ -1974,13 +1990,17 @@ fun PdfViewerScreen(
         var revealDocument by remember { mutableStateOf(false) }
         LaunchedEffect(firstPageRendered) {
             if (firstPageRendered && !revealDocument) {
-                delay(140)          // let the page paint a frame before we lift the curtain
+                // Lift the curtain once the page has actually been drawn — two frames, not a fixed
+                // 140 ms guess that left a fast-loading file waiting behind an empty curtain.
+                androidx.compose.runtime.withFrameNanos { }
+                androidx.compose.runtime.withFrameNanos { }
                 revealDocument = true
             }
         }
         AnimatedVisibility(
             visible  = !revealDocument,
-            exit     = fadeOut(tween(420, easing = androidx.compose.animation.core.FastOutSlowInEasing)),
+            // A quicker, ease-out dissolve: the page is ready, so get out of its way.
+            exit     = fadeOut(tween(300, easing = androidx.compose.animation.core.LinearOutSlowInEasing)),
             modifier = Modifier.fillMaxSize()
         ) {
             ViewerLoadingCurtain(isLight = isLight)

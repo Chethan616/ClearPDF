@@ -88,7 +88,9 @@ import com.chethan616.clearpdf.ui.components.GlassDialogAction
 import com.chethan616.clearpdf.ui.components.GlassScreenHeaderRow
 import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.LiquidButton
+import com.chethan616.clearpdf.ui.components.LiquidGlassDropdown
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
+import com.chethan616.clearpdf.ui.components.rememberLanguageOptions
 import com.chethan616.clearpdf.ui.components.LiquidSlider
 import com.chethan616.clearpdf.ui.components.LiquidToggle
 import com.chethan616.clearpdf.ui.components.ToolInk
@@ -248,28 +250,14 @@ fun SettingsScreen(
                 // ── Language ──
                 SettingsSection(backdrop, uiSensor, entrance.sectionFade(2)) {
                     SettingsSectionHeader(Icons.Rounded.Language, stringResource(R.string.settings_language), ink)
-                    data class LangOption(val code: String, val label: String)
-                    val langs = listOf(
-                        LangOption("en", stringResource(R.string.language_english)),
-                        LangOption("pt-BR", stringResource(R.string.language_portuguese)),
-                        LangOption("es", stringResource(R.string.language_spanish)),
-                        LangOption("it", stringResource(R.string.language_italian)),
-                        LangOption("ru", stringResource(R.string.language_russian))
+                    LiquidGlassDropdown(
+                        options = rememberLanguageOptions(),
+                        selected = selectedLocale,
+                        onSelect = onLocaleChanged,
+                        backdrop = backdrop,
+                        leadingIcon = Icons.Rounded.Language,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    Row(
-                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        langs.forEach { opt ->
-                            GlassChoiceChip(
-                                label = opt.label,
-                                selected = selectedLocale == opt.code,
-                                onClick = { onLocaleChanged(opt.code) },
-                                backdrop = backdrop,
-                                accent = LiquidGlassColors.Blue
-                            )
-                        }
-                    }
                 }
 
                 // ── Save Location + File Handling + Default Quality ── one panel: three related

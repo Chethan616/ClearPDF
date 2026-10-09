@@ -143,3 +143,14 @@ fun Modifier.carouselEdges(
  */
 fun viewerChromeGlass(isDark: Boolean): Color =
     if (isDark) Color(0xFF20242C).copy(0.7f) else Color.White.copy(0.55f)
+
+/**
+ * The "chip" material's tint — GlassTitlePill / the viewer's top-bar pills — for content that is light
+ * ([onLight]) or dark behind it. Paired with [viewerGlass] it is the same glass as the ClearPDF and
+ * Settings title chips: mostly pure refraction with a whisper of frost.
+ */
+fun chipGlass(onLight: Boolean): Color =
+    if (onLight) Color(0xFFFAFAFA).copy(0.35f) else Color(0xFF1E1E1E).copy(0.35f)
+
+/** Ink for a [chipGlass] surface: it is translucent, so it follows the content behind, not the theme. */
+fun chipInk(onLight: Boolean): Color = if (onLight) Color(0xFF15171C) else Color.White
