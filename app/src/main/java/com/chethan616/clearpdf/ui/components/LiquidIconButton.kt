@@ -6,6 +6,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -66,6 +69,19 @@ fun LiquidIconButton(
     }
     // Flat wallpaper: same pixels, none of the blur/lens/offscreen work — see FlatBackdrop.
     val flat = flatColorOf(backdrop)
+    // A long-press only ARMS its action; it runs when the finger lifts (a cancelled press drops it),
+    // so holding Back never yanks the screen away mid-press.
+    val pressSource = remember { MutableInteractionSource() }
+    val longArmed = remember { booleanArrayOf(false) }
+    val currentLongClick by rememberUpdatedState(onLongClick)
+    LaunchedEffect(pressSource) {
+        pressSource.interactions.collect { i ->
+            when (i) {
+                is PressInteraction.Release -> if (longArmed[0]) { longArmed[0] = false; currentLongClick?.invoke() }
+                is PressInteraction.Cancel -> longArmed[0] = false
+            }
+        }
+    }
 
     Box(
         modifier
@@ -123,12 +139,12 @@ fun LiquidIconButton(
             .then(
                 if (onLongClick != null)
                     Modifier.combinedClickable(
-                        interactionSource = null,
+                        interactionSource = pressSource,
                         indication = null,
                         role = Role.Button,
                         onClick = onClick,
                         onLongClickLabel = onLongClickLabel,
-                        onLongClick = onLongClick
+                        onLongClick = { longArmed[0] = true }
                     )
                 else
                     Modifier.clickable(
