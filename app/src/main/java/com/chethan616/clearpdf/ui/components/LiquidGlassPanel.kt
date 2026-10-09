@@ -27,7 +27,8 @@ fun Modifier.liquidGlassPanel(
     // When set, overrides the theme-based tint. Used by the PDF viewer chrome, which
     // renders white text over a backdrop that may be a bright page — it needs a dark,
     // mostly-opaque base so text stays readable while the glass refraction is kept.
-    containerColorOverride: Color? = null
+    containerColorOverride: Color? = null,
+    withShadow: Boolean = true
 ): Modifier {
     val isDarkMode = LocalIsDarkMode.current
     val isLightTheme = !isDarkMode
@@ -51,7 +52,7 @@ fun Modifier.liquidGlassPanel(
         // falloff-2 sheen plus a dark 3 dp inner shadow — that inset edge was what made panels read as
         // tinted cards next to the glassy title chips. Still turns with the device tilt.
         highlight = { Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle)) },
-        shadow = { Shadow(radius = 8f.dp, color = Color.Black.copy(alpha = 0.1f)) },
+        shadow = if (withShadow) ({ Shadow(radius = 8f.dp, color = Color.Black.copy(alpha = 0.1f)) }) else null,
         onDrawBackdrop = if (flat != null) ({ _ -> drawFlatVibrantBackdrop(flat) }) else ({ it() }),
         onDrawSurface = { drawRect(containerColor) }
     )

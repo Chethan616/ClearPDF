@@ -514,7 +514,7 @@ fun SettingsScreen(
                     onRequestDelete = { officeEngineDeleteSize = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .liquidGlassPanel(backdrop, uiSensor)
+                        .liquidGlassPanel(backdrop, uiSensor, withShadow = false)
                         .padding(20.dp)
                 )
             }
@@ -604,7 +604,7 @@ private fun Transition<Boolean>.sectionFade(index: Int): Modifier {
         transitionSpec = { tween(durationMillis = 200, delayMillis = SettingsStaggerStepMs * index, easing = FastOutSlowInEasing) },
         label = "settingsFade$index"
     ) { if (it) 1f else 0f }
-    return Modifier.alpha(fadeAlpha)
+    return Modifier.graphicsLayer { alpha = fadeAlpha; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha }
 }
 
 /** One glass panel, built from [liquidGlassPanel] exactly like every tool screen's own sections. */
@@ -622,7 +622,7 @@ private fun SettingsSection(
         Modifier
             .fillMaxWidth()
             .then(entranceModifier)
-            .liquidGlassPanel(backdrop, uiSensor)
+            .liquidGlassPanel(backdrop, uiSensor, withShadow = false)
             .padding(padding),
         verticalArrangement = Arrangement.spacedBy(gap),
         horizontalAlignment = horizontalAlignment,
