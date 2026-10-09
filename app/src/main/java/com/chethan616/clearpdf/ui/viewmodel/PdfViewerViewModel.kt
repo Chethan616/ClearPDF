@@ -279,6 +279,14 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     ?.currentPage
                     ?.coerceIn(0, (doc.pageCount - 1).coerceAtLeast(0))
                     ?: 0
+                // First paint rides along with the document: the page the reader lands on is
+                // rasterised here, at a quick preview width, BEFORE the viewer is told the document
+                // exists — so the viewer appears with its page instead of a dark curtain waiting for a
+                // compose -> request -> render round trip. The screen re-requests full width next.
+                val firstPaint = withContext(AppDispatchers.pdf) {
+                    runCatching { openPdfUseCase.renderPage(doc, resumePage, MIN_RENDER_WIDTH) }.getOrNull()
+                }
+                if (firstPaint != null) renderedPageWidths[resumePage] = MIN_RENDER_WIDTH
                 _uiState.value = _uiState.value.copy(
                     fileName = displayName,
                     pageCount = doc.pageCount,
@@ -293,7 +301,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     // password-opened PDF this is still the encrypted original the user picked.
                     originalUri = uri,
                     sizeBytes = doc.sizeBytes,
-                    pageBitmaps = List(doc.pageCount) { null },
+                    pageBitmaps = List(doc.pageCount) { if (it == resumePage) firstPaint else null },
                     ocrBlocksByPage = emptyMap(),
                     ocrPagesInProgress = emptySet(),
                     isExporting = false,

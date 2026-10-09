@@ -46,6 +46,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
@@ -578,7 +580,7 @@ fun PdfViewerScreen(
         val openingHandedDoc = !askingPassword && state.errorMessage == null && (state.isLoading || pendingLoad)
         if (openingHandedDoc) {
             Box(Modifier.fillMaxSize()) {
-                ViewerLoadingCurtain(isLight = isLight)
+                ViewerLoadingCurtain(isLight = isLight, darkPage = darkPageAppearance)
                 // While a password PDF is actually being unlocked, play the padlock "decrypting"
                 // animation over the fill (styled after the onboarding page-5 demos). Plain opening
                 // fills (a normal load) show nothing extra — a lock would be misleading there.
@@ -1986,7 +1988,7 @@ fun PdfViewerScreen(
         // fill and spinner, the hand-off between them is invisible; only when the first bitmap arrives
         // does this fade away, letting the real document appear underneath. That is what makes tapping
         // a recent read as "wait a beat, then the PDF fades in" instead of a hard cut to an empty page.
-        val firstPageRendered = state.pageBitmaps.getOrNull(0) != null
+        val firstPageRendered = state.pageBitmaps.getOrNull(state.currentPage) != null
         var revealDocument by remember { mutableStateOf(false) }
         LaunchedEffect(firstPageRendered) {
             if (firstPageRendered && !revealDocument) {
@@ -2003,7 +2005,7 @@ fun PdfViewerScreen(
             exit     = fadeOut(tween(300, easing = androidx.compose.animation.core.LinearOutSlowInEasing)),
             modifier = Modifier.fillMaxSize()
         ) {
-            ViewerLoadingCurtain(isLight = isLight)
+            ViewerLoadingCurtain(isLight = isLight, darkPage = darkPageAppearance)
         }
     }
 
@@ -2040,9 +2042,28 @@ fun PdfViewerScreen(
  * "opening" animation — deliberately just a dissolve.
  */
 @Composable
-private fun ViewerLoadingCurtain(isLight: Boolean) {
+private fun ViewerLoadingCurtain(isLight: Boolean, darkPage: Boolean = false) {
     val bg = if (isLight) Color(0xFF0A0E14) else Color(0xFF05070B)
-    Box(Modifier.fillMaxSize().background(bg))
+    // A sheet of paper where page 1 will land (same top inset as the page list), so the opening zoom
+    // shows a document arriving rather than a black void; the real page fades in over it.
+    val sheet = if (darkPage) Color(0xFF16181C) else Color(0xFFF7F7F5)
+    val shimmer = androidx.compose.animation.core.rememberInfiniteTransition(label = "sheetShimmer")
+    val glow = shimmer.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable<Float>(tween(1100), androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "sheetGlow"
+    )
+    Box(Modifier.fillMaxSize().background(bg)) {
+        Box(
+            Modifier
+                .padding(top = 10.dp)
+                .fillMaxWidth()
+                .aspectRatio(1f / 1.414f)
+                .graphicsLayer { alpha = 0.92f + 0.08f * glow.value }
+                .background(sheet)
+        )
+    }
 }
 
 /**
