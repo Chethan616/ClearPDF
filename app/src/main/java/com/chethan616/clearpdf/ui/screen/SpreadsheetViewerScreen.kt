@@ -673,14 +673,11 @@ fun SpreadsheetViewerScreen(
 
         // A single plain share button, not the reader's hold-and-swipe ShareMorph gesture — the
         // sheet already has an explicit "export as PDF" entry point elsewhere in its tools, so this
-        // one control only needs to do the one thing its icon says. Long-press keeps the PDF export
-        // reachable (same as the back circle's long-press-for-library convention) instead of losing
-        // it outright.
+        // one control only needs to do the one thing its icon says. No long-press: it used to open
+        // a PDF export, which surprised people tapping-and-holding by habit.
         if (sheet != null && !showSearch && !editMode) {
             LiquidIconButton(
                 onClick = { viewModel.shareableUri(context) { u -> u?.let { shareFile(context, it) } } },
-                onLongClick = { viewModel.exportToPdf(context) { u -> u?.let(onOpenPdf) } },
-                onLongClickLabel = stringResource(R.string.sheet_export_pdf),
                 backdrop = screenBackdrop.glass,
                 // bottom = 6.dp centers this 52dp button on the sheet dock's 44dp-tall, 10dp-bottom-
                 // padded capsule (10 + 44/2 = 32dp center; a 52dp button centers there at 32 - 26 = 6dp).

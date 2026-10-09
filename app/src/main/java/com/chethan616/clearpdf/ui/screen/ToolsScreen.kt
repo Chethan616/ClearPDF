@@ -45,7 +45,6 @@ import androidx.compose.material.icons.rounded.PhotoSizeSelectLarge
 import androidx.compose.material.icons.rounded.Reorder
 import androidx.compose.material.icons.rounded.TextSnippet
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,7 +68,6 @@ import com.chethan616.clearpdf.ui.components.ToolTileWide
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
-import com.chethan616.clearpdf.ui.theme.LocalIsScrolling
 import com.chethan616.clearpdf.ui.theme.ToolAccents
 import com.chethan616.clearpdf.ui.utils.UISensor
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -216,13 +214,10 @@ fun ToolsScreen(
             },
             label = "toolsSearchSwap"
         ) { showResults ->
-            val scrollState = rememberScrollState()
-            val isScrolling = remember(scrollState) { { scrollState.isScrollInProgress } }
-            CompositionLocalProvider(LocalIsScrolling provides isScrolling) {
             Column(
                 Modifier
                     .fillMaxSize()
-                    .verticalScroll(scrollState)
+                    .verticalScroll(rememberScrollState())
                     .padding(contentPadding),
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
@@ -260,7 +255,6 @@ fun ToolsScreen(
                         }
                     }
                 }
-            }
             }
         }
     }
