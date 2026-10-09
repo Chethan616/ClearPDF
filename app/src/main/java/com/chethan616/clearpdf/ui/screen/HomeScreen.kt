@@ -126,6 +126,7 @@ import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.utils.liquidPressGlow
+import com.chethan616.clearpdf.ui.components.chipGlassSurface
 import com.chethan616.clearpdf.ui.utils.DocumentOpenOrigin
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
@@ -434,6 +435,7 @@ fun HomeScreen(
                                     key(recent.uriString) {
                                         RecentRow(
                                             recent = recent,
+                                            backdrop = backdrop,
                                             isLight = isLight,
                                             textColor = text,
                                             secondaryColor = sub,
@@ -517,7 +519,8 @@ fun HomeScreen(
                 visible = selectedRecent != null,
                 anchor = selectedRecentBounds,
                 title = recent.name,
-                backdrop = backdrop,
+                // Outside the scaffold: refract the live screen, not the flat wallpaper.
+                backdrop = screenBackdrop.glass,
                 primary = listOf(
                     RecentMenuAction("open", Icons.Rounded.FileOpen, stringResource(R.string.recents_open), LiquidGlassColors.Blue) {
                         selectedRecent = null; onRecentFileSelected(recent.uri, recent.name)
@@ -576,7 +579,7 @@ fun HomeScreen(
             selected = recentFilter,
             accent = accent,
             isLight = isLight,
-            backdrop = backdrop,
+            backdrop = screenBackdrop.glass,
             uiSensor = uiSensor,
             onSelect = { kind ->
                 recentFilter = kind
@@ -874,7 +877,7 @@ private fun RecentsFilterMenu(
     selected: DocKind?,
     accent: Color,
     isLight: Boolean,
-    backdrop: LayerBackdrop,
+    backdrop: com.kyant.backdrop.Backdrop,
     uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
     onSelect: (DocKind?) -> Unit,
     onDismiss: () -> Unit
@@ -1023,6 +1026,7 @@ private class RowMetrics {
 @Composable
 private fun RecentRow(
     recent: com.chethan616.clearpdf.data.repository.RecentFile,
+    backdrop: com.kyant.backdrop.Backdrop,
     isLight: Boolean,
     textColor: Color,
     secondaryColor: Color,
@@ -1138,8 +1142,13 @@ private fun RecentRow(
                     scaleX = rowScale
                     scaleY = rowScale
                 }
+                // Each row is a chip of the same glass as the title pills.
+                .chipGlassSurface(
+                    backdrop,
+                    shape = { com.kyant.shapes.RoundedRectangle(16.dp) },
+                    surface = if (isLight) Color.White.copy(0.45f) else Color.White.copy(0.08f)
+                )
                 .clip(RoundedCornerShape(16.dp))
-                .background(if (isLight) Color.White.copy(0.18f) else Color.White.copy(0.06f))
                 .liquidPressGlow(rowInteraction, onLight = isLight)
                 .combinedClickable(
                     interactionSource = rowInteraction,

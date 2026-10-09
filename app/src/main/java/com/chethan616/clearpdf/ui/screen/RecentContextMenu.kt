@@ -65,6 +65,7 @@ import androidx.compose.ui.util.lerp
 import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.viewerGlass
+import com.chethan616.clearpdf.ui.components.glassMenu
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.kyant.backdrop.Backdrop
@@ -234,7 +235,7 @@ private fun MenuPanel(
     Column(
         Modifier
             .width(MenuWidth)
-            .viewerGlass(backdrop, glass, shape = { RoundedRectangle(24.dp) })
+            .glassMenu(backdrop, dark = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current, shape = { RoundedRectangle(24.dp) })
             // Swallow taps on the panel's padding so they don't fall through to the scrim.
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
             .padding(vertical = 10.dp)

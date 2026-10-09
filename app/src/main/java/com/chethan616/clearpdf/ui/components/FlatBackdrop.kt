@@ -8,6 +8,13 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.kyant.backdrop.Backdrop
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
+import com.kyant.backdrop.highlight.Highlight
 
 /**
  * The app's wallpaper layer when it is a single solid colour (Settings → Background off, the
@@ -61,6 +68,33 @@ val VibrancyColorFilter: ColorFilter = run {
 }
 
 /** What `vibrancy → blur → lens` produces over a flat [color]: drawn straight, no layer, no shader. */
+/**
+ * The title chips' glass (LiquidButton's recipe: vibrancy, 2 dp frost, 12x24 lens rim, specular
+ * highlight) as a surface for non-button content such as list rows. Honours the flat-wallpaper fast
+ * path. No drop shadow: rows sit inside a panel and are clipped.
+ */
+@androidx.compose.runtime.Composable
+fun Modifier.chipGlassSurface(
+    backdrop: Backdrop,
+    shape: () -> androidx.compose.ui.graphics.Shape,
+    surface: Color
+): Modifier {
+    val flat = flatColorOf(backdrop)
+    return drawBackdrop(
+        backdrop = backdrop,
+        shape = shape,
+        effects = if (flat != null) ({}) else ({
+            vibrancy()
+            blur(2f.dp.toPx())
+            lens(12f.dp.toPx(), 24f.dp.toPx())
+        }),
+        highlight = { Highlight.Default },
+        shadow = null,
+        onDrawBackdrop = if (flat != null) ({ _ -> drawFlatVibrantBackdrop(flat) }) else ({ it() }),
+        onDrawSurface = { drawRect(surface) }
+    )
+}
+
 fun DrawScope.drawFlatVibrantBackdrop(color: Color) {
     drawRect(color, colorFilter = VibrancyColorFilter)
 }
