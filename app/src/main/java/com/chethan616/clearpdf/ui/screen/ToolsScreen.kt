@@ -310,8 +310,10 @@ private fun ToolSectionPanel(
     }
 }
 
-/** One stagger step. Everything on the screen is placed on this grid so the cascade reads evenly. */
-private const val StaggerStepMs = 35
+// At 35ms/slot the last of this screen's ~22 slots didn't start until 770ms in, finishing its own
+// 420ms spring past the 1.1s mark -- long enough to read as "the screen is still loading" rather
+// than a cascade. Cut to tighten the whole entrance to well under half a second.
+private const val StaggerStepMs = 12
 
 /**
  * Overshoots past 1.0 and settles back — the "bounce". It is only ever applied to scale and

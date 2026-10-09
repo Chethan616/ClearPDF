@@ -272,9 +272,11 @@ fun SettingsScreen(
                     }
                 }
 
-                // ── Save Location ──
-                SettingsSection(backdrop, uiSensor, entrance.sectionFade(3)) {
-                    SettingsSectionHeader(Icons.Rounded.FolderOpen, stringResource(R.string.settings_save_location), LiquidGlassColors.Blue)
+                // ── Save Location + File Handling + Default Quality ── one panel: three related
+                // "how documents are handled" topics, each keeping its own sub-header, so scrolling
+                // past this part of the screen pays for one glass surface instead of three.
+                SettingsSection(backdrop, uiSensor, entrance.sectionFade(3), gap = 4.dp) {
+                    SettingsSectionHeader(Icons.Rounded.FolderOpen, stringResource(R.string.settings_save_location), LiquidGlassColors.Blue, bottomPad = 8.dp)
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -312,10 +314,8 @@ fun SettingsScreen(
                             )
                         }
                     }
-                }
 
-                // ── File Handling ──
-                SettingsSection(backdrop, uiSensor, entrance.sectionFade(4), gap = 4.dp) {
+                    SettingsDivider(isLight)
                     SettingsSectionHeader(Icons.Rounded.Description, stringResource(R.string.settings_file_handling), ink, bottomPad = 8.dp)
                     SettingsToggleRow(
                         icon = Icons.Rounded.Compress,
@@ -355,10 +355,8 @@ fun SettingsScreen(
                         },
                         backdrop = backdrop
                     )
-                }
 
-                // ── Default Quality ──
-                SettingsSection(backdrop, uiSensor, entrance.sectionFade(5)) {
+                    SettingsDivider(isLight)
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         SettingsSectionHeader(Icons.Rounded.HighQuality, stringResource(R.string.settings_compression_quality), LiquidGlassColors.Blue, bottomPad = 0.dp)
                         Box(
@@ -382,7 +380,7 @@ fun SettingsScreen(
                 }
 
                 // ── Personalization ──
-                SettingsSection(backdrop, uiSensor, entrance.sectionFade(6), gap = 4.dp) {
+                SettingsSection(backdrop, uiSensor, entrance.sectionFade(4), gap = 4.dp) {
                     SettingsSectionHeader(Icons.Rounded.Wallpaper, stringResource(R.string.settings_personalization), ink, bottomPad = 8.dp)
                     SettingsToggleRow(
                         icon = Icons.Rounded.Wallpaper,
@@ -426,8 +424,10 @@ fun SettingsScreen(
                     )
                 }
 
-                // ── About & Open Source ──
-                SettingsSection(backdrop, uiSensor, entrance.sectionFade(7), padding = 24.dp, horizontalAlignment = Alignment.CenterHorizontally) {
+                // ── About & Open Source + Licenses ── one panel: the credits list is part of "about
+                // the app", not a topic of its own, and folding it in here removes the single
+                // heaviest remaining glass surface (the longest scroll content on the screen).
+                SettingsSection(backdrop, uiSensor, entrance.sectionFade(5), padding = 24.dp, horizontalAlignment = Alignment.CenterHorizontally) {
                     AccentIconTile(Icons.Rounded.Info, LiquidGlassColors.Blue, size = 56, iconSize = 28)
                     BasicText("ClearPDF", style = TextStyle(ink, 20.sp, FontWeight.Bold))
                     BasicText(stringResource(R.string.settings_version), style = TextStyle(sub, 13.sp))
@@ -442,6 +442,19 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     BasicText(stringResource(R.string.settings_open_source), style = TextStyle(sub.copy(0.7f), 11.sp, textAlign = TextAlign.Center))
+
+                    SettingsDivider(isLight)
+                    // Left-aligned sub-column: the parent's CenterHorizontally is for the hero block
+                    // above, not this list.
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        SettingsSectionHeader(Icons.Rounded.Code, stringResource(R.string.settings_licenses), ink)
+                        OpenSourceCredits.forEachIndexed { index, credit ->
+                            if (index > 0) SettingsDivider(isLight)
+                            LicenseItem(credit.name, credit.author, credit.license, credit.url, ink, sub)
+                        }
+                        SettingsDivider(isLight)
+                        BasicText(stringResource(R.string.settings_license_notice), style = TextStyle(sub.copy(0.7f), 11.sp, lineHeight = 16.sp))
+                    }
                 }
 
                 // ── Office engine (optional, powered by LibreOffice) ──
@@ -455,21 +468,10 @@ fun SettingsScreen(
                     modifier = Modifier
                         .bringIntoViewRequester(officeEngineRequester)
                         .fillMaxWidth()
-                        .then(entrance.sectionFade(8))
+                        .then(entrance.sectionFade(6))
                         .liquidGlassPanel(backdrop, uiSensor)
                         .padding(20.dp)
                 )
-
-                // ── Licenses ──
-                SettingsSection(backdrop, uiSensor, entrance.sectionFade(9)) {
-                    SettingsSectionHeader(Icons.Rounded.Code, stringResource(R.string.settings_licenses), ink)
-                    OpenSourceCredits.forEachIndexed { index, credit ->
-                        if (index > 0) SettingsDivider(isLight)
-                        LicenseItem(credit.name, credit.author, credit.license, credit.url, ink, sub)
-                    }
-                    SettingsDivider(isLight)
-                    BasicText(stringResource(R.string.settings_license_notice), style = TextStyle(sub.copy(0.7f), 11.sp, lineHeight = 16.sp))
-                }
             }
         }
     }
@@ -496,15 +498,18 @@ fun SettingsScreen(
     }
 }
 
-/** One stagger step, matching ToolsScreen's own cadence. */
-private const val SettingsStaggerStepMs = 45
+// With panels now merged down to 7 sections (was 9), the cascade is shorter on its own, but the
+// per-step/duration values were still the original, slower ones -- the last section didn't finish
+// appearing until ~725ms after landing on the screen, which on top of the nav transition itself
+// read as "the screen is still loading" rather than a snappy tab switch.
+private const val SettingsStaggerStepMs = 20
 
 /** Fade-only entrance for a glass section — translating a `liquidGlassPanel` re-samples its backdrop
  *  every frame of the slide, which is the jank this replaces (see ToolsScreen's own note). */
 @Composable
 private fun Transition<Boolean>.sectionFade(index: Int): Modifier {
     val fadeAlpha by animateFloat(
-        transitionSpec = { tween(durationMillis = 320, delayMillis = SettingsStaggerStepMs * index, easing = FastOutSlowInEasing) },
+        transitionSpec = { tween(durationMillis = 200, delayMillis = SettingsStaggerStepMs * index, easing = FastOutSlowInEasing) },
         label = "settingsFade$index"
     ) { if (it) 1f else 0f }
     return Modifier.alpha(fadeAlpha)

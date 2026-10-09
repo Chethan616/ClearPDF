@@ -215,7 +215,7 @@ fun DocsNavGraph(
             val isMainTabSwitch = initialState.destination.route in MAIN_TAB_ROUTES && targetState.destination.route in MAIN_TAB_ROUTES
             if (isMainTabSwitch) {
                 val dist = kotlin.math.abs(routeToTabIdx(targetState.destination.route) - routeToTabIdx(initialState.destination.route))
-                val fadeDuration = if (dist >= 2) 520 else 350
+                val fadeDuration = if (dist >= 2) 260 else 180
                 androidx.compose.animation.fadeIn(
                     animationSpec = tween(durationMillis = fadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                 )
@@ -239,7 +239,7 @@ fun DocsNavGraph(
                 ExitTransition.None
             } else if (isMainTabSwitch) {
                 val dist = kotlin.math.abs(routeToTabIdx(targetState.destination.route) - routeToTabIdx(initialState.destination.route))
-                val fadeDuration = if (dist >= 2) 520 else 350
+                val fadeDuration = if (dist >= 2) 260 else 180
                 androidx.compose.animation.fadeOut(
                     animationSpec = tween(durationMillis = fadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                 )
@@ -264,7 +264,7 @@ fun DocsNavGraph(
                 EnterTransition.None
             } else if (isMainTabSwitch) {
                 val dist = kotlin.math.abs(routeToTabIdx(targetState.destination.route) - routeToTabIdx(initialState.destination.route))
-                val fadeDuration = if (dist >= 2) 520 else 350
+                val fadeDuration = if (dist >= 2) 260 else 180
                 androidx.compose.animation.fadeIn(
                     animationSpec = tween(durationMillis = fadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                 )
@@ -284,7 +284,7 @@ fun DocsNavGraph(
             val isMainTabSwitch = initialState.destination.route in MAIN_TAB_ROUTES && targetState.destination.route in MAIN_TAB_ROUTES
             if (isMainTabSwitch) {
                 val dist = kotlin.math.abs(routeToTabIdx(targetState.destination.route) - routeToTabIdx(initialState.destination.route))
-                val fadeDuration = if (dist >= 2) 520 else 350
+                val fadeDuration = if (dist >= 2) 260 else 180
                 androidx.compose.animation.fadeOut(
                     animationSpec = tween(durationMillis = fadeDuration, easing = androidx.compose.animation.core.FastOutSlowInEasing)
                 )
