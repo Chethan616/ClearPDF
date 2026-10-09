@@ -69,6 +69,7 @@ import com.chethan616.clearpdf.ui.viewmodel.PdfViewerViewModel
 import com.chethan616.clearpdf.ui.viewmodel.SplitPdfViewModel
 import com.chethan616.clearpdf.ui.viewmodel.ScanViewModel
 import com.kyant.backdrop.backdrops.LayerBackdrop
+import com.chethan616.clearpdf.ui.utils.DocumentOpenOrigin
 
 /** Public so `DocsApp` can pick it as the start destination on a first run. */
 const val ROUTE_ONBOARDING = "onboarding"
@@ -181,6 +182,28 @@ private fun isDocViewerRoute(route: String?): Boolean =
         route.startsWith(ROUTE_SPREADSHEET_BASE) ||
         route.startsWith(ROUTE_IMAGE_EDITOR_BASE)
     )
+
+/**
+ * A document viewer opening: it grows out of the row that was tapped ([DocumentOpenOrigin]; the
+ * centre otherwise) on a soft, barely-overshooting spring while it fades up — an iOS-style zoom that
+ * keeps the file you tapped and the page you get spatially connected.
+ */
+private fun documentLiftIn(): EnterTransition =
+    androidx.compose.animation.fadeIn(tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
+        androidx.compose.animation.scaleIn(
+            initialScale = 0.88f,
+            transformOrigin = DocumentOpenOrigin.takeForEnter(),
+            animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.82f, stiffness = 380f)
+        )
+
+/** A document viewer closing: the inverse of [documentLiftIn], settling back into where it came from. */
+private fun documentSettleOut(): ExitTransition =
+    androidx.compose.animation.fadeOut(tween(210, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
+        androidx.compose.animation.scaleOut(
+            targetScale = 0.9f,
+            transformOrigin = DocumentOpenOrigin.current,
+            animationSpec = tween(230, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+        )
 
 @Composable
 fun DocsNavGraph(
@@ -454,28 +477,15 @@ fun DocsNavGraph(
                     defaultValue = null
                 }
             ),
-            // "Document lifts open": one coordinated fade + soft-spring zoom-up from slightly
-            // smaller. The screen behind is held static+opaque (see [isDocViewerRoute]), so the
-            // lift reads against a stable backdrop with no edge flash. The earlier vertical slide is
-            // gone — a single centered scale settling on a spring is cleaner and flicker-free.
-            enterTransition = {
-                androidx.compose.animation.fadeIn(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
-                    androidx.compose.animation.scaleIn(
-                        initialScale = 0.92f,
-                        animationSpec = androidx.compose.animation.core.spring(
-                            dampingRatio = 0.85f,
-                            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
-                        )
-                    )
-            },
+            // "Document lifts open" out of the row that was tapped (see [DocumentOpenOrigin]): one
+            // coordinated fade + soft-spring zoom. The screen behind is held static+opaque (see
+            // [isDocViewerRoute]), so the lift reads against a stable backdrop with no edge flash.
+            enterTransition = { documentLiftIn() },
             exitTransition = { androidx.compose.animation.fadeOut(tween(160)) },
             popEnterTransition = { androidx.compose.animation.fadeIn(tween(200)) },
-            // Closing: the viewer settles back down + fades, revealing the (already-present) screen
-            // underneath. Symmetric with the open so back feels like the inverse of the lift.
-            popExitTransition = {
-                androidx.compose.animation.fadeOut(tween(210, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
-                    androidx.compose.animation.scaleOut(targetScale = 0.94f, animationSpec = tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing))
-            }
+            // Closing: the viewer settles back into the row it came from + fades, revealing the
+            // (already-present) screen underneath — the inverse of the lift.
+            popExitTransition = { documentSettleOut() }
         ) { backStackEntry ->
             val context = LocalContext.current
             val vm: PdfViewerViewModel = viewModel(
@@ -512,16 +522,7 @@ fun DocsNavGraph(
             route = ROUTE_SPREADSHEET,
             arguments = listOf(navArgument(ARG_PDF_URI) { type = NavType.StringType; nullable = true; defaultValue = null }),
             // Same "document lifts open" as the PDF viewer (see that route) for a uniform feel.
-            enterTransition = {
-                androidx.compose.animation.fadeIn(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
-                    androidx.compose.animation.scaleIn(
-                        initialScale = 0.92f,
-                        animationSpec = androidx.compose.animation.core.spring(
-                            dampingRatio = 0.85f,
-                            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
-                        )
-                    )
-            },
+            enterTransition = { documentLiftIn() },
             // Fade only: scaling the sheet makes every glass surface (full-screen grid panel, tabs,
             // share capsule, header) recompute its lens + blur each frame, which is what made Back feel
             // laggy here. An alpha-only exit reuses the cached layers.
@@ -548,20 +549,8 @@ fun DocsNavGraph(
             route = ROUTE_IMAGE_EDITOR,
             arguments = listOf(navArgument(ARG_PDF_URI) { type = NavType.StringType; nullable = true; defaultValue = null }),
             // Same "document lifts open" as the PDF viewer (see that route) for a uniform feel.
-            enterTransition = {
-                androidx.compose.animation.fadeIn(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
-                    androidx.compose.animation.scaleIn(
-                        initialScale = 0.92f,
-                        animationSpec = androidx.compose.animation.core.spring(
-                            dampingRatio = 0.85f,
-                            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
-                        )
-                    )
-            },
-            popExitTransition = {
-                androidx.compose.animation.fadeOut(tween(210, easing = androidx.compose.animation.core.FastOutSlowInEasing)) +
-                    androidx.compose.animation.scaleOut(targetScale = 0.94f, animationSpec = tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing))
-            }
+            enterTransition = { documentLiftIn() },
+            popExitTransition = { documentSettleOut() }
         ) { backStackEntry ->
             val context = LocalContext.current
             val vm: ImageEditorViewModel = viewModel()

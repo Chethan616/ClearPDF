@@ -8,13 +8,17 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -81,27 +85,40 @@ fun LiquidButton(
     content: @Composable RowScope.() -> Unit
 ) {
     val animationScope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val currentHaptics by rememberUpdatedState(haptics)
     val interactiveHighlight = remember(animationScope) {
-        InteractiveHighlight(animationScope = animationScope)
+        InteractiveHighlight(
+            animationScope = animationScope,
+            longPressExpand = true,
+            onLongPressExpand = { currentHaptics.performHapticFeedback(HapticFeedbackType.LongPress) }
+        )
     }
+    // Flat wallpaper: same pixels, none of the blur/lens/offscreen work — see FlatBackdrop.
+    val flat = flatColorOf(backdrop)
 
     Row(
         modifier
             .drawBackdrop(
                 backdrop = backdrop,
                 shape = { Capsule },
-                effects = {
+                effects = if (flat != null) ({}) else ({
                     vibrancy()
                     blur(blurRadius.toPx())
                     lens(12f.dp.toPx(), 24f.dp.toPx())
-                },
+                }),
+                onDrawBackdrop = if (flat != null) ({ _ -> drawFlatVibrantBackdrop(flat) }) else ({ it() }),
                 layerBlock = if (isInteractive) {
                     {
                         val width = size.width
                         val height = size.height
 
                         val progress = interactiveHighlight.pressProgress
-                        val scale = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress)
+                        // Long-press bloom: grows by at most ~14 dp along the long side (≤ 12 %), so a
+                        // small chip pops playfully while a full-width button only swells a touch.
+                        val bloom = interactiveHighlight.expandProgress *
+                            (14f.dp.toPx() / size.maxDimension).fastCoerceAtMost(0.12f)
+                        val scale = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress) + bloom
 
                         val maxOffset = size.minDimension
                         val initialDerivative = 0.05f
@@ -142,7 +159,7 @@ fun LiquidButton(
                 interactionSource = null,
                 indication = if (isInteractive) null else LocalIndication.current,
                 role = Role.Button,
-                onClick = onClick
+                onClick = { if (interactiveHighlight.expandProgress < 0.5f) haptics.performHapticFeedback(HapticFeedbackType.ContextClick); onClick() }
             )
             .then(
                 if (isInteractive) {

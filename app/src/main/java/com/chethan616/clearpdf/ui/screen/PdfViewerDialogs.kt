@@ -7,6 +7,10 @@ import com.chethan616.clearpdf.ui.components.glassDialogPlatter
 import com.chethan616.clearpdf.ui.components.glassDialogInkSoft
 import com.chethan616.clearpdf.ui.components.glassDialogInk
 import com.chethan616.clearpdf.ui.components.GlassDialogSegmented
+import com.chethan616.clearpdf.ui.components.GlassDropdownOption
+import com.chethan616.clearpdf.ui.components.LiquidGlassDropdown
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.PictureAsPdf
 import com.chethan616.clearpdf.ui.components.GlassDialogField
 import com.chethan616.clearpdf.ui.components.GlassDialogAction
 import com.chethan616.clearpdf.ui.components.GlassDialog
@@ -94,6 +98,7 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.DestructiveGlassButton
 import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.LiquidButton
+import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
@@ -282,9 +287,10 @@ internal enum class ShareFormat { ORIGINAL, PDF }
 
 /**
  * Share/export chooser on the shared [GlassDialog] card. For a converted document (a .docx opened as
- * a PDF) it offers the original file or a PDF; when PDF is the target it can encrypt with a password.
- * Both choices are [GlassDialogSegmented] controls — solid tracks with a vivid sliding thumb — so
- * every option is legible over any page (the old glass pills went blank on light pages).
+ * a PDF) it offers the original file or a PDF in a [LiquidGlassDropdown]; when PDF is the target it
+ * can encrypt with a password, chosen on a [GlassDialogSegmented]. Both controls sit on the solid
+ * dialog platter so every option is legible over any page (the old glass pills went blank on light
+ * pages) while their lensed rims still refract the screen.
  *
  * The dialog only collects intent — the file work (encrypt, wrap, chooser) runs off the UI thread in
  * the caller.
@@ -340,10 +346,18 @@ internal fun ExportShareDialog(
                     stringResource(R.string.viewer_share_format),
                     style = TextStyle(soft, 13.sp, FontWeight.Medium)
                 )
-                GlassDialogSegmented(
-                    options = listOf(originalExt.orEmpty(), stringResource(R.string.viewer_share_pdf)),
-                    selectedIndex = formatIndex,
-                    onSelect = { formatIndex = it }
+                // The share sheet's original bouncy glass dropdown (v3), back on the shared component.
+                LiquidGlassDropdown(
+                    options = listOf(
+                        GlassDropdownOption(0, originalExt.orEmpty(), icon = Icons.Rounded.Description),
+                        GlassDropdownOption(1, stringResource(R.string.viewer_share_pdf), icon = Icons.Rounded.PictureAsPdf)
+                    ),
+                    selected = formatIndex,
+                    onSelect = { formatIndex = it },
+                    backdrop = backdrop,
+                    leadingIcon = if (formatIndex == 1) Icons.Rounded.PictureAsPdf else Icons.Rounded.Description,
+                    triggerSurface = glassDialogPlatter(LocalIsDarkMode.current),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
             AnimatedVisibility(
@@ -405,27 +419,29 @@ internal fun AnnotationColorRow(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BasicText(stringResource(R.string.viewer_color), style = TextStyle(fgSoft, 12.sp, FontWeight.Medium))
+        // Every swatch fits the row (equal slots), and the selected one springs up with a ring.
         Row(
             Modifier
-                .viewerGlass(backdrop, Color.White.copy(alpha = 0.07f), shape = { RoundedCornerShape(24.dp) })
-                .padding(horizontal = 10.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(50))
+                .background(fgSoft.copy(alpha = 0.10f))
+                .padding(horizontal = 6.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             editorPalette.forEach { c ->
                 val isSel = c.value == selected.value
-                Box(
-                    Modifier
-                        .size(if (isSel) 30.dp else 26.dp)
-                        .clip(CircleShape)
-                        .viewerGlass(backdrop, c.copy(alpha = 0.88f), shape = { CircleShape })
-                        .border(
-                            width = if (isSel) 2.5.dp else 1.dp,
-                            color = if (isSel) LiquidGlassColors.Blue else fgSoft.copy(alpha = 0.42f),
-                            shape = CircleShape
-                        )
-                        .clickable { onPick(c) }
-                )
+                val s by animateFloatAsState(if (isSel) 1.12f else 1f, GlassMotion.pop(), label = "swatch")
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    // Tinted liquid glass bead, same as the draw tools' colour buttons.
+                    LiquidIconButton(
+                        onClick = { onPick(c) },
+                        backdrop = backdrop,
+                        tint = c,
+                        modifier = Modifier.size(32.dp).graphicsLayer { scaleX = s; scaleY = s }
+                    ) {
+                        if (isSel) Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), Color.White)
+                    }
+                }
             }
         }
     }
@@ -452,56 +468,17 @@ internal fun ShapeEditorPopup(
     var color by remember { mutableStateOf(initialColor) }
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
-
-    Box(Modifier.fillMaxSize()) {
-        AnimatedVisibility(
-            visible = shown,
-            enter = fadeIn(tween(180)),
-            exit = fadeOut(tween(140)),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(0.45f))
-                    .pointerInput(Unit) { detectTapGestures { onDismiss() } }
-            )
+    // The app's standard glass dialog: springy entrance, vivid red Delete + blue Done pills.
+    GlassDialog(
+        visible = shown,
+        onDismiss = onDismiss,
+        backdrop = backdrop,
+        title = stringResource(R.string.viewer_edit_shape),
+        actions = {
+            GlassDialogAction(stringResource(R.string.delete), onDelete, destructive = true)
+            GlassDialogAction(stringResource(R.string.viewer_done), onDismiss, primary = true)
         }
-
-        AnimatedVisibility(
-            visible = shown,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(140)),
-            modifier = Modifier.align(Alignment.Center).fillMaxWidth().imePadding()
-        ) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Column(
-                    Modifier
-                        .fillMaxWidth(0.9f)
-                        .widthIn(max = 440.dp)
-                        .liquidGlassPanel(backdrop, uiSensor, surface)
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    BasicText(
-                        stringResource(R.string.viewer_edit_shape),
-                        style = TextStyle(fg, 16.sp, fontWeight = FontWeight.Bold)
-                    )
-
-                    AnnotationColorRow(selected = color, backdrop = backdrop, fgSoft = fgSoft, onPick = { color = it; onColorChange(it) })
-
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        DestructiveGlassButton(stringResource(R.string.delete), onDelete, backdrop)
-                        LiquidButton(onClick = onDismiss, backdrop = backdrop, tint = LiquidGlassColors.Blue) {
-                            BasicText(stringResource(R.string.viewer_done), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
-                        }
-                    }
-                }
-            }
-        }
+    ) {
+        AnnotationColorRow(selected = color, backdrop = backdrop, fgSoft = glassDialogInkSoft(), onPick = { color = it; onColorChange(it) })
     }
 }

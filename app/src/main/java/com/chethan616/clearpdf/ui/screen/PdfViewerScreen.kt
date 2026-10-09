@@ -46,6 +46,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
@@ -354,6 +356,7 @@ fun PdfViewerScreen(
 
     // ── Text selection (long-press, native-style handles, glass toolbar) ─────────────────────
     val textSelection = remember { PdfTextSelectionState() }
+    val markupBarHost = remember { MarkupBarHost() }
     textSelection.blocksProvider = { p -> viewModel.uiState.value.ocrBlocksByPage[p].orEmpty() }
     var containerWidthPx by remember { mutableIntStateOf(0) }
     textSelection.transformProvider = { PdfViewportTransform(containerWidthPx.toFloat(), scale, offsetX) }
@@ -577,7 +580,7 @@ fun PdfViewerScreen(
         val openingHandedDoc = !askingPassword && state.errorMessage == null && (state.isLoading || pendingLoad)
         if (openingHandedDoc) {
             Box(Modifier.fillMaxSize()) {
-                ViewerLoadingCurtain(isLight = isLight)
+                ViewerLoadingCurtain(isLight = isLight, darkPage = darkPageAppearance)
                 // While a password PDF is actually being unlocked, play the padlock "decrypting"
                 // animation over the fill (styled after the onboarding page-5 demos). Plain opening
                 // fills (a normal load) show nothing extra — a lock would be misleading there.
@@ -1219,7 +1222,25 @@ fun PdfViewerScreen(
                                     selectedAnnoPage = null; selectedAnnoIndex = -1
                                     selectedMarkupGroupPage = null; selectedMarkupGroup = emptySet()
                                 },
-                                textSelection = textSelection
+                                textSelection = textSelection,
+                                markupBar = markupBarHost,
+                                onMoveImageToPage = { from, img, to ->
+                                    val fromSize = pageCanvasSizes[from]
+                                    val toSize = pageCanvasSizes[to]
+                                    if (to !in 0 until safePageCount || fromSize == null || toSize == null) false
+                                    else {
+                                        // Page gap = the two 6 dp item paddings, in the same unscaled px.
+                                        val gapPx = with(density) { 12.dp.toPx() }
+                                        val ih = img.end.y - img.start.y
+                                        val top = if (to > from) img.start.y - fromSize.height - gapPx
+                                                  else img.start.y + toSize.height + gapPx
+                                        val ny = top.coerceIn(0f, (toSize.height - ih).coerceAtLeast(0f))
+                                        getPageMarks(from).removeAll { it is PdfMarkup.ImageMarkup && it.id == img.id }
+                                        getPageMarks(to).add(img.copy(start = Offset(img.start.x, ny), end = Offset(img.end.x, ny + ih)))
+                                        recordEdit(from); recordEdit(to)
+                                        true
+                                    }
+                                }
                             )
                         }
                     }
@@ -1760,18 +1781,32 @@ fun PdfViewerScreen(
                 }
             }
         }
+        // Floating contextual chrome, in the title-chip glass over the live page, with ink sampled from
+        // the document behind each control (same band sampling as the bars).
+        val pageLuminanceAt: (Float, Float) -> Float = { top, bottom ->
+            bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, top, bottom, darkPageAppearance)
+        }
+        PdfMarkupBarLayer(
+            host = markupBarHost,
+            textSelection = textSelection,
+            listState = listState,
+            backdrop = contentBackdrop,
+            luminanceAt = pageLuminanceAt
+        )
         PdfSelectionToolbar(
             state = textSelection,
             listState = listState,
             backdrop = contentBackdrop,
             actions = selectionActions,
             highlightColor = currentColor,
-            hasHighlightOverlap = hasHighlightOverlap
+            hasHighlightOverlap = hasHighlightOverlap,
+            luminanceAt = pageLuminanceAt
         )
         PdfCopiedToast(
             trigger = copiedTick,
             backdrop = contentBackdrop,
-            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 112.dp)
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 112.dp),
+            onLight = bottomBarLight
         )
 
         // ── Page-jump popup (in-window, so it samples the liquid-glass backdrop) ──
@@ -1970,20 +2005,24 @@ fun PdfViewerScreen(
         // fill and spinner, the hand-off between them is invisible; only when the first bitmap arrives
         // does this fade away, letting the real document appear underneath. That is what makes tapping
         // a recent read as "wait a beat, then the PDF fades in" instead of a hard cut to an empty page.
-        val firstPageRendered = state.pageBitmaps.getOrNull(0) != null
+        val firstPageRendered = state.pageBitmaps.getOrNull(state.currentPage) != null
         var revealDocument by remember { mutableStateOf(false) }
         LaunchedEffect(firstPageRendered) {
             if (firstPageRendered && !revealDocument) {
-                delay(140)          // let the page paint a frame before we lift the curtain
+                // Lift the curtain once the page has actually been drawn — two frames, not a fixed
+                // 140 ms guess that left a fast-loading file waiting behind an empty curtain.
+                androidx.compose.runtime.withFrameNanos { }
+                androidx.compose.runtime.withFrameNanos { }
                 revealDocument = true
             }
         }
         AnimatedVisibility(
             visible  = !revealDocument,
-            exit     = fadeOut(tween(420, easing = androidx.compose.animation.core.FastOutSlowInEasing)),
+            // A quicker, ease-out dissolve: the page is ready, so get out of its way.
+            exit     = fadeOut(tween(300, easing = androidx.compose.animation.core.LinearOutSlowInEasing)),
             modifier = Modifier.fillMaxSize()
         ) {
-            ViewerLoadingCurtain(isLight = isLight)
+            ViewerLoadingCurtain(isLight = isLight, darkPage = darkPageAppearance)
         }
     }
 
@@ -2020,9 +2059,28 @@ fun PdfViewerScreen(
  * "opening" animation — deliberately just a dissolve.
  */
 @Composable
-private fun ViewerLoadingCurtain(isLight: Boolean) {
+private fun ViewerLoadingCurtain(isLight: Boolean, darkPage: Boolean = false) {
     val bg = if (isLight) Color(0xFF0A0E14) else Color(0xFF05070B)
-    Box(Modifier.fillMaxSize().background(bg))
+    // A sheet of paper where page 1 will land (same top inset as the page list), so the opening zoom
+    // shows a document arriving rather than a black void; the real page fades in over it.
+    val sheet = if (darkPage) Color(0xFF16181C) else Color(0xFFF7F7F5)
+    val shimmer = androidx.compose.animation.core.rememberInfiniteTransition(label = "sheetShimmer")
+    val glow = shimmer.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable<Float>(tween(1100), androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "sheetGlow"
+    )
+    Box(Modifier.fillMaxSize().background(bg)) {
+        Box(
+            Modifier
+                .padding(top = 10.dp)
+                .fillMaxWidth()
+                .aspectRatio(1f / 1.414f)
+                .graphicsLayer { alpha = 0.92f + 0.08f * glow.value }
+                .background(sheet)
+        )
+    }
 }
 
 /**

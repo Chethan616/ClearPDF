@@ -125,6 +125,9 @@ import com.chethan616.clearpdf.ui.components.GlassSearchHeader
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.utils.liquidPressGlow
+import com.chethan616.clearpdf.ui.components.chipGlassSurface
+import com.chethan616.clearpdf.ui.utils.DocumentOpenOrigin
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
@@ -320,7 +323,7 @@ fun HomeScreen(
                             Modifier
                                 .fillMaxWidth()
                                 .then(entrance.glassFade(2))
-                                .liquidGlassPanel(backdrop, uiSensor)
+                                .liquidGlassPanel(backdrop, uiSensor, withShadow = false)
                                 // The container's own minimise animation. `animateContentSize` sits
                                 // INSIDE the glass, so the glass tracks the animated height frame by
                                 // frame — the whole panel springs shut when a row leaves, rather than
@@ -351,29 +354,26 @@ fun HomeScreen(
                                     // secondary control and shouldn't compete with the list.
                                     if (recents.isNotEmpty()) {
                                         val filterActive = recentFilter != null
-                                        Box(
-                                            Modifier
-                                                .size(28.dp)
+                                        // A glass chip like the clear-all button beside it: vivid
+                                        // accent while a filter is on, clear glass otherwise.
+                                        LiquidIconButton(
+                                            onClick = { filterMenuOpen = !filterMenuOpen },
+                                            backdrop = backdrop,
+                                            tint = if (filterActive) accent else Color.Unspecified,
+                                            surfaceColor = if (filterActive) Color.Unspecified
+                                                else if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f),
+                                            modifier = Modifier
+                                                .size(32.dp)
                                                 .onGloballyPositioned {
                                                     val o = it.localToRoot(androidx.compose.ui.geometry.Offset.Zero)
                                                     filterAnchorY = o.y + it.size.height
                                                 }
-                                                .clip(RoundedCornerShape(50))
-                                                .background(
-                                                    if (filterActive) accent.copy(0.20f)
-                                                    else if (isLight) Color.Black.copy(0.06f) else Color.White.copy(0.10f)
-                                                )
-                                                .clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null
-                                                ) { filterMenuOpen = !filterMenuOpen },
-                                            contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 Icons.Rounded.FilterList,
                                                 stringResource(R.string.recents_filter),
                                                 Modifier.size(16.dp),
-                                                if (filterActive) accent else sub
+                                                if (filterActive) Color.White else sub
                                             )
                                         }
                                     }
@@ -435,6 +435,7 @@ fun HomeScreen(
                                     key(recent.uriString) {
                                         RecentRow(
                                             recent = recent,
+                                            backdrop = backdrop,
                                             isLight = isLight,
                                             textColor = text,
                                             secondaryColor = sub,
@@ -518,7 +519,8 @@ fun HomeScreen(
                 visible = selectedRecent != null,
                 anchor = selectedRecentBounds,
                 title = recent.name,
-                backdrop = backdrop,
+                // Outside the scaffold: refract the live screen, not the flat wallpaper.
+                backdrop = screenBackdrop.glass,
                 primary = listOf(
                     RecentMenuAction("open", Icons.Rounded.FileOpen, stringResource(R.string.recents_open), LiquidGlassColors.Blue) {
                         selectedRecent = null; onRecentFileSelected(recent.uri, recent.name)
@@ -577,7 +579,7 @@ fun HomeScreen(
             selected = recentFilter,
             accent = accent,
             isLight = isLight,
-            backdrop = backdrop,
+            backdrop = screenBackdrop.glass,
             uiSensor = uiSensor,
             onSelect = { kind ->
                 recentFilter = kind
@@ -673,7 +675,7 @@ private fun HomeHeroCard(
     Column(
         modifier
             .fillMaxWidth()
-            .liquidGlassPanel(backdrop, uiSensor)
+            .liquidGlassPanel(backdrop, uiSensor, withShadow = false)
             .padding(horizontal = 20.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -782,7 +784,7 @@ private fun HomeLaunchpad(
                     .widthIn(max = 480.dp)
                     .fillMaxWidth()
                     .then(entrance.glassFade(1))
-                    .liquidGlassPanel(backdrop, uiSensor)
+                    .liquidGlassPanel(backdrop, uiSensor, withShadow = false)
                     .padding(horizontal = 24.dp, vertical = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -875,7 +877,7 @@ private fun RecentsFilterMenu(
     selected: DocKind?,
     accent: Color,
     isLight: Boolean,
-    backdrop: LayerBackdrop,
+    backdrop: com.kyant.backdrop.Backdrop,
     uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
     onSelect: (DocKind?) -> Unit,
     onDismiss: () -> Unit
@@ -1024,6 +1026,7 @@ private class RowMetrics {
 @Composable
 private fun RecentRow(
     recent: com.chethan616.clearpdf.data.repository.RecentFile,
+    backdrop: com.kyant.backdrop.Backdrop,
     isLight: Boolean,
     textColor: Color,
     secondaryColor: Color,
@@ -1139,12 +1142,29 @@ private fun RecentRow(
                     scaleX = rowScale
                     scaleY = rowScale
                 }
+                // Each row is a chip of the same glass as the title pills.
+                .chipGlassSurface(
+                    backdrop,
+                    shape = { com.kyant.shapes.RoundedRectangle(16.dp) },
+                    surface = if (isLight) Color.White.copy(0.45f) else Color.White.copy(0.08f)
+                )
                 .clip(RoundedCornerShape(16.dp))
-                .background(if (isLight) Color.White.copy(0.18f) else Color.White.copy(0.06f))
+                .liquidPressGlow(rowInteraction, onLight = isLight)
                 .combinedClickable(
                     interactionSource = rowInteraction,
                     indication = null,
-                    onClick = onClick,
+                    onClick = {
+                        // The viewer grows out of this row (see DocumentOpenOrigin).
+                        val vw = view.width.toFloat()
+                        val vh = view.height.toFloat()
+                        if (vw > 0f && vh > 0f) {
+                            DocumentOpenOrigin.set(
+                                (metrics.leftX + metrics.width / 2f) / vw,
+                                (metrics.topY + metrics.height / 2f) / vh
+                            )
+                        }
+                        onClick()
+                    },
                     onLongClick = {
                         onLongClick(
                             androidx.compose.ui.geometry.Rect(

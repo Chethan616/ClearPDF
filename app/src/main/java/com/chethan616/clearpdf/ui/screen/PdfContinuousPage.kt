@@ -97,6 +97,16 @@ import com.chethan616.clearpdf.ui.viewmodel.FindMatch
 import com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock
 import com.chethan616.clearpdf.ui.viewmodel.OcrTextRange
 import com.chethan616.clearpdf.ui.components.viewerGlass
+import com.chethan616.clearpdf.ui.components.liquidStretchOnDrag
+import androidx.compose.ui.zIndex
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
+import kotlinx.coroutines.launch
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlin.math.max
 import kotlin.math.min
@@ -145,8 +155,13 @@ internal fun PdfContinuousPage(
     onMoveMarkups: (Set<Int>, Offset) -> Unit = { _, _ -> },
     onDeleteMarkup: (Int) -> Unit = {},
     /** The viewer's text selection: this page draws its slice of the highlight and registers its coordinates. */
-    textSelection: PdfTextSelectionState
+    textSelection: PdfTextSelectionState,
+    /** Where this page publishes its contextual Edit / Delete bar; the viewer draws it. */
+    markupBar: MarkupBarHost,
+    /** Moves an image dragged off this page onto [toPage]; false when there is no such page. */
+    onMoveImageToPage: (fromPage: Int, img: PdfMarkup.ImageMarkup, toPage: Int) -> Boolean = { _, _, _ -> false }
 ) {
+    var imageDragging by remember { mutableStateOf(false) }
     var draftPoints    by remember(page, activeTool) { mutableStateOf<List<Offset>>(emptyList()) }
     var draftRectStart by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
     var draftRectEnd   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
@@ -192,6 +207,9 @@ internal fun PdfContinuousPage(
 
     Box(
         Modifier
+            // While an image is dragged across a page boundary, this page draws above its
+            // neighbours so the image isn't hidden behind the next page.
+            .zIndex(if (imageDragging) 1f else 0f)
             .fillMaxWidth()
             .padding(vertical = 6.dp)
             .then(if (bitmap == null) Modifier.aspectRatio(placeholderAspect ?: (1f / 1.414f)) else Modifier)
@@ -288,7 +306,10 @@ internal fun PdfContinuousPage(
                                 srcOffset = androidx.compose.ui.unit.IntOffset.Zero,
                                 srcSize = androidx.compose.ui.unit.IntSize(markup.bitmap.width, markup.bitmap.height),
                                 dstOffset = androidx.compose.ui.unit.IntOffset(r.left.toInt(), r.top.toInt()),
-                                dstSize = androidx.compose.ui.unit.IntSize(r.width.toInt().coerceAtLeast(1), r.height.toInt().coerceAtLeast(1))
+                                dstSize = androidx.compose.ui.unit.IntSize(r.width.toInt().coerceAtLeast(1), r.height.toInt().coerceAtLeast(1)),
+                                // Dark reader inverts the page; a signature is ink on paper, so it
+                                // inverts with it (dark ink -> light) instead of vanishing on black.
+                                colorFilter = if (darkPageAppearance && markup.isSignature) InvertColorFilter else null
                             )
                         }
                         if (activeTool == PdfEditTool.Image && markup.id == activeImageId) {
@@ -656,6 +677,21 @@ internal fun PdfContinuousPage(
                 }
                 .pointerInput(page, activeImageId) {
                     var resizing = false
+                    // Ends a move: an image whose centre left the page hops to the neighbouring page
+                    // (signatures can be carried down to the page they belong on); otherwise it is
+                    // settled back inside this page.
+                    fun settle() {
+                        imageDragging = false
+                        val idx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
+                        val img = marks.getOrNull(idx) as? PdfMarkup.ImageMarkup ?: return
+                        val ph = size.height.toFloat()
+                        val cy = (img.start.y + img.end.y) / 2f
+                        val target = when { cy > ph -> page + 1; cy < 0f -> page - 1; else -> null }
+                        if (target != null && onMoveImageToPage(page, img, target)) return
+                        val ih = img.end.y - img.start.y
+                        val ny = img.start.y.coerceIn(0f, (ph - ih).coerceAtLeast(0f))
+                        marks[idx] = img.copy(start = Offset(img.start.x, ny), end = Offset(img.end.x, ny + ih))
+                    }
                     detectDragGestures(
                         onDragStart = { p ->
                             val idx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
@@ -663,13 +699,14 @@ internal fun PdfContinuousPage(
                             // Generous grab radius around the bottom-right handle (Apple-style
                             // touch target much larger than the visual handle).
                             resizing = img != null && (p - img.end).getDistance() <= 64f; onInteraction()
+                            imageDragging = !resizing
                         },
+                        onDragEnd = { settle() },
+                        onDragCancel = { settle() },
                         onDrag = { ch, drag ->
                             ch.consume()
                             val idx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
                             val img = marks.getOrNull(idx) as? PdfMarkup.ImageMarkup ?: return@detectDragGestures
-                            // Clamp to the page bounds so the image can never be dragged past the
-                            // page edge (where it would be clipped and hidden behind the next page).
                             val pw = size.width.toFloat(); val ph = size.height.toFloat()
                             marks[idx] = if (resizing) {
                                 img.copy(end = Offset(
@@ -677,9 +714,11 @@ internal fun PdfContinuousPage(
                                     (img.end.y + drag.y).coerceIn(img.start.y + 24f, ph)
                                 ))
                             } else {
+                                // Horizontal stays on the page; vertical may cross into the next or
+                                // previous page (this page draws on top while dragging).
                                 val iw = img.end.x - img.start.x; val ih = img.end.y - img.start.y
                                 val nx = (img.start.x + drag.x).coerceIn(0f, (pw - iw).coerceAtLeast(0f))
-                                val ny = (img.start.y + drag.y).coerceIn(0f, (ph - ih).coerceAtLeast(0f))
+                                val ny = (img.start.y + drag.y).coerceIn(-ih, ph)
                                 img.copy(start = Offset(nx, ny), end = Offset(nx + iw, ny + ih))
                             }
                             onInteraction()
@@ -692,21 +731,15 @@ internal fun PdfContinuousPage(
         val csz = pageCanvasSizes[page]
 
         // ── Contextual Edit / Delete bar for the selected shape / text / note ──────
+        // Published to the viewer, which draws it outside the content layer (see MarkupBarHost).
         if (activeTool == PdfEditTool.None && csz != null && csz.width > 0f) {
             marks.getOrNull(selectedMarkupIndex)?.takeIf { it.isTransformable() }?.let { selM ->
                 selM.movableBounds()?.let { b ->
-                    val density = LocalDensity.current
-                    val gapPx = with(density) { 12.dp.toPx() }
-                    val barHpx = with(density) { MarkupBarHeight.toPx() }
-                    val barWpx = with(density) { MarkupBarWidth.toPx() }
-                    val placeBelow = b.top < barHpx + gapPx
-                    val by = (if (placeBelow) b.bottom + gapPx else b.top - barHpx - gapPx)
-                        .coerceIn(0f, (csz.height - barHpx).coerceAtLeast(0f))
-                    val bx = ((b.left + b.right) / 2f - barWpx / 2f)
-                        .coerceIn(0f, (csz.width - barWpx).coerceAtLeast(0f))
-
-                    MarkupActionBar(
-                        backdrop = backdrop,
+                    PublishMarkupBar(
+                        host = markupBar,
+                        page = page,
+                        token = selectedMarkupIndex,
+                        anchor = b,
                         onEdit = {
                             when (selM) {
                                 is PdfMarkup.TextBoxMarkup -> onEditAnnotation(selM.id)
@@ -715,8 +748,7 @@ internal fun PdfContinuousPage(
                             }
                         },
                         onDelete = { onDeleteMarkup(selectedMarkupIndex) },
-                        onDismiss = { onSelectMarkup(-1) },
-                        modifier = Modifier.offset { IntOffset(bx.roundToInt(), by.roundToInt()) }
+                        onDismiss = { onSelectMarkup(-1) }
                     )
                 }
             }
@@ -733,77 +765,213 @@ internal fun PdfContinuousPage(
                         val y = selected.textMarkupLineY(rangeRect) ?: rangeRect.bottom
                         Rect(rangeRect.left, y - 4f, rangeRect.right, y + 4f)
                     } else rangeRect
-                    val density = LocalDensity.current
-                    val gapPx = with(density) { 10.dp.toPx() }
-                    val barHpx = with(density) { MarkupBarHeight.toPx() }
-                    val barWpx = with(density) { MarkupBarWidth.toPx() }
-                    val placeBelow = anchorRect.top < barHpx + gapPx
-                    val by = (if (placeBelow) anchorRect.bottom + gapPx else anchorRect.top - barHpx - gapPx)
-                        .coerceIn(0f, (csz.height - barHpx).coerceAtLeast(0f))
-                    val bx = ((anchorRect.left + anchorRect.right) / 2f - barWpx / 2f)
-                        .coerceIn(0f, (csz.width - barWpx).coerceAtLeast(0f))
-
-                    MarkupActionBar(
-                        backdrop = backdrop,
+                    PublishMarkupBar(
+                        host = markupBar,
+                        page = page,
+                        token = selectedMarkupIndex,
+                        anchor = anchorRect,
                         onEdit = { onEditShape(selectedMarkupIndex) },
                         onDelete = { onDeleteMarkup(selectedMarkupIndex) },
-                        onDismiss = { onSelectMarkup(-1) },
-                        modifier = Modifier.offset { IntOffset(bx.roundToInt(), by.roundToInt()) }
+                        onDismiss = { onSelectMarkup(-1) }
                     )
                 }
         }
     }
 }
 
+private val InvertColorFilter = ColorFilter.colorMatrix(
+    ColorMatrix(
+        floatArrayOf(
+            -1f, 0f, 0f, 0f, 255f,
+            0f, -1f, 0f, 0f, 255f,
+            0f, 0f, -1f, 0f, 255f,
+            0f, 0f, 0f, 1f, 0f
+        )
+    )
+)
+
 private val MarkupBarWidth = 236.dp
 private val MarkupBarHeight = 48.dp
 
 /**
- * Contextual Edit / Delete / dismiss capsule for a selected markup (shape, text box, note, text
- * highlight/underline/strike). Clear chrome glass — pure refraction, like the bottom toolbar's own
- * circles and [com.chethan616.clearpdf.ui.components.ShareMorphButton]'s idle state — instead of a
- * dialog-weight platter, since this floats over the document the same way that chrome does. The
- * entrance is the same family of spring ShareMorph uses: a real overshoot on scale (not clamped away)
- * while alpha stays critically damped, so it springs in with actual weight instead of a flat fade.
- * Dismissal also works by tapping anywhere else in the viewer or pressing Back.
+ * Hand-off for the contextual Edit / Delete bar. The page owning the selected markup publishes where
+ * it is ([PublishMarkupBar]); the viewer draws the bar ([PdfMarkupBarLayer]) as a sibling of its
+ * content layer, beside the text-selection toolbar.
+ *
+ * Why: drawn inside the page, the bar was inside the very layer the viewer's glass records, so it
+ * could only sample the wallpaper — with the default flat background that is one grey colour, which
+ * is why it read as a flat pill instead of glass. Outside, it refracts the live page like the title
+ * chips refract the home screen. It also stops scaling with zoom: a floating control keeps its size.
+ */
+@Stable
+internal class MarkupBarHost {
+    internal var owner by mutableStateOf<Any?>(null)
+    internal var token by mutableIntStateOf(-1)
+    internal var page by mutableIntStateOf(-1)
+    /** The markup's bounds in the owning page's px (its layout coordinates). Read at layout only. */
+    internal var anchor by mutableStateOf(Rect.Zero)
+    internal var onEdit: () -> Unit = {}
+    internal var onDelete: () -> Unit = {}
+    internal var onDismiss: () -> Unit = {}
+}
+
+@Composable
+private fun PublishMarkupBar(
+    host: MarkupBarHost,
+    page: Int,
+    token: Int,
+    anchor: Rect,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val key = remember { Any() }
+    // Plain fields for the callbacks (read at click time); state for what the bar lays out from.
+    // Same-value writes are no-ops, so an idle recomposition invalidates nothing.
+    SideEffect {
+        host.onEdit = onEdit
+        host.onDelete = onDelete
+        host.onDismiss = onDismiss
+        host.page = page
+        host.token = token
+        host.anchor = anchor
+        host.owner = key
+    }
+    DisposableEffect(host) { onDispose { if (host.owner === key) host.owner = null } }
+}
+
+/**
+ * Viewer-level Edit / Delete / dismiss capsule for the markup a page published to [host], in the
+ * title-chip glass ([com.chethan616.clearpdf.ui.components.chipGlass]) with ink picked from the page
+ * behind it. Fills the viewer; only the capsule takes touches.
+ *
+ * Placement follows the platform's floating toolbar: centred above the markup, below it when there is
+ * no room, clamped clear of the screen edges and system bars; it follows the markup through scroll,
+ * zoom and drag (geometry is read at layout, so none of that recomposes).
+ *
+ * Motion: springs in with a real overshoot on scale from the markup's side while alpha stays
+ * critically damped; selecting another markup gives it a small "boop" in place; it settles away
+ * without a wobble.
+ */
+@Composable
+internal fun PdfMarkupBarLayer(
+    host: MarkupBarHost,
+    textSelection: PdfTextSelectionState,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    backdrop: Backdrop,
+    luminanceAt: (top: Float, bottom: Float) -> Float,
+    modifier: Modifier = Modifier
+) {
+    val owner = host.owner
+    val shown = owner != null
+    val density = LocalDensity.current
+    val alpha = remember { androidx.compose.animation.core.Animatable(0f) }
+    val scale = remember { androidx.compose.animation.core.Animatable(0.72f) }
+    var onLight by remember { mutableStateOf(true) }
+    val currentLuminance by rememberUpdatedState(luminanceAt)
+    // Side of the markup the bar sits on; written at layout, reset to "above" per new selection.
+    val placedAbove = remember { booleanArrayOf(true) }
+    LaunchedEffect(owner, host.token) {
+        placedAbove[0] = true
+        if (owner == null) {
+            launch { scale.animateTo(0.9f, com.chethan616.clearpdf.ui.components.GlassMotion.settle()) }
+            alpha.animateTo(0f, com.chethan616.clearpdf.ui.components.GlassMotion.settle())
+            return@LaunchedEffect
+        }
+        // Ink from the page around the markup (the bar may land above or below it).
+        val origin = textSelection.pageOrigin(host.page)
+        if (origin != null) {
+            val r = textSelection.transform.pageRectToScreen(host.anchor, origin)
+            val pad = with(density) { 72.dp.toPx() }
+            onLight = currentLuminance(r.top - pad, r.bottom + pad) > 0.6f
+        }
+        // First appearance pops from 0.72; a new selection while visible gives a smaller boop.
+        if (alpha.value > 0.5f) scale.snapTo(0.9f) else scale.snapTo(0.72f)
+        launch { alpha.animateTo(1f, com.chethan616.clearpdf.ui.components.GlassMotion.fade()) }
+        scale.animateTo(1f, com.chethan616.clearpdf.ui.components.GlassMotion.pop())
+    }
+    if (!shown && alpha.value <= 0.01f) return
+
+    val glass by androidx.compose.animation.animateColorAsState(
+        com.chethan616.clearpdf.ui.components.chipGlass(onLight),
+        com.chethan616.clearpdf.ui.components.GlassMotion.fade(),
+        label = "markupBarGlass"
+    )
+    val ink by androidx.compose.animation.animateColorAsState(
+        com.chethan616.clearpdf.ui.components.chipInk(onLight),
+        com.chethan616.clearpdf.ui.components.GlassMotion.fade(),
+        label = "markupBarInk"
+    )
+    val statusTop = androidx.compose.foundation.layout.WindowInsets.statusBars.getTop(density)
+    val navBottom = androidx.compose.foundation.layout.WindowInsets.navigationBars.getBottom(density)
+
+    androidx.compose.ui.layout.Layout(
+        content = {
+            MarkupActionBar(
+                backdrop = backdrop,
+                glass = glass,
+                ink = ink,
+                onEdit = { host.onEdit() },
+                onDelete = { host.onDelete() },
+                onDismiss = { host.onDismiss() }
+            )
+        },
+        modifier = modifier.fillMaxSize()
+    ) { measurables, constraints ->
+        val bar = measurables.first().measure(androidx.compose.ui.unit.Constraints())
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            // Subscribe the placement (not composition) to scroll and zoom.
+            listState.firstVisibleItemIndex; listState.firstVisibleItemScrollOffset
+            val t = textSelection.transform
+            val origin = textSelection.pageOrigin(host.page) ?: return@layout
+            val r = t.pageRectToScreen(host.anchor, origin)
+            val margin = 12.dp.toPx()
+            val gap = 12.dp.toPx()
+            val topSafe = statusTop + margin
+            val bottomSafe = constraints.maxHeight - navBottom - margin
+            val aboveY = r.top - gap - bar.height
+            // Decide the side once per appearance-ish: only flip when the preferred side truly
+            // stops fitting, so a markup dragged near the edge doesn't make the bar hop.
+            val fitsAbove = aboveY >= topSafe
+            val fitsBelow = r.bottom + gap + bar.height <= bottomSafe
+            val above = if (placedAbove[0]) fitsAbove || !fitsBelow else !fitsBelow && fitsAbove
+            placedAbove[0] = above
+            val y = (if (above) aboveY else r.bottom + gap)
+                .coerceIn(topSafe, (bottomSafe - bar.height).coerceAtLeast(topSafe))
+            val x = (r.center.x - bar.width / 2f)
+                .coerceIn(margin, (constraints.maxWidth - bar.width - margin).coerceAtLeast(margin))
+            val pivotX = if (bar.width > 0) ((r.center.x - x) / bar.width).coerceIn(0f, 1f) else 0.5f
+            bar.placeWithLayer(x.roundToInt(), y.roundToInt()) {
+                this.alpha = alpha.value.coerceIn(0f, 1f)
+                scaleX = scale.value; scaleY = scale.value
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(pivotX, if (above) 1f else 0f)
+            }
+        }
+    }
+}
+
+/**
+ * The Edit / Delete / dismiss capsule itself, in the title-chip glass: [glass] tint over the lensed
+ * live page, [ink] chosen for the page behind it. Dismissal also works by tapping anywhere else in the
+ * viewer or pressing Back.
  */
 @Composable
 private fun MarkupActionBar(
     backdrop: Backdrop,
+    glass: Color,
+    ink: Color,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current
-    val ink = com.chethan616.clearpdf.ui.theme.LiquidGlassColors.text(isDark)
     val red = com.chethan616.clearpdf.ui.theme.LiquidGlassColors.Red
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
-    // Alpha settles critically damped (a bouncing alpha reads as a flicker, per GlassMotion's own
-    // rule); scale is left to overshoot past 1 and spring back — the actual "pop" ShareMorph has.
-    val alpha by androidx.compose.animation.core.animateFloatAsState(
-        if (shown) 1f else 0f,
-        com.chethan616.clearpdf.ui.components.GlassMotion.fade(),
-        label = "markupBarAlpha"
-    )
-    val scale by androidx.compose.animation.core.animateFloatAsState(
-        if (shown) 1f else 0.72f,
-        com.chethan616.clearpdf.ui.components.GlassMotion.pop(),
-        label = "markupBarScale"
-    )
     Row(
         modifier
             .width(MarkupBarWidth)
             .height(MarkupBarHeight)
-            .graphicsLayer {
-                this.alpha = alpha.coerceIn(0f, 1f)
-                scaleX = scale; scaleY = scale
-            }
-            // Clear glass: only the backdrop refraction + lens carry the material, same as the
-            // toolbar's own circles. A tinted/opaque fill here is what read as "not liquid glass".
-            .viewerGlass(backdrop, Color.Transparent, shape = { com.kyant.shapes.Capsule })
+            .viewerGlass(backdrop, glass, shape = { com.kyant.shapes.Capsule })
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -843,12 +1011,22 @@ private fun MarkupBarItem(
         com.chethan616.clearpdf.ui.components.GlassMotion.press(),
         label = "markupItemPress"
     )
+    // A soft tinted well under the finger, like the selection toolbar's items.
+    val wash by androidx.compose.animation.core.animateFloatAsState(
+        if (pressed) 0.12f else 0f,
+        com.chethan616.clearpdf.ui.components.GlassMotion.fade(),
+        label = "markupItemWash"
+    )
     Row(
         modifier
             .fillMaxHeight()
             .padding(vertical = 4.dp)
+            // Draw-time only: sliding a finger across squashes the pill along the drag, like a drop
+            // of the glass it sits on.
+            .liquidStretchOnDrag(stretchFactor = 0.18f, minScale = 0.88f, maxScale = 1.12f)
             .graphicsLayer { scaleX = press; scaleY = press }
             .clip(com.kyant.shapes.Capsule)
+            .drawBehind { if (wash > 0f) drawRect(color.copy(alpha = wash)) }
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(horizontal = if (iconOnly) 0.dp else 8.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),

@@ -6,13 +6,20 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtMost
@@ -47,8 +54,33 @@ fun LiquidIconButton(
     content: @Composable () -> Unit
 ) {
     val animationScope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val currentHaptics by rememberUpdatedState(haptics)
+    // combinedClickable already buzzes when its own onLongClick fires; only add ours when there is none.
+    val hasOwnLongClick by rememberUpdatedState(onLongClick != null)
     val interactiveHighlight = remember(animationScope) {
-        InteractiveHighlight(animationScope = animationScope)
+        InteractiveHighlight(
+            animationScope = animationScope,
+            longPressExpand = true,
+            onLongPressExpand = {
+                if (!hasOwnLongClick) currentHaptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+        )
+    }
+    // Flat wallpaper: same pixels, none of the blur/lens/offscreen work — see FlatBackdrop.
+    val flat = flatColorOf(backdrop)
+    // A long-press only ARMS its action; it runs when the finger lifts (a cancelled press drops it),
+    // so holding Back never yanks the screen away mid-press.
+    val pressSource = remember { MutableInteractionSource() }
+    val longArmed = remember { booleanArrayOf(false) }
+    val currentLongClick by rememberUpdatedState(onLongClick)
+    LaunchedEffect(pressSource) {
+        pressSource.interactions.collect { i ->
+            when (i) {
+                is PressInteraction.Release -> if (longArmed[0]) { longArmed[0] = false; currentLongClick?.invoke() }
+                is PressInteraction.Cancel -> longArmed[0] = false
+            }
+        }
     }
 
     Box(
@@ -57,18 +89,22 @@ fun LiquidIconButton(
             .drawBackdrop(
                 backdrop = backdrop,
                 shape = { CircleShape },
-                effects = {
+                effects = if (flat != null) ({}) else ({
                     vibrancy()
                     blur(2f.dp.toPx())
                     lens(12f.dp.toPx(), 24f.dp.toPx())
-                },
+                }),
+                onDrawBackdrop = if (flat != null) ({ _ -> drawFlatVibrantBackdrop(flat) }) else ({ it() }),
                 layerBlock = if (isInteractive) {
                     {
                         val width = size.width
                         val height = size.height
 
                         val progress = interactiveHighlight.pressProgress
-                        val scale = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress)
+                        // Long-press bloom, same rule as LiquidButton (≤ ~14 dp, ≤ 12 %).
+                        val bloom = interactiveHighlight.expandProgress *
+                            (14f.dp.toPx() / size.maxDimension).fastCoerceAtMost(0.12f)
+                        val scale = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress) + bloom
 
                         val maxOffset = size.minDimension
                         val initialDerivative = 0.05f
@@ -103,19 +139,19 @@ fun LiquidIconButton(
             .then(
                 if (onLongClick != null)
                     Modifier.combinedClickable(
-                        interactionSource = null,
+                        interactionSource = pressSource,
                         indication = null,
                         role = Role.Button,
-                        onClick = onClick,
+                        onClick = { haptics.performHapticFeedback(HapticFeedbackType.ContextClick); onClick() },
                         onLongClickLabel = onLongClickLabel,
-                        onLongClick = onLongClick
+                        onLongClick = { longArmed[0] = true }
                     )
                 else
                     Modifier.clickable(
                         interactionSource = null,
                         indication = null,
                         role = Role.Button,
-                        onClick = onClick
+                        onClick = { if (interactiveHighlight.expandProgress < 0.5f) haptics.performHapticFeedback(HapticFeedbackType.ContextClick); onClick() }
                     )
             )
             .then(

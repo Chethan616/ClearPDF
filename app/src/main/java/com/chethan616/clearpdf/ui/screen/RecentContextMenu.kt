@@ -65,6 +65,7 @@ import androidx.compose.ui.util.lerp
 import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.viewerGlass
+import com.chethan616.clearpdf.ui.components.glassMenu
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.kyant.backdrop.Backdrop
@@ -87,7 +88,7 @@ internal class RecentMenuAction(
     val onClick: () -> Unit
 )
 
-private val MenuWidth = 264.dp
+private val MenuWidth = 228.dp
 
 /** How much of the entrance each successive item is delayed by, as a fraction of `progress`. */
 private const val Stagger = 0.06f
@@ -234,10 +235,10 @@ private fun MenuPanel(
     Column(
         Modifier
             .width(MenuWidth)
-            .viewerGlass(backdrop, glass, shape = { RoundedRectangle(24.dp) })
+            .glassMenu(backdrop, dark = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current, shape = { RoundedRectangle(24.dp) })
             // Swallow taps on the panel's padding so they don't fall through to the scrim.
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-            .padding(vertical = 10.dp)
+            .padding(vertical = 6.dp)
     ) {
         BasicText(
             title,
@@ -268,10 +269,10 @@ private fun MenuPanel(
                                 scaleX = s; scaleY = s
                             }
                     ) {
-                        Icon(action.icon, null, Modifier.size(18.dp), Color.White)
+                        Icon(action.icon, null, Modifier.size(16.dp), Color.White)
                         BasicText(
                             action.label,
-                            style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold),
+                            style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -316,7 +317,7 @@ private fun MenuRow(action: RecentMenuAction, fg: Color, enter: () -> Float) {
     Row(
         Modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(40.dp)
             .graphicsLayer {
                 val e = enter()
                 alpha = e
@@ -347,15 +348,15 @@ private fun MenuRow(action: RecentMenuAction, fg: Color, enter: () -> Float) {
         // Per-action accent chip: the colour carries the meaning, the label carries the words.
         Box(
             Modifier
-                .size(30.dp)
+                .size(26.dp)
                 .drawBehind { drawCircle(action.tint.copy(alpha = if (action.destructive) 0.18f else 0.20f)) },
             contentAlignment = Alignment.Center
         ) {
-            Icon(action.icon, null, Modifier.size(17.dp), action.tint)
+            Icon(action.icon, null, Modifier.size(15.dp), action.tint)
         }
         BasicText(
             label,
-            style = TextStyle(ink, 15.sp, FontWeight.Medium),
+            style = TextStyle(ink, 14.sp, FontWeight.Medium),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)

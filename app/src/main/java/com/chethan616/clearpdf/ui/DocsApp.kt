@@ -69,6 +69,9 @@ import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.components.GlassDialog
 import com.chethan616.clearpdf.ui.components.GlassDialogAction
+import com.chethan616.clearpdf.ui.components.GlassOverlayHost
+import com.chethan616.clearpdf.ui.components.GlassOverlayLayer
+import com.chethan616.clearpdf.ui.components.LocalGlassOverlayHost
 import com.chethan616.clearpdf.ui.components.LocalBackToLibraryAction
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -247,12 +250,26 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
         }
 
         val contentBackdrop = rememberLayerBackdrop()
+        // With the wallpaper off, `backdrop` records nothing but one solid colour (the Box below), so
+        // every glass surface sampling it can draw that colour directly instead of blurring it.
+        val flatWallpaperColor = if (!isDarkMode) Color(0xFFE9E9EE) else Color(0xFF1C1C1E)
+        val flatBackdrop = remember(showWallpaper, flatWallpaperColor, backdrop) {
+            if (showWallpaper) null else com.chethan616.clearpdf.ui.components.FlatBackdrop(backdrop, flatWallpaperColor)
+        }
+        // Floating glass (dropdown menus, contextual bars) from any depth renders here, above every
+        // screen, refracting the live screen — see GlassOverlayHost.
+        val overlayHost = remember { GlassOverlayHost() }
+        val platformHaptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+        val haptics = remember(platformHaptics) { com.chethan616.clearpdf.ui.utils.ThrottledHaptics(platformHaptics) }
 
         CompositionLocalProvider(
             LocalResources provides localizedContext.resources,
             LocalIsDarkMode provides isDarkMode,
             LocalReducedGlassMotion provides reduceGlassMotion,
-            LocalBackToLibraryAction provides backToLibrary
+            LocalBackToLibraryAction provides backToLibrary,
+            com.chethan616.clearpdf.ui.components.LocalFlatBackdrop provides flatBackdrop,
+            LocalGlassOverlayHost provides overlayHost,
+            androidx.compose.ui.platform.LocalHapticFeedback provides haptics
         ) {
             Box(Modifier.fillMaxSize()) {
                 // Captured layer = wallpaper + the live screen. The floating tab bar
@@ -283,11 +300,13 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                         // Apple never puts glass on pure #FFF or #000 — the translucent surfaces
                         // would vanish. A light grey (#E9E9EE) / elevated dark grey (#1C1C1E) keeps
                         // the liquid-glass panels and buttons legible with real depth.
+                        // Must stay a single solid fill: LocalFlatBackdrop (above) promises glass that
+                        // this layer contains exactly `flatWallpaperColor` and nothing else.
                         Box(
                             Modifier
                                 .layerBackdrop(backdrop)
                                 .fillMaxSize()
-                                .background(if (!isDarkMode) Color(0xFFE9E9EE) else Color(0xFF1C1C1E))
+                                .background(flatWallpaperColor)
                         )
                     }
                     DocsNavGraph(
@@ -318,19 +337,19 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     onLocaleChanged = { code ->
                         val normalized = com.chethan616.clearpdf.ui.utils.LocaleHelper.normalizeForUi(code)
                         if (normalized != selectedLocale) {
-                            // Persist the choice, then recreate the Activity so attachBaseContext
-                            // rebuilds every resource in the new locale (the Compose-only path did
-                            // not actually switch strings). The recreate is deferred until the
-                            // fade-out finishes — see `localeSwitching` above.
+                            // Persist, then switch IN PLACE: the hoisted locale re-provides
+                            // LocalResources, so every stringResource re-resolves on the next frame
+                            // (the path Onboarding uses). No fade-out + Activity recreate — that was
+                            // the slow flicker after picking a language. attachBaseContext picks the
+                            // persisted choice up on the next launch for non-Compose strings.
                             com.chethan616.clearpdf.ui.utils.LocaleHelper.applyLocale(
                                 context = context,
                                 languageTag = normalized,
                                 recreate = false,
                                 updateAppCompat = false
                             )
-                            com.chethan616.clearpdf.ui.utils.LocaleHelper.markLocaleFadePending(context)
+                            OnboardingManager.setSelectedLocale(context, normalized)
                             selectedLocale = normalized
-                            localeSwitching = true
                         }
                     },
                     incomingPdfUri = incomingPdfUri,
@@ -463,6 +482,9 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                         }
                     }
                 }
+
+                // Last child: above the tab bar and dialogs, outside the layer it samples.
+                GlassOverlayLayer(overlayHost, contentBackdrop)
             }
         }
     }
