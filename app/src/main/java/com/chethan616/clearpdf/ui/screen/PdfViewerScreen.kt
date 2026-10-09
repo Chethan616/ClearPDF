@@ -47,6 +47,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.aspectRatio
+import com.kyant.backdrop.drawBackdrop
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
@@ -598,7 +599,14 @@ fun PdfViewerScreen(
         // section carried `weight(1f)`. So the moment the prompt and the keyboard were both up, the
         // weighted section was squeezed and the card was chopped mid-sentence — the whole point of a
         // password dialog is that the thing behind it stays intact.
-        Box(Modifier.fillMaxSize()) {
+        // Opaque: paint the wallpaper itself behind the picker. Without it this branch was see-through,
+        // so during the "lift" the held Tools/Home screen showed behind the new buttons and vanished
+        // only when the transition ended — the buttons-first-then-background glitch.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .drawBackdrop(backdrop = backdrop, shape = { androidx.compose.ui.graphics.RectangleShape }, effects = {}, highlight = { null }, shadow = null)
+        ) {
             Column(
                 Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
