@@ -62,6 +62,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import com.chethan616.clearpdf.ui.utils.liquidPressGlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -179,6 +193,26 @@ fun SettingsScreen(
     val entrance = updateTransition(isVisible, label = "settingsEntrance")
 
     val screenBackdrop = rememberScreenBackdrop(backdrop)
+    // iOS-style: the root is a short index of rows; each topic opens on its own page. The root only
+    // ever composes three small glass panels, which is what keeps this tab switch light.
+    var page by rememberSaveable { mutableIntStateOf(PageIndex) }
+    LaunchedEffect(Unit) {
+        if (OfficeEngine.focusSettingsSection.value) {
+            OfficeEngine.focusSettingsSection.value = false
+            page = PageOffice
+        }
+    }
+    BackHandler(enabled = page != PageIndex) { page = PageIndex }
+    val pageTitle = when (page) {
+        PageAppearance -> stringResource(R.string.settings_appearance)
+        PageLanguage -> stringResource(R.string.settings_language)
+        PageFiles -> stringResource(R.string.settings_file_handling)
+        PagePersonal -> stringResource(R.string.settings_personalization)
+        PageAbout -> stringResource(R.string.settings_about)
+        PageLicenses -> stringResource(R.string.settings_licenses)
+        PageOffice -> stringResource(R.string.office_engine_title)
+        else -> stringResource(R.string.settings_title)
+    }
     Box(Modifier.fillMaxSize()) {
         GlassScreenScaffold(
             backdrop = backdrop,
@@ -186,28 +220,55 @@ fun SettingsScreen(
             contentBottomPadding = 84.dp,
             header = { headerBackdrop ->
                 GlassScreenHeaderRow(
-                    title = stringResource(R.string.settings_title),
+                    title = pageTitle,
                     backdrop = headerBackdrop,
-                    onBack = null,
+                    onBack = if (page != PageIndex) ({ page = PageIndex }) else null,
                     modifier = entrance.sectionFade(0)
                 )
             }
         ) { contentPadding ->
-            val scrollState = rememberScrollState()
-            val officeEngineRequester = remember { BringIntoViewRequester() }
-            LaunchedEffect(Unit) {
-                if (OfficeEngine.focusSettingsSection.value) {
-                    OfficeEngine.focusSettingsSection.value = false
-                    delay(350L)
-                    officeEngineRequester.bringIntoView()
-                }
-            }
+          AnimatedContent(
+            targetState = page,
+            transitionSpec = {
+                // Push / pop: the new page slides in from the side it lives on, on a soft spring.
+                val forward = targetState != PageIndex
+                val dir = if (forward) 1 else -1
+                (fadeIn(tween(220)) + slideInHorizontally(spring(dampingRatio = 0.86f, stiffness = 420f)) { dir * it / 4 }) togetherWith
+                    (fadeOut(tween(140)) + slideOutHorizontally(spring(dampingRatio = 1f, stiffness = 520f)) { -dir * it / 6 })
+            },
+            label = "settingsPage"
+          ) { p ->
             Column(
-                Modifier.fillMaxSize().verticalScroll(scrollState).padding(contentPadding),
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(contentPadding),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                if (p == PageIndex) {
+                    val themeLabel = when (themeMode) {
+                        1 -> stringResource(R.string.settings_theme_light)
+                        2 -> stringResource(R.string.settings_theme_dark)
+                        else -> stringResource(R.string.settings_theme_auto)
+                    }
+                    val langLabel = rememberLanguageOptions().firstOrNull { it.value == selectedLocale }?.label.orEmpty()
+                    SettingsSection(backdrop, uiSensor, entrance.sectionFade(1), padding = 8.dp, gap = 0.dp) {
+                        SettingsNavRow(Icons.Rounded.Tune, LiquidGlassColors.Orange, stringResource(R.string.settings_appearance), themeLabel, ink, sub) { page = PageAppearance }
+                        SettingsDivider(isLight)
+                        SettingsNavRow(Icons.Rounded.Language, LiquidGlassColors.Blue, stringResource(R.string.settings_language), langLabel, ink, sub) { page = PageLanguage }
+                        SettingsDivider(isLight)
+                        SettingsNavRow(Icons.Rounded.Wallpaper, LiquidGlassColors.Indigo, stringResource(R.string.settings_personalization), null, ink, sub) { page = PagePersonal }
+                    }
+                    SettingsSection(backdrop, uiSensor, entrance.sectionFade(2), padding = 8.dp, gap = 0.dp) {
+                        SettingsNavRow(Icons.Rounded.FolderOpen, LiquidGlassColors.Teal, stringResource(R.string.settings_file_handling), null, ink, sub) { page = PageFiles }
+                        SettingsDivider(isLight)
+                        SettingsNavRow(Icons.Rounded.Description, LiquidGlassColors.Green, stringResource(R.string.office_engine_title), null, ink, sub) { page = PageOffice }
+                    }
+                    SettingsSection(backdrop, uiSensor, entrance.sectionFade(3), padding = 8.dp, gap = 0.dp) {
+                        SettingsNavRow(Icons.Rounded.Info, LiquidGlassColors.Blue, stringResource(R.string.settings_about), stringResource(R.string.settings_version), ink, sub) { page = PageAbout }
+                        SettingsDivider(isLight)
+                        SettingsNavRow(Icons.Rounded.Code, LiquidGlassColors.Purple, stringResource(R.string.settings_licenses), null, ink, sub) { page = PageLicenses }
+                    }
+                }
                 // ── Appearance ──
-                SettingsSection(backdrop, uiSensor, entrance.sectionFade(1)) {
+                if (p == PageAppearance) SettingsSection(backdrop, uiSensor, Modifier) {
                     SettingsSectionHeader(Icons.Rounded.Tune, stringResource(R.string.settings_appearance), ink)
                     data class ThemeOption(val idx: Int, val label: String, val icon: ImageVector, val accent: Color)
                     val options = listOf(
@@ -248,7 +309,7 @@ fun SettingsScreen(
                 }
 
                 // ── Language ──
-                SettingsSection(backdrop, uiSensor, entrance.sectionFade(2)) {
+                if (p == PageLanguage) SettingsSection(backdrop, uiSensor, Modifier) {
                     SettingsSectionHeader(Icons.Rounded.Language, stringResource(R.string.settings_language), ink)
                     LiquidGlassDropdown(
                         options = rememberLanguageOptions(),
@@ -263,7 +324,7 @@ fun SettingsScreen(
                 // ── Save Location + File Handling + Default Quality ── one panel: three related
                 // "how documents are handled" topics, each keeping its own sub-header, so scrolling
                 // past this part of the screen pays for one glass surface instead of three.
-                SettingsSection(backdrop, uiSensor, entrance.sectionFade(3), gap = 4.dp) {
+                if (p == PageFiles) SettingsSection(backdrop, uiSensor, Modifier, gap = 4.dp) {
                     SettingsSectionHeader(Icons.Rounded.FolderOpen, stringResource(R.string.settings_save_location), LiquidGlassColors.Blue, bottomPad = 8.dp)
                     Row(
                         Modifier
@@ -368,7 +429,7 @@ fun SettingsScreen(
                 }
 
                 // ── Personalization ──
-                SettingsSection(backdrop, uiSensor, entrance.sectionFade(4), gap = 4.dp) {
+                if (p == PagePersonal) SettingsSection(backdrop, uiSensor, Modifier, gap = 4.dp) {
                     SettingsSectionHeader(Icons.Rounded.Wallpaper, stringResource(R.string.settings_personalization), ink, bottomPad = 8.dp)
                     SettingsToggleRow(
                         icon = Icons.Rounded.Wallpaper,
@@ -415,7 +476,7 @@ fun SettingsScreen(
                 // ── About & Open Source + Licenses ── one panel: the credits list is part of "about
                 // the app", not a topic of its own, and folding it in here removes the single
                 // heaviest remaining glass surface (the longest scroll content on the screen).
-                SettingsSection(backdrop, uiSensor, entrance.sectionFade(5), padding = 24.dp, horizontalAlignment = Alignment.CenterHorizontally) {
+                if (p == PageAbout) SettingsSection(backdrop, uiSensor, Modifier, padding = 24.dp, horizontalAlignment = Alignment.CenterHorizontally) {
                     AccentIconTile(Icons.Rounded.Info, LiquidGlassColors.Blue, size = 56, iconSize = 28)
                     BasicText("ClearPDF", style = TextStyle(ink, 20.sp, FontWeight.Bold))
                     BasicText(stringResource(R.string.settings_version), style = TextStyle(sub, 13.sp))
@@ -430,12 +491,10 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     BasicText(stringResource(R.string.settings_open_source), style = TextStyle(sub.copy(0.7f), 11.sp, textAlign = TextAlign.Center))
+                }
 
-                    SettingsDivider(isLight)
-                    // Left-aligned sub-column: the parent's CenterHorizontally is for the hero block
-                    // above, not this list.
+                if (p == PageLicenses) SettingsSection(backdrop, uiSensor, Modifier) {
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        SettingsSectionHeader(Icons.Rounded.Code, stringResource(R.string.settings_licenses), ink)
                         OpenSourceCredits.forEachIndexed { index, credit ->
                             if (index > 0) SettingsDivider(isLight)
                             LicenseItem(credit.name, credit.author, credit.license, credit.url, ink, sub)
@@ -446,7 +505,7 @@ fun SettingsScreen(
                 }
 
                 // ── Office engine (optional, powered by LibreOffice) ──
-                OfficeEngineSettingsSection(
+                if (p == PageOffice) OfficeEngineSettingsSection(
                     backdrop = backdrop,
                     isLight = isLight,
                     textColor = ink,
@@ -454,13 +513,12 @@ fun SettingsScreen(
                     subColor = sub,
                     onRequestDelete = { officeEngineDeleteSize = it },
                     modifier = Modifier
-                        .bringIntoViewRequester(officeEngineRequester)
                         .fillMaxWidth()
-                        .then(entrance.sectionFade(6))
                         .liquidGlassPanel(backdrop, uiSensor)
                         .padding(20.dp)
                 )
             }
+          }
         }
     }
     // Outside the scaffold's captured layer so it refracts the live screen (wallpaper + content).
@@ -491,6 +549,52 @@ fun SettingsScreen(
 // appearing until ~725ms after landing on the screen, which on top of the nav transition itself
 // read as "the screen is still loading" rather than a snappy tab switch.
 private const val SettingsStaggerStepMs = 20
+
+private const val PageIndex = 0
+private const val PageAppearance = 1
+private const val PageLanguage = 2
+private const val PageFiles = 3
+private const val PagePersonal = 4
+private const val PageAbout = 5
+private const val PageLicenses = 6
+private const val PageOffice = 7
+
+/** One row of the Settings index: tinted icon tile, title, current value, chevron — iOS Settings. */
+@Composable
+private fun SettingsNavRow(
+    icon: ImageVector,
+    accent: Color,
+    title: String,
+    value: String?,
+    ink: Color,
+    sub: Color,
+    onClick: () -> Unit
+) {
+    val isLight = !com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        if (pressed) 0.97f else 1f,
+        com.chethan616.clearpdf.ui.components.GlassMotion.press(),
+        label = "navRowPress"
+    )
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(RoundedCornerShape(18.dp))
+            .liquidPressGlow(interaction, onLight = isLight)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        AccentIconTile(icon, accent, size = 34, iconSize = 18)
+        BasicText(title, Modifier.weight(1f), style = TextStyle(ink, 16.sp, FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (value != null) BasicText(value, style = TextStyle(sub, 14.sp), maxLines = 1)
+        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, Modifier.size(20.dp), sub.copy(alpha = 0.7f))
+    }
+}
 
 /** Fade-only entrance for a glass section — translating a `liquidGlassPanel` re-samples its backdrop
  *  every frame of the slide, which is the jank this replaces (see ToolsScreen's own note). */
