@@ -259,6 +259,8 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
         // Floating glass (dropdown menus, contextual bars) from any depth renders here, above every
         // screen, refracting the live screen — see GlassOverlayHost.
         val overlayHost = remember { GlassOverlayHost() }
+        val platformHaptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+        val haptics = remember(platformHaptics) { com.chethan616.clearpdf.ui.utils.ThrottledHaptics(platformHaptics) }
 
         CompositionLocalProvider(
             LocalResources provides localizedContext.resources,
@@ -266,7 +268,8 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
             LocalReducedGlassMotion provides reduceGlassMotion,
             LocalBackToLibraryAction provides backToLibrary,
             com.chethan616.clearpdf.ui.components.LocalFlatBackdrop provides flatBackdrop,
-            LocalGlassOverlayHost provides overlayHost
+            LocalGlassOverlayHost provides overlayHost,
+            androidx.compose.ui.platform.LocalHapticFeedback provides haptics
         ) {
             Box(Modifier.fillMaxSize()) {
                 // Captured layer = wallpaper + the live screen. The floating tab bar

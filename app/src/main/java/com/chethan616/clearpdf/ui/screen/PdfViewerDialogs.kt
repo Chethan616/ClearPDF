@@ -98,6 +98,7 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.components.DestructiveGlassButton
 import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.LiquidButton
+import com.chethan616.clearpdf.ui.components.LiquidIconButton
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
@@ -429,21 +430,17 @@ internal fun AnnotationColorRow(
         ) {
             editorPalette.forEach { c ->
                 val isSel = c.value == selected.value
-                val s by animateFloatAsState(if (isSel) 1.15f else 1f, GlassMotion.pop(), label = "swatch")
+                val s by animateFloatAsState(if (isSel) 1.12f else 1f, GlassMotion.pop(), label = "swatch")
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Box(
-                        Modifier
-                            .size(26.dp)
-                            .graphicsLayer { scaleX = s; scaleY = s }
-                            .clip(CircleShape)
-                            .background(c)
-                            .border(
-                                width = if (isSel) 2.5.dp else 1.dp,
-                                color = if (isSel) Color.White else fgSoft.copy(alpha = 0.3f),
-                                shape = CircleShape
-                            )
-                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onPick(c) }
-                    )
+                    // Tinted liquid glass bead, same as the draw tools' colour buttons.
+                    LiquidIconButton(
+                        onClick = { onPick(c) },
+                        backdrop = backdrop,
+                        tint = c,
+                        modifier = Modifier.size(32.dp).graphicsLayer { scaleX = s; scaleY = s }
+                    ) {
+                        if (isSel) Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), Color.White)
+                    }
                 }
             }
         }

@@ -142,7 +142,7 @@ fun LiquidIconButton(
                         interactionSource = pressSource,
                         indication = null,
                         role = Role.Button,
-                        onClick = onClick,
+                        onClick = { haptics.performHapticFeedback(HapticFeedbackType.ContextClick); onClick() },
                         onLongClickLabel = onLongClickLabel,
                         onLongClick = { longArmed[0] = true }
                     )
@@ -151,7 +151,7 @@ fun LiquidIconButton(
                         interactionSource = null,
                         indication = null,
                         role = Role.Button,
-                        onClick = onClick
+                        onClick = { if (interactiveHighlight.expandProgress < 0.5f) haptics.performHapticFeedback(HapticFeedbackType.ContextClick); onClick() }
                     )
             )
             .then(
