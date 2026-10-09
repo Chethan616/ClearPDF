@@ -679,10 +679,12 @@ fun SpreadsheetViewerScreen(
             LiquidIconButton(
                 onClick = { viewModel.shareableUri(context) { u -> u?.let { shareFile(context, it) } } },
                 backdrop = screenBackdrop.glass,
-                // bottom = 6.dp centers this 52dp button on the sheet dock's 44dp-tall, 10dp-bottom-
-                // padded capsule (10 + 44/2 = 32dp center; a 52dp button centers there at 32 - 26 = 6dp).
-                // Matching the dock's own bottom padding (10dp) left the button sitting visibly lower.
-                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 12.dp, bottom = 6.dp).size(52.dp)
+                // 44dp to match the sheet dock's own barHeight exactly, same bottom padding as the
+                // dock (10dp) so their centers align. LiquidIconButton's internal Modifier.size(40.dp)
+                // is non-required, so it's coerced UP to whatever exact size this external modifier
+                // asks for (that's also why the old 52dp here rendered at a full 52dp, not 40dp --
+                // visibly oversized next to the header's unmodified 40dp icon buttons).
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 12.dp, bottom = 10.dp).size(44.dp)
             ) {
                 Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), text)
             }
