@@ -152,6 +152,7 @@ import com.chethan616.clearpdf.ui.components.OfficeStandardColors
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.components.viewerChromeGlass
 import com.chethan616.clearpdf.ui.components.viewerGlass
+import com.chethan616.clearpdf.ui.components.liquidRowClick
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.data.repository.OnboardingManager
@@ -564,7 +565,6 @@ fun SpreadsheetViewerScreen(
                             // its gravity-tracking highlight re-rendered a screen-sized blur + lens on
                             // every sensor tick — continuous frames that made the share morph and every
                             // other animation in this viewer stutter while the PDF viewer stayed smooth.
-                            .shadow(10.dp, GlassPanelShape, clip = false, ambientColor = Color.Black.copy(0.10f), spotColor = Color.Black.copy(0.10f))
                             .clip(GlassPanelShape)
                             .background(surface)
                             .border(0.5.dp, if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.06f), GlassPanelShape)
@@ -1058,9 +1058,8 @@ private fun PanelRow(icon: ImageVector?, label: String, color: Color, tint: Colo
         Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .liquidRowClick(enabled = enabled, onClick = onClick)
             .background(if (selected) tint.copy(0.16f) else Color.Transparent)
-            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1095,9 +1094,10 @@ private fun NumberPanel(text: Color, sub: Color, accent: Color, current: String,
         for ((label, code) in NumberFormats) {
             val sample = com.chethan616.clearpdf.utils.ExcelCellFormat.apply(if (code.contains("d") && code.contains("y")) "45566" else "1234.5", code)
             Row(
-                Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(14.dp))
+                Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .liquidRowClick { onPick(code) }
                     .background(if (current == code) accent.copy(0.16f) else Color.Transparent)
-                    .clickable { onPick(code) }.padding(horizontal = 12.dp),
+                    .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 BasicText(label, Modifier.weight(1f), style = TextStyle(if (current == code) accent else text, 16.sp, FontWeight.Medium))
@@ -1164,9 +1164,8 @@ private fun ValidationDropdown(
                         Modifier
                             .fillMaxWidth()
                             .height(46.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .liquidRowClick(corner = 12.dp) { onPick(item) }
                             .background(if (sel) accent.copy(0.16f) else Color.Transparent)
-                            .clickable { onPick(item) }
                             .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {

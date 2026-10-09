@@ -217,7 +217,7 @@ fun GlassColorPicker(
                     lens(16f.dp.toPx(), 32f.dp.toPx(), depthEffect = true)
                 },
                 highlight = { Highlight.Plain },
-                shadow = { Shadow(radius = 16f.dp, color = Color.Black.copy(alpha = 0.12f)) },
+                shadow = null,
                 onDrawSurface = { drawRect(containerColor) }
             )
             .padding(16.dp),
@@ -341,46 +341,15 @@ private fun SwatchRow(
                 return@forEach
             }
             val isSel = c.copy(alpha = 1f).toArgb() == selArgb
-            val swatchShape = RoundedCornerShape(if (tight) 3.dp else 6.dp)
-            Box(
-                Modifier
-                    .weight(1f)
-                    .aspectRatio(if (tight) 1.25f else 1f)
-                    .clip(swatchShape)
-                    .background(c)
-                    .border(
-                        width = if (isSel) 2.dp else 0.5.dp,
-                        color = if (isSel) ring else outline,
-                        shape = swatchShape
-                    )
-                    .semantics { contentDescription = "#" + c.hex(false) }
-                    .clickable(role = Role.Button) { onPick(c) },
-                contentAlignment = Alignment.Center
-            ) {
-                // Lightweight specular sheen ties the dense Office palette to ClearPDF's glass
-                // controls without putting a separate blur/lens layer on dozens of tiny swatches.
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    Color.White.copy(alpha = 0.30f),
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.10f)
-                                )
-                            ),
-                            swatchShape
-                        )
+            // Liquid-glass bead (drawn, no backdrop pass — the theme grid alone is 60 swatches).
+            Box(Modifier.weight(1f).aspectRatio(if (tight) 1.15f else 1f).padding(1.dp), contentAlignment = Alignment.Center) {
+                GlassBead(
+                    color = c,
+                    selected = isSel,
+                    onClick = { onPick(c) },
+                    contentDescription = "#" + c.hex(false),
+                    modifier = Modifier.fillMaxSize()
                 )
-                if (isSel && !tight) {
-                    Icon(
-                        Icons.Rounded.Check,
-                        contentDescription = null,
-                        tint = if (c.luminance() > 0.5f) Color.Black else Color.White,
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
             }
         }
     }
