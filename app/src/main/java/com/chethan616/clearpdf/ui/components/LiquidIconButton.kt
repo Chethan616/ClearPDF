@@ -10,8 +10,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
@@ -19,7 +17,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtMost
 import androidx.compose.ui.util.lerp
-import com.chethan616.clearpdf.ui.theme.LocalIsScrolling
 import com.chethan616.clearpdf.ui.utils.InteractiveHighlight
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
@@ -53,71 +50,54 @@ fun LiquidIconButton(
     val interactiveHighlight = remember(animationScope) {
         InteractiveHighlight(animationScope = animationScope)
     }
-    // See LiquidButton's own note: a plain (non-deferred) read so this skips drawBackdrop's capture
-    // entirely while scrolling, not just its shaders.
-    val isScrolling = LocalIsScrolling.current()
 
     Box(
         modifier
             .size(40.dp)
-            .then(
-                if (isScrolling) {
-                    Modifier.clip(CircleShape).drawBehind {
-                        if (tint.isSpecified) {
-                            drawRect(tint, blendMode = BlendMode.Hue)
-                            drawRect(tint.copy(alpha = 0.75f))
-                        }
-                        if (surfaceColor.isSpecified) {
-                            drawRect(surfaceColor)
-                        }
+            .drawBackdrop(
+                backdrop = backdrop,
+                shape = { CircleShape },
+                effects = {
+                    vibrancy()
+                    blur(2f.dp.toPx())
+                    lens(12f.dp.toPx(), 24f.dp.toPx())
+                },
+                layerBlock = if (isInteractive) {
+                    {
+                        val width = size.width
+                        val height = size.height
+
+                        val progress = interactiveHighlight.pressProgress
+                        val scale = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress)
+
+                        val maxOffset = size.minDimension
+                        val initialDerivative = 0.05f
+                        val offset = interactiveHighlight.offset
+                        translationX = maxOffset * tanh(initialDerivative * offset.x / maxOffset)
+                        translationY = maxOffset * tanh(initialDerivative * offset.y / maxOffset)
+
+                        val maxDragScale = 4f.dp.toPx() / size.height
+                        val offsetAngle = atan2(offset.y, offset.x)
+                        scaleX =
+                            scale +
+                                    maxDragScale * abs(cos(offsetAngle) * offset.x / size.maxDimension) *
+                                    (width / height).fastCoerceAtMost(1f)
+                        scaleY =
+                            scale +
+                                    maxDragScale * abs(sin(offsetAngle) * offset.y / size.maxDimension) *
+                                    (height / width).fastCoerceAtMost(1f)
                     }
                 } else {
-                    Modifier.drawBackdrop(
-                        backdrop = backdrop,
-                        shape = { CircleShape },
-                        effects = {
-                            vibrancy()
-                            blur(2f.dp.toPx())
-                            lens(12f.dp.toPx(), 24f.dp.toPx())
-                        },
-                        layerBlock = if (isInteractive) {
-                            {
-                                val width = size.width
-                                val height = size.height
-
-                                val progress = interactiveHighlight.pressProgress
-                                val scale = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress)
-
-                                val maxOffset = size.minDimension
-                                val initialDerivative = 0.05f
-                                val offset = interactiveHighlight.offset
-                                translationX = maxOffset * tanh(initialDerivative * offset.x / maxOffset)
-                                translationY = maxOffset * tanh(initialDerivative * offset.y / maxOffset)
-
-                                val maxDragScale = 4f.dp.toPx() / size.height
-                                val offsetAngle = atan2(offset.y, offset.x)
-                                scaleX =
-                                    scale +
-                                            maxDragScale * abs(cos(offsetAngle) * offset.x / size.maxDimension) *
-                                            (width / height).fastCoerceAtMost(1f)
-                                scaleY =
-                                    scale +
-                                            maxDragScale * abs(sin(offsetAngle) * offset.y / size.maxDimension) *
-                                            (height / width).fastCoerceAtMost(1f)
-                            }
-                        } else {
-                            null
-                        },
-                        onDrawSurface = {
-                            if (tint.isSpecified) {
-                                drawRect(tint, blendMode = BlendMode.Hue)
-                                drawRect(tint.copy(alpha = 0.75f))
-                            }
-                            if (surfaceColor.isSpecified) {
-                                drawRect(surfaceColor)
-                            }
-                        }
-                    )
+                    null
+                },
+                onDrawSurface = {
+                    if (tint.isSpecified) {
+                        drawRect(tint, blendMode = BlendMode.Hue)
+                        drawRect(tint.copy(alpha = 0.75f))
+                    }
+                    if (surfaceColor.isSpecified) {
+                        drawRect(surfaceColor)
+                    }
                 }
             )
             .then(

@@ -60,7 +60,11 @@ fun GlassBackButton(
     backdrop: Backdrop,
     foreground: Color,
     modifier: Modifier = Modifier,
-    surfaceColor: Color = Color.White.copy(alpha = 0.08f),
+    // Natural glass by default, same as every sibling LiquidIconButton (search, edit, save) in a
+    // header row -- a hardcoded Color.White.copy(0.08f) here added a faint light wash only the back
+    // circle had, which read fine in light theme but made it visibly off (a touch paler/flatter)
+    // from its neighbours in dark theme.
+    surfaceColor: Color = Color.Unspecified,
     onLongPressBack: (() -> Unit)? = LocalBackToLibraryAction.current,
     longPressLabel: String? = null
 ) {
