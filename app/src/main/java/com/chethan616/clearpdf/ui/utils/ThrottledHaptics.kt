@@ -12,6 +12,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 class ThrottledHaptics(private val delegate: HapticFeedback, private val windowMs: Long = 90L) : HapticFeedback {
     private var last = 0L
     override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
+        // Settings -> Personalization -> Haptic feedback.
+        if (!com.chethan616.clearpdf.ui.components.GlassSettings.hapticsEnabled) return
         val now = SystemClock.uptimeMillis()
         if (now - last < windowMs) return
         last = now

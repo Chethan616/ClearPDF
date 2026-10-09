@@ -69,6 +69,7 @@ fun LiquidIconButton(
     }
     // Flat wallpaper: same pixels, none of the blur/lens/offscreen work — see FlatBackdrop.
     val flat = flatColorOf(backdrop)
+    val style = GlassSettings.style
     // A long-press only ARMS its action; it runs when the finger lifts (a cancelled press drops it),
     // so holding Back never yanks the screen away mid-press.
     val pressSource = remember { MutableInteractionSource() }
@@ -90,10 +91,9 @@ fun LiquidIconButton(
                 backdrop = backdrop,
                 shape = { CircleShape },
                 effects = if (flat != null) ({}) else ({
-                    vibrancy()
-                    blur(2f.dp.toPx())
-                    lens(12f.dp.toPx(), 24f.dp.toPx())
+                    glassEffects(style, 2f.dp.toPx(), 12f.dp.toPx(), 24f.dp.toPx())
                 }),
+                highlight = { glassHighlight(style) },
                 onDrawBackdrop = if (flat != null) ({ _ -> drawFlatVibrantBackdrop(flat) }) else ({ it() }),
                 layerBlock = if (isInteractive) {
                     {
@@ -132,7 +132,7 @@ fun LiquidIconButton(
                         drawRect(tint.copy(alpha = 0.75f))
                     }
                     if (surfaceColor.isSpecified) {
-                        drawRect(surfaceColor)
+                        drawRect(surfaceColor.glassTint(style))
                     }
                 }
             )

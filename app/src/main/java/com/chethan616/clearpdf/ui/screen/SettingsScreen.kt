@@ -115,6 +115,8 @@ import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.ToolAccents
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import androidx.compose.material.icons.rounded.Layers
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -211,6 +213,7 @@ fun SettingsScreen(
         PageAbout -> stringResource(R.string.settings_about)
         PageLicenses -> stringResource(R.string.settings_licenses)
         PageOffice -> stringResource(R.string.office_engine_title)
+        PageGlass -> stringResource(R.string.settings_glass)
         else -> stringResource(R.string.settings_title)
     }
     Box(Modifier.fillMaxSize()) {
@@ -251,6 +254,8 @@ fun SettingsScreen(
                     val langLabel = rememberLanguageOptions().firstOrNull { it.value == selectedLocale }?.label.orEmpty()
                     SettingsSection(backdrop, uiSensor, entrance.sectionFade(1), padding = 8.dp, gap = 0.dp) {
                         SettingsNavRow(Icons.Rounded.Tune, LiquidGlassColors.Orange, stringResource(R.string.settings_appearance), themeLabel, ink, sub) { page = PageAppearance }
+                        SettingsDivider(isLight)
+                        SettingsNavRow(Icons.Rounded.AutoAwesome, LiquidGlassColors.Teal, stringResource(R.string.settings_glass), null, ink, sub) { page = PageGlass }
                         SettingsDivider(isLight)
                         SettingsNavRow(Icons.Rounded.Language, LiquidGlassColors.Blue, stringResource(R.string.settings_language), langLabel, ink, sub) { page = PageLanguage }
                         SettingsDivider(isLight)
@@ -308,6 +313,7 @@ fun SettingsScreen(
                     )
                 }
 
+                if (p == PageGlass) GlassTuningPage(backdrop, uiSensor, ink, sub)
                 // ── Language ──
                 if (p == PageLanguage) SettingsSection(backdrop, uiSensor, Modifier) {
                     SettingsSectionHeader(Icons.Rounded.Language, stringResource(R.string.settings_language), ink)
@@ -431,6 +437,15 @@ fun SettingsScreen(
                 // ── Personalization ──
                 if (p == PagePersonal) SettingsSection(backdrop, uiSensor, Modifier, gap = 4.dp) {
                     SettingsSectionHeader(Icons.Rounded.Wallpaper, stringResource(R.string.settings_personalization), ink, bottomPad = 8.dp)
+                    SettingsToggleRow(
+                        icon = Icons.Rounded.Vibration,
+                        title = stringResource(R.string.settings_haptics),
+                        desc = stringResource(R.string.settings_haptics_desc),
+                        checked = com.chethan616.clearpdf.ui.components.GlassSettings.hapticsEnabled,
+                        onCheckedChange = { com.chethan616.clearpdf.ui.components.GlassSettings.setHaptics(context, it) },
+                        backdrop = backdrop
+                    )
+                    SettingsDivider(isLight)
                     SettingsToggleRow(
                         icon = Icons.Rounded.Wallpaper,
                         title = stringResource(R.string.settings_background),
@@ -558,6 +573,123 @@ private const val PagePersonal = 4
 private const val PageAbout = 5
 private const val PageLicenses = 6
 private const val PageOffice = 7
+private const val PageGlass = 8
+
+/**
+ * Settings -> Liquid Glass: kyant's Glass Playground knobs, app-wide. A live preview chip sits over a
+ * busy swatch (the wallpaper is usually flat, which would hide blur and refraction), presets on top,
+ * then every parameter. Changes apply to every glass surface instantly and persist.
+ */
+@Composable
+private fun GlassTuningPage(
+    backdrop: Backdrop,
+    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
+    ink: Color,
+    sub: Color
+) {
+    val context = LocalContext.current
+    val style = com.chethan616.clearpdf.ui.components.GlassSettings.style
+    fun set(s: com.chethan616.clearpdf.ui.components.GlassStyle) =
+        com.chethan616.clearpdf.ui.components.GlassSettings.update(context, s)
+    val isLight = !com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current
+
+    // Preview: a glass chip over a vivid, detailed strip so every knob is visible.
+    val previewBackdrop = com.kyant.backdrop.backdrops.rememberLayerBackdrop()
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(150.dp)
+            .clip(RoundedCornerShape(28.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .layerBackdrop(previewBackdrop)
+                .background(
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        listOf(Color(0xFF0A84FF), Color(0xFFBF5AF2), Color(0xFFFF375F), Color(0xFFFF9F0A), Color(0xFF30D158))
+                    )
+                )
+        ) {
+            Column(Modifier.matchParentSize().padding(14.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                repeat(4) {
+                    BasicText("ClearPDF  •  Aa Bb Cc  •  0123456789", style = TextStyle(Color.White.copy(0.9f), 13.sp, FontWeight.Bold), maxLines = 1)
+                }
+            }
+        }
+        LiquidButton(onClick = {}, backdrop = previewBackdrop, surfaceColor = if (isLight) Color(0xFFFAFAFA).copy(0.35f) else Color(0xFF1E1E1E).copy(0.35f)) {
+            BasicText(stringResource(R.string.glass_preview), style = TextStyle(ink, 16.sp, FontWeight.SemiBold))
+        }
+    }
+
+    SettingsSection(backdrop, uiSensor, Modifier, gap = 12.dp) {
+        val presets = listOf(
+            com.chethan616.clearpdf.ui.components.GlassStyle.Default to stringResource(R.string.glass_preset_default),
+            com.chethan616.clearpdf.ui.components.GlassStyle.Readable to stringResource(R.string.glass_preset_readable),
+            com.chethan616.clearpdf.ui.components.GlassStyle.Crystal to stringResource(R.string.glass_preset_crystal),
+            com.chethan616.clearpdf.ui.components.GlassStyle.Performance to stringResource(R.string.glass_preset_performance)
+        )
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            presets.forEach { (p, label) ->
+                GlassChoiceChip(label = label, selected = style == p, onClick = { set(p) }, backdrop = backdrop, accent = LiquidGlassColors.Blue)
+            }
+        }
+    }
+
+    SettingsSection(backdrop, uiSensor, Modifier, gap = 6.dp) {
+        @Composable
+        fun knob(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                BasicText(label, style = TextStyle(ink, 14.sp, FontWeight.Medium))
+                BasicText("%.2f".format(value), style = TextStyle(sub, 13.sp))
+            }
+            LiquidSlider(
+                value = { value },
+                onValueChange = onChange,
+                valueRange = range,
+                visibilityThreshold = 0.005f,
+                backdrop = backdrop,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        knob(stringResource(R.string.glass_blur), style.blur, 0f..3f) { set(style.copy(blur = it)) }
+        knob(stringResource(R.string.glass_refraction_height), style.refractionHeight, 0f..2f) { set(style.copy(refractionHeight = it)) }
+        knob(stringResource(R.string.glass_refraction_amount), style.refractionAmount, 0f..2f) { set(style.copy(refractionAmount = it)) }
+        knob(stringResource(R.string.glass_tint), style.tint, 0f..2.5f) { set(style.copy(tint = it)) }
+        knob(stringResource(R.string.glass_vibrancy), style.saturation, 0.5f..2.5f) { set(style.copy(saturation = it)) }
+        knob(stringResource(R.string.glass_brightness), style.brightness, -0.3f..0.3f) { set(style.copy(brightness = it)) }
+        knob(stringResource(R.string.glass_highlight), style.highlight, 0f..1f) { set(style.copy(highlight = it)) }
+        knob(stringResource(R.string.glass_corners), style.corners, 0.4f..1.4f) { set(style.copy(corners = it)) }
+        SettingsDivider(isLight)
+        SettingsToggleRow(
+            icon = Icons.Rounded.Layers,
+            title = stringResource(R.string.glass_depth),
+            desc = stringResource(R.string.glass_depth_desc),
+            checked = style.depthEffect,
+            onCheckedChange = { set(style.copy(depthEffect = it)) },
+            backdrop = backdrop
+        )
+        SettingsDivider(isLight)
+        SettingsToggleRow(
+            icon = Icons.Rounded.AutoAwesome,
+            title = stringResource(R.string.glass_chromatic),
+            desc = stringResource(R.string.glass_chromatic_desc),
+            checked = style.chromaticAberration,
+            onCheckedChange = { set(style.copy(chromaticAberration = it)) },
+            backdrop = backdrop
+        )
+        Spacer(Modifier.height(8.dp))
+        ToolPrimaryButton(
+            text = stringResource(R.string.glass_reset),
+            onClick = { set(com.chethan616.clearpdf.ui.components.GlassStyle.Default) },
+            backdrop = backdrop,
+            accent = LiquidGlassColors.Blue,
+            icon = Icons.Rounded.Refresh,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
 
 /** One row of the Settings index: tinted icon tile, title, current value, chevron — iOS Settings. */
 @Composable

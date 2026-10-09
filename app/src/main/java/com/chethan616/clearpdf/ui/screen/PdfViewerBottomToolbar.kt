@@ -121,7 +121,7 @@ private fun ViewerGlassOverflowSurface(
     content: @Composable BoxScope.() -> Unit
 ) {
     Box(modifier) {
-        Box(Modifier.matchParentSize().viewerGlass(backdrop, color))
+        Box(Modifier.matchParentSize().viewerGlass(backdrop, color, withShadow = false))
         Box(Modifier.fillMaxWidth().zIndex(1f), content = content)
     }
 }
@@ -474,7 +474,7 @@ internal fun PdfViewerBottomToolbar(
         // ── Export feedback row ────────────────────────────────────────────
         if (exportError != null || exportMessage != null || isExporting) {
             Row(
-                Modifier.fillMaxWidth().viewerGlass(backdrop, glass).padding(12.dp),
+                Modifier.fillMaxWidth().viewerGlass(backdrop, glass, withShadow = false).padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment     = Alignment.CenterVertically
             ) {

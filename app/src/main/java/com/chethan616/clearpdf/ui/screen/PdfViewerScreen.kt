@@ -760,8 +760,12 @@ fun PdfViewerScreen(
     // the icons dynamic per-region, kills the "doesn't flip until you scroll deep into page 3" lag,
     // and tracks the zoomed region on a single page. The old single-page white-pin is gone with it —
     // band sampling reads the dark letterbox as dark (→ white ink) on its own.
-    val isLightChrome = remember(currentPageBitmap) {
-        currentPageBitmap?.let { averageLuminance(it) > 0.60f } ?: false
+    val isLightChrome = remember(currentPageBitmap, darkPageAppearance) {
+        // Dark reader draws the page inverted, so what is on screen is 1 - bitmap.
+        currentPageBitmap?.let {
+            val l = averageLuminance(it)
+            (if (darkPageAppearance) 1f - l else l) > 0.60f
+        } ?: false
     }
     // Home's tint, verbatim — the same expression GlassTitlePill and GlassSearchPill resolve — but
     // picked off the *page's* luminance instead of the theme, so a white scan in dark mode still gets

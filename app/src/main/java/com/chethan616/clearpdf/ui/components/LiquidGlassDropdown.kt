@@ -82,13 +82,13 @@ fun Modifier.glassMenu(
     backdrop = backdrop,
     shape = shape,
     effects = {
-        vibrancy()
-        blur(10f.dp.toPx())
-        lens(14f.dp.toPx(), 28f.dp.toPx())
+        glassEffects(GlassSettings.style, 10f.dp.toPx(), 14f.dp.toPx(), 28f.dp.toPx())
     },
-    highlight = { Highlight.Default },
-    shadow = { Shadow(radius = 12.dp, color = Color.Black.copy(alpha = if (dark) 0.3f else 0.12f)) },
-    onDrawSurface = { drawRect(if (dark) Color(0xFF1E1E1E).copy(0.62f) else Color(0xFFFAFAFA).copy(0.62f)) }
+    highlight = { glassHighlight(GlassSettings.style) },
+    shadow = null,
+    onDrawSurface = {
+        drawRect((if (dark) Color(0xFF1E1E1E).copy(0.62f) else Color(0xFFFAFAFA).copy(0.62f)).glassTint(GlassSettings.style))
+    }
 )
 
 /** One choice in a [LiquidGlassDropdown]. [supporting] is an optional second line (e.g. a native name). */

@@ -745,4 +745,26 @@
     <string name="tour_sheet_message">Tap the pencil to reveal cell formatting, color, and layout controls.</string>
     <string name="back_to_library">Return to library</string>
     <string name="home_works_with">Works with</string>
+    <string name="settings_glass">Liquid Glass</string>
+    <string name="glass_preview">Liquid Glass</string>
+    <string name="glass_preset_default">Default</string>
+    <string name="glass_preset_readable">Readable</string>
+    <string name="glass_preset_crystal">Crystal</string>
+    <string name="glass_preset_performance">Performance</string>
+    <string name="glass_preset_custom">Custom</string>
+    <string name="glass_blur">Blur</string>
+    <string name="glass_refraction_height">Refraction height</string>
+    <string name="glass_refraction_amount">Refraction amount</string>
+    <string name="glass_tint">Tint</string>
+    <string name="glass_vibrancy">Vibrancy</string>
+    <string name="glass_brightness">Brightness</string>
+    <string name="glass_highlight">Specular highlight</string>
+    <string name="glass_corners">Corner radius</string>
+    <string name="glass_depth">Depth effect</string>
+    <string name="glass_depth_desc">Thicker-looking glass that bends more toward the centre</string>
+    <string name="glass_chromatic">Chromatic aberration</string>
+    <string name="glass_chromatic_desc">Prism-coloured fringes on the glass edges</string>
+    <string name="glass_reset">Reset to default</string>
+    <string name="settings_haptics">Haptic feedback</string>
+    <string name="settings_haptics_desc">A light tick when you tap buttons and pick options</string>
 </resources>

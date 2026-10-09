@@ -80,21 +80,21 @@ fun Modifier.chipGlassSurface(
     surface: Color
 ): Modifier {
     val flat = flatColorOf(backdrop)
+    val style = GlassSettings.style
     return drawBackdrop(
         backdrop = backdrop,
         shape = shape,
         effects = if (flat != null) ({}) else ({
-            vibrancy()
-            blur(2f.dp.toPx())
-            lens(12f.dp.toPx(), 24f.dp.toPx())
+            glassEffects(style, 2f.dp.toPx(), 12f.dp.toPx(), 24f.dp.toPx())
         }),
-        highlight = { Highlight.Default },
+        highlight = { glassHighlight(style) },
         shadow = null,
         onDrawBackdrop = if (flat != null) ({ _ -> drawFlatVibrantBackdrop(flat) }) else ({ it() }),
-        onDrawSurface = { drawRect(surface) }
+        onDrawSurface = { drawRect(surface.glassTint(style)) }
     )
 }
 
+/** The colour stack (user's vibrancy/brightness) over a flat [color]; blur and lens are no-ops there. */
 fun DrawScope.drawFlatVibrantBackdrop(color: Color) {
-    drawRect(color, colorFilter = VibrancyColorFilter)
+    drawRect(color, colorFilter = glassColorFilter(GlassSettings.style))
 }

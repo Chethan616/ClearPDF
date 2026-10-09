@@ -335,9 +335,7 @@ fun GlassSearchPill(
                         backdrop = backdrop,
                         shape = { Capsule },
                         effects = {
-                            vibrancy()
-                            blur(8f.dp.toPx())
-                            lens(16f.dp.toPx(), 32f.dp.toPx())
+                            glassEffects(GlassSettings.style, 8f.dp.toPx(), 16f.dp.toPx(), 32f.dp.toPx())
                         },
                         highlight = {
                             Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f))

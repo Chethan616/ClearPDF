@@ -49,17 +49,18 @@ fun Modifier.viewerGlass(
     shape: () -> Shape = { ViewerGlassShape },
     // Off for surfaces that must NOT cast a drop shadow — e.g. the onboarding page-1 book, whose
     // shadow otherwise snapped in the moment the assembled book reached full opacity.
-    withShadow: Boolean = true
+    withShadow: Boolean = false
 ): Modifier = drawBackdrop(
     backdrop = backdrop,
     shape = shape,
+    // GlassSettings.style is snapshot state read inside these draw-time lambdas, so a change in
+    // Settings re-draws every viewer surface live without recomposing anything.
     effects = {
-        vibrancy()
-        blur(2f.dp.toPx())
-        lens(12f.dp.toPx(), 24f.dp.toPx())
+        glassEffects(GlassSettings.style, 2f.dp.toPx(), 12f.dp.toPx(), 24f.dp.toPx())
     },
+    highlight = { glassHighlight(GlassSettings.style) },
     shadow = if (withShadow) ({ com.kyant.backdrop.shadow.Shadow.Default }) else null,
-    onDrawSurface = { drawRect(color) }
+    onDrawSurface = { drawRect(color.glassTint(GlassSettings.style)) }
 )
 
 /**
