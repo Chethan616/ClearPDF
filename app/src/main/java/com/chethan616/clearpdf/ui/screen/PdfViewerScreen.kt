@@ -1223,7 +1223,24 @@ fun PdfViewerScreen(
                                     selectedMarkupGroupPage = null; selectedMarkupGroup = emptySet()
                                 },
                                 textSelection = textSelection,
-                                markupBar = markupBarHost
+                                markupBar = markupBarHost,
+                                onMoveImageToPage = { from, img, to ->
+                                    val fromSize = pageCanvasSizes[from]
+                                    val toSize = pageCanvasSizes[to]
+                                    if (to !in 0 until safePageCount || fromSize == null || toSize == null) false
+                                    else {
+                                        // Page gap = the two 6 dp item paddings, in the same unscaled px.
+                                        val gapPx = with(density) { 12.dp.toPx() }
+                                        val ih = img.end.y - img.start.y
+                                        val top = if (to > from) img.start.y - fromSize.height - gapPx
+                                                  else img.start.y + toSize.height + gapPx
+                                        val ny = top.coerceIn(0f, (toSize.height - ih).coerceAtLeast(0f))
+                                        getPageMarks(from).removeAll { it is PdfMarkup.ImageMarkup && it.id == img.id }
+                                        getPageMarks(to).add(img.copy(start = Offset(img.start.x, ny), end = Offset(img.end.x, ny + ih)))
+                                        recordEdit(from); recordEdit(to)
+                                        true
+                                    }
+                                }
                             )
                         }
                     }

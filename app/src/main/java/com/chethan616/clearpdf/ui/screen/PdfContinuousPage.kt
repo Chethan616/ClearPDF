@@ -98,6 +98,7 @@ import com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock
 import com.chethan616.clearpdf.ui.viewmodel.OcrTextRange
 import com.chethan616.clearpdf.ui.components.viewerGlass
 import com.chethan616.clearpdf.ui.components.liquidStretchOnDrag
+import androidx.compose.ui.zIndex
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableIntStateOf
@@ -156,8 +157,11 @@ internal fun PdfContinuousPage(
     /** The viewer's text selection: this page draws its slice of the highlight and registers its coordinates. */
     textSelection: PdfTextSelectionState,
     /** Where this page publishes its contextual Edit / Delete bar; the viewer draws it. */
-    markupBar: MarkupBarHost
+    markupBar: MarkupBarHost,
+    /** Moves an image dragged off this page onto [toPage]; false when there is no such page. */
+    onMoveImageToPage: (fromPage: Int, img: PdfMarkup.ImageMarkup, toPage: Int) -> Boolean = { _, _, _ -> false }
 ) {
+    var imageDragging by remember { mutableStateOf(false) }
     var draftPoints    by remember(page, activeTool) { mutableStateOf<List<Offset>>(emptyList()) }
     var draftRectStart by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
     var draftRectEnd   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
@@ -203,6 +207,9 @@ internal fun PdfContinuousPage(
 
     Box(
         Modifier
+            // While an image is dragged across a page boundary, this page draws above its
+            // neighbours so the image isn't hidden behind the next page.
+            .zIndex(if (imageDragging) 1f else 0f)
             .fillMaxWidth()
             .padding(vertical = 6.dp)
             .then(if (bitmap == null) Modifier.aspectRatio(placeholderAspect ?: (1f / 1.414f)) else Modifier)
@@ -299,7 +306,10 @@ internal fun PdfContinuousPage(
                                 srcOffset = androidx.compose.ui.unit.IntOffset.Zero,
                                 srcSize = androidx.compose.ui.unit.IntSize(markup.bitmap.width, markup.bitmap.height),
                                 dstOffset = androidx.compose.ui.unit.IntOffset(r.left.toInt(), r.top.toInt()),
-                                dstSize = androidx.compose.ui.unit.IntSize(r.width.toInt().coerceAtLeast(1), r.height.toInt().coerceAtLeast(1))
+                                dstSize = androidx.compose.ui.unit.IntSize(r.width.toInt().coerceAtLeast(1), r.height.toInt().coerceAtLeast(1)),
+                                // Dark reader inverts the page; a signature is ink on paper, so it
+                                // inverts with it (dark ink -> light) instead of vanishing on black.
+                                colorFilter = if (darkPageAppearance && markup.isSignature) InvertColorFilter else null
                             )
                         }
                         if (activeTool == PdfEditTool.Image && markup.id == activeImageId) {
@@ -667,6 +677,21 @@ internal fun PdfContinuousPage(
                 }
                 .pointerInput(page, activeImageId) {
                     var resizing = false
+                    // Ends a move: an image whose centre left the page hops to the neighbouring page
+                    // (signatures can be carried down to the page they belong on); otherwise it is
+                    // settled back inside this page.
+                    fun settle() {
+                        imageDragging = false
+                        val idx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
+                        val img = marks.getOrNull(idx) as? PdfMarkup.ImageMarkup ?: return
+                        val ph = size.height.toFloat()
+                        val cy = (img.start.y + img.end.y) / 2f
+                        val target = when { cy > ph -> page + 1; cy < 0f -> page - 1; else -> null }
+                        if (target != null && onMoveImageToPage(page, img, target)) return
+                        val ih = img.end.y - img.start.y
+                        val ny = img.start.y.coerceIn(0f, (ph - ih).coerceAtLeast(0f))
+                        marks[idx] = img.copy(start = Offset(img.start.x, ny), end = Offset(img.end.x, ny + ih))
+                    }
                     detectDragGestures(
                         onDragStart = { p ->
                             val idx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
@@ -674,13 +699,14 @@ internal fun PdfContinuousPage(
                             // Generous grab radius around the bottom-right handle (Apple-style
                             // touch target much larger than the visual handle).
                             resizing = img != null && (p - img.end).getDistance() <= 64f; onInteraction()
+                            imageDragging = !resizing
                         },
+                        onDragEnd = { settle() },
+                        onDragCancel = { settle() },
                         onDrag = { ch, drag ->
                             ch.consume()
                             val idx = marks.indexOfLast { it is PdfMarkup.ImageMarkup && it.id == activeImageId }
                             val img = marks.getOrNull(idx) as? PdfMarkup.ImageMarkup ?: return@detectDragGestures
-                            // Clamp to the page bounds so the image can never be dragged past the
-                            // page edge (where it would be clipped and hidden behind the next page).
                             val pw = size.width.toFloat(); val ph = size.height.toFloat()
                             marks[idx] = if (resizing) {
                                 img.copy(end = Offset(
@@ -688,9 +714,11 @@ internal fun PdfContinuousPage(
                                     (img.end.y + drag.y).coerceIn(img.start.y + 24f, ph)
                                 ))
                             } else {
+                                // Horizontal stays on the page; vertical may cross into the next or
+                                // previous page (this page draws on top while dragging).
                                 val iw = img.end.x - img.start.x; val ih = img.end.y - img.start.y
                                 val nx = (img.start.x + drag.x).coerceIn(0f, (pw - iw).coerceAtLeast(0f))
-                                val ny = (img.start.y + drag.y).coerceIn(0f, (ph - ih).coerceAtLeast(0f))
+                                val ny = (img.start.y + drag.y).coerceIn(-ih, ph)
                                 img.copy(start = Offset(nx, ny), end = Offset(nx + iw, ny + ih))
                             }
                             onInteraction()
@@ -750,6 +778,17 @@ internal fun PdfContinuousPage(
         }
     }
 }
+
+private val InvertColorFilter = ColorFilter.colorMatrix(
+    ColorMatrix(
+        floatArrayOf(
+            -1f, 0f, 0f, 0f, 255f,
+            0f, -1f, 0f, 0f, 255f,
+            0f, 0f, -1f, 0f, 255f,
+            0f, 0f, 0f, 1f, 0f
+        )
+    )
+)
 
 private val MarkupBarWidth = 236.dp
 private val MarkupBarHeight = 48.dp
