@@ -354,22 +354,17 @@ private fun Transition<Boolean>.glassFadeModifier(index: Int): Modifier {
  */
 @Composable
 private fun Transition<Boolean>.tileEntranceModifier(index: Int, density: Float): Modifier {
-    val scale by animateFloat(
-        transitionSpec = { tween(durationMillis = 420, delayMillis = StaggerStepMs * index, easing = EaseOutBack) },
-        label = "tileScale$index"
-    ) { if (it) 1f else 0.86f }
-    val offsetY by animateFloat(
-        transitionSpec = { tween(durationMillis = 420, delayMillis = StaggerStepMs * index, easing = EaseOutBack) },
-        label = "tileOffset$index"
-    ) { if (it) 0f else 18f }
-    val alpha by animateFloat(
-        transitionSpec = { tween(durationMillis = 260, delayMillis = StaggerStepMs * index, easing = FastOutSlowInEasing) },
-        label = "tileAlpha$index"
+    // ONE animation per tile (it was three: scale, offset, alpha — ~66 running at once on entry);
+    // scale and lift ride the overshooting curve, alpha is derived and clamped so it never bounces.
+    val p by animateFloat(
+        transitionSpec = { tween(durationMillis = 440, delayMillis = StaggerStepMs * index, easing = EaseOutBack) },
+        label = "tileIn$index"
     ) { if (it) 1f else 0f }
     return Modifier.graphicsLayer {
-        this.alpha = alpha
-        scaleX = scale
-        scaleY = scale
-        translationY = offsetY * density
+        this.alpha = (p * 1.7f).coerceIn(0f, 1f)
+        val s = 0.86f + 0.14f * p
+        scaleX = s
+        scaleY = s
+        translationY = (1f - p) * 18f * density
     }
 }

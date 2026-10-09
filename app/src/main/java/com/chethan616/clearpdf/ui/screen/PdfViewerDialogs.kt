@@ -418,27 +418,33 @@ internal fun AnnotationColorRow(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BasicText(stringResource(R.string.viewer_color), style = TextStyle(fgSoft, 12.sp, FontWeight.Medium))
+        // Every swatch fits the row (equal slots), and the selected one springs up with a ring.
         Row(
             Modifier
-                .viewerGlass(backdrop, Color.White.copy(alpha = 0.07f), shape = { RoundedCornerShape(24.dp) })
-                .padding(horizontal = 10.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(50))
+                .background(fgSoft.copy(alpha = 0.10f))
+                .padding(horizontal = 6.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             editorPalette.forEach { c ->
                 val isSel = c.value == selected.value
-                Box(
-                    Modifier
-                        .size(if (isSel) 30.dp else 26.dp)
-                        .clip(CircleShape)
-                        .viewerGlass(backdrop, c.copy(alpha = 0.88f), shape = { CircleShape })
-                        .border(
-                            width = if (isSel) 2.5.dp else 1.dp,
-                            color = if (isSel) LiquidGlassColors.Blue else fgSoft.copy(alpha = 0.42f),
-                            shape = CircleShape
-                        )
-                        .clickable { onPick(c) }
-                )
+                val s by animateFloatAsState(if (isSel) 1.15f else 1f, GlassMotion.pop(), label = "swatch")
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier
+                            .size(26.dp)
+                            .graphicsLayer { scaleX = s; scaleY = s }
+                            .clip(CircleShape)
+                            .background(c)
+                            .border(
+                                width = if (isSel) 2.5.dp else 1.dp,
+                                color = if (isSel) Color.White else fgSoft.copy(alpha = 0.3f),
+                                shape = CircleShape
+                            )
+                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onPick(c) }
+                    )
+                }
             }
         }
     }
@@ -465,56 +471,17 @@ internal fun ShapeEditorPopup(
     var color by remember { mutableStateOf(initialColor) }
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
-
-    Box(Modifier.fillMaxSize()) {
-        AnimatedVisibility(
-            visible = shown,
-            enter = fadeIn(tween(180)),
-            exit = fadeOut(tween(140)),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(0.45f))
-                    .pointerInput(Unit) { detectTapGestures { onDismiss() } }
-            )
+    // The app's standard glass dialog: springy entrance, vivid red Delete + blue Done pills.
+    GlassDialog(
+        visible = shown,
+        onDismiss = onDismiss,
+        backdrop = backdrop,
+        title = stringResource(R.string.viewer_edit_shape),
+        actions = {
+            GlassDialogAction(stringResource(R.string.delete), onDelete, destructive = true)
+            GlassDialogAction(stringResource(R.string.viewer_done), onDismiss, primary = true)
         }
-
-        AnimatedVisibility(
-            visible = shown,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(140)),
-            modifier = Modifier.align(Alignment.Center).fillMaxWidth().imePadding()
-        ) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Column(
-                    Modifier
-                        .fillMaxWidth(0.9f)
-                        .widthIn(max = 440.dp)
-                        .liquidGlassPanel(backdrop, uiSensor, surface)
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    BasicText(
-                        stringResource(R.string.viewer_edit_shape),
-                        style = TextStyle(fg, 16.sp, fontWeight = FontWeight.Bold)
-                    )
-
-                    AnnotationColorRow(selected = color, backdrop = backdrop, fgSoft = fgSoft, onPick = { color = it; onColorChange(it) })
-
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        DestructiveGlassButton(stringResource(R.string.delete), onDelete, backdrop)
-                        LiquidButton(onClick = onDismiss, backdrop = backdrop, tint = LiquidGlassColors.Blue) {
-                            BasicText(stringResource(R.string.viewer_done), style = TextStyle(Color.White, 13.sp, FontWeight.Bold))
-                        }
-                    }
-                }
-            }
-        }
+    ) {
+        AnnotationColorRow(selected = color, backdrop = backdrop, fgSoft = glassDialogInkSoft(), onPick = { color = it; onColorChange(it) })
     }
 }

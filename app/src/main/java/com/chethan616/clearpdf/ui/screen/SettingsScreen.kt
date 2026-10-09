@@ -233,7 +233,7 @@ fun SettingsScreen(
                 // Push / pop: the new page slides in from the side it lives on, on a soft spring.
                 val forward = targetState != PageIndex
                 val dir = if (forward) 1 else -1
-                (fadeIn(tween(220)) + slideInHorizontally(spring(dampingRatio = 0.86f, stiffness = 420f)) { dir * it / 4 }) togetherWith
+                (fadeIn(tween(200)) + slideInHorizontally(spring(dampingRatio = 0.74f, stiffness = 380f)) { dir * it / 4 }) togetherWith
                     (fadeOut(tween(140)) + slideOutHorizontally(spring(dampingRatio = 1f, stiffness = 520f)) { -dir * it / 6 })
             },
             label = "settingsPage"
