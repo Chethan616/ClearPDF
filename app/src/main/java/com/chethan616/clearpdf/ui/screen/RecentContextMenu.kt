@@ -243,7 +243,7 @@ private fun MenuPanel(
     Column(
         Modifier
             .width(MenuWidth)
-            .glassMenu(backdrop, dark = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current, shape = { RoundedRectangle(22.dp * com.chethan616.clearpdf.ui.components.GlassSettings.style.corners) }, surfaceAlpha = 0.88f)
+            .glassMenu(backdrop, dark = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current, shape = { RoundedRectangle(22.dp * com.chethan616.clearpdf.ui.components.GlassSettings.style.corners) })
             // Swallow taps on the panel's padding so they don't fall through to the scrim.
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
             .semantics { contentDescription = title }
@@ -280,7 +280,14 @@ private fun QuickTile(action: RecentMenuAction, fg: Color, modifier: Modifier, e
                 scaleX = s; scaleY = s
             }
             .liquidRowClick(corner = 14.dp, onClick = action.onClick)
-            .drawBehind { drawRoundRect(action.tint.copy(alpha = 0.14f), cornerRadius = CornerRadius(14.dp.toPx())) }
+            .drawBehind {
+                // Tile wash follows the Liquid Glass Tint, like every glass surface.
+                val t = com.chethan616.clearpdf.ui.components.GlassSettings.style.tint
+                drawRoundRect(
+                    action.tint.copy(alpha = (0.14f * t).coerceIn(0f, 0.5f)),
+                    cornerRadius = CornerRadius(14.dp.toPx() * com.chethan616.clearpdf.ui.components.GlassSettings.style.corners)
+                )
+            }
             .padding(vertical = 7.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically)
