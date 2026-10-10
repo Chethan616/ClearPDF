@@ -92,7 +92,7 @@ internal class RecentMenuAction(
     val onClick: () -> Unit
 )
 
-private val MenuWidth = 236.dp
+private val MenuWidth = 256.dp
 
 /** How much of the entrance each successive item is delayed by, as a fraction of `progress`. */
 private const val Stagger = 0.06f
@@ -243,7 +243,7 @@ private fun MenuPanel(
     Column(
         Modifier
             .width(MenuWidth)
-            .glassMenu(backdrop, dark = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current, shape = { RoundedRectangle(22.dp) })
+            .glassMenu(backdrop, dark = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current, shape = { RoundedRectangle(22.dp) }, surfaceAlpha = 0.88f)
             // Swallow taps on the panel's padding so they don't fall through to the scrim.
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
             .semantics { contentDescription = title }
@@ -288,7 +288,7 @@ private fun QuickTile(action: RecentMenuAction, fg: Color, modifier: Modifier, e
         Icon(action.icon, null, Modifier.size(19.dp), action.tint)
         BasicText(
             action.label,
-            style = TextStyle(fg, 10.5.sp, FontWeight.Medium, textAlign = TextAlign.Center),
+            style = TextStyle(fg, 10.5.sp, FontWeight.Medium, textAlign = TextAlign.Center, letterSpacing = (-0.1).sp),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
