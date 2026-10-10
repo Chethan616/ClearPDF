@@ -136,7 +136,18 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
         else -> systemDark
     }
 
+    // Once per update: what changed since the version this user last saw. Never alongside the
+    // first-run tour (that already covers everything), and it takes the star prompt's turn.
+    var showWhatsNew by rememberSaveable {
+        mutableStateOf(!needsOnboarding && OnboardingManager.shouldShowWhatsNew(context))
+    }
+    androidx.compose.runtime.SideEffect { com.chethan616.clearpdf.ui.components.WhatsNewGate.showing = showWhatsNew }
+    val appVersionName = remember(context) {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
+    }
+
     LaunchedEffect(context) {
+        if (showWhatsNew) return@LaunchedEffect
         showStarPrompt = GitHubStarPromptManager.shouldShowPrompt(context)
         StarPromptEventBus.promptRequests.collectLatest {
             if (GitHubStarPromptManager.shouldShowPrompt(context)) {
@@ -484,6 +495,16 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                         }
                     }
                 }
+
+                com.chethan616.clearpdf.ui.components.WhatsNewSheet(
+                    visible = showWhatsNew,
+                    versionName = appVersionName,
+                    backdrop = contentBackdrop,
+                    onDismiss = {
+                        OnboardingManager.markWhatsNewSeen(context)
+                        showWhatsNew = false
+                    }
+                )
 
                 // Last child: above the tab bar and dialogs, outside the layer it samples.
                 GlassOverlayLayer(overlayHost, contentBackdrop)

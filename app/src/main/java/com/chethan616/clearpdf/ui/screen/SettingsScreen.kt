@@ -198,6 +198,17 @@ fun SettingsScreen(
     // iOS-style: the root is a short index of rows; each topic opens on its own page. The root only
     // ever composes three small glass panels, which is what keeps this tab switch light.
     var page by rememberSaveable { mutableIntStateOf(PageIndex) }
+    // First-use tutorial (new in 2.1): point at the Liquid Glass page once.
+    var showGlassTour by remember { mutableStateOf(!com.chethan616.clearpdf.data.repository.OnboardingManager.hasSeenGlassSettingsTour(context)) }
+    fun finishGlassTour() {
+        showGlassTour = false
+        com.chethan616.clearpdf.data.repository.OnboardingManager.markGlassSettingsTourSeen(context)
+    }
+    // The real installed version (the old hard-coded string still said 1.1.0).
+    val versionName = remember(context) {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
+    }
+    val versionLabel = stringResource(R.string.settings_version_label) + " " + versionName
     // A sub-page is a focused task: the app's tab bar steps away while it is open.
     androidx.compose.runtime.SideEffect { SettingsSubPage.open = page != PageIndex }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { SettingsSubPage.open = false } }
@@ -258,19 +269,30 @@ fun SettingsScreen(
                     SettingsSection(backdrop, uiSensor, entrance.sectionFade(1), padding = 8.dp, gap = 0.dp) {
                         SettingsNavRow(Icons.Rounded.Tune, LiquidGlassColors.Orange, stringResource(R.string.settings_appearance), themeLabel, ink, sub) { page = PageAppearance }
                         SettingsDivider(isLight)
-                        SettingsNavRow(Icons.Rounded.AutoAwesome, LiquidGlassColors.Teal, stringResource(R.string.settings_glass), null, ink, sub) { page = PageGlass }
+                        SettingsNavRow(Icons.Rounded.AutoAwesome, LiquidGlassColors.Teal, stringResource(R.string.settings_glass), null, ink, sub) { if (showGlassTour) finishGlassTour(); page = PageGlass }
                         SettingsDivider(isLight)
                         SettingsNavRow(Icons.Rounded.Language, LiquidGlassColors.Blue, stringResource(R.string.settings_language), langLabel, ink, sub) { page = PageLanguage }
                         SettingsDivider(isLight)
                         SettingsNavRow(Icons.Rounded.Wallpaper, LiquidGlassColors.Indigo, stringResource(R.string.settings_personalization), null, ink, sub) { page = PagePersonal }
                     }
+                    com.chethan616.clearpdf.ui.components.GlassGuideCallout(
+                        visible = showGlassTour && !com.chethan616.clearpdf.ui.components.WhatsNewGate.showing,
+                        title = stringResource(R.string.tour_glass_title),
+                        message = stringResource(R.string.tour_glass_message),
+                        backdrop = backdrop,
+                        isLastStep = true,
+                        pointsUp = true,
+                        onNext = ::finishGlassTour,
+                        onSkip = ::finishGlassTour,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     SettingsSection(backdrop, uiSensor, entrance.sectionFade(2), padding = 8.dp, gap = 0.dp) {
                         SettingsNavRow(Icons.Rounded.FolderOpen, LiquidGlassColors.Teal, stringResource(R.string.settings_file_handling), null, ink, sub) { page = PageFiles }
                         SettingsDivider(isLight)
                         SettingsNavRow(Icons.Rounded.Description, LiquidGlassColors.Green, stringResource(R.string.office_engine_title), null, ink, sub) { page = PageOffice }
                     }
                     SettingsSection(backdrop, uiSensor, entrance.sectionFade(3), padding = 8.dp, gap = 0.dp) {
-                        SettingsNavRow(Icons.Rounded.Info, LiquidGlassColors.Blue, stringResource(R.string.settings_about), stringResource(R.string.settings_version), ink, sub) { page = PageAbout }
+                        SettingsNavRow(Icons.Rounded.Info, LiquidGlassColors.Blue, stringResource(R.string.settings_about), versionLabel, ink, sub) { page = PageAbout }
                         SettingsDivider(isLight)
                         SettingsNavRow(Icons.Rounded.Code, LiquidGlassColors.Purple, stringResource(R.string.settings_licenses), null, ink, sub) { page = PageLicenses }
                     }
@@ -497,7 +519,7 @@ fun SettingsScreen(
                 if (p == PageAbout) SettingsSection(backdrop, uiSensor, Modifier, padding = 24.dp, horizontalAlignment = Alignment.CenterHorizontally) {
                     AccentIconTile(Icons.Rounded.Info, LiquidGlassColors.Blue, size = 56, iconSize = 28)
                     BasicText("ClearPDF", style = TextStyle(ink, 20.sp, FontWeight.Bold))
-                    BasicText(stringResource(R.string.settings_version), style = TextStyle(sub, 13.sp))
+                    BasicText(versionLabel, style = TextStyle(sub, 13.sp))
                     BasicText(stringResource(R.string.settings_made_by), style = TextStyle(sub, 13.sp, textAlign = TextAlign.Center))
                     Spacer(Modifier.height(4.dp))
                     ToolPrimaryButton(

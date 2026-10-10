@@ -262,9 +262,14 @@ fun PdfViewerScreen(
     val density              = LocalDensity.current
 
     LaunchedEffect(state.document?.uri) {
-        if (state.document != null && !OnboardingManager.hasSeenPdfReaderTour(context)) {
+        if (state.document == null) return@LaunchedEffect
+        // New users get the whole reader tour (tools, share, then editing text); people updating
+        // from a version that already showed them the first two get just the new step.
+        val needsReader = !OnboardingManager.hasSeenPdfReaderTour(context)
+        val needsEditText = !OnboardingManager.hasSeenEditTextTour(context)
+        if (needsReader || needsEditText) {
             delay(650)
-            readerTourStep = 0
+            readerTourStep = if (needsReader) 0 else 2
             controlsPinned = true
         }
     }
@@ -273,6 +278,7 @@ fun PdfViewerScreen(
         readerTourStep = -1
         controlsPinned = false
         OnboardingManager.markPdfReaderTourSeen(context)
+        OnboardingManager.markEditTextTourSeen(context)
     }
 
     // ── Zoom / pan state ───────────────────────────────────────────────────
@@ -1516,7 +1522,7 @@ fun PdfViewerScreen(
 
                 PdfViewerBottomToolbar(
                     readerTourStep     = readerTourStep,
-                    onReaderTourNext   = { if (readerTourStep == 0) readerTourStep = 1 else finishReaderTour() },
+                    onReaderTourNext   = { if (readerTourStep < 2) readerTourStep += 1 else finishReaderTour() },
                     onReaderTourDismiss = ::finishReaderTour,
                     activeTool         = activeTool,
                     drawingToolActive  = drawingToolActive,

@@ -774,4 +774,25 @@
     <string name="glass_reset">Reset to default</string>
     <string name="settings_haptics">Haptic feedback</string>
     <string name="settings_haptics_desc">A light tick when you tap buttons and pick options</string>
+    <string name="whats_new_title">What\'s new in %1$s</string>
+    <string name="whats_new_subtitle">Here\'s what changed since your last version.</string>
+    <string name="whats_new_edit_title">Edit PDF text</string>
+    <string name="whats_new_edit_desc">Rewrite any line in its own font. Tap it with the Text tool, or long-press a word.</string>
+    <string name="whats_new_glass_title">Liquid Glass settings</string>
+    <string name="whats_new_glass_desc">Tune blur, refraction and tint, or pick a preset.</string>
+    <string name="whats_new_share_title">Share in more formats</string>
+    <string name="whats_new_share_desc">PDF, page images or text, with your edits included.</string>
+    <string name="whats_new_feel_title">Smoother everywhere</string>
+    <string name="whats_new_feel_desc">Cleaner glass, springier motion, and haptics you can switch off.</string>
+    <string name="whats_new_sheets_title">Hindi and Indic spreadsheets</string>
+    <string name="whats_new_sheets_desc">Every script displays, edits and saves correctly.</string>
+    <string name="whats_new_fixes_title">Fixes</string>
+    <string name="whats_new_fixes_desc">Images open reliably, and resized text stays where you put it.</string>
+    <string name="whats_new_continue">Continue</string>
+    <string name="tour_edit_text_title">Edit the PDF\'s own text</string>
+    <string name="tour_edit_text_message">Tap the edit icon and pick Text, then tap any line to rewrite it in its own font. Or long-press a word and tap Edit text.</string>
+    <string name="tour_recents_menu_title">Quick actions</string>
+    <string name="tour_recents_menu_message">Press and hold a file to open, share, pin it and more.</string>
+    <string name="tour_glass_title">Make the glass yours</string>
+    <string name="tour_glass_message">Tune blur, refraction and tint, or pick a preset, in Liquid Glass.</string>
 </resources>
