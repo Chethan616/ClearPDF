@@ -534,35 +534,51 @@ internal fun PdfContinuousPage(
         if (selForXf != null && selXfBounds != null) {
             val density2 = LocalDensity.current
             val pad = 30f
-            val boxL = selXfBounds.left - pad
-            val boxT = selXfBounds.top - pad
-            val boxW = selXfBounds.width + pad * 2
-            val boxH = selXfBounds.height + pad * 2
+            // The hit box is FROZEN for the whole gesture. It used to follow the markup every frame,
+            // so each drag delta (measured in the box's own, moving coordinates) was skewed by the
+            // box's own movement — the text "swam" under the finger and resizes overshot (#48).
+            // The pointer stays captured by the box even when the finger leaves it, so a frozen
+            // box loses nothing.
+            var frozen by remember(page, selectedMarkupIndex) { mutableStateOf<Rect?>(null) }
+            val hitBounds = frozen ?: selXfBounds
+            val boxL = hitBounds.left - pad
+            val boxT = hitBounds.top - pad
+            val boxW = hitBounds.width + pad * 2
+            val boxH = hitBounds.height + pad * 2
             Box(
                 Modifier
                     .offset { IntOffset(boxL.roundToInt(), boxT.roundToInt()) }
                     .size(with(density2) { boxW.toDp() }, with(density2) { boxH.toDp() })
                     .pointerInput(page, selectedMarkupIndex) {
                         var mode = 0 // 1 = move, 2 = resize
+                        // Everything is computed from the gesture's START state plus the TOTAL drag,
+                        // never accumulated frame-to-frame, so the result can't drift.
+                        var startMarkup: PdfMarkup? = null
+                        var startBounds: Rect? = null
+                        var total = Offset.Zero
                         detectDragGestures(
                             onDragStart = { local ->
                                 val cur = marks.getOrNull(selectedMarkupIndex)
                                 val bb = cur?.movableBounds()
-                                // Convert the box-local touch back to page space.
-                                val pPage = Offset(local.x + boxL, local.y + boxT)
-                                mode = if (bb != null && cur.isResizable() && (pPage - bb.bottomRight).getDistance() <= 60f) 2 else 1
+                                startMarkup = cur
+                                startBounds = bb
+                                frozen = bb
+                                total = Offset.Zero
+                                val pPage = Offset(local.x + (bb?.left ?: 0f) - pad, local.y + (bb?.top ?: 0f) - pad)
+                                mode = if (bb != null && cur.isResizable() && (pPage - bb.bottomRight).getDistance() <= 64f) 2 else 1
                                 onInteraction()
                             },
                             onDrag = { ch, drag ->
                                 if (mode == 0) return@detectDragGestures
                                 ch.consume()
-                                val cur = marks.getOrNull(selectedMarkupIndex) ?: return@detectDragGestures
-                                val bb = cur.movableBounds() ?: return@detectDragGestures
-                                marks[selectedMarkupIndex] = if (mode == 2) cur.resizedBy(drag, bb) else cur.translated(drag)
+                                val m0 = startMarkup ?: return@detectDragGestures
+                                val b0 = startBounds ?: return@detectDragGestures
+                                total += drag
+                                marks[selectedMarkupIndex] = if (mode == 2) m0.resizedFrom(b0, total) else m0.translated(total)
                                 onInteraction()
                             },
-                            onDragEnd = { mode = 0 },
-                            onDragCancel = { mode = 0 }
+                            onDragEnd = { mode = 0; frozen = null },
+                            onDragCancel = { mode = 0; frozen = null }
                         )
                     }
             )

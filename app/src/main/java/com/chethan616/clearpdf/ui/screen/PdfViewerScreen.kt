@@ -1856,13 +1856,16 @@ fun PdfViewerScreen(
                     getPageMarks(editingAnnoPage).removeAll { matches(it) }
                     editingAnnoId = null
                 },
-                onSave = { newText, newColor ->
+                initialFontSize = getPageMarks(editingAnnoPage)
+                    .firstOrNull { it is PdfMarkup.TextBoxMarkup && it.id == annoId }
+                    ?.let { (it as PdfMarkup.TextBoxMarkup).fontSize },
+                onSave = { newText, newColor, newSize ->
                     val list = getPageMarks(editingAnnoPage)
                     val idx = list.indexOfFirst { matches(it) }
                     if (idx >= 0) {
                         if (newText.isBlank() && list[idx] is PdfMarkup.TextBoxMarkup) list.removeAt(idx)
                         else list[idx] = when (val m = list[idx]) {
-                            is PdfMarkup.TextBoxMarkup -> m.copy(text = newText, color = newColor)
+                            is PdfMarkup.TextBoxMarkup -> m.copy(text = newText, color = newColor, fontSize = newSize ?: m.fontSize)
                             is PdfMarkup.NoteMarkup    -> m.copy(text = newText, color = newColor)
                             else -> m
                         }

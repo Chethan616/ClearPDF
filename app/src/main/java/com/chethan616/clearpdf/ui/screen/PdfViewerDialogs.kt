@@ -249,10 +249,13 @@ internal fun AnnotationEditorDialog(
     backdrop: LayerBackdrop,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
-    onSave: (String, Color) -> Unit
+    /** Text boxes only: the current size, adjustable with a slider (null hides it, e.g. notes). */
+    initialFontSize: Float? = null,
+    onSave: (String, Color, Float?) -> Unit
 ) {
     var text by remember { mutableStateOf(initialText) }
     var color by remember { mutableStateOf(initialColor) }
+    var fontSize by remember { mutableStateOf(initialFontSize) }
     val focus = remember { FocusRequester() }
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true; delay(260); runCatching { focus.requestFocus() } }
@@ -265,7 +268,7 @@ internal fun AnnotationEditorDialog(
         actions = {
             GlassDialogAction(stringResource(R.string.delete), onDelete, destructive = true)
             GlassDialogAction(stringResource(R.string.cancel), onDismiss)
-            GlassDialogAction(stringResource(R.string.anno_save), { onSave(text, color) }, primary = true)
+            GlassDialogAction(stringResource(R.string.anno_save), { onSave(text, color, fontSize) }, primary = true)
         }
     ) {
         GlassDialogField(
@@ -275,8 +278,25 @@ internal fun AnnotationEditorDialog(
             placeholder = stringResource(R.string.anno_hint),
             singleLine = false,
             minHeight = 96.dp,
-            focusRequester = focus
+            focusRequester = focus,
+            textStyle = TextStyle(fontSize = 16.sp)
         )
+        fontSize?.let { size ->
+            // Exact sizing without dragging the handle — the precise way to resize (#48).
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                BasicText(stringResource(R.string.anno_text_size), style = TextStyle(glassDialogInkSoft(), 12.sp, FontWeight.Medium))
+                BasicText(size.roundToInt().toString(), style = TextStyle(glassDialogInk(), 12.sp, FontWeight.SemiBold))
+            }
+            com.chethan616.clearpdf.ui.components.LiquidSlider(
+                value = { size },
+                onValueChange = { fontSize = it },
+                valueRange = 10f..200f,
+                visibilityThreshold = 0.5f,
+                backdrop = backdrop,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         Spacer(Modifier.height(14.dp))
         AnnotationColorRow(selected = color, backdrop = backdrop, fgSoft = glassDialogInkSoft(), onPick = { color = it })
     }

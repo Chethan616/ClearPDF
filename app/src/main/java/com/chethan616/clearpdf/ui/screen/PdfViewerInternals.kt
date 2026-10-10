@@ -314,6 +314,26 @@ internal fun PdfMarkup.resizedBy(drag: Offset, bounds: Rect): PdfMarkup = when (
     else -> this
 }
 
+/**
+ * Absolute resize: this markup as it was when the gesture began ([startBounds]), with its
+ * bottom-right corner moved by the gesture's TOTAL drag. The top-left stays put, so the markup
+ * never moves while it is resized.
+ *
+ * Text scales uniformly by the drag projected onto the box diagonal: its width and height both
+ * scale with the font size, so the handle stays exactly under the finger along the diagonal and
+ * sideways jitter is ignored (#48: "the text moves while resizing").
+ */
+internal fun PdfMarkup.resizedFrom(startBounds: Rect, total: Offset): PdfMarkup = when (this) {
+    is PdfMarkup.TextBoxMarkup -> {
+        val d = startBounds.bottomRight - startBounds.topLeft
+        val t = d + total
+        val len2 = (d.x * d.x + d.y * d.y).coerceAtLeast(1f)
+        val f = ((t.x * d.x + t.y * d.y) / len2).coerceIn(0.15f, 10f)
+        copy(fontSize = (fontSize * f).coerceIn(8f, 480f))
+    }
+    else -> resizedBy(total, startBounds)
+}
+
 internal fun PdfMarkup.shapeColor(): Color = when (this) {
     is PdfMarkup.StrokeMarkup -> color
     is PdfMarkup.RectMarkup   -> color
