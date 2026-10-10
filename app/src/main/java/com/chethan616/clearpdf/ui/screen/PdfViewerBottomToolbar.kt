@@ -759,7 +759,7 @@ internal fun PdfViewerBottomToolbar(
                         backdrop = backdrop,
                         modifier = Modifier.size(52.dp),
                         tint = if (editorOpen) accent else Color.Unspecified,
-                        surfaceColor = if (!editorOpen && readerTourStep == 0) LiquidGlassColors.Blue.copy(alpha = 0.22f) else Color.Unspecified
+                        surfaceColor = if (!editorOpen && (readerTourStep == 0 || readerTourStep == 2)) LiquidGlassColors.Blue.copy(alpha = 0.22f) else Color.Unspecified
                     ) {
                         Icon(Icons.Rounded.Edit, stringResource(R.string.viewer_editor_tools), Modifier.size(21.dp), if (editorOpen) Color.White else fg)
                     }
@@ -836,11 +836,22 @@ internal fun PdfViewerBottomToolbar(
             title = stringResource(R.string.tour_reader_share_title),
             message = stringResource(R.string.tour_reader_share_message),
             backdrop = backdrop,
-            isLastStep = true,
+            isLastStep = false,
             arrowAtEnd = true,
             onNext = onReaderTourNext,
             onSkip = onReaderTourDismiss,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 12.dp, bottom = 116.dp).zIndex(5f)
+        )
+        // New in 2.1: editing the document's own text, pointed at the same edit button.
+        GlassGuideCallout(
+            visible = readerTourStep == 2,
+            title = stringResource(R.string.tour_edit_text_title),
+            message = stringResource(R.string.tour_edit_text_message),
+            backdrop = backdrop,
+            isLastStep = true,
+            onNext = onReaderTourNext,
+            onSkip = onReaderTourDismiss,
+            modifier = Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 116.dp).zIndex(5f)
         )
 
     }

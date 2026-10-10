@@ -54,6 +54,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -571,6 +572,30 @@ fun HomeScreen(
                 onDismiss = { selectedRecent = null }
             )
         }
+
+        // ── First-use tutorial (new in 2.1): long-press a recent for quick actions ──
+        var showRecentsTour by remember { mutableStateOf(!com.chethan616.clearpdf.data.repository.OnboardingManager.hasSeenRecentsMenuTour(context)) }
+        fun finishRecentsTour() {
+            showRecentsTour = false
+            com.chethan616.clearpdf.data.repository.OnboardingManager.markRecentsMenuTourSeen(context)
+        }
+        // Using the gesture counts as having learned it.
+        LaunchedEffect(selectedRecent) { if (selectedRecent != null && showRecentsTour) finishRecentsTour() }
+        com.chethan616.clearpdf.ui.components.GlassGuideCallout(
+            visible = showRecentsTour && recentFilesEnabled && recents.isNotEmpty() && !searchActive &&
+                selectedRecent == null && !com.chethan616.clearpdf.ui.components.WhatsNewGate.showing,
+            title = stringResource(R.string.tour_recents_menu_title),
+            message = stringResource(R.string.tour_recents_menu_message),
+            backdrop = backdrop,
+            isLastStep = true,
+            pointsUp = true,
+            onNext = ::finishRecentsTour,
+            onSkip = ::finishRecentsTour,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 104.dp)
+        )
 
         // ── Category filter menu ──
         RecentsFilterMenu(

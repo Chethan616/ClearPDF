@@ -16,6 +16,13 @@ object OnboardingManager {
     private const val KEY_ONBOARDED_VERSION = "onboarded_version_code"
     private const val KEY_PDF_READER_TOUR_SEEN = "pdf_reader_tour_seen"
     private const val KEY_SPREADSHEET_READER_TOUR_SEEN = "spreadsheet_reader_tour_seen"
+    // The versionCode whose "What's new" sheet the user has seen. Missing = the version they
+    // onboarded on, so people who just did the full tour aren't shown it again.
+    private const val KEY_WHATS_NEW_VERSION = "whats_new_seen_version"
+    // First-use tutorials for features added in 2.1 (shown to new AND updating users, once).
+    private const val KEY_EDIT_TEXT_TOUR_SEEN = "edit_text_tour_seen"
+    private const val KEY_RECENTS_MENU_TOUR_SEEN = "recents_menu_tour_seen"
+    private const val KEY_GLASS_SETTINGS_TOUR_SEEN = "glass_settings_tour_seen"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -45,7 +52,33 @@ object OnboardingManager {
         prefs(context).edit()
             .putBoolean(KEY_COMPLETED, true)
             .putInt(KEY_ONBOARDED_VERSION, currentVersionCode(context))
+            // Someone who just took the full tour is already up to date.
+            .putInt(KEY_WHATS_NEW_VERSION, currentVersionCode(context))
             .apply()
+
+    /**
+     * True once after an update: the user finished onboarding on an older build (or before
+     * versions were recorded) and hasn't seen this build's "What's new" sheet yet.
+     */
+    fun shouldShowWhatsNew(context: Context): Boolean {
+        if (!hasCompletedOnboarding(context)) return false
+        val current = currentVersionCode(context)
+        if (current <= 0) return false
+        val seen = prefs(context).getInt(KEY_WHATS_NEW_VERSION, onboardedVersionCode(context))
+        return seen < current
+    }
+
+    fun markWhatsNewSeen(context: Context) =
+        prefs(context).edit().putInt(KEY_WHATS_NEW_VERSION, currentVersionCode(context)).apply()
+
+    fun hasSeenEditTextTour(context: Context): Boolean = prefs(context).getBoolean(KEY_EDIT_TEXT_TOUR_SEEN, false)
+    fun markEditTextTourSeen(context: Context) = prefs(context).edit().putBoolean(KEY_EDIT_TEXT_TOUR_SEEN, true).apply()
+
+    fun hasSeenRecentsMenuTour(context: Context): Boolean = prefs(context).getBoolean(KEY_RECENTS_MENU_TOUR_SEEN, false)
+    fun markRecentsMenuTourSeen(context: Context) = prefs(context).edit().putBoolean(KEY_RECENTS_MENU_TOUR_SEEN, true).apply()
+
+    fun hasSeenGlassSettingsTour(context: Context): Boolean = prefs(context).getBoolean(KEY_GLASS_SETTINGS_TOUR_SEEN, false)
+    fun markGlassSettingsTourSeen(context: Context) = prefs(context).edit().putBoolean(KEY_GLASS_SETTINGS_TOUR_SEEN, true).apply()
 
     fun resetOnboarding(context: Context) =
         prefs(context).edit()
