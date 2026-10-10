@@ -67,6 +67,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -302,6 +303,39 @@ fun PdfViewerScreen(
     fun getPageMarks(page: Int): MutableList<PdfMarkup> =
         annotationsByPage.getOrPut(page) { mutableStateListOf() }
 
+    // Exact previews of in-place text edits: each edited page is edited for real and rendered by
+    // the same engine as the page (PdfTextEditPreview), and the band around every edited line is
+    // laid over the page. Until a band arrives the page shows the quick system-font preview.
+    val textEditPatches = remember { mutableStateMapOf<Long, TextEditPatch>() }
+    val textEditDocUri = state.document?.uri
+    LaunchedEffect(textEditDocUri) {
+        val uri = textEditDocUri ?: return@LaunchedEffect
+        val rendered = HashMap<Int, List<Pair<Long, String>>>()
+        snapshotFlow {
+            annotationsByPage.entries.associate { (page, marks) ->
+                page to marks.filterIsInstance<PdfMarkup.TextEditMarkup>().map { it.id to it.text }
+            }.filterValues { it.isNotEmpty() }
+        }.distinctUntilChanged().collectLatest { byPage ->
+            delay(80)
+            for ((page, signature) in byPage) {
+                if (rendered[page] == signature) continue
+                val canvas = pageCanvasSizes[page] ?: continue
+                if (canvas.width <= 0f || canvas.height <= 0f) continue
+                val marks = annotationsByPage[page]?.filterIsInstance<PdfMarkup.TextEditMarkup>().orEmpty()
+                val edits = marks.mapNotNull { it.toTextReplace(canvas.width, canvas.height)?.toPdfTextEdit() }
+                val bands = marks.map { it.previewBand(canvas.height) }
+                val widthPx = (canvas.width * 2f).toInt().coerceIn(800, 3200)
+                val bitmaps = withContext(Dispatchers.IO) {
+                    com.kyant.pdfcore.text.PdfTextEditPreview.render(context, uri, page, edits, bands, widthPx)
+                }
+                marks.forEachIndexed { i, m ->
+                    bitmaps.getOrNull(i)?.let { textEditPatches[m.id] = TextEditPatch(m.text, bands[i], it) }
+                }
+                rendered[page] = signature
+            }
+        }
+    }
+
     // ── Unsaved-edit tracking ──────────────────────────────────────────────
     // Markups live here (not in the ViewModel), so "dirty" is: the current markups differ from what
     // was last exported. PdfMarkup variants are data classes, so a structural compare of a per-page
@@ -431,6 +465,34 @@ fun PdfViewerScreen(
 
     /** Record that [page] just gained a markup, so undo can find it again. */
     fun recordEdit(page: Int) { undoStack.add(page) }
+
+    // ── Fill the PDF's own form fields in place (#68) ──
+    // In Edit mode the boxes are outlined on the page; a tap ticks a checkbox / radio, or focuses a
+    // text field (typed into right where it is printed) or a choice field (options in the bar).
+    // Each filled value is a FormValueMarkup, so undo, unsaved-changes, save and share all apply.
+    var focusedForm by remember { mutableStateOf<com.kyant.pdfcore.form.PdfFormWidget?>(null) }
+    val formValues by remember {
+        derivedStateOf {
+            annotationsByPage.values.flatMap { l -> l.filterIsInstance<PdfMarkup.FormValueMarkup>() }
+                .associate { it.fieldName to it.value }
+        }
+    }
+    fun formValueOf(w: com.kyant.pdfcore.form.PdfFormWidget): String = formValues[w.fieldName] ?: w.value
+    fun setFormValue(w: com.kyant.pdfcore.form.PdfFormWidget, value: String) {
+        var found = false
+        annotationsByPage.values.forEach { list ->
+            val i = list.indexOfFirst { it is PdfMarkup.FormValueMarkup && it.fieldName == w.fieldName }
+            if (i >= 0) {
+                found = true
+                if (value == w.value) list.removeAt(i) else list[i] = PdfMarkup.FormValueMarkup(w.fieldName, value)
+            }
+        }
+        if (!found && value != w.value) {
+            getPageMarks(w.pageIndex).add(PdfMarkup.FormValueMarkup(w.fieldName, value))
+            recordEdit(w.pageIndex)
+        }
+    }
+
 
     /**
      * Remove the most recently added markup, wherever it lives. Entries can go stale — the eraser
@@ -752,6 +814,42 @@ fun PdfViewerScreen(
     // wallpaper PNG. The chrome is drawn as siblings on top of the captured Box, so
     // there is no feedback loop.
     val contentBackdrop = rememberLayerBackdrop()
+
+    // Form filling (#68): which boxes take part, in reading order, and how a tap fills one.
+    val formEditing = editorToolsOpen && state.formWidgetsByPage.isNotEmpty()
+    val formOrder = remember(state.formWidgetsByPage) {
+        state.formWidgetsByPage.values.flatten()
+            .filter { !it.readOnly && (it.type == com.kyant.pdfcore.form.PdfFormWidget.Type.TEXT || it.type == com.kyant.pdfcore.form.PdfFormWidget.Type.CHOICE) }
+            .sortedWith(compareBy({ it.pageIndex }, { it.top }, { it.left }))
+    }
+    var showFormTour by remember { mutableStateOf(!OnboardingManager.hasSeenFormFillTour(context)) }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    LaunchedEffect(formEditing) { if (!formEditing) focusedForm = null }
+    LaunchedEffect(state.document?.uri) { focusedForm = null }
+    // Bring the focused box into the top of the viewport, clear of the keyboard and the bar.
+    LaunchedEffect(focusedForm?.key) {
+        val w = focusedForm ?: return@LaunchedEffect
+        val canvas = pageCanvasSizes[w.pageIndex]
+        val viewport = listState.layoutInfo.viewportSize.height
+        val offset = if (canvas != null) (w.top * canvas.height - viewport * 0.22f).toInt() else 0
+        runCatching { listState.animateScrollToItem(w.pageIndex, offset.coerceAtLeast(0)) }
+    }
+    val onTapFormWidget: (com.kyant.pdfcore.form.PdfFormWidget) -> Unit = { w ->
+        if (showFormTour) { showFormTour = false; OnboardingManager.markFormFillTourSeen(context) }
+        when (w.type) {
+            com.kyant.pdfcore.form.PdfFormWidget.Type.TEXT, com.kyant.pdfcore.form.PdfFormWidget.Type.CHOICE -> focusedForm = w
+            com.kyant.pdfcore.form.PdfFormWidget.Type.CHECKBOX -> {
+                focusedForm = null
+                haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.SegmentTick)
+                setFormValue(w, if (formValueOf(w) == "true") "false" else "true")
+            }
+            com.kyant.pdfcore.form.PdfFormWidget.Type.RADIO -> {
+                focusedForm = null
+                haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.SegmentTick)
+                setFormValue(w, w.onValue)
+            }
+        }
+    }
 
     // ── Adaptive chrome contrast ────────────────────────────────────────────
     // The chrome glass floats over the page, which may be a bright white note or a
@@ -1137,6 +1235,17 @@ fun PdfViewerScreen(
                                 bitmap             = state.pageBitmaps.getOrNull(page),
                                 darkPageAppearance = darkPageAppearance,
                                 marks              = getPageMarks(page),
+                                textEditPatches    = textEditPatches,
+                                formWidgets        = state.formWidgetsByPage[page].orEmpty(),
+                                formValues         = formValues,
+                                formEditing        = formEditing,
+                                focusedFormKey     = focusedForm?.key,
+                                onTapFormWidget    = onTapFormWidget,
+                                onFormTextChange   = { w, v -> setFormValue(w, v) },
+                                onFormImeNext      = { w ->
+                                    val i = formOrder.indexOfFirst { it.key == w.key }
+                                    focusedForm = formOrder.getOrNull(i + 1)
+                                },
                                 ocrBlocks          = state.ocrBlocksByPage[page].orEmpty(),
                                 findMatches        = state.findMatches,
                                 currentMatchIndex  = state.currentMatchIndex,
@@ -1828,8 +1937,15 @@ fun PdfViewerScreen(
                 val existing = getPageMarks(pg).firstOrNull {
                     it is PdfMarkup.TextEditMarkup && it.blockId == block.id
                 } as? PdfMarkup.TextEditMarkup
+                // Only what was selected is edited; the rest of the line stays exactly as it is.
+                val selected = textSelection.rangesByPage()[pg].orEmpty().filter { it.blockId == block.id }
+                val range = if (selected.isEmpty()) null else {
+                    val a = selected.minOf { it.start }.coerceIn(0, block.text.length)
+                    val b = selected.maxOf { it.end }.coerceIn(a, block.text.length)
+                    (a until b).takeIf { b > a && (a > 0 || b < block.text.length) }
+                }
                 textSelection.clear()
-                textEditTarget = TextEditTarget(pg, block, existing?.id)
+                textEditTarget = TextEditTarget(pg, block, existing?.id, range)
             }
         )
         // A lambda, evaluated inside the toolbar: reading the selection here would recompose this
@@ -1864,6 +1980,48 @@ fun PdfViewerScreen(
             luminanceAt = pageLuminanceAt,
             appearanceKey = darkPageAppearance
         )
+        // The form accessory: previous / next field, Done, and a choice field's options.
+        focusedForm?.let { w ->
+            BackHandler { focusedForm = null }
+            val i = formOrder.indexOfFirst { it.key == w.key }
+            val imeUp = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(LocalDensity.current) > 0
+            PdfFormAccessoryBar(
+                widget = w,
+                value = formValueOf(w),
+                backdrop = contentBackdrop,
+                ink = panelFg,
+                glass = chromePanel,
+                canPrevious = i > 0,
+                canNext = i in 0 until formOrder.lastIndex,
+                onPrevious = { formOrder.getOrNull(i - 1)?.let { focusedForm = it } },
+                onNext = { formOrder.getOrNull(i + 1)?.let { focusedForm = it } },
+                onDone = { keyboard?.hide(); focusedForm = null },
+                onPick = { option ->
+                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.SegmentTick)
+                    setFormValue(w, option)
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .imePadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = if (imeUp) 8.dp else 104.dp)
+            )
+        }
+        com.chethan616.clearpdf.ui.components.GlassGuideCallout(
+            visible = showFormTour && formEditing && focusedForm == null,
+            title = stringResource(R.string.tour_form_title),
+            message = stringResource(R.string.tour_form_message),
+            backdrop = contentBackdrop,
+            isLastStep = true,
+            onNext = { showFormTour = false; OnboardingManager.markFormFillTourSeen(context) },
+            onSkip = { showFormTour = false; OnboardingManager.markFormFillTourSeen(context) },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, top = 76.dp)
+        )
+
         PdfCopiedToast(
             trigger = copiedTick,
             backdrop = contentBackdrop,
@@ -1895,11 +2053,16 @@ fun PdfViewerScreen(
                 list.firstOrNull { it is PdfMarkup.TextEditMarkup && it.id == id } as? PdfMarkup.TextEditMarkup
             }
             val original = existing?.original ?: target.block?.text.orEmpty()
+            val current = existing?.text ?: original
+            val segment = target.selection?.let { sel ->
+                selectionInCurrent(original, current, sel.first, sel.last + 1).takeIf { !it.isEmpty() }
+            }
             TextEditDialog(
-                initialText = existing?.text ?: original,
-                original = original,
+                initialText = segment?.let { current.substring(it.first, it.last + 1) } ?: current,
+                original = segment?.let { current.substring(it.first, it.last + 1) } ?: original,
+                selectionOnly = segment != null,
                 backdrop = contentBackdrop,
-                canRevert = existing != null,
+                canRevert = existing != null && segment == null,
                 onDismiss = { textEditTarget = null },
                 onRevert = {
                     list.removeAll { it is PdfMarkup.TextEditMarkup && it.id == existing?.id }
@@ -1907,7 +2070,8 @@ fun PdfViewerScreen(
                     selectedAnnoPage = null; selectedAnnoIndex = -1
                     textEditTarget = null
                 },
-                onSave = { newText ->
+                onSave = { edited ->
+                    val newText = segment?.let { current.replaceRange(it.first, it.last + 1, edited) } ?: edited
                     if (existing != null) {
                         val i = list.indexOf(existing)
                         if (i >= 0) {

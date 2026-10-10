@@ -131,7 +131,19 @@ internal sealed class PdfMarkup {
         val bold: Boolean,
         val italic: Boolean,
         val serif: Boolean,
-        val mono: Boolean
+        val mono: Boolean,
+        /** The original line's per-character x bounds (normalized), so only what changed is rewritten. */
+        val charLefts: FloatArray = FloatArray(0),
+        val charRights: FloatArray = FloatArray(0)
+    ) : PdfMarkup()
+
+    /**
+     * A value filled into one of the PDF's own form fields (#68), kept on the page of the box it
+     * was filled in. Not drawn as a markup: the page draws the value inside the field itself.
+     */
+    data class FormValueMarkup(
+        val fieldName: String,
+        val value: String
     ) : PdfMarkup()
 
     /** Sticky note. [anchor] is the content-space top-left of the icon. */
@@ -175,6 +187,7 @@ internal sealed class PdfMarkup {
             r.contains(p)
         }
         is TextEditMarkup -> rect.inflate(8f).contains(p)
+        is FormValueMarkup -> false
     }
 }
 
@@ -705,19 +718,9 @@ internal fun buildExportOverlays(
                     }
                 }
                 is PdfMarkup.TextEditMarkup -> {
-                    if (markup.text != markup.original) {
-                        list.add(
-                            ExportOverlay.TextReplace(
-                                left = markup.rect.left / frame.width.coerceAtLeast(1f),
-                                top = markup.rect.top / frame.height.coerceAtLeast(1f),
-                                right = markup.rect.right / frame.width.coerceAtLeast(1f),
-                                bottom = markup.rect.bottom / frame.height.coerceAtLeast(1f),
-                                text = markup.text,
-                                backgroundArgb = markup.background.toArgb()
-                            )
-                        )
-                    }
+                    markup.toTextReplace(frame.width, frame.height)?.let { list.add(it) }
                 }
+                is PdfMarkup.FormValueMarkup -> list.add(ExportOverlay.FormValue(markup.fieldName, markup.value))
                 is PdfMarkup.NoteMarkup -> {
                     list.add(
                         ExportOverlay.NoteStamp(
@@ -755,7 +758,9 @@ internal fun recolorSignatureBitmap(source: Bitmap, colorArgb: Int): Bitmap {
 internal data class TextEditTarget(
     val page: Int,
     val block: com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock?,
-    val markupId: Long?
+    val markupId: Long?,
+    /** The selected characters of the ORIGINAL line, end exclusive; null edits the whole line. */
+    val selection: IntRange? = null
 )
 
 /**
@@ -785,7 +790,107 @@ internal fun textEditMarkupFor(
         bold = style.bold,
         italic = style.italic,
         serif = style.serif,
-        mono = style.mono
+        mono = style.mono,
+        charLefts = block.charLefts,
+        charRights = block.charRights
+    )
+}
+
+/** Where [current] differs from [original]: (start, end in original, end in current), end exclusive. */
+internal fun textDiff(original: String, current: String): Triple<Int, Int, Int> {
+    val max = minOf(original.length, current.length)
+    var p = 0
+    while (p < max && original[p] == current[p]) p++
+    var s = 0
+    while (s < max - p && original[original.length - 1 - s] == current[current.length - 1 - s]) s++
+    return Triple(p, original.length - s, current.length - s)
+}
+
+/**
+ * The part of [current] (a line's text after earlier edits) that a selection of
+ * [selStart] until [selEnd] in [original] covers. A selection touching an earlier change grows to
+ * include all of it, so the editor never shows half of a previous edit.
+ */
+internal fun selectionInCurrent(original: String, current: String, selStart: Int, selEnd: Int): IntRange {
+    val (p, oEnd, cEnd) = textDiff(original, current)
+    val delta = current.length - original.length
+    val r = when {
+        selEnd <= p -> selStart until selEnd
+        selStart >= oEnd -> (selStart + delta) until (selEnd + delta)
+        else -> minOf(selStart, p) until maxOf(if (selEnd > oEnd) selEnd + delta else cEnd, cEnd)
+    }
+    val a = r.first.coerceIn(0, current.length)
+    val b = (r.last + 1).coerceIn(a, current.length)
+    return a until b
+}
+
+/**
+ * The save-path form of an in-place edit: only the words that changed are rewritten (the rest of
+ * the line keeps its original glyphs, moved by the change in width), falling back to the whole
+ * line when there is no per-character geometry. Null when nothing changed.
+ */
+internal fun PdfMarkup.TextEditMarkup.toTextReplace(frameW: Float, frameH: Float): ExportOverlay.TextReplace? {
+    if (text == original) return null
+    val w = frameW.coerceAtLeast(1f)
+    val h = frameH.coerceAtLeast(1f)
+    val lineL = rect.left / w
+    val lineT = rect.top / h
+    val lineR = rect.right / w
+    val lineB = rect.bottom / h
+    val bg = background.toArgb()
+    val whole = ExportOverlay.TextReplace(lineL, lineT, lineR, lineB, text, bg)
+    val n = original.length
+    if (n == 0 || charLefts.size != n || charRights.size != n) return whole
+
+    val (p, oEnd, cEnd) = textDiff(original, text)
+    // Grow to whole words: every edit box then holds real glyphs to anchor on, and unchanged
+    // letters of a touched word are re-drawn from their own bytes, identical to before.
+    var a = p
+    var oe = oEnd
+    var ce = cEnd
+    while (a > 0 && !original[a - 1].isWhitespace()) a--
+    while (oe < n && !original[oe].isWhitespace()) { oe++; ce++ }
+    if (original.substring(a, oe).isBlank()) {
+        // Only spaces changed (or a pure insertion between words): anchor on a neighbouring word.
+        if (a > 0) {
+            while (a > 0 && original[a - 1].isWhitespace()) a--
+            while (a > 0 && !original[a - 1].isWhitespace()) a--
+        } else {
+            while (oe < n && original[oe].isWhitespace()) { oe++; ce++ }
+            while (oe < n && !original[oe].isWhitespace()) { oe++; ce++ }
+        }
+    }
+    if (a >= oe || ce < a || ce > text.length) return whole
+    if (a == 0 && oe == n) return whole
+    return ExportOverlay.TextReplace(
+        left = charLefts[a],
+        top = lineT,
+        right = charRights[oe - 1],
+        bottom = lineB,
+        text = text.substring(a, ce),
+        backgroundArgb = bg,
+        lineLeft = lineL,
+        lineTop = lineT,
+        lineRight = lineR,
+        lineBottom = lineB
+    )
+}
+
+/**
+ * An exact preview of a page's text edits: [bitmap] is the edited page rendered by the PDF engine
+ * over the normalized horizontal [band] around the line, valid while the markup's text is [text].
+ */
+internal class TextEditPatch(val text: String, val band: android.graphics.RectF, val bitmap: Bitmap)
+
+/** The band an edited line's preview covers: full page width, the line plus room for ascenders. */
+internal fun PdfMarkup.TextEditMarkup.previewBand(canvasH: Float): android.graphics.RectF {
+    val h = canvasH.coerceAtLeast(1f)
+    val pad = rect.height * 0.45f
+    return android.graphics.RectF(
+        0f,
+        ((rect.top - pad) / h).coerceIn(0f, 1f),
+        1f,
+        ((rect.bottom + pad) / h).coerceIn(0f, 1f)
     )
 }
 
