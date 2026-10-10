@@ -583,7 +583,7 @@ fun HomeScreen(
         LaunchedEffect(selectedRecent) { if (selectedRecent != null && showRecentsTour) finishRecentsTour() }
         com.chethan616.clearpdf.ui.components.GlassGuideCallout(
             visible = showRecentsTour && recentFilesEnabled && recents.isNotEmpty() && !searchActive &&
-                selectedRecent == null && !com.chethan616.clearpdf.ui.components.WhatsNewGate.showing,
+                selectedRecent == null,
             title = stringResource(R.string.tour_recents_menu_title),
             message = stringResource(R.string.tour_recents_menu_message),
             backdrop = backdrop,
