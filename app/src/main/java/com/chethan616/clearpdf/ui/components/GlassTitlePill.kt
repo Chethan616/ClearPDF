@@ -29,22 +29,6 @@ import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.kyant.backdrop.Backdrop
 
-/**
- * Drop-in replacement for a `LiquidGlassTopBar` sitting in a header [Row]: it takes the remaining
- * width, centres a [GlassTitlePill] in it, and adds a 40 dp balancer so the pill is optically
- * centred against the leading back button. Every tool screen's header is this shape.
- */
-@Composable
-fun RowScope.GlassScreenTitle(
-    title: String,
-    backdrop: Backdrop,
-    fontFamily: FontFamily? = null
-) {
-    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-        GlassTitlePill(text = title, backdrop = backdrop, fontFamily = fontFamily)
-    }
-    Spacer(Modifier.size(40.dp))
-}
 
 /**
  * The title pill used across the app — the *same* widget as the PDF viewer's "Page 1 / 12" and the
