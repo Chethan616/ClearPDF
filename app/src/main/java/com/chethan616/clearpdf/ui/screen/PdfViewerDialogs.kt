@@ -302,6 +302,58 @@ internal fun AnnotationEditorDialog(
     }
 }
 
+/**
+ * In-place editor for one line of the page's own text. The new text is written back in the line's
+ * original font on save (PdfTextEditor), so this is a single-line field, not a text box.
+ */
+@Composable
+internal fun TextEditDialog(
+    initialText: String,
+    original: String,
+    backdrop: LayerBackdrop,
+    canRevert: Boolean,
+    onDismiss: () -> Unit,
+    onRevert: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var text by remember { mutableStateOf(initialText) }
+    val focus = remember { FocusRequester() }
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true; delay(260); runCatching { focus.requestFocus() } }
+    GlassDialog(
+        visible = shown,
+        onDismiss = onDismiss,
+        backdrop = backdrop,
+        title = stringResource(R.string.text_edit_title),
+        actions = {
+            if (canRevert) GlassDialogAction(stringResource(R.string.text_edit_revert), onRevert, destructive = true)
+            GlassDialogAction(stringResource(R.string.cancel), onDismiss)
+            GlassDialogAction(stringResource(R.string.viewer_done), { onSave(text) }, primary = true)
+        }
+    ) {
+        BasicText(stringResource(R.string.text_edit_hint), style = TextStyle(glassDialogInkSoft(), 12.sp, lineHeight = 16.sp))
+        Spacer(Modifier.height(10.dp))
+        GlassDialogField(
+            value = text,
+            onValueChange = { text = it.replace('\n', ' ') },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            focusRequester = focus,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onSave(text) })
+        )
+        if (text != original) {
+            Spacer(Modifier.height(8.dp))
+            BasicText(
+                stringResource(R.string.text_edit_original, original),
+                style = TextStyle(glassDialogInkSoft(), 11.sp),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
 /** Which file the viewer's Share action should hand off. */
 internal enum class ShareFormat { ORIGINAL, PDF }
 

@@ -46,6 +46,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.FormatColorReset
 import androidx.compose.material.icons.rounded.FormatUnderlined
@@ -123,7 +124,10 @@ class PdfSelectionActions(
     val onStrike: () -> Unit,
     val onRemoveHighlight: () -> Unit,
     val onSearch: () -> Unit,
-    val onProcessText: (ComponentName) -> Unit
+    val onProcessText: (ComponentName) -> Unit,
+    /** The (page, line) the selection sits on when that line is editable digital text, else null. */
+    val editableLine: () -> Pair<Int, com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock>? = { null },
+    val onEditText: (Int, com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock) -> Unit = { _, _ -> }
 )
 
 /** Highlight palette: classic marker yellow first, then the design system's accents. */
@@ -297,14 +301,17 @@ fun PdfSelectionToolbar(
         val moreL = stringResource(R.string.selection_more)
         val backL = stringResource(R.string.back)
         val colorL = stringResource(R.string.selection_highlight_color)
+        val editTextL = stringResource(R.string.text_edit_title)
 
         fun act(block: () -> Unit): () -> Unit = {
             haptics.performHapticFeedback(HapticFeedbackType.VirtualKey)
             block()
         }
 
+        val editLine = if (shown) actions.editableLine() else null
         val items = buildList {
             add(ToolbarItem("copy", copyL, Icons.Rounded.ContentCopy, onClick = act(actions.onCopy)))
+            if (editLine != null) add(ToolbarItem("edit", editTextL, Icons.Rounded.EditNote, onClick = act { actions.onEditText(editLine.first, editLine.second) }))
             add(ToolbarItem("all", selectAllL, Icons.Rounded.SelectAll, onClick = act(actions.onSelectAll)))
             add(ToolbarItem(
                 "hl", highlightL, Icons.Rounded.Highlight, badge = highlightColor,

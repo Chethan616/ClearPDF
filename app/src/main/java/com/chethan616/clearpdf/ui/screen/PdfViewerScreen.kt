@@ -243,6 +243,8 @@ fun PdfViewerScreen(
     var bookmarkedPages by remember { mutableStateOf<List<Int>>(emptyList()) }
     // Annotation (text box / sticky note) editing
     var editingAnnoId       by remember { mutableStateOf<Long?>(null) }
+    // In-place edit of a line of the page's own text (Text tool tap on existing text).
+    var textEditTarget      by remember { mutableStateOf<TextEditTarget?>(null) }
     var editingAnnoPage     by remember { mutableStateOf(0) }
     var editingAnnoIsNote   by remember { mutableStateOf(false) }
     var annotationDraft     by remember { mutableStateOf("") }
@@ -1144,10 +1146,27 @@ fun PdfViewerScreen(
                                 onActiveToolChanged     = { activeTool = it },
                                 onActiveImageIdChanged  = { activeImageId = it },
                                 onPlaceText             = { pt ->
-                                    val id = System.nanoTime()
-                                    getPageMarks(page).add(PdfMarkup.TextBoxMarkup(id, pt, "", currentColor, 40f))
-                                    recordEdit(page)
-                                    editingAnnoId = id; editingAnnoPage = page; editingAnnoIsNote = false; annotationDraft = ""
+                                    // One Text tool: tapping the page's own text edits that line in
+                                    // place (same font); tapping empty space places a new text box.
+                                    val canvas = pageCanvasSizes[page]
+                                    val hitLine = canvas?.takeIf { it.width > 0f && it.height > 0f }?.let { cs ->
+                                        val nx = pt.x / cs.width; val ny = pt.y / cs.height
+                                        state.ocrBlocksByPage[page].orEmpty().firstOrNull { b ->
+                                            b.style != null && nx >= b.left - 0.004f && nx <= b.right + 0.004f &&
+                                                ny >= b.top - 0.004f && ny <= b.bottom + 0.004f
+                                        }
+                                    }
+                                    if (hitLine != null) {
+                                        val existing = getPageMarks(page).firstOrNull {
+                                            it is PdfMarkup.TextEditMarkup && it.blockId == hitLine.id
+                                        } as? PdfMarkup.TextEditMarkup
+                                        textEditTarget = TextEditTarget(page, hitLine, existing?.id)
+                                    } else {
+                                        val id = System.nanoTime()
+                                        getPageMarks(page).add(PdfMarkup.TextBoxMarkup(id, pt, "", currentColor, 40f))
+                                        recordEdit(page)
+                                        editingAnnoId = id; editingAnnoPage = page; editingAnnoIsNote = false; annotationDraft = ""
+                                    }
                                     activeTool = PdfEditTool.None; controlsVisible = true
                                 },
                                 onPlaceNote             = { pt ->
@@ -1157,7 +1176,12 @@ fun PdfViewerScreen(
                                     editingAnnoId = id; editingAnnoPage = page; editingAnnoIsNote = true; annotationDraft = ""
                                     activeTool = PdfEditTool.None; controlsVisible = true
                                 },
-                                onEditAnnotation        = { id ->
+                                onEditAnnotation        = annotationEdit@{ id ->
+                                    (getPageMarks(page).firstOrNull { it is PdfMarkup.TextEditMarkup && it.id == id } as? PdfMarkup.TextEditMarkup)?.let { te ->
+                                        val block = state.ocrBlocksByPage[page].orEmpty().firstOrNull { it.id == te.blockId }
+                                        textEditTarget = TextEditTarget(page, block, te.id)
+                                        return@annotationEdit
+                                    }
                                     val m = getPageMarks(page).firstOrNull {
                                         (it is PdfMarkup.TextBoxMarkup && it.id == id) || (it is PdfMarkup.NoteMarkup && it.id == id)
                                     }
@@ -1782,6 +1806,22 @@ fun PdfViewerScreen(
                         )
                     }
                 }
+            },
+            // Long-press a word → "Edit text": rewrite that line in place, in its own font.
+            editableLine = {
+                val ranges = textSelection.rangesByPage()
+                val single = ranges.entries.singleOrNull()?.takeIf { it.value.map { r -> r.blockId }.distinct().size == 1 }
+                single?.let { (pg, rs) ->
+                    state.ocrBlocksByPage[pg].orEmpty().firstOrNull { it.id == rs.first().blockId && it.style != null }
+                        ?.let { pg to it }
+                }
+            },
+            onEditText = { pg, block ->
+                val existing = getPageMarks(pg).firstOrNull {
+                    it is PdfMarkup.TextEditMarkup && it.blockId == block.id
+                } as? PdfMarkup.TextEditMarkup
+                textSelection.clear()
+                textEditTarget = TextEditTarget(pg, block, existing?.id)
             }
         )
         // A lambda, evaluated inside the toolbar: reading the selection here would recompose this
@@ -1837,6 +1877,47 @@ fun PdfViewerScreen(
                 bookmarkUri?.let { uri -> bookmarkedPages = PdfPageBookmarksManager.toggle(context, uri, page) }
             }
         )
+
+        // ── In-place edit of the page's own text ──
+        textEditTarget?.let { target ->
+            val list = getPageMarks(target.page)
+            val existing = target.markupId?.let { id ->
+                list.firstOrNull { it is PdfMarkup.TextEditMarkup && it.id == id } as? PdfMarkup.TextEditMarkup
+            }
+            val original = existing?.original ?: target.block?.text.orEmpty()
+            TextEditDialog(
+                initialText = existing?.text ?: original,
+                original = original,
+                backdrop = contentBackdrop,
+                canRevert = existing != null,
+                onDismiss = { textEditTarget = null },
+                onRevert = {
+                    list.removeAll { it is PdfMarkup.TextEditMarkup && it.id == existing?.id }
+                    recordEdit(target.page)
+                    selectedAnnoPage = null; selectedAnnoIndex = -1
+                    textEditTarget = null
+                },
+                onSave = { newText ->
+                    if (existing != null) {
+                        val i = list.indexOf(existing)
+                        if (i >= 0) {
+                            if (newText == existing.original) list.removeAt(i) else list[i] = existing.copy(text = newText)
+                            recordEdit(target.page)
+                        }
+                    } else if (newText != original) {
+                        val block = target.block
+                        val style = block?.style
+                        val canvas = pageCanvasSizes[target.page]
+                        if (block != null && style != null && canvas != null) {
+                            list.add(textEditMarkupFor(block, style, canvas, state.pageBitmaps.getOrNull(target.page), newText))
+                            recordEdit(target.page)
+                        }
+                    }
+                    selectedAnnoPage = null; selectedAnnoIndex = -1
+                    textEditTarget = null
+                }
+            )
+        }
 
         // ── Text / note editor (in-window, samples the real page backdrop) ──
         editingAnnoId?.let { annoId ->

@@ -112,6 +112,28 @@ internal sealed class PdfMarkup {
         val fontSize: Float = 40f
     ) : PdfMarkup()
 
+    /**
+     * An in-place edit of one line of the page's OWN text (not a sticker): on screen the old line is
+     * covered by [background] and [text] drawn in the closest face at the line's real size and
+     * baseline; on export the old glyphs are removed from the PDF and the new text is written in the
+     * original font (PdfTextEditor). Geometry is content px like the other markups.
+     */
+    data class TextEditMarkup(
+        val id: Long,
+        val blockId: String,
+        val rect: Rect,
+        val baseline: Float,
+        val fontSize: Float,
+        val original: String,
+        val text: String,
+        val color: Color,
+        val background: Color,
+        val bold: Boolean,
+        val italic: Boolean,
+        val serif: Boolean,
+        val mono: Boolean
+    ) : PdfMarkup()
+
     /** Sticky note. [anchor] is the content-space top-left of the icon. */
     data class NoteMarkup(
         val id: Long,
@@ -152,8 +174,27 @@ internal sealed class PdfMarkup {
             val r = Rect(anchor.x - 8f, anchor.y - 8f, anchor.x + 40f, anchor.y + 40f)
             r.contains(p)
         }
+        is TextEditMarkup -> rect.inflate(8f).contains(p)
     }
 }
+
+/** The paint an in-place text edit previews with: the line's real size and closest typeface. */
+internal fun PdfMarkup.TextEditMarkup.previewPaint(): android.graphics.Paint =
+    android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = fontSize
+        val family = when {
+            mono -> android.graphics.Typeface.MONOSPACE
+            serif -> android.graphics.Typeface.SERIF
+            else -> android.graphics.Typeface.SANS_SERIF
+        }
+        val style = when {
+            bold && italic -> android.graphics.Typeface.BOLD_ITALIC
+            bold -> android.graphics.Typeface.BOLD
+            italic -> android.graphics.Typeface.ITALIC
+            else -> android.graphics.Typeface.NORMAL
+        }
+        typeface = android.graphics.Typeface.create(family, style)
+    }
 
 /** Recolourable free-form shapes (as opposed to images / OCR-anchored / text markups). */
 internal fun PdfMarkup.isShape(): Boolean = this is PdfMarkup.StrokeMarkup ||
@@ -688,6 +729,20 @@ internal fun buildExportOverlays(
                         )
                     }
                 }
+                is PdfMarkup.TextEditMarkup -> {
+                    if (markup.text != markup.original) {
+                        list.add(
+                            ExportOverlay.TextReplace(
+                                left = markup.rect.left / frame.width.coerceAtLeast(1f),
+                                top = markup.rect.top / frame.height.coerceAtLeast(1f),
+                                right = markup.rect.right / frame.width.coerceAtLeast(1f),
+                                bottom = markup.rect.bottom / frame.height.coerceAtLeast(1f),
+                                text = markup.text,
+                                backgroundArgb = markup.background.toArgb()
+                            )
+                        )
+                    }
+                }
                 is PdfMarkup.NoteMarkup -> {
                     list.add(
                         ExportOverlay.NoteStamp(
@@ -719,4 +774,64 @@ internal fun recolorSignatureBitmap(source: Bitmap, colorArgb: Int): Bitmap {
     }
     result.setPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
     return result
+}
+
+/** What the in-place text editor is editing: a line of [page]'s own text, maybe already edited. */
+internal data class TextEditTarget(
+    val page: Int,
+    val block: com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock?,
+    val markupId: Long?
+)
+
+/**
+ * A new in-place edit of [block] (a digital-text line with [style]) at the page's current canvas
+ * size, with [text] as its replacement. The cover colour for the on-screen preview is sampled from
+ * the rendered page around the line, so coloured paper or a tinted table cell stays coloured.
+ */
+internal fun textEditMarkupFor(
+    block: com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock,
+    style: com.kyant.pdfcore.text.PdfTextStyle,
+    canvas: androidx.compose.ui.geometry.Size,
+    bitmap: Bitmap?,
+    text: String
+): PdfMarkup.TextEditMarkup {
+    val w = canvas.width
+    val h = canvas.height
+    return PdfMarkup.TextEditMarkup(
+        id = System.nanoTime(),
+        blockId = block.id,
+        rect = Rect(block.left * w, block.top * h, block.right * w, block.bottom * h),
+        baseline = style.baselineNorm * h,
+        fontSize = style.emNorm * h,
+        original = block.text,
+        text = text,
+        color = Color(0xFF000000.toInt() or (style.rgb and 0xFFFFFF)),
+        background = samplePaper(bitmap, block),
+        bold = style.bold,
+        italic = style.italic,
+        serif = style.serif,
+        mono = style.mono
+    )
+}
+
+/** The colour most samples just outside the line agree on — the paper behind it. */
+private fun samplePaper(bitmap: Bitmap?, b: com.chethan616.clearpdf.ui.viewmodel.OcrTextBlock): Color {
+    if (bitmap == null || bitmap.isRecycled || bitmap.width <= 0 || bitmap.height <= 0) return Color.White
+    val bw = bitmap.width
+    val bh = bitmap.height
+    val dx = 0.006f
+    val dy = 0.004f
+    val cx = (b.left + b.right) / 2f
+    val points = listOf(
+        b.left - dx to b.top, b.left - dx to b.bottom, b.right + dx to b.top, b.right + dx to b.bottom,
+        cx to b.top - dy, cx to b.bottom + dy, b.left to b.top - dy, b.right to b.bottom + dy
+    )
+    val samples = points.mapNotNull { (x, y) ->
+        val px = (x * bw).toInt()
+        val py = (y * bh).toInt()
+        if (px in 0 until bw && py in 0 until bh) runCatching { bitmap.getPixel(px, py) }.getOrNull() else null
+    }
+    if (samples.isEmpty()) return Color.White
+    val paper = samples.groupBy { it and 0xF0F0F0 }.maxByOrNull { it.value.size }!!.value.first()
+    return Color(paper or 0xFF000000.toInt())
 }

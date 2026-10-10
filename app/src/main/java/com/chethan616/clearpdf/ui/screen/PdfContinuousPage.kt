@@ -298,6 +298,22 @@ internal fun PdfContinuousPage(
                             cap = StrokeCap.Round
                         )
                     }
+                    is PdfMarkup.TextEditMarkup -> {
+                        // Preview of an in-place edit: the old line hidden under the page's own
+                        // paper colour, the new text in the line's size, baseline and closest face.
+                        // Dark reader inverts the page, so the preview inverts with it.
+                        fun c(x: Color) = if (darkPageAppearance) Color(1f - x.red, 1f - x.green, 1f - x.blue, x.alpha) else x
+                        val pad = markup.fontSize * 0.08f
+                        drawRect(
+                            c(markup.background),
+                            Offset(markup.rect.left - pad, markup.rect.top - pad),
+                            Size(markup.rect.width + pad * 2f, markup.rect.height + pad * 2f)
+                        )
+                        drawIntoCanvas { cv ->
+                            val p = markup.previewPaint().apply { color = c(markup.color).toArgb() }
+                            cv.nativeCanvas.drawText(markup.text, markup.rect.left, markup.baseline, p)
+                        }
+                    }
                     is PdfMarkup.ImageMarkup -> {
                         val r = Rect(min(markup.start.x, markup.end.x), min(markup.start.y, markup.end.y), max(markup.start.x, markup.end.x), max(markup.start.y, markup.end.y))
                         if (!markup.bitmap.isRecycled && markup.bitmap.width > 0) runCatching {
@@ -513,7 +529,8 @@ internal fun PdfContinuousPage(
                                 is PdfMarkup.LineMarkup,
                                 is PdfMarkup.StrokeMarkup,
                                 is PdfMarkup.TextBlockHighlightMarkup,
-                                is PdfMarkup.TextBlockLineMarkup -> onSelectMarkup(idx)
+                                is PdfMarkup.TextBlockLineMarkup,
+                                is PdfMarkup.TextEditMarkup -> onSelectMarkup(idx)
                                 else -> Unit
                             }
                             onShowControls()
@@ -767,6 +784,20 @@ internal fun PdfContinuousPage(
                         onDismiss = { onSelectMarkup(-1) }
                     )
                 }
+            }
+
+            // An edited line of the page's own text: Edit reopens the editor, Delete restores the
+            // original line.
+            (marks.getOrNull(selectedMarkupIndex) as? PdfMarkup.TextEditMarkup)?.let { te ->
+                PublishMarkupBar(
+                    host = markupBar,
+                    page = page,
+                    token = selectedMarkupIndex,
+                    anchor = te.rect,
+                    onEdit = { onEditAnnotation(te.id) },
+                    onDelete = { onDeleteMarkup(selectedMarkupIndex) },
+                    onDismiss = { onSelectMarkup(-1) }
+                )
             }
 
             // Text highlights, underlines, and strike-throughs are precise OCR ranges, not
