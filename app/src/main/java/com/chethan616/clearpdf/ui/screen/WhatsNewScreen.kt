@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.CheckBox
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.TableChart
@@ -56,6 +57,7 @@ private class WhatsNewItem(val icon: ImageVector, val accent: Color, val title: 
 
 private val WhatsNewItems = listOf(
     WhatsNewItem(Icons.Rounded.EditNote, LiquidGlassColors.Blue, R.string.whats_new_edit_title, R.string.whats_new_edit_desc),
+    WhatsNewItem(Icons.Rounded.CheckBox, LiquidGlassColors.Indigo, R.string.whats_new_forms_title, R.string.whats_new_forms_desc),
     WhatsNewItem(Icons.Rounded.AutoAwesome, LiquidGlassColors.Teal, R.string.whats_new_glass_title, R.string.whats_new_glass_desc),
     WhatsNewItem(Icons.Rounded.IosShare, LiquidGlassColors.Green, R.string.whats_new_share_title, R.string.whats_new_share_desc),
     WhatsNewItem(Icons.Rounded.Vibration, LiquidGlassColors.Purple, R.string.whats_new_feel_title, R.string.whats_new_feel_desc),

@@ -130,16 +130,28 @@ sealed class ExportOverlay {
 
     /**
      * An in-place edit of the page's own text: the glyphs inside the normalized box are removed
-     * from the content stream and [text] is drawn in their font (see PdfTextEditor).
+     * from the content stream and [text] is drawn in their font (see PdfTextEditor). The line box
+     * lets a partial edit move the rest of its line by the change in width.
      */
+    /** A value typed or picked into the PDF's own form field, written into the form on save. */
+    data class FormValue(val fieldName: String, val value: String) : ExportOverlay()
+
     data class TextReplace(
         val left: Float,
         val top: Float,
         val right: Float,
         val bottom: Float,
         val text: String,
-        val backgroundArgb: Int
-    ) : ExportOverlay()
+        val backgroundArgb: Int,
+        val lineLeft: Float = left,
+        val lineTop: Float = top,
+        val lineRight: Float = right,
+        val lineBottom: Float = bottom
+    ) : ExportOverlay() {
+        fun toPdfTextEdit() = com.kyant.pdfcore.text.PdfTextEdit(
+            left, top, right, bottom, text, backgroundArgb, lineLeft, lineTop, lineRight, lineBottom
+        )
+    }
 
     /** A real PDF sticky-note annotation anchored at [position] (top-left of icon). */
     data class NoteStamp(
@@ -170,6 +182,8 @@ data class PdfViewerUiState(
     val originalUri: Uri? = null,
     val sizeBytes: Long = -1,
     val ocrBlocksByPage: Map<Int, List<OcrTextBlock>> = emptyMap(),
+    /** The PDF's fillable form boxes, by page — filled in place in Edit mode (#68). */
+    val formWidgetsByPage: Map<Int, List<com.kyant.pdfcore.form.PdfFormWidget>> = emptyMap(),
     val ocrPagesInProgress: Set<Int> = emptySet(),
     val isExporting: Boolean = false,
     val exportMessage: String? = null,
@@ -318,6 +332,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     sizeBytes = doc.sizeBytes,
                     pageBitmaps = List(doc.pageCount) { if (it == resumePage) firstPaint else null },
                     ocrBlocksByPage = emptyMap(),
+                    formWidgetsByPage = emptyMap(),
                     ocrPagesInProgress = emptySet(),
                     isExporting = false,
                     exportMessage = null,
@@ -326,6 +341,16 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     showOfficeEngineHint = com.chethan616.clearpdf.office.OfficeEngine.shouldOfferHint(context, displayName),
                     renderedByOfficeEngine = renderedUri.path?.contains("/office-pdf/") == true
                 )
+                // Fillable fields, read off the main thread; most PDFs have none and stay empty.
+                val formDocUri = doc.uri
+                viewModelScope.launch {
+                    val widgets = withContext(Dispatchers.IO) {
+                        runCatching { com.kyant.pdfcore.form.PdfFormWidgets.read(context, formDocUri) }.getOrDefault(emptyMap())
+                    }
+                    if (widgets.isNotEmpty() && _uiState.value.document?.uri == formDocUri) {
+                        _uiState.value = _uiState.value.copy(formWidgetsByPage = widgets)
+                    }
+                }
                 // The ORIGINAL uri, deliberately — not `openedUri`.
                 //
                 // `openedUri` is whatever we ended up rendering: for a plain PDF that is the same
@@ -782,6 +807,11 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
             ?: throw IllegalStateException("Cannot open source PDF")
 
         com.tom_roush.pdfbox.pdmodel.PDDocument.load(inputStream).use { pdDoc ->
+            // Form values first: the fields regenerate their own appearances in the form's fonts,
+            // and any markup is then drawn above them.
+            val formValues = overlaysByPage.values.flatten().filterIsInstance<ExportOverlay.FormValue>()
+                .associate { it.fieldName to it.value }
+            if (formValues.isNotEmpty()) runCatching { com.kyant.pdfcore.form.PdfFormWidgets.apply(pdDoc, formValues) }
             overlaysByPage.forEach { (pageIdx, overlays) ->
                 if (pageIdx !in 0 until pdDoc.numberOfPages) return@forEach
                 val page = pdDoc.getPage(pageIdx)
@@ -790,9 +820,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
 
                 // Real text edits first: they rewrite the page's own content stream, and every
                 // other overlay is then drawn above the edited text.
-                val textEdits = overlays.filterIsInstance<ExportOverlay.TextReplace>().map {
-                    com.kyant.pdfcore.text.PdfTextEdit(it.left, it.top, it.right, it.bottom, it.text, it.backgroundArgb)
-                }
+                val textEdits = overlays.filterIsInstance<ExportOverlay.TextReplace>().map { it.toPdfTextEdit() }
                 if (textEdits.isNotEmpty()) {
                     runCatching { com.kyant.pdfcore.text.PdfTextEditor.applyEdits(pdDoc, pageIdx, textEdits) }
                 }
@@ -969,8 +997,9 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     cs.endText()
                 }
 
-                // Already applied to the content stream before this pass.
+                // Already applied to the content stream / form before this pass.
                 is ExportOverlay.TextReplace -> Unit
+                is ExportOverlay.FormValue -> Unit
 
                 is ExportOverlay.NoteStamp -> {
                     // A real, clickable PDF sticky-note annotation.

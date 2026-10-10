@@ -312,6 +312,7 @@ internal fun AnnotationEditorDialog(
 internal fun TextEditDialog(
     initialText: String,
     original: String,
+    selectionOnly: Boolean = false,
     backdrop: LayerBackdrop,
     canRevert: Boolean,
     onDismiss: () -> Unit,
@@ -333,13 +334,18 @@ internal fun TextEditDialog(
             GlassDialogAction(stringResource(R.string.viewer_done), { onSave(text) }, primary = true)
         }
     ) {
-        BasicText(stringResource(R.string.text_edit_hint), style = TextStyle(glassDialogInkSoft(), 12.sp, lineHeight = 16.sp))
+        BasicText(
+            stringResource(if (selectionOnly) R.string.text_edit_hint_selection else R.string.text_edit_hint),
+            style = TextStyle(glassDialogInkSoft(), 12.sp, lineHeight = 16.sp)
+        )
         Spacer(Modifier.height(10.dp))
+        // Wraps instead of scrolling sideways, so a long line is readable and editable in full;
+        // capped so the dialog never outgrows the screen (then it scrolls vertically).
         GlassDialogField(
             value = text,
             onValueChange = { text = it.replace('\n', ' ') },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
+            modifier = Modifier.fillMaxWidth().heightIn(max = 168.dp),
+            singleLine = false,
             focusRequester = focus,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { onSave(text) })

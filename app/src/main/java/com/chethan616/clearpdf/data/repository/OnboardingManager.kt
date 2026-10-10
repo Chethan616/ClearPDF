@@ -23,6 +23,7 @@ object OnboardingManager {
     private const val KEY_EDIT_TEXT_TOUR_SEEN = "edit_text_tour_seen"
     private const val KEY_RECENTS_MENU_TOUR_SEEN = "recents_menu_tour_seen"
     private const val KEY_GLASS_SETTINGS_TOUR_SEEN = "glass_settings_tour_seen"
+    private const val KEY_FORM_FILL_TOUR_SEEN = "form_fill_tour_seen"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -79,6 +80,9 @@ object OnboardingManager {
 
     fun hasSeenGlassSettingsTour(context: Context): Boolean = prefs(context).getBoolean(KEY_GLASS_SETTINGS_TOUR_SEEN, false)
     fun markGlassSettingsTourSeen(context: Context) = prefs(context).edit().putBoolean(KEY_GLASS_SETTINGS_TOUR_SEEN, true).apply()
+
+    fun hasSeenFormFillTour(context: Context): Boolean = prefs(context).getBoolean(KEY_FORM_FILL_TOUR_SEEN, false)
+    fun markFormFillTourSeen(context: Context) = prefs(context).edit().putBoolean(KEY_FORM_FILL_TOUR_SEEN, true).apply()
 
     fun resetOnboarding(context: Context) =
         prefs(context).edit()

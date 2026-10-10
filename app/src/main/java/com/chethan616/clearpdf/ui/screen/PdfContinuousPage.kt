@@ -126,6 +126,19 @@ internal fun PdfContinuousPage(
     bitmap: Bitmap?,
     darkPageAppearance: Boolean = false,
     marks: MutableList<PdfMarkup>,
+    /** Exact renders of this page's in-place text edits, by markup id (see PdfTextEditPreview). */
+    textEditPatches: Map<Long, TextEditPatch> = emptyMap(),
+    /**
+     * The PDF's own fillable boxes on this page (#68) and the values filled so far, by field name.
+     * In Edit mode ([formEditing]) the boxes are outlined and a tap fills them in place.
+     */
+    formWidgets: List<com.kyant.pdfcore.form.PdfFormWidget> = emptyList(),
+    formValues: Map<String, String> = emptyMap(),
+    formEditing: Boolean = false,
+    focusedFormKey: String? = null,
+    onTapFormWidget: (com.kyant.pdfcore.form.PdfFormWidget) -> Unit = {},
+    onFormTextChange: (com.kyant.pdfcore.form.PdfFormWidget, String) -> Unit = { _, _ -> },
+    onFormImeNext: (com.kyant.pdfcore.form.PdfFormWidget) -> Unit = {},
     ocrBlocks: List<OcrTextBlock>,
     findMatches: List<FindMatch>,
     currentMatchIndex: Int,
@@ -170,6 +183,9 @@ internal fun PdfContinuousPage(
     val latestSelectedMarkupIndex by rememberUpdatedState(selectedMarkupIndex)
     val latestSelectedMarkupIndices by rememberUpdatedState(selectedMarkupIndices)
     val latestOcrBlocks by rememberUpdatedState(ocrBlocks)
+    val latestFormWidgets by rememberUpdatedState(formWidgets)
+    val latestFormEditing by rememberUpdatedState(formEditing)
+    val latestOnTapFormWidget by rememberUpdatedState(onTapFormWidget)
     DisposableEffect(page, textSelection) { onDispose { textSelection.unregisterPage(page, null) } }
     // Accessibility: expose the page's extracted text to TalkBack, plus a "select page text" action.
     val selectPageLabel = stringResource(R.string.selection_select_page_text)
@@ -255,6 +271,31 @@ internal fun PdfContinuousPage(
         Canvas(Modifier.matchParentSize()) {
             val frame = Rect(0f, 0f, size.width, size.height)
 
+            // Edited lines first, so highlights and other markups still draw on top: the band of
+            // the page around each edit, rendered from the edited PDF itself.
+            marks.forEach { m ->
+                if (m !is PdfMarkup.TextEditMarkup) return@forEach
+                val patch = textEditPatches[m.id]?.takeIf { it.text == m.text && !it.bitmap.isRecycled } ?: return@forEach
+                val b = patch.band
+                val left = (b.left * size.width).roundToInt()
+                val top = (b.top * size.height).roundToInt()
+                drawImage(
+                    image = patch.bitmap.asImageBitmap(),
+                    srcOffset = IntOffset.Zero,
+                    srcSize = androidx.compose.ui.unit.IntSize(patch.bitmap.width, patch.bitmap.height),
+                    dstOffset = IntOffset(left, top),
+                    dstSize = androidx.compose.ui.unit.IntSize(
+                        ((b.right * size.width).roundToInt() - left).coerceAtLeast(1),
+                        ((b.bottom * size.height).roundToInt() - top).coerceAtLeast(1)
+                    ),
+                    filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
+                    colorFilter = if (darkPageAppearance) InvertColorFilter else null
+                )
+            }
+
+            // The PDF's own form boxes: filled values in place, and the Edit-mode outline.
+            if (formWidgets.isNotEmpty()) drawFormWidgets(formWidgets, formValues, formEditing, focusedFormKey, darkPageAppearance)
+
             // Text selection highlight — the platform selection colour, one band per line fragment.
             // Drawn inside the zoom layer so it scales with the page, exactly like the glyphs.
             textSelection.pageRange(page)?.let { (from, to) ->
@@ -298,8 +339,10 @@ internal fun PdfContinuousPage(
                             cap = StrokeCap.Round
                         )
                     }
-                    is PdfMarkup.TextEditMarkup -> {
-                        // Preview of an in-place edit: the old line hidden under the page's own
+                    // Drawn inside its form box by drawFormWidgets.
+                    is PdfMarkup.FormValueMarkup -> Unit
+                    is PdfMarkup.TextEditMarkup -> if (textEditPatches[markup.id]?.text != markup.text) {
+                        // Quick preview until the exact render lands: the old line hidden under the page's own
                         // paper colour, the new text in the line's size, baseline and closest face.
                         // Dark reader inverts the page, so the preview inverts with it.
                         fun c(x: Color) = if (darkPageAppearance) Color(1f - x.red, 1f - x.green, 1f - x.blue, x.alpha) else x
@@ -508,6 +551,26 @@ internal fun PdfContinuousPage(
                     val sel = marks.getOrNull(currentSelected)?.takeIf { it.isTransformable() }
                     val selBounds = sel?.movableBounds()
                     if (selBounds != null && selBounds.inflate(30f).contains(down.position)) return@awaitEachGesture
+
+                    // Edit mode: a tap on one of the PDF's own form boxes fills it (#68).
+                    if (latestFormEditing && latestFormWidgets.isNotEmpty()) {
+                        val nx = down.position.x / size.width.toFloat()
+                        val ny = down.position.y / size.height.toFloat()
+                        val slop = 6f / size.width.toFloat()
+                        val box = latestFormWidgets.lastOrNull { w ->
+                            !w.readOnly && nx >= w.left - slop && nx <= w.right + slop && ny >= w.top - slop && ny <= w.bottom + slop
+                        }
+                        if (box != null) {
+                            val up = waitForUpOrCancellation()
+                            if (up != null) {
+                                up.consume()
+                                latestOnTapFormWidget(box)
+                                onShowControls()
+                                onInteraction()
+                            }
+                            return@awaitEachGesture
+                        }
+                    }
 
                     val frame = Rect(0f, 0f, size.width.toFloat(), size.height.toFloat())
                     val idx = marks.indexOfLast { it.hitTest(down.position, currentBlocks, frame) }
@@ -783,6 +846,22 @@ internal fun PdfContinuousPage(
                         onDelete = { onDeleteMarkup(selectedMarkupIndex) },
                         onDismiss = { onSelectMarkup(-1) }
                     )
+                }
+            }
+
+            // Typing into the PDF's own text field, right where it is printed (#68).
+            if (focusedFormKey != null) {
+                formWidgets.firstOrNull { it.key == focusedFormKey && it.type == com.kyant.pdfcore.form.PdfFormWidget.Type.TEXT }?.let { w ->
+                    pageCanvasSizes[page]?.takeIf { it.width > 0f && it.height > 0f }?.let { canvas ->
+                        PdfFormInlineEditor(
+                            widget = w,
+                            value = formValues[w.fieldName] ?: w.value,
+                            canvas = canvas,
+                            dark = darkPageAppearance,
+                            onValueChange = { onFormTextChange(w, it) },
+                            onImeNext = { onFormImeNext(w) }
+                        )
+                    }
                 }
             }
 
