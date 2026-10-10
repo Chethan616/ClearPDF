@@ -276,7 +276,7 @@ fun SettingsScreen(
                         SettingsNavRow(Icons.Rounded.Wallpaper, LiquidGlassColors.Indigo, stringResource(R.string.settings_personalization), null, ink, sub) { page = PagePersonal }
                     }
                     com.chethan616.clearpdf.ui.components.GlassGuideCallout(
-                        visible = showGlassTour && !com.chethan616.clearpdf.ui.components.WhatsNewGate.showing,
+                        visible = showGlassTour,
                         title = stringResource(R.string.tour_glass_title),
                         message = stringResource(R.string.tour_glass_message),
                         backdrop = backdrop,

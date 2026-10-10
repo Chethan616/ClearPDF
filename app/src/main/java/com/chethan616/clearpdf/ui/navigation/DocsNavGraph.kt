@@ -31,6 +31,7 @@ import com.chethan616.clearpdf.ui.screen.ImagesToPdfScreen
 import com.chethan616.clearpdf.ui.screen.HomeScreen
 import com.chethan616.clearpdf.ui.screen.MergePdfScreen
 import com.chethan616.clearpdf.ui.screen.OnboardingScreen
+import com.chethan616.clearpdf.ui.screen.WhatsNewScreen
 import com.chethan616.clearpdf.ui.screen.SpreadsheetViewerScreen
 import com.chethan616.clearpdf.ui.screen.ImageEditorScreen
 import com.chethan616.clearpdf.ui.viewmodel.SpreadsheetViewModel
@@ -73,6 +74,8 @@ import com.chethan616.clearpdf.ui.utils.DocumentOpenOrigin
 
 /** Public so `DocsApp` can pick it as the start destination on a first run. */
 const val ROUTE_ONBOARDING = "onboarding"
+/** Public so `DocsApp` can open on it once after an update. */
+const val ROUTE_WHATS_NEW = "whats_new"
 
 private const val ROUTE_HOME = "home"
 private const val ROUTE_TOOLS = "tools"
@@ -356,6 +359,22 @@ fun DocsNavGraph(
                             popUpTo(ROUTE_ONBOARDING) { inclusive = true }
                             launchSingleTop = true
                         }
+                    }
+                }
+            )
+        }
+
+        // ── Once per update ──
+
+        composable(ROUTE_WHATS_NEW) {
+            val whatsNewContext = LocalContext.current
+            WhatsNewScreen(
+                backdrop = backdrop,
+                onContinue = {
+                    com.chethan616.clearpdf.data.repository.OnboardingManager.markWhatsNewSeen(whatsNewContext)
+                    navController.navigate(ROUTE_HOME) {
+                        popUpTo(ROUTE_WHATS_NEW) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             )
