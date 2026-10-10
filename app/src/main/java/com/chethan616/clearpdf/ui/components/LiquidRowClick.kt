@@ -1,12 +1,9 @@
 package com.chethan616.clearpdf.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,11 +28,10 @@ fun Modifier.liquidRowClick(
     onClick: () -> Unit
 ): Modifier {
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
     val haptics = LocalHapticFeedback.current
-    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, GlassMotion.press(), label = "rowPress")
+    val jelly = rememberJellyPress(interaction, pressedScale = 0.97f)
     return this
-        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .graphicsLayer { scaleX = jelly.scale; scaleY = jelly.scale }
         .clip(RoundedCornerShape(corner))
         .liquidPressGlow(interaction, onLight = !LocalIsDarkMode.current)
         .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button) {

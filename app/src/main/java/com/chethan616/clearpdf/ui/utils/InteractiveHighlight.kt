@@ -2,6 +2,7 @@ package com.chethan616.clearpdf.ui.utils
 
 import android.graphics.RuntimeShader
 import android.os.Build
+import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.VisibilityThreshold
@@ -15,11 +16,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastCoerceAtMost
 import androidx.compose.ui.util.fastCoerceIn
+import androidx.compose.ui.util.lerp
+import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.tanh
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+private const val MinPressMillis = 90L
+// Initial velocities for [InteractiveHighlight.wobble]'s spring: 34 peaks near 1, 10 near 0.3.
+private const val WobbleKick = 34f
+private const val PressKick = 10f
 
 class InteractiveHighlight(
     val animationScope: CoroutineScope,
@@ -33,8 +48,12 @@ class InteractiveHighlight(
     private val longPressExpand: Boolean = false,
     private val onLongPressExpand: (() -> Unit)? = null
 ) {
-    private val pressProgressAnimationSpec = spring(0.5f, 300f, 0.001f)
-    private val positionAnimationSpec = spring(0.5f, 300f, Offset.VisibilityThreshold)
+    // iOS 27 press: the swell lands fast with a small overshoot, the release springs back past rest
+    // once, and [wobble] adds one out-of-phase squash on top (see liquidPressTransform).
+    private val pressInSpec = spring(0.66f, 620f, 0.001f)
+    private val pressOutSpec = spring(0.5f, 380f, 0.001f)
+    private val positionAnimationSpec = spring(0.52f, 360f, Offset.VisibilityThreshold)
+    private val wobbleSpec = spring(0.42f, 420f, 0.001f)
     // Bloom in on a soft, slightly slower spring; let go on a livelier one that undershoots rest
     // a touch before settling — the "boing" that makes the release feel physical.
     private val expandInSpec = spring(dampingRatio = 0.52f, stiffness = 340f, visibilityThreshold = 0.001f)
@@ -43,14 +62,19 @@ class InteractiveHighlight(
     private val pressProgressAnimation = Animatable(0f, 0.001f)
     private val positionAnimation = Animatable(Offset.Zero, Offset.VectorConverter, Offset.VisibilityThreshold)
     private val expandAnimation = Animatable(0f, 0.001f)
+    private val wobbleAnimation = Animatable(0f, 0.001f)
 
     private var startPosition = Offset.Zero
     private var positionUpdateJob: Job? = null
     private var longPressJob: Job? = null
+    private var releaseJob: Job? = null
+    private var downAt = 0L
     val pressProgress: Float get() = pressProgressAnimation.value
     val offset: Offset get() = positionAnimation.value - startPosition
     /** 0 at rest, 1 once a long-press has bloomed; briefly dips below 0 on the release bounce. */
     val expandProgress: Float get() = expandAnimation.value
+    /** Release jiggle, peaking near ±1 and decaying in ~400 ms. Positive = wider and shorter. */
+    val wobble: Float get() = wobbleAnimation.value
 
     // Built on first press, not at construction. Every LiquidButton / LiquidIconButton / glass card
     // owns one of these, and `RuntimeShader(...)` compiles its AGSL on the calling thread — so a
@@ -107,8 +131,14 @@ half4 main(float2 coord) {
     private fun release() {
         positionUpdateJob?.cancel()
         longPressJob?.cancel()
-        animationScope.launch {
-            launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
+        releaseJob?.cancel()
+        releaseJob = animationScope.launch {
+            // A quick tap still shows the whole swell before it lets go.
+            val held = SystemClock.uptimeMillis() - downAt
+            if (held < MinPressMillis) delay(MinPressMillis - held)
+            val kick = WobbleKick * pressProgressAnimation.value.fastCoerceIn(0f, 1.1f)
+            launch { wobbleAnimation.animateTo(0f, wobbleSpec, initialVelocity = kick) }
+            launch { pressProgressAnimation.animateTo(0f, pressOutSpec) }
             launch { positionAnimation.animateTo(startPosition, positionAnimationSpec) }
             if (expandAnimation.value != 0f || expandAnimation.targetValue != 0f) {
                 launch { expandAnimation.animateTo(0f, expandOutSpec) }
@@ -123,11 +153,15 @@ half4 main(float2 coord) {
             inspectDragGestures(
                 onDragStart = { down ->
                     startPosition = down.position
+                    downAt = SystemClock.uptimeMillis()
                     positionUpdateJob?.cancel()
                     longPressJob?.cancel()
+                    releaseJob?.cancel()
                     animationScope.launch {
-                        launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
+                        launch { pressProgressAnimation.animateTo(1f, pressInSpec) }
                         launch { positionAnimation.snapTo(startPosition) }
+                        // A small taller-first nudge as the glass swells under the finger.
+                        launch { wobbleAnimation.animateTo(0f, wobbleSpec, initialVelocity = -PressKick) }
                     }
                     if (longPressExpand) {
                         // Same timeout the platform uses for long-click, so a button that also has an
@@ -156,4 +190,37 @@ half4 main(float2 coord) {
                 }
             }
         }
+}
+
+/**
+ * The Liquid Glass press transform shared by LiquidButton and LiquidIconButton (call it from
+ * `drawBackdrop`'s `layerBlock`): swells ~4 dp under the finger, leans and stretches toward a
+ * dragging finger, blooms on long-press (≤ ~14 dp, ≤ 12 %), and jiggles once on release with X and
+ * Y squashing out of phase (~2.5 dp at the first swing, capped for tiny controls).
+ */
+fun GraphicsLayerScope.liquidPressTransform(h: InteractiveHighlight) {
+    val width = size.width
+    val height = size.height
+
+    val progress = h.pressProgress
+    val bloom = h.expandProgress * (14f.dp.toPx() / size.maxDimension).fastCoerceAtMost(0.12f)
+    val scale = lerp(1f, 1f + 4f.dp.toPx() / height, progress) + bloom
+
+    val maxOffset = size.minDimension
+    val initialDerivative = 0.05f
+    val offset = h.offset
+    translationX = maxOffset * tanh(initialDerivative * offset.x / maxOffset)
+    translationY = maxOffset * tanh(initialDerivative * offset.y / maxOffset)
+
+    val maxDragScale = 4f.dp.toPx() / height
+    val offsetAngle = atan2(offset.y, offset.x)
+    val w = h.wobble
+    val wobbleX = w * (2.5f.dp.toPx() / width).fastCoerceAtMost(0.045f)
+    val wobbleY = w * (2.5f.dp.toPx() / height).fastCoerceAtMost(0.045f)
+    scaleX = scale +
+        maxDragScale * abs(cos(offsetAngle) * offset.x / size.maxDimension) * (width / height).fastCoerceAtMost(1f) +
+        wobbleX
+    scaleY = scale +
+        maxDragScale * abs(sin(offsetAngle) * offset.y / size.maxDimension) * (height / width).fastCoerceAtMost(1f) -
+        wobbleY
 }

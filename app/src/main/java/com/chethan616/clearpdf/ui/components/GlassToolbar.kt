@@ -1,12 +1,11 @@
 package com.chethan616.clearpdf.ui.components
 
+import androidx.compose.runtime.getValue
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,8 +49,6 @@ import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
-import com.kyant.backdrop.shadow.InnerShadow
-import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
 
 /**
@@ -137,12 +133,7 @@ fun GlassToolButton(
     val isDark = LocalIsDarkMode.current
     val haptics = LocalHapticFeedback.current
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        if (pressed) GlassMotion.PressedScale else 1f,
-        GlassMotion.press(),
-        label = "toolPress"
-    )
+    val jelly = rememberJellyPress(interaction)
     val fg by animateColorAsState(
         if (selected) accent else LiquidGlassColors.text(isDark),
         GlassMotion.settle(),
@@ -156,8 +147,8 @@ fun GlassToolButton(
     Column(
         modifier
             .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
+                scaleX = jelly.scale
+                scaleY = jelly.scale
                 alpha = if (enabled) 1f else 0.38f
             }
             .defaultMinSize(minWidth = 52.dp, minHeight = 48.dp)

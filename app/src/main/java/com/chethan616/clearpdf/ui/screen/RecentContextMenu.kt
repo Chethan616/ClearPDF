@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.screen
 
+import com.chethan616.clearpdf.ui.components.rememberJellyPress
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -118,18 +119,22 @@ internal fun RecentContextMenu(
     actions: List<RecentMenuAction>,
     onDismiss: () -> Unit
 ) {
+    // Unfolds from the pressed row like iOS 27: width on [GlassMotion.unfold], height a beat behind
+    // on the softer [GlassMotion.unfoldLag], so it lands as one gel-like overshoot. Folds back fast.
     val progress = remember { Animatable(0f) }
+    val stretch = remember { Animatable(0f) }
     val fade = remember { Animatable(0f) }
     LaunchedEffect(visible) {
         val target = if (visible) 1f else 0f
         coroutineScope {
             launch { fade.animateTo(target, GlassMotion.fade()) }
-            progress.animateTo(target, if (visible) GlassMotion.morph() else GlassMotion.settle())
+            launch { stretch.animateTo(target, if (visible) GlassMotion.unfoldLag() else GlassMotion.settle()) }
+            progress.animateTo(target, if (visible) GlassMotion.unfold() else GlassMotion.settle())
         }
     }
     BackHandler(enabled = visible, onBack = onDismiss)
     // derivedStateOf: composition only hears about the 0 crossing, not every animation frame.
-    val gone by remember { androidx.compose.runtime.derivedStateOf { fade.value <= 0.001f && progress.value <= 0.001f } }
+    val gone by remember { androidx.compose.runtime.derivedStateOf { fade.value <= 0.001f && progress.value <= 0.001f && stretch.value <= 0.001f } }
     if (!visible && gone) return
 
     val isDark = LocalIsDarkMode.current
@@ -202,9 +207,8 @@ internal fun RecentContextMenu(
             val pivotX = ((a.center.x - x) / panelW).coerceIn(0f, 1f)
             val pivotY = if (placeBelow) 0f else 1f
             panel.placeWithLayer(x.roundToInt(), y.roundToInt()) {
-                val p = progress.value
-                val s = lerp(0.6f, 1f, p)
-                scaleX = s; scaleY = s
+                scaleX = lerp(0.6f, 1f, progress.value)
+                scaleY = lerp(0.5f, 1f, stretch.value)
                 alpha = fade.value
                 transformOrigin = TransformOrigin(pivotX, pivotY)
             }
@@ -308,7 +312,7 @@ private fun MenuRow(action: RecentMenuAction, fg: Color, enter: () -> Float) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     var armed by remember { mutableStateOf(false) }
-    val press by animateFloatAsState(if (pressed) 0.97f else 1f, GlassMotion.press(), label = "recentMenuPress")
+    val jelly = rememberJellyPress(interaction, pressedScale = 0.97f)
     val wash by animateFloatAsState(
         when {
             armed -> 1f
@@ -327,7 +331,7 @@ private fun MenuRow(action: RecentMenuAction, fg: Color, enter: () -> Float) {
                 val e = enter()
                 alpha = e
                 translationY = (1f - e) * 10.dp.toPx()
-                scaleX = press; scaleY = press
+                scaleX = jelly.scale; scaleY = jelly.scale
             }
             .drawBehind {
                 if (wash > 0f) {

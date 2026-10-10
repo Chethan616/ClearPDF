@@ -1062,11 +1062,7 @@ private fun MarkupBarItem(
 ) {
     val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val press by androidx.compose.animation.core.animateFloatAsState(
-        if (pressed) com.chethan616.clearpdf.ui.components.GlassMotion.PressedScale else 1f,
-        com.chethan616.clearpdf.ui.components.GlassMotion.press(),
-        label = "markupItemPress"
-    )
+    val jelly = com.chethan616.clearpdf.ui.components.rememberJellyPress(interaction)
     // A soft tinted well under the finger, like the selection toolbar's items.
     val wash by androidx.compose.animation.core.animateFloatAsState(
         if (pressed) 0.12f else 0f,
@@ -1080,7 +1076,7 @@ private fun MarkupBarItem(
             // Draw-time only: sliding a finger across squashes the pill along the drag, like a drop
             // of the glass it sits on.
             .liquidStretchOnDrag(stretchFactor = 0.18f, minScale = 0.88f, maxScale = 1.12f)
-            .graphicsLayer { scaleX = press; scaleY = press }
+            .graphicsLayer { scaleX = jelly.scale; scaleY = jelly.scale }
             .clip(com.kyant.shapes.Capsule)
             .drawBehind { if (wash > 0f) drawRect(color.copy(alpha = wash)) }
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
