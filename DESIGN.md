@@ -87,8 +87,22 @@ Use the shared springs in `GlassMotion` (or springs close to them):
 |---|---|
 | `GlassMotion.morph()` (0.58, 420) | Things that spring open: capsules, chevrons, thumbs |
 | `GlassMotion.pop()` (0.45, 500) | Small things landing (icons, beads, toasts) |
-| `GlassMotion.press()` (0.42, Medium) | Press down and back |
+| `GlassMotion.press()` (0.5, 700) | Value-driven press (prefer `rememberJellyPress`) |
+| `GlassMotion.pressIn()` / `pressOut()` | Finger down (0.72, 900) / finger up (0.46, 420): one small overshoot past rest |
+| `GlassMotion.wobble()` (0.42, 420) | The release jiggle on glass: X and Y squash out of phase, one visible swing |
+| `GlassMotion.unfold()` / `unfoldLag()` / `fold()` | Menus: width (0.68, 420), height a beat behind (0.6, 340), close (1, 900) |
 | `GlassMotion.settle()` / `fade()` | Alpha and layout. Critically damped, never bouncy |
+
+**Press jelly (the iOS 27 feel).**
+- Glass buttons (`LiquidButton`, `LiquidIconButton`) share `liquidPressTransform`. The button swells
+  ~4 dp under the finger and leans toward a dragging finger. On release it springs back and jiggles once,
+  about 2.5 dp, with X and Y out of phase.
+- Flat pressables (rows, chips, toolbar items, menu actions) use `rememberJellyPress(interaction)` and
+  read `jelly.scale` in `graphicsLayer`. Never use `animateFloatAsState(if (pressed) ...)`: in a scrolling
+  list a quick tap's Press and Release arrive together, so the dip never shows.
+- A tap shorter than `GlassMotion.MinPressMillis` (90 ms) still plays the whole press before releasing.
+- Menus unfold from their anchor with anisotropic scale (the width first, then the height) and fold back
+  fast without a bounce. Rows cascade in behind the unfold.
 
 - **Alpha never bounces.** Clamp it (`coerceIn(0f, 1f)`) or drive it with `settle`.
 - Stagger lists about 20–30 ms per item, and cap the stagger so long lists don't trail.

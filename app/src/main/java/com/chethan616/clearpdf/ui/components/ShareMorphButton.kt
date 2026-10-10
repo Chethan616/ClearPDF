@@ -1,5 +1,7 @@
 package com.chethan616.clearpdf.ui.components
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
@@ -29,11 +31,9 @@ import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -174,17 +174,13 @@ fun ShareMorphButton(
     }
 
     // Presses down firmly and bounces back on release, like LiquidButton's deformation.
-    val pressScale by animateFloatAsState(
-        if (pressed && !shareMode) GlassMotion.PressedScale else 1f,
-        GlassMotion.press(),
-        label = "shareMorphPress"
-    )
+    val jelly = rememberJellyPress(pressed && !shareMode)
 
     Box(
         modifier
             .width(52.dp)
             .height(height)
-            .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
+            .graphicsLayer { scaleX = jelly.scale; scaleY = jelly.scale }
             // The viewer's own chrome material, so this sits beside the back and search circles as one
             // family rather than as a frostier slab. Capsule, not a 28 dp rounded rectangle, so the
             // 52 -> 104 dp morph is an actual circle-to-capsule the whole way up.

@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.selection
 
+import com.chethan616.clearpdf.ui.components.rememberJellyPress
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -485,7 +486,7 @@ private fun rememberStaggerIn(index: Int): Animatable<Float, *> {
 private fun ToolbarIconButton(item: ToolbarItem, fg: Color) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val s by animateFloatAsState(if (pressed) GlassMotion.PressedScale else 1f, GlassMotion.press(), label = "tbPress")
+    val jelly = rememberJellyPress(interaction)
     val wash by animateFloatAsState(if (pressed) 0.10f else 0f, GlassMotion.fade(), label = "tbWash")
     Box(
         Modifier
@@ -493,7 +494,7 @@ private fun ToolbarIconButton(item: ToolbarItem, fg: Color) {
             // Draw-time only: a finger sliding across the item squashes it along the drag, like
             // a drop of the glass it sits on; the press scale adds the tactile dip.
             .liquidStretchOnDrag(stretchFactor = 0.18f, minScale = 0.88f, maxScale = 1.12f)
-            .graphicsLayer { scaleX = s; scaleY = s }
+            .graphicsLayer { scaleX = jelly.scale; scaleY = jelly.scale }
             .drawBehind { if (wash > 0f) drawCircle(fg.copy(alpha = wash)) }
             .combinedClickable(
                 interactionSource = interaction,
@@ -532,7 +533,7 @@ private fun ItemIcon(item: ToolbarItem, tint: Color, size: androidx.compose.ui.u
 private fun MenuRow(item: ToolbarItem, fg: Color, index: Int, fromBelow: Boolean) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val s by animateFloatAsState(if (pressed) 0.97f else 1f, GlassMotion.press(), label = "rowPress")
+    val jelly = rememberJellyPress(interaction, pressedScale = 0.97f)
     val wash by animateFloatAsState(if (pressed) 0.08f else 0f, GlassMotion.fade(), label = "rowWash")
     val enter = rememberStaggerIn(index)
     val shiftPx = with(LocalDensity.current) { 8.dp.toPx() } * (if (fromBelow) 1f else -1f)
@@ -544,7 +545,7 @@ private fun MenuRow(item: ToolbarItem, fg: Color, index: Int, fromBelow: Boolean
                 val e = enter.value
                 alpha = e
                 translationY = (1f - e) * shiftPx
-                scaleX = s; scaleY = s
+                scaleX = jelly.scale; scaleY = jelly.scale
             }
             .drawBehind { if (wash > 0f) drawRect(fg.copy(alpha = wash)) }
             .combinedClickable(interactionSource = interaction, indication = null, onLongClick = item.onLongClick, onClick = item.onClick)
@@ -566,7 +567,7 @@ private fun MenuRow(item: ToolbarItem, fg: Color, index: Int, fromBelow: Boolean
 private fun ColorDot(backdrop: Backdrop, color: Color, selected: Boolean, ring: Color, index: Int, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val s by animateFloatAsState(if (pressed) GlassMotion.PressedScale else 1f, GlassMotion.press(), label = "dotPress")
+    val jelly = rememberJellyPress(interaction)
     val enter = rememberStaggerIn(index)
     Box(
         Modifier
@@ -575,7 +576,7 @@ private fun ColorDot(backdrop: Backdrop, color: Color, selected: Boolean, ring: 
             .graphicsLayer {
                 val e = enter.value
                 alpha = e
-                val k = s * (0.6f + 0.4f * e)
+                val k = jelly.scale * (0.6f + 0.4f * e)
                 scaleX = k; scaleY = k
             }
             .combinedClickable(interactionSource = interaction, indication = null, onClick = onClick),

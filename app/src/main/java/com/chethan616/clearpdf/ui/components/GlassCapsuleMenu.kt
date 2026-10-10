@@ -1,12 +1,10 @@
 package com.chethan616.clearpdf.ui.components
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -15,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,8 +31,6 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.highlight.HighlightStyle
-import com.kyant.backdrop.shadow.InnerShadow
-import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
 
 /** One circular action inside a [GlassCapsuleMenu]. */
@@ -117,18 +112,13 @@ fun GlassCapsuleMenu(
 @Composable
 private fun CapsuleAction(action: GlassMenuAction, local: Float) {
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val press by animateFloatAsState(
-        if (pressed) 0.90f else 1f,
-        spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
-        label = "capsuleActionPress"
-    )
+    val jelly = rememberJellyPress(interaction, pressedScale = 0.90f)
 
     Box(
         Modifier
             .size(ActionSize)
             .graphicsLayer {
-                val s = lerp(0.4f, 1f, local) * press
+                val s = lerp(0.4f, 1f, local) * jelly.scale
                 scaleX = s
                 scaleY = s
                 alpha = local

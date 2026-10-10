@@ -200,19 +200,27 @@ fun <T> LiquidGlassDropdown(
                 modifier = Modifier.align(Alignment.TopStart).offset { menuOffset }
             ) {
                 val uiSensor = rememberUISensor()
+                // Unfolds out of the trigger like iOS 27: width lands first, height follows on a
+                // softer spring, so the panel settles like a drop of gel (one small overshoot).
                 val reveal by transition.animateFloat(
                     transitionSpec = {
-                        if (targetState == EnterExitState.Visible) GlassMotion.pop() else GlassMotion.settle()
+                        if (targetState == EnterExitState.Visible) GlassMotion.unfold() else GlassMotion.fold()
                     },
                     label = "dropMenuReveal"
+                ) { if (it == EnterExitState.Visible) 1f else 0f }
+                val revealY by transition.animateFloat(
+                    transitionSpec = {
+                        if (targetState == EnterExitState.Visible) GlassMotion.unfoldLag() else GlassMotion.fold()
+                    },
+                    label = "dropMenuRevealY"
                 ) { if (it == EnterExitState.Visible) 1f else 0f }
                 Column(
                     Modifier
                         .width(menuWidth)
                         .graphicsLayer {
                             alpha = reveal.coerceIn(0f, 1f)
-                            translationY = (1f - reveal) * (-14.dp.toPx())
-                            scaleY = 0.9f + 0.1f * reveal
+                            scaleX = 0.9f + 0.1f * reveal
+                            scaleY = 0.55f + 0.45f * revealY
                             transformOrigin = TransformOrigin(0.5f, 0f)
                             // Per-draw alpha: an offscreen layer would clip the panel's shadow
                             // during the fade and snap it in at the end (the flicker).
@@ -222,11 +230,18 @@ fun <T> LiquidGlassDropdown(
                         .padding(4.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    options.forEach { opt ->
+                    options.forEachIndexed { i, opt ->
                         val isSelected = opt.value == selected
                         Row(
                             Modifier
                                 .fillMaxWidth()
+                                .graphicsLayer {
+                                    // Rows cascade in behind the unfold (flat content, so moving is free).
+                                    val head = (i * 0.05f).coerceAtMost(0.3f)
+                                    val l = ((revealY - head) / (1f - head)).coerceIn(0f, 1f)
+                                    alpha = l
+                                    translationY = (1f - l) * (-6).dp.toPx()
+                                }
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },

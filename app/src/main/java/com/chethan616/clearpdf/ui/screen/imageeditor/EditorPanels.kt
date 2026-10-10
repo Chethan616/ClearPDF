@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.screen.imageeditor
 
+import com.chethan616.clearpdf.ui.components.rememberJellyPress
 import android.graphics.Bitmap
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -122,8 +123,7 @@ internal fun EditorChip(
     val isDark = LocalIsDarkMode.current
     val haptics = LocalHapticFeedback.current
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) GlassMotion.PressedScale else 1f, GlassMotion.press(), label = "chipPress")
+    val jelly = rememberJellyPress(interaction)
     val bg by animateColorAsState(
         if (selected) accent.copy(if (isDark) 0.30f else 0.18f) else if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.05f),
         GlassMotion.settle(), label = "chipBg"
@@ -131,7 +131,7 @@ internal fun EditorChip(
     val fg by animateColorAsState(if (selected) accent else LiquidGlassColors.text(isDark), GlassMotion.settle(), label = "chipFg")
     Box(
         modifier
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .graphicsLayer { scaleX = jelly.scale; scaleY = jelly.scale }
             .defaultMinSize(minHeight = 36.dp)
             .clip(RoundedCornerShape(50))
             .background(bg)
