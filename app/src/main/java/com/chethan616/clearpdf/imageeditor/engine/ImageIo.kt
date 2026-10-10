@@ -40,6 +40,23 @@ object ImageIo {
 
     data class Bounds(val width: Int, val height: Int)
 
+    /**
+     * Power-of-two decode sample for a [w] x [h] image to land within twice [maxDim] and four times
+     * [maxPixels] (the exact downscale happens after decoding). Overflow-safe: `maxPixels * 4` with
+     * the default Long.MAX_VALUE used to wrap negative, so the "too big" test was always true,
+     * the sample doubled until it wrapped to 0, and the next division crashed opening ANY image.
+     */
+    internal fun sampleSize(w: Int, h: Int, maxDim: Int, maxPixels: Long): Int {
+        if (w <= 0 || h <= 0) return 1
+        val dimBudget = maxDim.toLong().coerceAtLeast(1) * 2
+        val pixelBudget = if (maxPixels > Long.MAX_VALUE / 4) Long.MAX_VALUE else maxPixels.coerceAtLeast(1) * 4
+        var sample = 1
+        while (sample < (1 shl 20) &&
+            (max(w, h).toLong() / sample > dimBudget || (w.toLong() / sample) * (h.toLong() / sample) > pixelBudget)
+        ) sample *= 2
+        return sample
+    }
+
     /** Pixel size after EXIF orientation is applied. */
     fun bounds(context: Context, uri: Uri): Bounds? {
         val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -59,8 +76,7 @@ object ImageIo {
         val w = o.outWidth
         val h = o.outHeight
         if (w <= 0 || h <= 0) return null
-        var sample = 1
-        while (max(w, h) / sample > maxDim * 2 || (w.toLong() / sample) * (h.toLong() / sample) > maxPixels * 4) sample *= 2
+        val sample = sampleSize(w, h, maxDim, maxPixels)
         val opts = BitmapFactory.Options().apply {
             inSampleSize = sample
             inPreferredConfig = Bitmap.Config.ARGB_8888

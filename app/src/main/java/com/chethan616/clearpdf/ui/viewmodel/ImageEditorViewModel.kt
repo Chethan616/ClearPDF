@@ -171,10 +171,12 @@ class ImageEditorViewModel(app: Application) : AndroidViewModel(app) {
         started = true
         sourceUri = uri
         viewModelScope.launch {
-            val name = withContext(Dispatchers.IO) { ImageIo.displayName(context, uri) }
-            val bounds = withContext(Dispatchers.IO) { ImageIo.bounds(context, uri) }
-            val bmp = withContext(Dispatchers.IO) { ImageIo.decode(context, uri, PREVIEW_MAX) }
-            val exif = withContext(Dispatchers.IO) { ImageIo.readExif(context, uri) }
+            // Any failure (unreadable file, a format the decoder rejects, OOM on a huge image) lands on
+            // the "Couldn't open" state instead of taking the app down.
+            val name = withContext(Dispatchers.IO) { runCatching { ImageIo.displayName(context, uri) }.getOrDefault("") }
+            val bounds = withContext(Dispatchers.IO) { runCatching { ImageIo.bounds(context, uri) }.getOrNull() }
+            val bmp = withContext(Dispatchers.IO) { runCatching { ImageIo.decode(context, uri, PREVIEW_MAX) }.getOrNull() }
+            val exif = withContext(Dispatchers.IO) { runCatching { ImageIo.readExif(context, uri) }.getOrDefault(emptyList()) }
             if (bmp == null || bounds == null) {
                 _state.value = UiState(fileName = name, isLoading = false, error = "Couldn't open this image.")
                 return@launch
