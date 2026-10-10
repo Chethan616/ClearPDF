@@ -243,7 +243,7 @@ private fun MenuPanel(
     Column(
         Modifier
             .width(MenuWidth)
-            .glassMenu(backdrop, dark = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current, shape = { RoundedRectangle(22.dp) }, surfaceAlpha = 0.88f)
+            .glassMenu(backdrop, dark = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current, shape = { RoundedRectangle(22.dp * com.chethan616.clearpdf.ui.components.GlassSettings.style.corners) }, surfaceAlpha = 0.88f)
             // Swallow taps on the panel's padding so they don't fall through to the scrim.
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
             .semantics { contentDescription = title }

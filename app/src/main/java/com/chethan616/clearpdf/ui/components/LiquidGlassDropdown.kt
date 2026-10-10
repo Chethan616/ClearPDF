@@ -89,9 +89,8 @@ fun Modifier.glassMenu(
     highlight = { glassHighlight(GlassSettings.style) },
     shadow = null,
     onDrawSurface = {
-        // Menus carry text: the user's Tint can make them denser, never clearer than legible.
-        val a = maxOf(surfaceAlpha, (surfaceAlpha * GlassSettings.style.tint)).coerceAtMost(1f)
-        drawRect(if (dark) Color(0xFF1E1E1E).copy(a) else Color(0xFFFAFAFA).copy(a))
+        // Follows Settings -> Liquid Glass like every other surface (Tint included).
+        drawRect((if (dark) Color(0xFF1E1E1E).copy(surfaceAlpha) else Color(0xFFFAFAFA).copy(surfaceAlpha)).glassTint(GlassSettings.style))
     }
 )
 

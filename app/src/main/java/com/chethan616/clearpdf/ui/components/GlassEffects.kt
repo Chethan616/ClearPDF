@@ -46,45 +46,6 @@ private const val ProgressiveBlurShader = """
         return mix(content.eval(coord) * a, tint * a, tintIntensity);
     }"""
 
-/**
- * Alpha-masked progressive blur (catalog ProgressiveBlurContent): the backdrop behind this element is
- * blurred and tinted, fully opaque on the [edge] side and fading to nothing across the far half.
- * Size the element yourself (e.g. `fillMaxWidth().height(statusBar + 72.dp)` behind a top bar).
- *
- * Needs API 33 (RuntimeShader). Below that it falls back to a plain tint gradient, since an unmasked
- * blur would leave a hard edge.
- */
-@Composable
-fun Modifier.progressiveBlurEdge(
-    backdrop: Backdrop,
-    edge: GlassEdge = GlassEdge.Top,
-    blurRadius: Dp = 4.dp,
-    tint: Color = if (LocalIsDarkMode.current) Color(0xFF101114) else Color.White,
-    tintIntensity: Float = 0.6f
-): Modifier {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-        return this.drawBehind {
-            val stops = arrayOf(0f to tint.copy(alpha = tintIntensity), 0.5f to tint.copy(alpha = tintIntensity), 1f to Color.Transparent)
-            drawRect(
-                if (edge == GlassEdge.Top) Brush.verticalGradient(*stops)
-                else Brush.verticalGradient(*stops, startY = size.height, endY = 0f)
-            )
-        }
-    }
-    return this.drawPlainBackdrop(
-        backdrop = backdrop,
-        shape = { RectangleShape },
-        effects = {
-            blur(blurRadius.toPx())
-            runtimeShaderEffect("ClearPdfProgressiveBlur", ProgressiveBlurShader, "content") {
-                setFloatUniform("size", size.width, size.height)
-                setFloatUniform("fromBottom", if (edge == GlassEdge.Bottom) 1f else 0f)
-                setColorUniform("tint", tint.toArgb())
-                setFloatUniform("tintIntensity", tintIntensity)
-            }
-        }
-    )
-}
 
 /**
  * Adaptive-luminance content colour (catalog AdaptiveLuminanceGlassContent). Pass [backdrop] (the
@@ -102,50 +63,4 @@ class AdaptiveGlassContent internal constructor(
     val luminance: Float get() = lumAnim.value
 }
 
-@Composable
-fun rememberAdaptiveGlassContentColor(
-    backdrop: Backdrop,
-    sampleIntervalMs: Long = 500L
-): AdaptiveGlassContent {
-    val isDark = LocalIsDarkMode.current
-    val layer: GraphicsLayer = rememberGraphicsLayer()
-    val colorAnim = remember(isDark) { Animatable(if (isDark) Color.White else Color.Black) }
-    val lumAnim = remember(isDark) { Animatable(if (isDark) 0f else 1f) }
-    val onDraw: androidx.compose.ui.graphics.drawscope.DrawScope.(androidx.compose.ui.graphics.drawscope.DrawScope.() -> Unit) -> Unit =
-        remember(layer) {
-            { drawBackdrop ->
-                drawBackdrop()
-                layer.record { drawBackdrop() }
-            }
-        }
-    val wrapped = rememberBackdrop(backdrop, onDraw)
-    LaunchedEffect(layer, colorAnim, lumAnim) {
-        val buffer = IntArray(25)
-        while (isActive) {
-            delay(sampleIntervalMs)
-            val avg = try {
-                if (layer.size.width <= 0 || layer.size.height <= 0) continue
-                val src = layer.toImageBitmap().asAndroidBitmap()
-                val isHw = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && src.config == Bitmap.Config.HARDWARE
-                val soft = if (isHw) src.copy(Bitmap.Config.ARGB_8888, false) else src
-                val thumb = Bitmap.createScaledBitmap(soft, 5, 5, true)
-                thumb.getPixels(buffer, 0, 5, 0, 0, 5, 5)
-                if (thumb !== soft) thumb.recycle()
-                if (soft !== src) soft.recycle()
-                buffer.sumOf { argb ->
-                    val r = (argb shr 16 and 0xFF) / 255.0
-                    val g = (argb shr 8 and 0xFF) / 255.0
-                    val b = (argb and 0xFF) / 255.0
-                    0.2126 * r + 0.7152 * g + 0.0722 * b
-                }.toFloat() / buffer.size
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Throwable) {
-                continue
-            }
-            launch { colorAnim.animateTo(if (avg > 0.5f) Color.Black else Color.White, tween(600)) }
-            launch { lumAnim.animateTo(avg, tween(600)) }
-        }
-    }
-    return remember(wrapped, colorAnim, lumAnim) { AdaptiveGlassContent(wrapped, colorAnim, lumAnim) }
-}
+

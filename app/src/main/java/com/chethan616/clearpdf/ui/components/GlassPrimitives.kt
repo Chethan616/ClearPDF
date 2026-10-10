@@ -96,16 +96,6 @@ object GlassDimens {
     val TitleSize: TextUnit = 16.sp
 }
 
-/** Solid (non-refractive) glass section card. Used for settings-style grouped rows
- *  where a translucent panel would hurt text legibility. */
-fun Modifier.glassSection(isLight: Boolean, radius: Dp = GlassDimens.SectionRadius): Modifier {
-    val container = if (isLight) Color.White.copy(0.68f) else Color(0xFF161820).copy(0.72f)
-    val borderCol = if (isLight) Color.White.copy(0.80f) else Color.White.copy(0.12f)
-    return this
-        .clip(RoundedCornerShape(radius))
-        .background(container)
-        .border(1.dp, borderCol, RoundedCornerShape(radius))
-}
 
 /** Standard section header: M3 rounded icon tile + title, with an optional trailing slot. */
 @Composable

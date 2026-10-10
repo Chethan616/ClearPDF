@@ -418,32 +418,7 @@ internal fun fitBitmapRect(canvasSize: Size, bitmapW: Float, bitmapH: Float): Re
     return Rect(left, top, left + w, top + h)
 }
 
-internal fun screenToContent(
-    screen: Offset,
-    zoomScale: Float,
-    panOffset: Offset,
-    boxCenter: Offset
-): Offset {
-    val unpanned = screen - panOffset
-    val rel      = unpanned - boxCenter
-    return (rel / zoomScale) + boxCenter
-}
 
-internal fun clampPanOffset(
-    pan: Offset,
-    scale: Float,
-    canvasSize: Size,
-    bitmapSize: Size
-): Offset {
-    if (scale <= 1.01f || canvasSize.width <= 0f || canvasSize.height <= 0f) return Offset.Zero
-    val frame = fitBitmapRect(canvasSize, bitmapSize.width, bitmapSize.height)
-    val maxPanX = (frame.width * (scale - 1f) / 2f).coerceAtLeast(0f)
-    val maxPanY = (frame.height * (scale - 1f) / 2f).coerceAtLeast(0f)
-    return Offset(
-        pan.x.coerceIn(-maxPanX, maxPanX),
-        pan.y.coerceIn(-maxPanY, maxPanY)
-    )
-}
 
 internal fun ocrBlockToRect(block: OcrTextBlock, frame: Rect): Rect = Rect(
     frame.left + block.left * frame.width,
