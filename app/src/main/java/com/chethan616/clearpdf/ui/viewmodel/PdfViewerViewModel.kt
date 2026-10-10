@@ -750,6 +750,27 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         }
     }
 
+    /**
+     * Writes the open document WITH all edits applied (text edits, drawings, images…) to [out] —
+     * the same pipeline as Save — so Share hands over what the user sees, not the untouched file.
+     * Blocking: call off the main thread.
+     */
+    fun writeEditedCopy(context: Context, overlaysByPage: Map<Int, List<ExportOverlay>>, out: File): Uri? {
+        val doc = _uiState.value.document ?: return null
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", out)
+        return runCatching { exportWithPdfBox(context, doc, overlaysByPage, uri); uri }.getOrNull()
+    }
+
+    /** Plain text of every page of [pdf] in reading order. Blocking. */
+    fun extractAllText(context: Context, pdf: Uri): String {
+        com.kyant.pdfcore.internal.PdfBox.ensureInitialized(context)
+        return context.contentResolver.openInputStream(pdf)?.use { input ->
+            com.tom_roush.pdfbox.pdmodel.PDDocument.load(input).use { d ->
+                com.tom_roush.pdfbox.text.PDFTextStripper().apply { sortByPosition = true }.getText(d)
+            }
+        }.orEmpty()
+    }
+
     private fun exportWithPdfBox(
         context: Context,
         doc: PdfDocument,

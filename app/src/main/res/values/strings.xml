@@ -274,6 +274,8 @@
     <string name="viewer_share_password_hint">Password</string>
     <string name="viewer_share_button">Share</string>
     <string name="viewer_share_pdf">PDF</string>
+    <string name="viewer_share_images">Images (PNG)</string>
+    <string name="viewer_share_text">Text (.txt)</string>
     <string name="viewer_share_normal">Normal</string>
     <string name="viewer_share_encrypted">Encrypted</string>
 

@@ -11,6 +11,8 @@ import com.chethan616.clearpdf.ui.components.GlassDropdownOption
 import com.chethan616.clearpdf.ui.components.LiquidGlassDropdown
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.PictureAsPdf
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.TextSnippet
 import com.chethan616.clearpdf.ui.components.GlassDialogField
 import com.chethan616.clearpdf.ui.components.GlassDialogAction
 import com.chethan616.clearpdf.ui.components.GlassDialog
@@ -355,7 +357,7 @@ internal fun TextEditDialog(
 }
 
 /** Which file the viewer's Share action should hand off. */
-internal enum class ShareFormat { ORIGINAL, PDF }
+internal enum class ShareFormat { ORIGINAL, PDF, IMAGES, TEXT }
 
 /**
  * Share/export chooser on the shared [GlassDialog] card. For a converted document (a .docx opened as
@@ -376,15 +378,15 @@ internal fun ExportShareDialog(
     onDismiss: () -> Unit,
     onShare: (format: ShareFormat, encrypt: Boolean, password: String) -> Unit
 ) {
+    val pdfOnly = originalExt == null
     // Keyed on `visible` so every open starts fresh.
-    var formatIndex by remember(visible) { mutableStateOf(0) }
+    var format by remember(visible) { mutableStateOf(if (pdfOnly) ShareFormat.PDF else ShareFormat.ORIGINAL) }
     var encrypt by remember(visible) { mutableStateOf(false) }
     var password by remember(visible) { mutableStateOf("") }
     val passwordFocus = remember { FocusRequester() }
     val soft = glassDialogInkSoft()
 
-    val pdfOnly = originalExt == null
-    val pdfSelected = pdfOnly || formatIndex == 1
+    val pdfSelected = format == ShareFormat.PDF
     val canShare = !(pdfSelected && encrypt && password.isBlank())
 
     LaunchedEffect(encrypt, pdfSelected) {
@@ -401,11 +403,7 @@ internal fun ExportShareDialog(
             GlassDialogAction(
                 stringResource(R.string.viewer_share_button),
                 {
-                    if (canShare) onShare(
-                        if (pdfSelected) ShareFormat.PDF else ShareFormat.ORIGINAL,
-                        encrypt && pdfSelected,
-                        password
-                    )
+                    if (canShare) onShare(format, encrypt && pdfSelected, password)
                 },
                 primary = true,
                 enabled = canShare
@@ -413,25 +411,28 @@ internal fun ExportShareDialog(
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (!pdfOnly) {
-                BasicText(
-                    stringResource(R.string.viewer_share_format),
-                    style = TextStyle(soft, 13.sp, FontWeight.Medium)
-                )
-                // The share sheet's original bouncy glass dropdown (v3), back on the shared component.
-                LiquidGlassDropdown(
-                    options = listOf(
-                        GlassDropdownOption(0, originalExt.orEmpty(), icon = Icons.Rounded.Description),
-                        GlassDropdownOption(1, stringResource(R.string.viewer_share_pdf), icon = Icons.Rounded.PictureAsPdf)
-                    ),
-                    selected = formatIndex,
-                    onSelect = { formatIndex = it },
-                    backdrop = backdrop,
-                    leadingIcon = if (formatIndex == 1) Icons.Rounded.PictureAsPdf else Icons.Rounded.Description,
-                    triggerSurface = glassDialogPlatter(LocalIsDarkMode.current),
-                    modifier = Modifier.fillMaxWidth()
-                )
+            BasicText(
+                stringResource(R.string.viewer_share_format),
+                style = TextStyle(soft, 13.sp, FontWeight.Medium)
+            )
+            // The share sheet's original bouncy glass dropdown (v3), back on the shared component.
+            // Edits travel with every format: PDF, page images and text are all made from the
+            // edited document.
+            val options = buildList {
+                if (!pdfOnly) add(GlassDropdownOption(ShareFormat.ORIGINAL, originalExt.orEmpty(), icon = Icons.Rounded.Description))
+                add(GlassDropdownOption(ShareFormat.PDF, stringResource(R.string.viewer_share_pdf), icon = Icons.Rounded.PictureAsPdf))
+                add(GlassDropdownOption(ShareFormat.IMAGES, stringResource(R.string.viewer_share_images), icon = Icons.Rounded.Image))
+                add(GlassDropdownOption(ShareFormat.TEXT, stringResource(R.string.viewer_share_text), icon = Icons.Rounded.TextSnippet))
             }
+            LiquidGlassDropdown(
+                options = options,
+                selected = format,
+                onSelect = { format = it },
+                backdrop = backdrop,
+                leadingIcon = options.firstOrNull { it.value == format }?.icon,
+                triggerSurface = glassDialogPlatter(LocalIsDarkMode.current),
+                modifier = Modifier.fillMaxWidth()
+            )
             AnimatedVisibility(
                 visible = pdfSelected,
                 enter = fadeIn(tween(160)) + expandVertically(GlassMotion.settle()),

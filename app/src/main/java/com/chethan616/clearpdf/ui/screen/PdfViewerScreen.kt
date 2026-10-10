@@ -245,6 +245,8 @@ fun PdfViewerScreen(
     var editingAnnoId       by remember { mutableStateOf<Long?>(null) }
     // In-place edit of a line of the page's own text (Text tool tap on existing text).
     var textEditTarget      by remember { mutableStateOf<TextEditTarget?>(null) }
+    // Page images handed to the share sheet together (ACTION_SEND_MULTIPLE).
+    var shareMultiple: List<android.net.Uri> by remember { mutableStateOf(emptyList()) }
     var editingAnnoPage     by remember { mutableStateOf(0) }
     var editingAnnoIsNote   by remember { mutableStateOf(false) }
     var annotationDraft     by remember { mutableStateOf("") }
@@ -2046,7 +2048,38 @@ fun PdfViewerScreen(
                                     )
                                 else u
                             val shareDir = java.io.File(context.cacheDir, "shared").apply { mkdirs() }
+                            // Unsaved edits travel with the share: build an edited copy first and
+                            // make every PDF-derived format (PDF, images, text) from it.
+                            val edited: android.net.Uri? = if (hasUnsavedEdits && format != ShareFormat.ORIGINAL) {
+                                val overlays = buildExportOverlays(annotationsByPage, state.ocrBlocksByPage, pageCanvasSizes, pageBitmapSizes)
+                                val name = state.fileName.substringBeforeLast('.').ifBlank { "document" }
+                                    .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                                viewModel.writeEditedCopy(context, overlays, java.io.File(shareDir, "${name}_edited.pdf"))
+                            } else null
+                            val sourcePdf = edited ?: state.document?.uri
                             when (format) {
+                                ShareFormat.IMAGES -> sourcePdf?.let { pdf ->
+                                    val stem = state.fileName.substringBeforeLast('.').ifBlank { "page" }
+                                        .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                                    val count = state.pageCount.coerceAtLeast(1)
+                                    val uris = ArrayList<android.net.Uri>()
+                                    for (p in 0 until count) {
+                                        val bmp = com.kyant.pdfcore.raster.PdfRasterizer.rasterizePageBitmap(context, pdf, p) ?: continue
+                                        val f = java.io.File(shareDir, "${stem}_${p + 1}.png")
+                                        f.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                                        bmp.recycle()
+                                        uris += androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", f)
+                                    }
+                                    shareMultiple = uris
+                                    uris.firstOrNull()?.let { it to "image/png" }
+                                }
+                                ShareFormat.TEXT -> sourcePdf?.let { pdf ->
+                                    val stem = state.fileName.substringBeforeLast('.').ifBlank { "document" }
+                                        .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                                    val f = java.io.File(shareDir, "$stem.txt")
+                                    f.writeText(viewModel.extractAllText(context, pdf))
+                                    androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", f) to "text/plain"
+                                }
                                 ShareFormat.ORIGINAL -> state.originalUri?.let { orig ->
                                     // Mirror the original into our own storage so the target app can
                                     // actually read it — a SAF uri from another provider can't be
@@ -2061,7 +2094,7 @@ fun PdfViewerScreen(
                                         context, "${context.packageName}.provider", out
                                     ) to (context.contentResolver.getType(orig) ?: "application/octet-stream")
                                 }
-                                ShareFormat.PDF -> state.document?.uri?.let { pdf ->
+                                ShareFormat.PDF -> sourcePdf?.let { pdf ->
                                     if (encrypt && password.isNotBlank()) {
                                         val out = java.io.File(shareDir, "protected_${System.currentTimeMillis()}.pdf")
                                         val outUri = androidx.core.content.FileProvider.getUriForFile(
@@ -2078,7 +2111,15 @@ fun PdfViewerScreen(
                     }
                     if (payload != null) {
                         val (shareUri, mime) = payload
-                        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        val many = shareMultiple
+                        shareMultiple = emptyList()
+                        val send = if (many.size > 1) {
+                            android.content.Intent(android.content.Intent.ACTION_SEND_MULTIPLE).apply {
+                                type = mime
+                                putParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, ArrayList(many))
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                        } else android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                             type = mime
                             putExtra(android.content.Intent.EXTRA_STREAM, shareUri)
                             addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
