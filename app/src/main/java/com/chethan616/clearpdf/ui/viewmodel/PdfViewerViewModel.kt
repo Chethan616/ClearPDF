@@ -58,7 +58,9 @@ data class OcrTextBlock(
     val right: Float,
     val bottom: Float,
     val charLefts: FloatArray = FloatArray(0),
-    val charRights: FloatArray = FloatArray(0)
+    val charRights: FloatArray = FloatArray(0),
+    /** Typography of a digital-text line (null for OCR text): drives in-place editing. */
+    val style: com.kyant.pdfcore.text.PdfTextStyle? = null
 )
 
 /** A word- or line-precise selection inside one extracted text block. [end] is exclusive. */
@@ -124,6 +126,19 @@ sealed class ExportOverlay {
         val text: String,
         val colorArgb: Int,
         val fontSizeNorm: Float
+    ) : ExportOverlay()
+
+    /**
+     * An in-place edit of the page's own text: the glyphs inside the normalized box are removed
+     * from the content stream and [text] is drawn in their font (see PdfTextEditor).
+     */
+    data class TextReplace(
+        val left: Float,
+        val top: Float,
+        val right: Float,
+        val bottom: Float,
+        val text: String,
+        val backgroundArgb: Int
     ) : ExportOverlay()
 
     /** A real PDF sticky-note annotation anchored at [position] (top-left of icon). */
@@ -735,6 +750,27 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         }
     }
 
+    /**
+     * Writes the open document WITH all edits applied (text edits, drawings, images…) to [out] —
+     * the same pipeline as Save — so Share hands over what the user sees, not the untouched file.
+     * Blocking: call off the main thread.
+     */
+    fun writeEditedCopy(context: Context, overlaysByPage: Map<Int, List<ExportOverlay>>, out: File): Uri? {
+        val doc = _uiState.value.document ?: return null
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", out)
+        return runCatching { exportWithPdfBox(context, doc, overlaysByPage, uri); uri }.getOrNull()
+    }
+
+    /** Plain text of every page of [pdf] in reading order. Blocking. */
+    fun extractAllText(context: Context, pdf: Uri): String {
+        com.kyant.pdfcore.internal.PdfBox.ensureInitialized(context)
+        return context.contentResolver.openInputStream(pdf)?.use { input ->
+            com.tom_roush.pdfbox.pdmodel.PDDocument.load(input).use { d ->
+                com.tom_roush.pdfbox.text.PDFTextStripper().apply { sortByPosition = true }.getText(d)
+            }
+        }.orEmpty()
+    }
+
     private fun exportWithPdfBox(
         context: Context,
         doc: PdfDocument,
@@ -751,6 +787,15 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                 val page = pdDoc.getPage(pageIdx)
                 val pageW = (page.cropBox ?: page.mediaBox)?.width ?: return@forEach
                 val pageH = (page.cropBox ?: page.mediaBox)?.height ?: return@forEach
+
+                // Real text edits first: they rewrite the page's own content stream, and every
+                // other overlay is then drawn above the edited text.
+                val textEdits = overlays.filterIsInstance<ExportOverlay.TextReplace>().map {
+                    com.kyant.pdfcore.text.PdfTextEdit(it.left, it.top, it.right, it.bottom, it.text, it.backgroundArgb)
+                }
+                if (textEdits.isNotEmpty()) {
+                    runCatching { com.kyant.pdfcore.text.PdfTextEditor.applyEdits(pdDoc, pageIdx, textEdits) }
+                }
 
                 com.tom_roush.pdfbox.pdmodel.PDPageContentStream(
                     pdDoc, page,
@@ -924,6 +969,9 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     cs.endText()
                 }
 
+                // Already applied to the content stream before this pass.
+                is ExportOverlay.TextReplace -> Unit
+
                 is ExportOverlay.NoteStamp -> {
                     // A real, clickable PDF sticky-note annotation.
                     val c = android.graphics.Color.valueOf(overlay.colorArgb)
@@ -1003,7 +1051,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
 
 private fun PdfTextBlock.toOcrBlock() = OcrTextBlock(
     id = id, text = text, left = left, top = top, right = right, bottom = bottom,
-    charLefts = charLefts, charRights = charRights
+    charLefts = charLefts, charRights = charRights, style = style
 )
 
 /** All occurrences of [lower] in this block as tight normalized word rects (fallback: block rect). */

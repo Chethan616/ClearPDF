@@ -244,12 +244,26 @@ class XlsxPainter(private val wb: XlsxWorkbook, val theme: PaintTheme) {
         if (probe != null) {
             glyphCheckPaint.typeface = resolved
             if (!glyphCheckPaint.hasGlyph(probe)) {
-                val fallbackKey = "fallback-devanagari|$style"
+                // Keyed by SCRIPT: the old single "devanagari" key let whichever non-Latin script a
+                // sheet showed first (Tamil, Bengali…) decide the fallback for every other script.
+                val script = runCatching { Character.UnicodeScript.of(probe.codePointAt(0)) }.getOrNull()
+                val fallbackKey = "fallback-${script?.name ?: "other"}|$style"
                 return typefaces.getOrPut(fallbackKey) {
-                    // Try, in order, fonts actually declared to cover Devanagari (and most other
-                    // Indic/complex scripts) on stock and OEM Android builds; "sans-serif" last
-                    // forces Minikin's own full system fallback chain rather than returning tofu.
-                    listOf("Noto Sans Devanagari", "Nirmala UI", "Mangal", "sans-serif")
+                    // Fonts declared to cover the script on stock and OEM Android builds first;
+                    // "sans-serif" last forces Minikin's own full system fallback chain rather than
+                    // returning tofu.
+                    val named = when (script) {
+                        Character.UnicodeScript.DEVANAGARI -> listOf("Noto Sans Devanagari", "Nirmala UI", "Mangal", "Kokila", "Aparajita")
+                        Character.UnicodeScript.BENGALI -> listOf("Noto Sans Bengali", "Nirmala UI", "Vrinda")
+                        Character.UnicodeScript.TAMIL -> listOf("Noto Sans Tamil", "Nirmala UI", "Latha")
+                        Character.UnicodeScript.TELUGU -> listOf("Noto Sans Telugu", "Nirmala UI", "Gautami")
+                        Character.UnicodeScript.GUJARATI -> listOf("Noto Sans Gujarati", "Nirmala UI", "Shruti")
+                        Character.UnicodeScript.GURMUKHI -> listOf("Noto Sans Gurmukhi", "Nirmala UI", "Raavi")
+                        Character.UnicodeScript.KANNADA -> listOf("Noto Sans Kannada", "Nirmala UI", "Tunga")
+                        Character.UnicodeScript.MALAYALAM -> listOf("Noto Sans Malayalam", "Nirmala UI", "Kartika")
+                        else -> emptyList()
+                    }
+                    (named + "sans-serif")
                         .map { Typeface.create(it, style) }
                         .firstOrNull { tf ->
                             glyphCheckPaint.typeface = tf

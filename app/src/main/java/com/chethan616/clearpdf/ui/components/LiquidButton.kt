@@ -96,17 +96,18 @@ fun LiquidButton(
     }
     // Flat wallpaper: same pixels, none of the blur/lens/offscreen work — see FlatBackdrop.
     val flat = flatColorOf(backdrop)
+    val style = GlassSettings.style
 
     Row(
         modifier
             .drawBackdrop(
                 backdrop = backdrop,
                 shape = { Capsule },
+                shadow = null,
                 effects = if (flat != null) ({}) else ({
-                    vibrancy()
-                    blur(blurRadius.toPx())
-                    lens(12f.dp.toPx(), 24f.dp.toPx())
+                    glassEffects(style, blurRadius.toPx(), 12f.dp.toPx(), 24f.dp.toPx())
                 }),
+                highlight = { glassHighlight(style) },
                 onDrawBackdrop = if (flat != null) ({ _ -> drawFlatVibrantBackdrop(flat) }) else ({ it() }),
                 layerBlock = if (isInteractive) {
                     {
@@ -151,7 +152,7 @@ fun LiquidButton(
                         drawRect(tint.copy(alpha = 0.8f))
                     }
                     if (surfaceColor.isSpecified) {
-                        drawRect(surfaceColor)
+                        drawRect(surfaceColor.glassTint(style))
                     }
                 }
             )

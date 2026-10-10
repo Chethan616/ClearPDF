@@ -171,23 +171,20 @@ fun LiquidBottomTabs(
                 .drawBackdrop(
                     backdrop = backdrop,
                     shape = { Capsule },
+                    shadow = null,
                     effects = {
-                        vibrancy()
-                        // Half the original 8 dp. This is the tab bar's own surface only — the
-                        // selection capsule below draws through `tabsBackdrop`, which keeps its
-                        // own blur, so softening the bar does not soften the slider riding on it.
-                        // The lens is untouched: at 24x24 it is what gives the bar its edge, and
-                        // dropping the blur without it would flatten the whole capsule.
-                        blur(4f.dp.toPx())
-                        lens(24f.dp.toPx(), 24f.dp.toPx())
+                        // Half the original 8 dp blur; the 24x24 lens gives the bar its edge. Both
+                        // scale with Settings -> Liquid Glass (identical at the defaults).
+                        glassEffects(GlassSettings.style, 4f.dp.toPx(), 24f.dp.toPx(), 24f.dp.toPx())
                     },
+                    highlight = { glassHighlight(GlassSettings.style) },
                     layerBlock = {
                         val progress = dampedDragAnimation.pressProgress
                         val scale = lerp(1f, 1f + 16f.dp.toPx() / size.width, progress)
                         scaleX = scale
                         scaleY = scale
                     },
-                    onDrawSurface = { drawRect(containerColor) }
+                    onDrawSurface = { drawRect(containerColor.glassTint(GlassSettings.style)) }
                 )
                 .then(interactiveHighlight.modifier)
                 .height(barHeight)
@@ -213,6 +210,7 @@ fun LiquidBottomTabs(
                     .drawBackdrop(
                         backdrop = backdrop,
                         shape = { Capsule },
+                        shadow = null,
                         effects = {
                             val progress = dampedDragAnimation.pressProgress
                             vibrancy()
@@ -263,10 +261,7 @@ fun LiquidBottomTabs(
                         val progress = dampedDragAnimation.pressProgress
                         Highlight.Default.copy(alpha = progress)
                     },
-                    shadow = {
-                        val progress = dampedDragAnimation.pressProgress
-                        Shadow(alpha = progress)
-                    },
+                    shadow = null,
                     innerShadow = {
                         val progress = dampedDragAnimation.pressProgress
                         InnerShadow(

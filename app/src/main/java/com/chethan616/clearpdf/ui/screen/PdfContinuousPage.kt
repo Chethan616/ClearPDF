@@ -298,6 +298,22 @@ internal fun PdfContinuousPage(
                             cap = StrokeCap.Round
                         )
                     }
+                    is PdfMarkup.TextEditMarkup -> {
+                        // Preview of an in-place edit: the old line hidden under the page's own
+                        // paper colour, the new text in the line's size, baseline and closest face.
+                        // Dark reader inverts the page, so the preview inverts with it.
+                        fun c(x: Color) = if (darkPageAppearance) Color(1f - x.red, 1f - x.green, 1f - x.blue, x.alpha) else x
+                        val pad = markup.fontSize * 0.08f
+                        drawRect(
+                            c(markup.background),
+                            Offset(markup.rect.left - pad, markup.rect.top - pad),
+                            Size(markup.rect.width + pad * 2f, markup.rect.height + pad * 2f)
+                        )
+                        drawIntoCanvas { cv ->
+                            val p = markup.previewPaint().apply { color = c(markup.color).toArgb() }
+                            cv.nativeCanvas.drawText(markup.text, markup.rect.left, markup.baseline, p)
+                        }
+                    }
                     is PdfMarkup.ImageMarkup -> {
                         val r = Rect(min(markup.start.x, markup.end.x), min(markup.start.y, markup.end.y), max(markup.start.x, markup.end.x), max(markup.start.y, markup.end.y))
                         if (!markup.bitmap.isRecycled && markup.bitmap.width > 0) runCatching {
@@ -513,7 +529,8 @@ internal fun PdfContinuousPage(
                                 is PdfMarkup.LineMarkup,
                                 is PdfMarkup.StrokeMarkup,
                                 is PdfMarkup.TextBlockHighlightMarkup,
-                                is PdfMarkup.TextBlockLineMarkup -> onSelectMarkup(idx)
+                                is PdfMarkup.TextBlockLineMarkup,
+                                is PdfMarkup.TextEditMarkup -> onSelectMarkup(idx)
                                 else -> Unit
                             }
                             onShowControls()
@@ -534,35 +551,51 @@ internal fun PdfContinuousPage(
         if (selForXf != null && selXfBounds != null) {
             val density2 = LocalDensity.current
             val pad = 30f
-            val boxL = selXfBounds.left - pad
-            val boxT = selXfBounds.top - pad
-            val boxW = selXfBounds.width + pad * 2
-            val boxH = selXfBounds.height + pad * 2
+            // The hit box is FROZEN for the whole gesture. It used to follow the markup every frame,
+            // so each drag delta (measured in the box's own, moving coordinates) was skewed by the
+            // box's own movement — the text "swam" under the finger and resizes overshot (#48).
+            // The pointer stays captured by the box even when the finger leaves it, so a frozen
+            // box loses nothing.
+            var frozen by remember(page, selectedMarkupIndex) { mutableStateOf<Rect?>(null) }
+            val hitBounds = frozen ?: selXfBounds
+            val boxL = hitBounds.left - pad
+            val boxT = hitBounds.top - pad
+            val boxW = hitBounds.width + pad * 2
+            val boxH = hitBounds.height + pad * 2
             Box(
                 Modifier
                     .offset { IntOffset(boxL.roundToInt(), boxT.roundToInt()) }
                     .size(with(density2) { boxW.toDp() }, with(density2) { boxH.toDp() })
                     .pointerInput(page, selectedMarkupIndex) {
                         var mode = 0 // 1 = move, 2 = resize
+                        // Everything is computed from the gesture's START state plus the TOTAL drag,
+                        // never accumulated frame-to-frame, so the result can't drift.
+                        var startMarkup: PdfMarkup? = null
+                        var startBounds: Rect? = null
+                        var total = Offset.Zero
                         detectDragGestures(
                             onDragStart = { local ->
                                 val cur = marks.getOrNull(selectedMarkupIndex)
                                 val bb = cur?.movableBounds()
-                                // Convert the box-local touch back to page space.
-                                val pPage = Offset(local.x + boxL, local.y + boxT)
-                                mode = if (bb != null && cur.isResizable() && (pPage - bb.bottomRight).getDistance() <= 60f) 2 else 1
+                                startMarkup = cur
+                                startBounds = bb
+                                frozen = bb
+                                total = Offset.Zero
+                                val pPage = Offset(local.x + (bb?.left ?: 0f) - pad, local.y + (bb?.top ?: 0f) - pad)
+                                mode = if (bb != null && cur.isResizable() && (pPage - bb.bottomRight).getDistance() <= 64f) 2 else 1
                                 onInteraction()
                             },
                             onDrag = { ch, drag ->
                                 if (mode == 0) return@detectDragGestures
                                 ch.consume()
-                                val cur = marks.getOrNull(selectedMarkupIndex) ?: return@detectDragGestures
-                                val bb = cur.movableBounds() ?: return@detectDragGestures
-                                marks[selectedMarkupIndex] = if (mode == 2) cur.resizedBy(drag, bb) else cur.translated(drag)
+                                val m0 = startMarkup ?: return@detectDragGestures
+                                val b0 = startBounds ?: return@detectDragGestures
+                                total += drag
+                                marks[selectedMarkupIndex] = if (mode == 2) m0.resizedFrom(b0, total) else m0.translated(total)
                                 onInteraction()
                             },
-                            onDragEnd = { mode = 0 },
-                            onDragCancel = { mode = 0 }
+                            onDragEnd = { mode = 0; frozen = null },
+                            onDragCancel = { mode = 0; frozen = null }
                         )
                     }
             )
@@ -753,6 +786,20 @@ internal fun PdfContinuousPage(
                 }
             }
 
+            // An edited line of the page's own text: Edit reopens the editor, Delete restores the
+            // original line.
+            (marks.getOrNull(selectedMarkupIndex) as? PdfMarkup.TextEditMarkup)?.let { te ->
+                PublishMarkupBar(
+                    host = markupBar,
+                    page = page,
+                    token = selectedMarkupIndex,
+                    anchor = te.rect,
+                    onEdit = { onEditAnnotation(te.id) },
+                    onDelete = { onDeleteMarkup(selectedMarkupIndex) },
+                    onDismiss = { onSelectMarkup(-1) }
+                )
+            }
+
             // Text highlights, underlines, and strike-throughs are precise OCR ranges, not
             // transformable shapes. When one is tapped, expose the same clear destructive action
             // used by the other professional markup tools.
@@ -860,7 +907,9 @@ internal fun PdfMarkupBarLayer(
     listState: androidx.compose.foundation.lazy.LazyListState,
     backdrop: Backdrop,
     luminanceAt: (top: Float, bottom: Float) -> Float,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Anything that changes what the page looks like (dark reader): re-picks the ink live. */
+    appearanceKey: Any? = null
 ) {
     val owner = host.owner
     val shown = owner != null
@@ -871,6 +920,13 @@ internal fun PdfMarkupBarLayer(
     val currentLuminance by rememberUpdatedState(luminanceAt)
     // Side of the markup the bar sits on; written at layout, reset to "above" per new selection.
     val placedAbove = remember { booleanArrayOf(true) }
+    LaunchedEffect(owner, host.token, appearanceKey) {
+        val origin = textSelection.pageOrigin(host.page) ?: return@LaunchedEffect
+        if (owner == null) return@LaunchedEffect
+        val r = textSelection.transform.pageRectToScreen(host.anchor, origin)
+        val pad = with(density) { 72.dp.toPx() }
+        onLight = currentLuminance(r.top - pad, r.bottom + pad) > 0.6f
+    }
     LaunchedEffect(owner, host.token) {
         placedAbove[0] = true
         if (owner == null) {

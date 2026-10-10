@@ -152,7 +152,7 @@ fun GlassBottomSheet(
                         lens(20f.dp.toPx(), 40f.dp.toPx(), depthEffect = true, chromaticAberration = true)
                     },
                     highlight = { Highlight.Plain },
-                    shadow = { Shadow(radius = 24f.dp, color = Color.Black.copy(alpha = 0.14f)) },
+                    shadow = null,
                     onDrawSurface = { drawRect(containerColor) }
                 )
                 .clickable(

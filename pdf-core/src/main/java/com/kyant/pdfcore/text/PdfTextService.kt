@@ -19,7 +19,24 @@ data class PdfTextBlock(
     // Per-text-character normalized x bounds, parallel to [text]. Enable word-precise
     // highlighting of a matched substring instead of the whole line.
     val charLefts: FloatArray = FloatArray(0),
-    val charRights: FloatArray = FloatArray(0)
+    val charRights: FloatArray = FloatArray(0),
+    /** How the line is drawn (from its first glyph) — lets an in-place edit preview match it. */
+    val style: PdfTextStyle? = null
+)
+
+/**
+ * A line's typography: [emNorm] is the font size and [baselineNorm] the baseline's y, both as
+ * fractions of the (display) page height; the traits drive the closest Android typeface.
+ */
+data class PdfTextStyle(
+    val fontName: String,
+    val emNorm: Float,
+    val baselineNorm: Float,
+    val rgb: Int,
+    val bold: Boolean,
+    val italic: Boolean,
+    val serif: Boolean,
+    val mono: Boolean
 )
 
 /** A search hit as a normalized rect around the exact matched word(s), not the whole line. */
@@ -95,7 +112,7 @@ class PdfTextServiceImpl : PdfTextService {
         }
         runCatching { stripper.getText(doc) }
 
-        return groupPositionsIntoLines(stripper.positions, pageW, pageH, pageIndex)
+        return groupPositionsIntoLines(stripper.positions, pageW, pageH, pageIndex, stripper.colors)
     }
 
     /** Per-font ascent/descent as fractions of the em, cached for the page being grouped. */
@@ -138,7 +155,8 @@ class PdfTextServiceImpl : PdfTextService {
         positions: List<TextPosition>,
         pageWidth: Float,
         pageHeight: Float,
-        pageIndex: Int
+        pageIndex: Int,
+        colors: Map<TextPosition, Int> = emptyMap()
     ): List<PdfTextBlock> {
         if (positions.isEmpty()) return emptyList()
         synchronized(fontMetricsCache) { fontMetricsCache.clear() }
@@ -235,6 +253,7 @@ class PdfTextServiceImpl : PdfTextService {
             val minY = byX.minOf { it.y - glyphAscent(it) }.coerceAtLeast(0f)
             val maxY = byX.maxOf { it.y + glyphDescent(it) }
 
+            val first = byX.first()
             PdfTextBlock(
                 id     = "$pageIndex-$lineIdx",
                 text   = text,
@@ -243,7 +262,8 @@ class PdfTextServiceImpl : PdfTextService {
                 right  = (maxX / pageWidth).coerceIn(0f, 1f),
                 bottom = (maxY / pageHeight).coerceIn(0f, 1f),
                 charLefts  = charLefts,
-                charRights = charRights
+                charRights = charRights,
+                style = styleOf(first, pageHeight, colors[first] ?: 0)
             )
         }
     }
@@ -271,11 +291,38 @@ fun PdfTextBlock.matchRects(lower: String, pageIndex: Int): List<PdfSearchMatch>
 
 private class PositionCapturingStripper : PDFTextStripper() {
     val positions = mutableListOf<TextPosition>()
+    /** Fill colour each glyph was drawn in (only known while the page is being processed). */
+    val colors = java.util.IdentityHashMap<TextPosition, Int>()
 
     override fun processTextPosition(text: TextPosition) {
-        if (!text.unicode.isNullOrBlank()) positions.add(text)
+        if (!text.unicode.isNullOrBlank()) {
+            positions.add(text)
+            runCatching { graphicsState.nonStrokingColor.toRGB() }.getOrNull()?.let { colors[text] = it }
+        }
     }
 }
+
+private fun styleOf(tp: TextPosition, pageHeight: Float, rgb: Int): PdfTextStyle? = runCatching {
+    val font = tp.font
+    val name = (font?.name ?: "").substringAfter('+')
+    val lower = name.lowercase()
+    val d = font?.fontDescriptor
+    val m = tp.textMatrix
+    val em = kotlin.math.hypot(m.getValue(1, 0), m.getValue(1, 1)).takeIf { it > 0f } ?: tp.fontSizeInPt
+    val mono = listOf("courier", "mono", "consol", "menlo").any { lower.contains(it) } || d?.isFixedPitch == true
+    PdfTextStyle(
+        fontName = name,
+        emNorm = em / pageHeight,
+        baselineNorm = tp.y / pageHeight,
+        rgb = rgb,
+        bold = listOf("bold", "black", "heavy", "semibold", "demi").any { lower.contains(it) } ||
+            d?.isForceBold == true || (d?.fontWeight ?: 400f) >= 600f,
+        italic = lower.contains("italic") || lower.contains("oblique") || d?.isItalic == true,
+        serif = !mono && !lower.contains("sans") && (d?.isSerif == true ||
+            listOf("times", "serif", "georgia", "garamond", "cambria", "book", "minion", "palatino", "baskerville").any { lower.contains(it) }),
+        mono = mono
+    )
+}.getOrNull()
 
 /** Typical Latin face: ascent 0.80 em, descent 0.20 em. */
 private val DefaultMetrics = floatArrayOf(0.80f, 0.20f)

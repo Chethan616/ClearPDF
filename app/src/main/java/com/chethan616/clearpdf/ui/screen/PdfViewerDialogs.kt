@@ -11,6 +11,8 @@ import com.chethan616.clearpdf.ui.components.GlassDropdownOption
 import com.chethan616.clearpdf.ui.components.LiquidGlassDropdown
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.PictureAsPdf
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.TextSnippet
 import com.chethan616.clearpdf.ui.components.GlassDialogField
 import com.chethan616.clearpdf.ui.components.GlassDialogAction
 import com.chethan616.clearpdf.ui.components.GlassDialog
@@ -249,10 +251,13 @@ internal fun AnnotationEditorDialog(
     backdrop: LayerBackdrop,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
-    onSave: (String, Color) -> Unit
+    /** Text boxes only: the current size, adjustable with a slider (null hides it, e.g. notes). */
+    initialFontSize: Float? = null,
+    onSave: (String, Color, Float?) -> Unit
 ) {
     var text by remember { mutableStateOf(initialText) }
     var color by remember { mutableStateOf(initialColor) }
+    var fontSize by remember { mutableStateOf(initialFontSize) }
     val focus = remember { FocusRequester() }
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true; delay(260); runCatching { focus.requestFocus() } }
@@ -265,7 +270,7 @@ internal fun AnnotationEditorDialog(
         actions = {
             GlassDialogAction(stringResource(R.string.delete), onDelete, destructive = true)
             GlassDialogAction(stringResource(R.string.cancel), onDismiss)
-            GlassDialogAction(stringResource(R.string.anno_save), { onSave(text, color) }, primary = true)
+            GlassDialogAction(stringResource(R.string.anno_save), { onSave(text, color, fontSize) }, primary = true)
         }
     ) {
         GlassDialogField(
@@ -275,15 +280,84 @@ internal fun AnnotationEditorDialog(
             placeholder = stringResource(R.string.anno_hint),
             singleLine = false,
             minHeight = 96.dp,
-            focusRequester = focus
+            focusRequester = focus,
+            textStyle = TextStyle(fontSize = 16.sp)
         )
+        fontSize?.let { size ->
+            // Exact sizing without dragging the handle — the precise way to resize (#48).
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                BasicText(stringResource(R.string.anno_text_size), style = TextStyle(glassDialogInkSoft(), 12.sp, FontWeight.Medium))
+                BasicText(size.roundToInt().toString(), style = TextStyle(glassDialogInk(), 12.sp, FontWeight.SemiBold))
+            }
+            com.chethan616.clearpdf.ui.components.LiquidSlider(
+                value = { size },
+                onValueChange = { fontSize = it },
+                valueRange = 10f..200f,
+                visibilityThreshold = 0.5f,
+                backdrop = backdrop,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         Spacer(Modifier.height(14.dp))
         AnnotationColorRow(selected = color, backdrop = backdrop, fgSoft = glassDialogInkSoft(), onPick = { color = it })
     }
 }
 
+/**
+ * In-place editor for one line of the page's own text. The new text is written back in the line's
+ * original font on save (PdfTextEditor), so this is a single-line field, not a text box.
+ */
+@Composable
+internal fun TextEditDialog(
+    initialText: String,
+    original: String,
+    backdrop: LayerBackdrop,
+    canRevert: Boolean,
+    onDismiss: () -> Unit,
+    onRevert: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var text by remember { mutableStateOf(initialText) }
+    val focus = remember { FocusRequester() }
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true; delay(260); runCatching { focus.requestFocus() } }
+    GlassDialog(
+        visible = shown,
+        onDismiss = onDismiss,
+        backdrop = backdrop,
+        title = stringResource(R.string.text_edit_title),
+        actions = {
+            if (canRevert) GlassDialogAction(stringResource(R.string.text_edit_revert), onRevert, destructive = true)
+            GlassDialogAction(stringResource(R.string.cancel), onDismiss)
+            GlassDialogAction(stringResource(R.string.viewer_done), { onSave(text) }, primary = true)
+        }
+    ) {
+        BasicText(stringResource(R.string.text_edit_hint), style = TextStyle(glassDialogInkSoft(), 12.sp, lineHeight = 16.sp))
+        Spacer(Modifier.height(10.dp))
+        GlassDialogField(
+            value = text,
+            onValueChange = { text = it.replace('\n', ' ') },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            focusRequester = focus,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onSave(text) })
+        )
+        if (text != original) {
+            Spacer(Modifier.height(8.dp))
+            BasicText(
+                stringResource(R.string.text_edit_original, original),
+                style = TextStyle(glassDialogInkSoft(), 11.sp),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
 /** Which file the viewer's Share action should hand off. */
-internal enum class ShareFormat { ORIGINAL, PDF }
+internal enum class ShareFormat { ORIGINAL, PDF, IMAGES, TEXT }
 
 /**
  * Share/export chooser on the shared [GlassDialog] card. For a converted document (a .docx opened as
@@ -304,15 +378,15 @@ internal fun ExportShareDialog(
     onDismiss: () -> Unit,
     onShare: (format: ShareFormat, encrypt: Boolean, password: String) -> Unit
 ) {
+    val pdfOnly = originalExt == null
     // Keyed on `visible` so every open starts fresh.
-    var formatIndex by remember(visible) { mutableStateOf(0) }
+    var format by remember(visible) { mutableStateOf(if (pdfOnly) ShareFormat.PDF else ShareFormat.ORIGINAL) }
     var encrypt by remember(visible) { mutableStateOf(false) }
     var password by remember(visible) { mutableStateOf("") }
     val passwordFocus = remember { FocusRequester() }
     val soft = glassDialogInkSoft()
 
-    val pdfOnly = originalExt == null
-    val pdfSelected = pdfOnly || formatIndex == 1
+    val pdfSelected = format == ShareFormat.PDF
     val canShare = !(pdfSelected && encrypt && password.isBlank())
 
     LaunchedEffect(encrypt, pdfSelected) {
@@ -329,11 +403,7 @@ internal fun ExportShareDialog(
             GlassDialogAction(
                 stringResource(R.string.viewer_share_button),
                 {
-                    if (canShare) onShare(
-                        if (pdfSelected) ShareFormat.PDF else ShareFormat.ORIGINAL,
-                        encrypt && pdfSelected,
-                        password
-                    )
+                    if (canShare) onShare(format, encrypt && pdfSelected, password)
                 },
                 primary = true,
                 enabled = canShare
@@ -341,25 +411,28 @@ internal fun ExportShareDialog(
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (!pdfOnly) {
-                BasicText(
-                    stringResource(R.string.viewer_share_format),
-                    style = TextStyle(soft, 13.sp, FontWeight.Medium)
-                )
-                // The share sheet's original bouncy glass dropdown (v3), back on the shared component.
-                LiquidGlassDropdown(
-                    options = listOf(
-                        GlassDropdownOption(0, originalExt.orEmpty(), icon = Icons.Rounded.Description),
-                        GlassDropdownOption(1, stringResource(R.string.viewer_share_pdf), icon = Icons.Rounded.PictureAsPdf)
-                    ),
-                    selected = formatIndex,
-                    onSelect = { formatIndex = it },
-                    backdrop = backdrop,
-                    leadingIcon = if (formatIndex == 1) Icons.Rounded.PictureAsPdf else Icons.Rounded.Description,
-                    triggerSurface = glassDialogPlatter(LocalIsDarkMode.current),
-                    modifier = Modifier.fillMaxWidth()
-                )
+            BasicText(
+                stringResource(R.string.viewer_share_format),
+                style = TextStyle(soft, 13.sp, FontWeight.Medium)
+            )
+            // The share sheet's original bouncy glass dropdown (v3), back on the shared component.
+            // Edits travel with every format: PDF, page images and text are all made from the
+            // edited document.
+            val options = buildList {
+                if (!pdfOnly) add(GlassDropdownOption(ShareFormat.ORIGINAL, originalExt.orEmpty(), icon = Icons.Rounded.Description))
+                add(GlassDropdownOption(ShareFormat.PDF, stringResource(R.string.viewer_share_pdf), icon = Icons.Rounded.PictureAsPdf))
+                add(GlassDropdownOption(ShareFormat.IMAGES, stringResource(R.string.viewer_share_images), icon = Icons.Rounded.Image))
+                add(GlassDropdownOption(ShareFormat.TEXT, stringResource(R.string.viewer_share_text), icon = Icons.Rounded.TextSnippet))
             }
+            LiquidGlassDropdown(
+                options = options,
+                selected = format,
+                onSelect = { format = it },
+                backdrop = backdrop,
+                leadingIcon = options.firstOrNull { it.value == format }?.icon,
+                triggerSurface = glassDialogPlatter(LocalIsDarkMode.current),
+                modifier = Modifier.fillMaxWidth()
+            )
             AnimatedVisibility(
                 visible = pdfSelected,
                 enter = fadeIn(tween(160)) + expandVertically(GlassMotion.settle()),

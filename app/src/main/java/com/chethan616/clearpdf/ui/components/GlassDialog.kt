@@ -176,15 +176,21 @@ fun GlassDialog(
                     shape = { RoundedRectangle(48f.dp) },
                     effects = {
                         val p = progress.value.fastCoerceIn(0f, 1f)
+                        val s = GlassSettings.style
                         colorControls(
-                            brightness = if (isLight) 0.2f else 0f,
-                            saturation = 1.5f
+                            brightness = (if (isLight) 0.2f else 0f) + s.brightness,
+                            saturation = s.saturation
                         )
-                        blur(blurDp.toPx())
-                        lens(24f.dp.toPx() * p, 48f.dp.toPx() * p, depthEffect = true, chromaticAberration = true)
+                        blur(blurDp.toPx() * s.blur)
+                        lens(
+                            24f.dp.toPx() * p * s.refractionHeight,
+                            48f.dp.toPx() * p * s.refractionAmount,
+                            depthEffect = true,
+                            chromaticAberration = true
+                        )
                     },
                     highlight = { Highlight.Plain },
-                    shadow = { Shadow(radius = 24f.dp, color = Color.Black.copy(alpha = 0.12f)) },
+                    shadow = null,
                     onDrawSurface = { drawRect(containerColor) }
                 )
                 // Swallow taps so they don't reach the scrim.
@@ -394,6 +400,7 @@ fun GlassDialogSegmented(
                     Modifier.drawBackdrop(
                         backdrop = backdrop,
                         shape = { Capsule },
+                        shadow = null,
                         effects = {
                             vibrancy()
                             blur(blurDp.toPx())
@@ -454,6 +461,7 @@ fun GlassDialogSegmented(
                 thumbModifier.drawBackdrop(
                     backdrop = backdrop,
                     shape = { Capsule },
+                    shadow = null,
                     effects = {
                         vibrancy()
                         blur(blurDp.toPx())
