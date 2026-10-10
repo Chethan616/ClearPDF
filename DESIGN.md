@@ -61,9 +61,11 @@ chromatic aberration, vibrancy, brightness, tint, highlight, corners, plus prese
   so blur and lens run again each frame. Fade glass; move the flat content inside it.
 
 ### Shadows
-- **No drop shadows on panels or sections** (`withShadow = false` is the default). Shadows
-  flickered on fade-in and cost frames.
-- Only `LiquidButton` / `LiquidIconButton` keep their small `Shadow.Default`.
+- **No shadows anywhere.** Every `drawBackdrop` call passes `shadow = null` (the library's default
+  adds `Shadow.Default`, so omitting it brings a shadow back), and static `innerShadow`s are null.
+  Shadows flickered on fade-in, dulled colours and cost frames.
+- The one exception is press-time lens shading on slider, toggle and tab thumbs (an
+  `InnerShadow` driven by press progress), which is part of the drag effect, not a shadow at rest.
 - When glass fades, use `graphicsLayer { alpha = a; compositingStrategy = ModulateAlpha }`. Never use
   `Modifier.alpha`, because an offscreen layer clips the glass rim and highlight and they snap back in
   when the fade ends.
