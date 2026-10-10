@@ -340,8 +340,8 @@ fun GlassSearchPill(
                         highlight = {
                             Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f))
                         },
-                        shadow = { Shadow(radius = 6f.dp, color = Color.Black.copy(alpha = 0.08f)) },
-                        innerShadow = { InnerShadow(radius = 2f.dp, alpha = 0.25f) },
+                        shadow = null,
+                        innerShadow = null,
                         onDrawSurface = { drawRect(containerColor) }
                     )
                 }

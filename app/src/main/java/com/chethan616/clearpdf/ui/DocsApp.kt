@@ -208,7 +208,8 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
         }
         var selectedTab by rememberSaveable { mutableIntStateOf(0) }
         val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
-        val showBottomTabs = currentRoute == "home" || currentRoute == "tools" || currentRoute == "settings"
+        val showBottomTabs = currentRoute == "home" || currentRoute == "tools" ||
+            (currentRoute == "settings" && !com.chethan616.clearpdf.ui.screen.SettingsSubPage.open)
         val onBottomTabSelected: (Int) -> Unit = remember(navController) {
             { index ->
                 selectedTab = index

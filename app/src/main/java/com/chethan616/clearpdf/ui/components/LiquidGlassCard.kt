@@ -91,8 +91,8 @@ fun LiquidGlassCard(
                 highlight = {
                     Highlight(style = HighlightStyle.Default(angle = uiSensor.gravityAngle, falloff = 2f))
                 },
-                shadow = { Shadow(radius = 8f.dp, color = Color.Black.copy(alpha = 0.12f)) },
-                innerShadow = { InnerShadow(radius = 3.5f.dp, alpha = 0.35f) },
+                shadow = null,
+                innerShadow = null,
                 layerBlock = {
                     val progress = interactiveHighlight.pressProgress
                     val scale = lerp(1f, 1f + 4f.dp.toPx() / size.height, progress)

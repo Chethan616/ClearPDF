@@ -190,7 +190,9 @@ fun PdfSelectionToolbar(
      * title-chip glass ([chipGlass]) — nearly clear — and picks its ink from the page behind it, like
      * the viewer's top bar; without it, the theme's dense platter.
      */
-    luminanceAt: ((top: Float, bottom: Float) -> Float)? = null
+    luminanceAt: ((top: Float, bottom: Float) -> Float)? = null,
+    /** Anything that changes what the page looks like (dark reader): re-picks the ink live. */
+    appearanceKey: Any? = null
 ) {
     val isDark = LocalIsDarkMode.current
     val density = LocalDensity.current
@@ -237,7 +239,7 @@ fun PdfSelectionToolbar(
     // band spanning both), decided once per appearance — the capsule is hidden while anything moves.
     var onLight by remember { mutableStateOf(!isDark) }
     val currentLuminance by rememberUpdatedState(luminanceAt)
-    LaunchedEffect(shown) {
+    LaunchedEffect(shown, appearanceKey) {
         val lum = currentLuminance ?: return@LaunchedEffect
         if (!shown) return@LaunchedEffect
         val rects = state.selectionScreenRects()

@@ -82,8 +82,8 @@ fun GlassToolbar(
                     lens(16f.dp.toPx(), 32f.dp.toPx())
                 },
                 highlight = { Highlight.Ambient },
-                shadow = { Shadow(radius = 8f.dp, color = Color.Black.copy(alpha = 0.10f)) },
-                innerShadow = { InnerShadow(radius = 2f.dp, alpha = 0.25f) },
+                shadow = null,
+                innerShadow = null,
                 onDrawSurface = { drawRect(containerColor) }
             )
             .clip(Capsule),

@@ -190,7 +190,7 @@ fun GlassDialog(
                         )
                     },
                     highlight = { Highlight.Plain },
-                    shadow = { Shadow(radius = 24f.dp, color = Color.Black.copy(alpha = 0.12f)) },
+                    shadow = null,
                     onDrawSurface = { drawRect(containerColor) }
                 )
                 // Swallow taps so they don't reach the scrim.
@@ -400,6 +400,7 @@ fun GlassDialogSegmented(
                     Modifier.drawBackdrop(
                         backdrop = backdrop,
                         shape = { Capsule },
+                        shadow = null,
                         effects = {
                             vibrancy()
                             blur(blurDp.toPx())
@@ -460,6 +461,7 @@ fun GlassDialogSegmented(
                 thumbModifier.drawBackdrop(
                     backdrop = backdrop,
                     shape = { Capsule },
+                    shadow = null,
                     effects = {
                         vibrancy()
                         blur(blurDp.toPx())

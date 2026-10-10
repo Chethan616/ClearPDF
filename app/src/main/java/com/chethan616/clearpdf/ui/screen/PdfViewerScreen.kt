@@ -1845,7 +1845,8 @@ fun PdfViewerScreen(
             textSelection = textSelection,
             listState = listState,
             backdrop = contentBackdrop,
-            luminanceAt = pageLuminanceAt
+            luminanceAt = pageLuminanceAt,
+            appearanceKey = darkPageAppearance
         )
         PdfSelectionToolbar(
             state = textSelection,
@@ -1854,7 +1855,8 @@ fun PdfViewerScreen(
             actions = selectionActions,
             highlightColor = currentColor,
             hasHighlightOverlap = hasHighlightOverlap,
-            luminanceAt = pageLuminanceAt
+            luminanceAt = pageLuminanceAt,
+            appearanceKey = darkPageAppearance
         )
         PdfCopiedToast(
             trigger = copiedTick,

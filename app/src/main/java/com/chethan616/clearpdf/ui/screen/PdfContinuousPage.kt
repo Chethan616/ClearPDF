@@ -907,7 +907,9 @@ internal fun PdfMarkupBarLayer(
     listState: androidx.compose.foundation.lazy.LazyListState,
     backdrop: Backdrop,
     luminanceAt: (top: Float, bottom: Float) -> Float,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Anything that changes what the page looks like (dark reader): re-picks the ink live. */
+    appearanceKey: Any? = null
 ) {
     val owner = host.owner
     val shown = owner != null
@@ -918,6 +920,13 @@ internal fun PdfMarkupBarLayer(
     val currentLuminance by rememberUpdatedState(luminanceAt)
     // Side of the markup the bar sits on; written at layout, reset to "above" per new selection.
     val placedAbove = remember { booleanArrayOf(true) }
+    LaunchedEffect(owner, host.token, appearanceKey) {
+        val origin = textSelection.pageOrigin(host.page) ?: return@LaunchedEffect
+        if (owner == null) return@LaunchedEffect
+        val r = textSelection.transform.pageRectToScreen(host.anchor, origin)
+        val pad = with(density) { 72.dp.toPx() }
+        onLight = currentLuminance(r.top - pad, r.bottom + pad) > 0.6f
+    }
     LaunchedEffect(owner, host.token) {
         placedAbove[0] = true
         if (owner == null) {

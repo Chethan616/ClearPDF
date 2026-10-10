@@ -198,6 +198,9 @@ fun SettingsScreen(
     // iOS-style: the root is a short index of rows; each topic opens on its own page. The root only
     // ever composes three small glass panels, which is what keeps this tab switch light.
     var page by rememberSaveable { mutableIntStateOf(PageIndex) }
+    // A sub-page is a focused task: the app's tab bar steps away while it is open.
+    androidx.compose.runtime.SideEffect { SettingsSubPage.open = page != PageIndex }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { SettingsSubPage.open = false } }
     LaunchedEffect(Unit) {
         if (OfficeEngine.focusSettingsSection.value) {
             OfficeEngine.focusSettingsSection.value = false
@@ -566,6 +569,11 @@ fun SettingsScreen(
 private const val SettingsStaggerStepMs = 20
 
 private const val PageIndex = 0
+
+/** Whether a Settings sub-page (Appearance, Language…) is open — the app hides its tab bar then. */
+object SettingsSubPage {
+    var open by androidx.compose.runtime.mutableStateOf(false)
+}
 private const val PageAppearance = 1
 private const val PageLanguage = 2
 private const val PageFiles = 3

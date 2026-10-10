@@ -171,6 +171,7 @@ fun LiquidBottomTabs(
                 .drawBackdrop(
                     backdrop = backdrop,
                     shape = { Capsule },
+                    shadow = null,
                     effects = {
                         // Half the original 8 dp blur; the 24x24 lens gives the bar its edge. Both
                         // scale with Settings -> Liquid Glass (identical at the defaults).
@@ -209,6 +210,7 @@ fun LiquidBottomTabs(
                     .drawBackdrop(
                         backdrop = backdrop,
                         shape = { Capsule },
+                        shadow = null,
                         effects = {
                             val progress = dampedDragAnimation.pressProgress
                             vibrancy()
@@ -259,10 +261,7 @@ fun LiquidBottomTabs(
                         val progress = dampedDragAnimation.pressProgress
                         Highlight.Default.copy(alpha = progress)
                     },
-                    shadow = {
-                        val progress = dampedDragAnimation.pressProgress
-                        Shadow(alpha = progress)
-                    },
+                    shadow = null,
                     innerShadow = {
                         val progress = dampedDragAnimation.pressProgress
                         InnerShadow(
