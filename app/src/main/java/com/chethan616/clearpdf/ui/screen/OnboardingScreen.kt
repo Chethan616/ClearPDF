@@ -45,6 +45,9 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -527,6 +530,8 @@ private fun AppearanceChooser(
         Modifier
             .fillMaxWidth()
             .viewerGlass(backdrop, glass)
+            // Scrolls inside the glass on short phones instead of clipping the last rows.
+            .verticalScroll(rememberScrollState())
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -575,6 +580,41 @@ private fun AppearanceChooser(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+
+        // Liquid Glass profile — the same presets as Settings -> Liquid Glass; the whole tour
+        // re-renders in the chosen glass as you tap.
+        BasicText(
+            stringResource(R.string.settings_glass),
+            style = TextStyle(inkSoft, 13.sp, fontWeight = FontWeight.SemiBold)
+        )
+        val glassStyle = com.chethan616.clearpdf.ui.components.GlassSettings.style
+        val presets = listOf(
+            com.chethan616.clearpdf.ui.components.GlassStyle.Default to stringResource(R.string.glass_preset_default),
+            com.chethan616.clearpdf.ui.components.GlassStyle.Readable to stringResource(R.string.glass_preset_readable),
+            com.chethan616.clearpdf.ui.components.GlassStyle.Crystal to stringResource(R.string.glass_preset_crystal),
+            com.chethan616.clearpdf.ui.components.GlassStyle.Performance to stringResource(R.string.glass_preset_performance)
+        )
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            presets.forEach { (preset, label) ->
+                val selected = glassStyle == preset
+                LiquidButton(
+                    onClick = { com.chethan616.clearpdf.ui.components.GlassSettings.update(context, preset) },
+                    backdrop = backdrop,
+                    tint = if (selected) LiquidGlassColors.Blue else Color.Unspecified,
+                    surfaceColor = if (selected) Color.Unspecified else (if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.06f)),
+                    horizontalContentPadding = 14.dp
+                ) {
+                    BasicText(
+                        label,
+                        style = TextStyle(if (selected) Color.White else ink, 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium),
+                        maxLines = 1
+                    )
+                }
+            }
+        }
 
         Box(Modifier.fillMaxWidth().height(1.dp).background(ink.copy(0.10f)))
 

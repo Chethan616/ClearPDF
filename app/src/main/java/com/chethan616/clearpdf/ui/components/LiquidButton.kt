@@ -103,6 +103,7 @@ fun LiquidButton(
             .drawBackdrop(
                 backdrop = backdrop,
                 shape = { Capsule },
+                shadow = null,
                 effects = if (flat != null) ({}) else ({
                     glassEffects(style, blurRadius.toPx(), 12f.dp.toPx(), 24f.dp.toPx())
                 }),

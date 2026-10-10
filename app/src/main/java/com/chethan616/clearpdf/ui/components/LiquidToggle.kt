@@ -197,12 +197,7 @@ fun LiquidToggle(
                             alpha = progress
                         )
                     },
-                    shadow = {
-                        Shadow(
-                            radius = 4f.dp,
-                            color = Color.Black.copy(alpha = 0.05f)
-                        )
-                    },
+                    shadow = null,
                     innerShadow = {
                         val progress = dampedDragAnimation.pressProgress
                         if (progress <= 0f) null else InnerShadow(

@@ -55,6 +55,10 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import com.chethan616.clearpdf.ui.components.liquidRowClick
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -88,7 +92,7 @@ internal class RecentMenuAction(
     val onClick: () -> Unit
 )
 
-private val MenuWidth = 228.dp
+private val MenuWidth = 256.dp
 
 /** How much of the entrance each successive item is delayed by, as a fraction of `progress`. */
 private const val Stagger = 0.06f
@@ -232,68 +236,62 @@ private fun MenuPanel(
         val head = index * Stagger
         return ((progress() - head) / (1f - head).coerceAtLeast(0.001f)).coerceIn(0f, 1f)
     }
+    // iOS-compact: the everyday actions as one row of small icon tiles (Open, Share, Pin, Open
+    // with); everything else as slim rows. No title line — the lifted row already says which file.
+    val quick = (primary + actions.filter { !it.destructive && it.confirmLabel == null }).take(4)
+    val rows = actions.filter { it !in quick }
     Column(
         Modifier
             .width(MenuWidth)
-            .glassMenu(backdrop, dark = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current, shape = { RoundedRectangle(24.dp) })
+            .glassMenu(backdrop, dark = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current, shape = { RoundedRectangle(22.dp) }, surfaceAlpha = 0.88f)
             // Swallow taps on the panel's padding so they don't fall through to the scrim.
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-            .padding(vertical = 6.dp)
+            .semantics { contentDescription = title }
+            .padding(6.dp)
     ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            quick.forEachIndexed { i, action ->
+                QuickTile(action, fg, Modifier.weight(1f), enter = { local(i) })
+            }
+        }
+        if (rows.isNotEmpty()) {
+            Box(
+                Modifier
+                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                    .fillMaxWidth()
+                    .height(0.5.dp)
+                    .drawBehind { drawRect(fg.copy(alpha = 0.12f)) }
+            )
+            rows.forEachIndexed { i, action -> MenuRow(action, fg, enter = { local(quick.size + i) }) }
+        }
+    }
+}
+
+/** One compact quick action: tinted icon over a short label, springing under the finger. */
+@Composable
+private fun QuickTile(action: RecentMenuAction, fg: Color, modifier: Modifier, enter: () -> Float) {
+    Column(
+        modifier
+            .height(54.dp)
+            .graphicsLayer {
+                val e = enter()
+                alpha = e
+                val s = lerp(0.85f, 1f, e)
+                scaleX = s; scaleY = s
+            }
+            .liquidRowClick(corner = 14.dp, onClick = action.onClick)
+            .drawBehind { drawRoundRect(action.tint.copy(alpha = 0.14f), cornerRadius = CornerRadius(14.dp.toPx())) }
+            .padding(vertical = 7.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically)
+    ) {
+        Icon(action.icon, null, Modifier.size(19.dp), action.tint)
         BasicText(
-            title,
-            style = TextStyle(sub, 12.sp, FontWeight.SemiBold),
+            action.label,
+            style = TextStyle(fg, 10.5.sp, FontWeight.Medium, textAlign = TextAlign.Center, letterSpacing = (-0.1).sp),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .padding(horizontal = 18.dp)
-                .padding(bottom = 8.dp)
-                .graphicsLayer { alpha = local(0) }
+            overflow = TextOverflow.Ellipsis
         )
-        if (primary.isNotEmpty()) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                primary.forEachIndexed { i, action ->
-                    LiquidButton(
-                        onClick = action.onClick,
-                        backdrop = backdrop,
-                        tint = action.tint,
-                        modifier = Modifier
-                            .weight(1f)
-                            .graphicsLayer {
-                                val e = local(1 + i)
-                                alpha = e
-                                val s = lerp(0.85f, 1f, e)
-                                scaleX = s; scaleY = s
-                            }
-                    ) {
-                        Icon(action.icon, null, Modifier.size(16.dp), Color.White)
-                        BasicText(
-                            action.label,
-                            style = TextStyle(Color.White, 14.sp, FontWeight.SemiBold),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(6.dp))
-        }
-        val base = 1 + primary.size
-        actions.forEachIndexed { i, action ->
-            if (action.destructive && i > 0) {
-                Box(
-                    Modifier
-                        .padding(horizontal = 18.dp, vertical = 4.dp)
-                        .fillMaxWidth()
-                        .height(0.5.dp)
-                        .drawBehind { drawRect(fg.copy(alpha = 0.12f)) }
-                )
-            }
-            MenuRow(action, fg, enter = { local(base + i) })
-        }
     }
 }
 
@@ -317,19 +315,18 @@ private fun MenuRow(action: RecentMenuAction, fg: Color, enter: () -> Float) {
     Row(
         Modifier
             .fillMaxWidth()
-            .height(40.dp)
+            .height(34.dp)
             .graphicsLayer {
                 val e = enter()
                 alpha = e
                 translationY = (1f - e) * 10.dp.toPx()
                 scaleX = press; scaleY = press
             }
-            .padding(horizontal = 6.dp)
             .drawBehind {
                 if (wash > 0f) {
                     val c = if (armed || action.destructive) action.tint.copy(alpha = 0.16f * wash)
                     else fg.copy(alpha = 0.08f * wash)
-                    drawRoundRect(c, cornerRadius = CornerRadius(14.dp.toPx()))
+                    drawRoundRect(c, cornerRadius = CornerRadius(12.dp.toPx()))
                 }
             }
             .clickable(interactionSource = interaction, indication = null, role = Role.Button) {
@@ -341,22 +338,14 @@ private fun MenuRow(action: RecentMenuAction, fg: Color, enter: () -> Float) {
                     action.onClick()
                 }
             }
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Per-action accent chip: the colour carries the meaning, the label carries the words.
-        Box(
-            Modifier
-                .size(26.dp)
-                .drawBehind { drawCircle(action.tint.copy(alpha = if (action.destructive) 0.18f else 0.20f)) },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(action.icon, null, Modifier.size(15.dp), action.tint)
-        }
+        Icon(action.icon, null, Modifier.size(16.dp), action.tint)
         BasicText(
             label,
-            style = TextStyle(ink, 14.sp, FontWeight.Medium),
+            style = TextStyle(ink, 13.sp, FontWeight.Medium),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)

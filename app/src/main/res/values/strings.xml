@@ -274,6 +274,8 @@
     <string name="viewer_share_password_hint">Password</string>
     <string name="viewer_share_button">Share</string>
     <string name="viewer_share_pdf">PDF</string>
+    <string name="viewer_share_images">Images (PNG)</string>
+    <string name="viewer_share_text">Text (.txt)</string>
     <string name="viewer_share_normal">Normal</string>
     <string name="viewer_share_encrypted">Encrypted</string>
 
@@ -321,6 +323,11 @@
     <string name="anno_text_title">Insert text</string>
     <string name="anno_hint">Type here…</string>
     <string name="anno_save">Save</string>
+    <string name="anno_text_size">Size</string>
+    <string name="text_edit_title">Edit text</string>
+    <string name="text_edit_hint">Rewrites this line of the document in its own font. Tap empty space with the Text tool to add new text instead.</string>
+    <string name="text_edit_revert">Restore</string>
+    <string name="text_edit_original">Original: %1$s</string>
     <string name="not_now">Not now</string>
     <string name="dont_ask_again">Don\'t ask again</string>
     <string name="settings_custom_directory">Custom Directory</string>

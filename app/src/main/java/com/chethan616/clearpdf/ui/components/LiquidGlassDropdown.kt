@@ -77,7 +77,9 @@ import kotlin.math.roundToInt
 fun Modifier.glassMenu(
     backdrop: Backdrop,
     dark: Boolean,
-    shape: () -> Shape = { RoundedRectangle(24.dp) }
+    shape: () -> Shape = { RoundedRectangle(24.dp) },
+    /** Surface opacity; raise it for menus that float over vivid content (context menus). */
+    surfaceAlpha: Float = 0.62f
 ): Modifier = drawBackdrop(
     backdrop = backdrop,
     shape = shape,
@@ -87,7 +89,9 @@ fun Modifier.glassMenu(
     highlight = { glassHighlight(GlassSettings.style) },
     shadow = null,
     onDrawSurface = {
-        drawRect((if (dark) Color(0xFF1E1E1E).copy(0.62f) else Color(0xFFFAFAFA).copy(0.62f)).glassTint(GlassSettings.style))
+        // Menus carry text: the user's Tint can make them denser, never clearer than legible.
+        val a = maxOf(surfaceAlpha, (surfaceAlpha * GlassSettings.style.tint)).coerceAtMost(1f)
+        drawRect(if (dark) Color(0xFF1E1E1E).copy(a) else Color(0xFFFAFAFA).copy(a))
     }
 )
 

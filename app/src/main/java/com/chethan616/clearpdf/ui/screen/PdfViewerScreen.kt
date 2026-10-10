@@ -243,6 +243,10 @@ fun PdfViewerScreen(
     var bookmarkedPages by remember { mutableStateOf<List<Int>>(emptyList()) }
     // Annotation (text box / sticky note) editing
     var editingAnnoId       by remember { mutableStateOf<Long?>(null) }
+    // In-place edit of a line of the page's own text (Text tool tap on existing text).
+    var textEditTarget      by remember { mutableStateOf<TextEditTarget?>(null) }
+    // Page images handed to the share sheet together (ACTION_SEND_MULTIPLE).
+    var shareMultiple: List<android.net.Uri> by remember { mutableStateOf(emptyList()) }
     var editingAnnoPage     by remember { mutableStateOf(0) }
     var editingAnnoIsNote   by remember { mutableStateOf(false) }
     var annotationDraft     by remember { mutableStateOf("") }
@@ -1144,10 +1148,27 @@ fun PdfViewerScreen(
                                 onActiveToolChanged     = { activeTool = it },
                                 onActiveImageIdChanged  = { activeImageId = it },
                                 onPlaceText             = { pt ->
-                                    val id = System.nanoTime()
-                                    getPageMarks(page).add(PdfMarkup.TextBoxMarkup(id, pt, "", currentColor, 40f))
-                                    recordEdit(page)
-                                    editingAnnoId = id; editingAnnoPage = page; editingAnnoIsNote = false; annotationDraft = ""
+                                    // One Text tool: tapping the page's own text edits that line in
+                                    // place (same font); tapping empty space places a new text box.
+                                    val canvas = pageCanvasSizes[page]
+                                    val hitLine = canvas?.takeIf { it.width > 0f && it.height > 0f }?.let { cs ->
+                                        val nx = pt.x / cs.width; val ny = pt.y / cs.height
+                                        state.ocrBlocksByPage[page].orEmpty().firstOrNull { b ->
+                                            b.style != null && nx >= b.left - 0.004f && nx <= b.right + 0.004f &&
+                                                ny >= b.top - 0.004f && ny <= b.bottom + 0.004f
+                                        }
+                                    }
+                                    if (hitLine != null) {
+                                        val existing = getPageMarks(page).firstOrNull {
+                                            it is PdfMarkup.TextEditMarkup && it.blockId == hitLine.id
+                                        } as? PdfMarkup.TextEditMarkup
+                                        textEditTarget = TextEditTarget(page, hitLine, existing?.id)
+                                    } else {
+                                        val id = System.nanoTime()
+                                        getPageMarks(page).add(PdfMarkup.TextBoxMarkup(id, pt, "", currentColor, 40f))
+                                        recordEdit(page)
+                                        editingAnnoId = id; editingAnnoPage = page; editingAnnoIsNote = false; annotationDraft = ""
+                                    }
                                     activeTool = PdfEditTool.None; controlsVisible = true
                                 },
                                 onPlaceNote             = { pt ->
@@ -1157,7 +1178,12 @@ fun PdfViewerScreen(
                                     editingAnnoId = id; editingAnnoPage = page; editingAnnoIsNote = true; annotationDraft = ""
                                     activeTool = PdfEditTool.None; controlsVisible = true
                                 },
-                                onEditAnnotation        = { id ->
+                                onEditAnnotation        = annotationEdit@{ id ->
+                                    (getPageMarks(page).firstOrNull { it is PdfMarkup.TextEditMarkup && it.id == id } as? PdfMarkup.TextEditMarkup)?.let { te ->
+                                        val block = state.ocrBlocksByPage[page].orEmpty().firstOrNull { it.id == te.blockId }
+                                        textEditTarget = TextEditTarget(page, block, te.id)
+                                        return@annotationEdit
+                                    }
                                     val m = getPageMarks(page).firstOrNull {
                                         (it is PdfMarkup.TextBoxMarkup && it.id == id) || (it is PdfMarkup.NoteMarkup && it.id == id)
                                     }
@@ -1782,6 +1808,22 @@ fun PdfViewerScreen(
                         )
                     }
                 }
+            },
+            // Long-press a word → "Edit text": rewrite that line in place, in its own font.
+            editableLine = {
+                val ranges = textSelection.rangesByPage()
+                val single = ranges.entries.singleOrNull()?.takeIf { it.value.map { r -> r.blockId }.distinct().size == 1 }
+                single?.let { (pg, rs) ->
+                    state.ocrBlocksByPage[pg].orEmpty().firstOrNull { it.id == rs.first().blockId && it.style != null }
+                        ?.let { pg to it }
+                }
+            },
+            onEditText = { pg, block ->
+                val existing = getPageMarks(pg).firstOrNull {
+                    it is PdfMarkup.TextEditMarkup && it.blockId == block.id
+                } as? PdfMarkup.TextEditMarkup
+                textSelection.clear()
+                textEditTarget = TextEditTarget(pg, block, existing?.id)
             }
         )
         // A lambda, evaluated inside the toolbar: reading the selection here would recompose this
@@ -1803,7 +1845,8 @@ fun PdfViewerScreen(
             textSelection = textSelection,
             listState = listState,
             backdrop = contentBackdrop,
-            luminanceAt = pageLuminanceAt
+            luminanceAt = pageLuminanceAt,
+            appearanceKey = darkPageAppearance
         )
         PdfSelectionToolbar(
             state = textSelection,
@@ -1812,7 +1855,8 @@ fun PdfViewerScreen(
             actions = selectionActions,
             highlightColor = currentColor,
             hasHighlightOverlap = hasHighlightOverlap,
-            luminanceAt = pageLuminanceAt
+            luminanceAt = pageLuminanceAt,
+            appearanceKey = darkPageAppearance
         )
         PdfCopiedToast(
             trigger = copiedTick,
@@ -1838,6 +1882,47 @@ fun PdfViewerScreen(
             }
         )
 
+        // ── In-place edit of the page's own text ──
+        textEditTarget?.let { target ->
+            val list = getPageMarks(target.page)
+            val existing = target.markupId?.let { id ->
+                list.firstOrNull { it is PdfMarkup.TextEditMarkup && it.id == id } as? PdfMarkup.TextEditMarkup
+            }
+            val original = existing?.original ?: target.block?.text.orEmpty()
+            TextEditDialog(
+                initialText = existing?.text ?: original,
+                original = original,
+                backdrop = contentBackdrop,
+                canRevert = existing != null,
+                onDismiss = { textEditTarget = null },
+                onRevert = {
+                    list.removeAll { it is PdfMarkup.TextEditMarkup && it.id == existing?.id }
+                    recordEdit(target.page)
+                    selectedAnnoPage = null; selectedAnnoIndex = -1
+                    textEditTarget = null
+                },
+                onSave = { newText ->
+                    if (existing != null) {
+                        val i = list.indexOf(existing)
+                        if (i >= 0) {
+                            if (newText == existing.original) list.removeAt(i) else list[i] = existing.copy(text = newText)
+                            recordEdit(target.page)
+                        }
+                    } else if (newText != original) {
+                        val block = target.block
+                        val style = block?.style
+                        val canvas = pageCanvasSizes[target.page]
+                        if (block != null && style != null && canvas != null) {
+                            list.add(textEditMarkupFor(block, style, canvas, state.pageBitmaps.getOrNull(target.page), newText))
+                            recordEdit(target.page)
+                        }
+                    }
+                    selectedAnnoPage = null; selectedAnnoIndex = -1
+                    textEditTarget = null
+                }
+            )
+        }
+
         // ── Text / note editor (in-window, samples the real page backdrop) ──
         editingAnnoId?.let { annoId ->
             fun matches(m: PdfMarkup) =
@@ -1856,13 +1941,16 @@ fun PdfViewerScreen(
                     getPageMarks(editingAnnoPage).removeAll { matches(it) }
                     editingAnnoId = null
                 },
-                onSave = { newText, newColor ->
+                initialFontSize = getPageMarks(editingAnnoPage)
+                    .firstOrNull { it is PdfMarkup.TextBoxMarkup && it.id == annoId }
+                    ?.let { (it as PdfMarkup.TextBoxMarkup).fontSize },
+                onSave = { newText, newColor, newSize ->
                     val list = getPageMarks(editingAnnoPage)
                     val idx = list.indexOfFirst { matches(it) }
                     if (idx >= 0) {
                         if (newText.isBlank() && list[idx] is PdfMarkup.TextBoxMarkup) list.removeAt(idx)
                         else list[idx] = when (val m = list[idx]) {
-                            is PdfMarkup.TextBoxMarkup -> m.copy(text = newText, color = newColor)
+                            is PdfMarkup.TextBoxMarkup -> m.copy(text = newText, color = newColor, fontSize = newSize ?: m.fontSize)
                             is PdfMarkup.NoteMarkup    -> m.copy(text = newText, color = newColor)
                             else -> m
                         }
@@ -1962,7 +2050,38 @@ fun PdfViewerScreen(
                                     )
                                 else u
                             val shareDir = java.io.File(context.cacheDir, "shared").apply { mkdirs() }
+                            // Unsaved edits travel with the share: build an edited copy first and
+                            // make every PDF-derived format (PDF, images, text) from it.
+                            val edited: android.net.Uri? = if (hasUnsavedEdits && format != ShareFormat.ORIGINAL) {
+                                val overlays = buildExportOverlays(annotationsByPage, state.ocrBlocksByPage, pageCanvasSizes, pageBitmapSizes)
+                                val name = state.fileName.substringBeforeLast('.').ifBlank { "document" }
+                                    .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                                viewModel.writeEditedCopy(context, overlays, java.io.File(shareDir, "${name}_edited.pdf"))
+                            } else null
+                            val sourcePdf = edited ?: state.document?.uri
                             when (format) {
+                                ShareFormat.IMAGES -> sourcePdf?.let { pdf ->
+                                    val stem = state.fileName.substringBeforeLast('.').ifBlank { "page" }
+                                        .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                                    val count = state.pageCount.coerceAtLeast(1)
+                                    val uris = ArrayList<android.net.Uri>()
+                                    for (p in 0 until count) {
+                                        val bmp = com.kyant.pdfcore.raster.PdfRasterizer.rasterizePageBitmap(context, pdf, p) ?: continue
+                                        val f = java.io.File(shareDir, "${stem}_${p + 1}.png")
+                                        f.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                                        bmp.recycle()
+                                        uris += androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", f)
+                                    }
+                                    shareMultiple = uris
+                                    uris.firstOrNull()?.let { it to "image/png" }
+                                }
+                                ShareFormat.TEXT -> sourcePdf?.let { pdf ->
+                                    val stem = state.fileName.substringBeforeLast('.').ifBlank { "document" }
+                                        .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                                    val f = java.io.File(shareDir, "$stem.txt")
+                                    f.writeText(viewModel.extractAllText(context, pdf))
+                                    androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", f) to "text/plain"
+                                }
                                 ShareFormat.ORIGINAL -> state.originalUri?.let { orig ->
                                     // Mirror the original into our own storage so the target app can
                                     // actually read it — a SAF uri from another provider can't be
@@ -1977,7 +2096,7 @@ fun PdfViewerScreen(
                                         context, "${context.packageName}.provider", out
                                     ) to (context.contentResolver.getType(orig) ?: "application/octet-stream")
                                 }
-                                ShareFormat.PDF -> state.document?.uri?.let { pdf ->
+                                ShareFormat.PDF -> sourcePdf?.let { pdf ->
                                     if (encrypt && password.isNotBlank()) {
                                         val out = java.io.File(shareDir, "protected_${System.currentTimeMillis()}.pdf")
                                         val outUri = androidx.core.content.FileProvider.getUriForFile(
@@ -1994,7 +2113,15 @@ fun PdfViewerScreen(
                     }
                     if (payload != null) {
                         val (shareUri, mime) = payload
-                        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        val many = shareMultiple
+                        shareMultiple = emptyList()
+                        val send = if (many.size > 1) {
+                            android.content.Intent(android.content.Intent.ACTION_SEND_MULTIPLE).apply {
+                                type = mime
+                                putParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, ArrayList(many))
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                        } else android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                             type = mime
                             putExtra(android.content.Intent.EXTRA_STREAM, shareUri)
                             addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)

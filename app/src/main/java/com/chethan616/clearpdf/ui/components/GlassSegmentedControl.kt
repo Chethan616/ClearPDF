@@ -117,7 +117,7 @@ fun GlassSegmentedControl(
                     blur(6f.dp.toPx())
                     lens(10f.dp.toPx(), 20f.dp.toPx())
                 },
-                shadow = { Shadow(radius = 6f.dp, color = Color.Black.copy(alpha = 0.06f)) },
+                shadow = null,
                 onDrawSurface = { drawRect(trackColor) }
             )
             .semantics { role = Role.RadioButton }
@@ -201,7 +201,7 @@ fun GlassSegmentedControl(
                         lens(6f.dp.toPx() + 4f.dp.toPx() * p, 12f.dp.toPx() + 8f.dp.toPx() * p, chromaticAberration = true)
                     },
                     highlight = { Highlight.Ambient.copy(alpha = 0.6f + 0.4f * press.value) },
-                    shadow = { Shadow(radius = 4f.dp, color = Color.Black.copy(alpha = 0.10f)) },
+                    shadow = null,
                     onDrawSurface = { drawRect(thumbColor.copy(alpha = thumbColor.alpha * (1f - 0.5f * press.value))) }
                 )
         )

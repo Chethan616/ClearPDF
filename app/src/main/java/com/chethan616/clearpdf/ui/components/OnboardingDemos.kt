@@ -337,7 +337,10 @@ private fun OrbitSheet(tint: Color, modifier: Modifier) {
         modifier
             .size(width = SheetW, height = SheetH)
             .clip(RoundedCornerShape(14.dp))
-            .background(tint.copy(0.75f))
+            // SOLID: a translucent card let every sheet below show through, so as the deck stacked
+            // into the book the colours mixed into a muddy, dull brown. Opaque sheets stay vivid;
+            // the white "lines" keep them reading as documents.
+            .background(tint)
             .padding(horizontal = 14.dp, vertical = 16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -347,7 +350,7 @@ private fun OrbitSheet(tint: Color, modifier: Modifier) {
                         .fillMaxWidth(w)
                         .height(5.dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(tint)
+                        .background(Color.White.copy(alpha = 0.62f))
                 )
             }
         }

@@ -90,6 +90,7 @@ fun LiquidIconButton(
             .drawBackdrop(
                 backdrop = backdrop,
                 shape = { CircleShape },
+                shadow = null,
                 effects = if (flat != null) ({}) else ({
                     glassEffects(style, 2f.dp.toPx(), 12f.dp.toPx(), 24f.dp.toPx())
                 }),
