@@ -2287,6 +2287,13 @@ fun PdfViewerScreen(
             originalExt = if (shareExt.isNotBlank() && shareExt != "PDF") shareExt else null,
             backdrop    = contentBackdrop,
             onDismiss   = { showShareDialog = false },
+            onPrint     = state.document?.uri?.let { docUri ->
+                {
+                    showShareDialog = false
+                    if (!com.chethan616.clearpdf.utils.PdfPrint.print(context, docUri, state.fileName.substringBeforeLast('.')))
+                        android.widget.Toast.makeText(context, R.string.docx_print_failed, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            },
             onShare     = { format, encrypt, password ->
                 showShareDialog = false
                 viewerScope.launch {

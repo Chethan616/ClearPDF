@@ -382,7 +382,9 @@ internal fun ExportShareDialog(
     originalExt: String?,
     backdrop: LayerBackdrop,
     onDismiss: () -> Unit,
-    onShare: (format: ShareFormat, encrypt: Boolean, password: String) -> Unit
+    onShare: (format: ShareFormat, encrypt: Boolean, password: String) -> Unit,
+    /** Prints the document exactly as it is, through Android's print screen (after Gander). */
+    onPrint: (() -> Unit)? = null
 ) {
     val pdfOnly = originalExt == null
     // Keyed on `visible` so every open starts fresh.
@@ -406,6 +408,7 @@ internal fun ExportShareDialog(
         title = stringResource(R.string.viewer_share_title),
         actions = {
             GlassDialogAction(stringResource(R.string.cancel), onDismiss)
+            if (onPrint != null) GlassDialogAction(stringResource(R.string.docx_print), onPrint)
             GlassDialogAction(
                 stringResource(R.string.viewer_share_button),
                 {
