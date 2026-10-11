@@ -47,16 +47,16 @@ val CropAspects = listOf(
     CropAspect("9:16", 9f / 16f),
 )
 
-data class CropMask(val label: String, val property: CropOutlineProperty)
+data class CropMask(val label: String, val property: CropOutlineProperty, @androidx.annotation.StringRes val labelRes: Int = 0)
 
 val CropMasks: List<CropMask> = listOf(
-    CropMask("Rectangle", CropOutlineProperty(OutlineType.Rect, RectCropShape(0, "Rect"))),
-    CropMask("Rounded", CropOutlineProperty(OutlineType.RoundedRect, RoundedCornerCropShape(1, "Rounded"))),
-    CropMask("Circle", CropOutlineProperty(OutlineType.Oval, OvalCropShape(2, "Oval"))),
-    CropMask("Cut corner", CropOutlineProperty(OutlineType.CutCorner, CutCornerCropShape(3, "CutCorner"))),
-    CropMask("Hexagon", CropOutlineProperty(OutlineType.Polygon, PolygonCropShape(4, "Polygon"))),
-    CropMask("Heart", CropOutlineProperty(OutlineType.Custom, CustomPathOutline(5, "Heart", Paths.Favorite))),
-    CropMask("Star", CropOutlineProperty(OutlineType.Custom, CustomPathOutline(6, "Star", Paths.Star))),
+    CropMask("Rectangle", CropOutlineProperty(OutlineType.Rect, RectCropShape(0, "Rect")), com.chethan616.clearpdf.R.string.ie_mask_rect),
+    CropMask("Rounded", CropOutlineProperty(OutlineType.RoundedRect, RoundedCornerCropShape(1, "Rounded")), com.chethan616.clearpdf.R.string.ie_mask_rounded),
+    CropMask("Circle", CropOutlineProperty(OutlineType.Oval, OvalCropShape(2, "Oval")), com.chethan616.clearpdf.R.string.ie_mask_circle),
+    CropMask("Cut corner", CropOutlineProperty(OutlineType.CutCorner, CutCornerCropShape(3, "CutCorner")), com.chethan616.clearpdf.R.string.ie_mask_cut),
+    CropMask("Hexagon", CropOutlineProperty(OutlineType.Polygon, PolygonCropShape(4, "Polygon")), com.chethan616.clearpdf.R.string.ie_mask_hexagon),
+    CropMask("Heart", CropOutlineProperty(OutlineType.Custom, CustomPathOutline(5, "Heart", Paths.Favorite)), com.chethan616.clearpdf.R.string.ie_mask_heart),
+    CropMask("Star", CropOutlineProperty(OutlineType.Custom, CustomPathOutline(6, "Star", Paths.Star)), com.chethan616.clearpdf.R.string.ie_mask_star),
 )
 
 /**

@@ -122,7 +122,7 @@ fun GlassDialog(
     LaunchedEffect(visible) {
         if (visible) {
             composed = true
-            progress.animateTo(1f, spring(dampingRatio = 0.72f, stiffness = 420f, visibilityThreshold = 0.001f))
+            progress.animateTo(1f, spring(dampingRatio = MotionSettings.damping(0.72f), stiffness = MotionSettings.stiffness(420f), visibilityThreshold = 0.001f))
         } else {
             progress.animateTo(0f, spring(dampingRatio = 1f, stiffness = 900f, visibilityThreshold = 0.001f))
             composed = false

@@ -129,6 +129,9 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
         }
     }
     var showStarPrompt by rememberSaveable { mutableStateOf(false) }
+    // Switching into or out of a right-to-left language (Arabic) can't flip the layout in place;
+    // the app offers a restart instead.
+    var restartForDirection by rememberSaveable { mutableStateOf(false) }
     val systemDark = isSystemInDarkTheme()
     val isDarkMode = when (themeMode) {
         1 -> false
@@ -284,7 +287,11 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
         // Floating glass (dropdown menus, contextual bars) from any depth renders here, above every
         // screen, refracting the live screen — see GlassOverlayHost.
         val overlayHost = remember { GlassOverlayHost() }
-        remember(context) { com.chethan616.clearpdf.ui.components.GlassSettings.load(context); true }
+        remember(context) {
+            com.chethan616.clearpdf.ui.components.GlassSettings.load(context)
+            com.chethan616.clearpdf.ui.components.MotionSettings.load(context)
+            true
+        }
         val platformHaptics = androidx.compose.ui.platform.LocalHapticFeedback.current
         val haptics = remember(platformHaptics) { com.chethan616.clearpdf.ui.utils.ThrottledHaptics(platformHaptics) }
 
@@ -363,6 +370,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     onLocaleChanged = { code ->
                         val normalized = com.chethan616.clearpdf.ui.utils.LocaleHelper.normalizeForUi(code)
                         if (normalized != selectedLocale) {
+                            if (isRtlTag(normalized) != isRtlTag(selectedLocale)) restartForDirection = true
                             // Persist, then switch IN PLACE: the hoisted locale re-provides
                             // LocalResources, so every stringResource re-resolves on the next frame
                             // (the path Onboarding uses). No fade-out + Activity recreate — that was
@@ -513,9 +521,53 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
                     }
                 }
 
+                // A new language that reads the other way round (into or out of Arabic): strings
+                // switch in place, but the layout direction only flips with a fresh start.
+                GlassDialog(
+                    visible = restartForDirection,
+                    onDismiss = { restartForDirection = false },
+                    backdrop = contentBackdrop,
+                    title = stringResource(R.string.restart_title),
+                    actions = {
+                        GlassDialogAction(stringResource(R.string.restart_later), onClick = { restartForDirection = false })
+                        GlassDialogAction(
+                            stringResource(R.string.restart_now),
+                            onClick = { restartForDirection = false; restartApp(context) },
+                            primary = true
+                        )
+                    }
+                ) {
+                    BasicText(
+                        stringResource(R.string.restart_body),
+                        style = TextStyle(
+                            if (!isDarkMode) Color(0xFF3A3A3C) else Color(0xFFD1D1D6),
+                            15.sp,
+                            textAlign = TextAlign.Center
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
                 // Last child: above the tab bar and dialogs, outside the layer it samples.
                 GlassOverlayLayer(overlayHost, contentBackdrop)
             }
         }
     }
+}
+
+/** Whether [tag]'s language reads right to left (Arabic, in the app's languages). */
+private fun isRtlTag(tag: String): Boolean =
+    android.text.TextUtils.getLayoutDirectionFromLocale(java.util.Locale.forLanguageTag(tag)) == android.view.View.LAYOUT_DIRECTION_RTL
+
+/**
+ * Starts the app afresh, so a language that reads the other way round lays every screen out in its
+ * direction (attachBaseContext applies the saved language on the way up).
+ */
+private fun restartApp(context: android.content.Context) {
+    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        ?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        ?: return
+    context.startActivity(intent)
+    context.findActivity()?.finishAffinity()
+    Runtime.getRuntime().exit(0)
 }

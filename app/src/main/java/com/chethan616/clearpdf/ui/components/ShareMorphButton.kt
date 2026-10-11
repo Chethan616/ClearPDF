@@ -45,6 +45,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.chethan616.clearpdf.R
 import com.kyant.backdrop.backdrops.LayerBackdrop
@@ -86,8 +87,23 @@ fun ShareMorphButton(
     onShareModeChanged: (Boolean) -> Unit = {},
     idleIcon: ImageVector = Icons.Rounded.UploadFile,
     idleContentDesc: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** The idle circle's diameter; the capsule grows to twice this. */
+    size: Dp = 52.dp,
+    /**
+     * Settings -> Personalization -> Swap share and open: tap shares and the hold-and-swipe opens
+     * another file. Read from settings when not given.
+     */
+    inverted: Boolean? = null
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val swap = inverted ?: remember { com.chethan616.clearpdf.data.repository.AppSettingsManager.getInvertShareMorph(context) }
+    val tapAction = if (swap) onShare else onOpen
+    val swipeAction = if (swap) onOpen else onShare
+    val restIcon = if (swap) Icons.Rounded.IosShare else idleIcon
+    val restDesc = if (swap) stringResource(R.string.viewer_share_document) else idleContentDesc
+    val armedIcon = if (swap) idleIcon else Icons.Rounded.IosShare
+    val armedDesc = if (swap) idleContentDesc else stringResource(R.string.viewer_share_document)
     var shareMode by remember { mutableStateOf(false) }
     var pressed by remember { mutableStateOf(false) }
     var dragUp by remember { mutableFloatStateOf(0f) }
@@ -101,7 +117,7 @@ fun ShareMorphButton(
     val height by morph.animateDp(
         transitionSpec = { GlassMotion.morph() },
         label = "shareMorphHeight"
-    ) { if (it) 104.dp else 52.dp }
+    ) { if (it) size * 2 else size }
     // 0 while idle, 1 while morphed. Both icon layers read this, so they cross-fade against the
     // same curve the height is travelling on. The fade itself stays critically damped — a bouncing
     // alpha reads as a flicker — while `pop` carries the bounce on scale instead.
@@ -178,7 +194,7 @@ fun ShareMorphButton(
 
     Box(
         modifier
-            .width(52.dp)
+            .width(size)
             .height(height)
             .graphicsLayer { scaleX = jelly.scale; scaleY = jelly.scale }
             // The viewer's own chrome material, so this sits beside the back and search circles as one
@@ -192,7 +208,7 @@ fun ShareMorphButton(
                         tryAwaitRelease()
                         pressed = false
                     },
-                    onTap = { if (!shareMode) onOpen() }
+                    onTap = { if (!shareMode) tapAction() }
                 )
             }
             .pointerInput(Unit) {
@@ -203,7 +219,7 @@ fun ShareMorphButton(
                     },
                     onDrag = { change, amount -> change.consume(); dragUp += amount.y },
                     onDragEnd = {
-                        if (dragUp < -thresholdPx) onShare()
+                        if (dragUp < -thresholdPx) swipeAction()
                         shareMode = false; onShareModeChanged(false); dragUp = 0f
                     },
                     onDragCancel = { shareMode = false; onShareModeChanged(false); dragUp = 0f }
@@ -217,7 +233,7 @@ fun ShareMorphButton(
                 Modifier.fillMaxSize().graphicsLayer { alpha = 1f - morphed },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(idleIcon, idleContentDesc, Modifier.size(20.dp), fg)
+                Icon(restIcon, restDesc, Modifier.size(20.dp), fg)
             }
         }
         if (morphed > 0.001f) {
@@ -226,12 +242,12 @@ fun ShareMorphButton(
                 Modifier
                     .fillMaxSize()
                     .graphicsLayer { alpha = morphed }
-                    .padding(vertical = 9.dp),
+                    .padding(vertical = size * 0.17f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
-                    Icons.Rounded.IosShare,
-                    stringResource(R.string.viewer_share_document),
+                    armedIcon,
+                    armedDesc,
                     Modifier
                         .size(20.dp)
                         // Overshoots to ~1.08 before settling — the icon lands with the capsule.

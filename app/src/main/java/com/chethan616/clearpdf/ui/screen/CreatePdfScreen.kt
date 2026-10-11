@@ -320,7 +320,7 @@ fun CreatePdfScreen(
                                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                         Icon(
                                             Icons.Rounded.ArrowUpward,
-                                            "Move up",
+                                            androidx.compose.ui.res.stringResource(com.chethan616.clearpdf.R.string.move_up),
                                             Modifier
                                                 .size(24.dp)
                                                 .clip(CircleShape)
@@ -331,7 +331,7 @@ fun CreatePdfScreen(
                                         )
                                         Icon(
                                             Icons.Rounded.ArrowDownward,
-                                            "Move down",
+                                            androidx.compose.ui.res.stringResource(com.chethan616.clearpdf.R.string.move_down),
                                             Modifier
                                                 .size(24.dp)
                                                 .clip(CircleShape)

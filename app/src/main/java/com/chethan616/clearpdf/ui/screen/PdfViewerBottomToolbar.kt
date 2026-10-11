@@ -750,31 +750,31 @@ internal fun PdfViewerBottomToolbar(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(ReaderControlSize), contentAlignment = Alignment.Center) {
                     LiquidIconButton(
                         onClick = {
                             editorOpen = !editorOpen
                             if (!editorOpen) onSetActiveTool(PdfEditTool.None)
                         },
                         backdrop = backdrop,
-                        modifier = Modifier.size(52.dp),
+                        modifier = Modifier.size(ReaderControlSize),
                         tint = if (editorOpen) accent else Color.Unspecified,
                         surfaceColor = if (!editorOpen && (readerTourStep == 0 || readerTourStep == 2)) LiquidGlassColors.Blue.copy(alpha = 0.22f) else Color.Unspecified
                     ) {
-                        Icon(Icons.Rounded.Edit, stringResource(R.string.viewer_editor_tools), Modifier.size(21.dp), if (editorOpen) Color.White else fg)
+                        Icon(Icons.Rounded.Edit, stringResource(R.string.viewer_editor_tools), Modifier.size(20.dp), if (editorOpen) Color.White else fg)
                     }
                 }
-                Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(ReaderControlSize), contentAlignment = Alignment.Center) {
                     LiquidIconButton(
                         onClick = onToggleAutoScroll,
                         backdrop = backdrop,
-                        modifier = Modifier.size(52.dp),
+                        modifier = Modifier.size(ReaderControlSize),
                         tint = if (autoScrollActive) LiquidGlassColors.Green else Color.Unspecified
                     ) {
                         Icon(
                             if (autoScrollActive) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             stringResource(if (autoScrollActive) R.string.viewer_auto_scroll_pause else R.string.viewer_auto_scroll_start),
-                            Modifier.size(21.dp),
+                            Modifier.size(20.dp),
                             if (autoScrollActive) Color.White else fg
                         )
                     }
@@ -799,7 +799,7 @@ internal fun PdfViewerBottomToolbar(
                 }
                 Spacer(Modifier.weight(1f))
                 // Reserve the final slot for ShareMorph, which is layered over this row.
-                Spacer(Modifier.size(52.dp))
+                Spacer(Modifier.size(ReaderControlSize))
             }
         }
         }
@@ -812,6 +812,7 @@ internal fun PdfViewerBottomToolbar(
             modifier = Modifier.align(Alignment.BottomEnd).zIndex(3f)
         ) {
             ShareMorphButton(
+                size = ReaderControlSize,
                 backdrop = backdrop,
                 glass = if (readerTourStep == 1) LiquidGlassColors.Blue.copy(alpha = 0.2f) else pillGlass,
                 fg = fg,
@@ -856,3 +857,6 @@ internal fun PdfViewerBottomToolbar(
 
     }
 }
+
+/** The reader's bottom circles (editor, auto-scroll, share/open): the Word editor's 44 dp size. */
+private val ReaderControlSize = 44.dp

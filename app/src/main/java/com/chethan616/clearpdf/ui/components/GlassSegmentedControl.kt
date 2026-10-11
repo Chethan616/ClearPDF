@@ -102,7 +102,7 @@ fun GlassSegmentedControl(
         hoverIndex = selectedIndex
         position.animateTo(
             selectedIndex.toFloat().fastCoerceIn(0f, (count - 1).toFloat()),
-            spring(dampingRatio = 0.72f, stiffness = 380f)
+            spring(dampingRatio = MotionSettings.damping(0.72f), stiffness = MotionSettings.stiffness(380f))
         ) { stretch.onPositionSample(value * segPx) }
     }
 
@@ -160,7 +160,7 @@ fun GlassSegmentedControl(
                                 }
                             }
                         }
-                        scope.launch { press.animateTo(0f, spring(0.6f, 400f)) }
+                        scope.launch { press.animateTo(0f, spring(MotionSettings.damping(0.6f), MotionSettings.stiffness(400f))) }
                         val target = if (dragged) hoverIndex else startIndex
                         if (!cancelled && target != currentSelected) {
                             haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
@@ -169,7 +169,7 @@ fun GlassSegmentedControl(
                             // Snap the thumb back if a drag ended on the same segment.
                             hoverIndex = currentSelected
                             scope.launch {
-                                position.animateTo(currentSelected.toFloat(), spring(0.72f, 380f)) {
+                                position.animateTo(currentSelected.toFloat(), spring(MotionSettings.damping(0.72f), MotionSettings.stiffness(380f))) {
                                     stretch.onPositionSample(value * segPx)
                                 }
                             }

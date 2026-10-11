@@ -50,6 +50,7 @@ import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material.icons.rounded.Wallpaper
@@ -485,6 +486,17 @@ fun SettingsScreen(
                         backdrop = backdrop
                     )
                     SettingsDivider(isLight)
+                    // The viewer's open/share morph: swap what the tap and the hold-and-swipe do.
+                    var invertShareMorph by remember { mutableStateOf(AppSettingsManager.getInvertShareMorph(context)) }
+                    SettingsToggleRow(
+                        icon = Icons.Rounded.SwapVert,
+                        title = stringResource(R.string.settings_invert_share_morph),
+                        desc = stringResource(R.string.settings_invert_share_morph_desc),
+                        checked = invertShareMorph,
+                        onCheckedChange = { invertShareMorph = it; AppSettingsManager.setInvertShareMorph(context, it) },
+                        backdrop = backdrop
+                    )
+                    SettingsDivider(isLight)
                     SettingsToggleRow(
                         icon = Icons.Rounded.Wallpaper,
                         title = stringResource(R.string.settings_background),
@@ -729,6 +741,86 @@ private fun GlassTuningPage(
             onClick = { set(com.chethan616.clearpdf.ui.components.GlassStyle.Default) },
             backdrop = backdrop,
             accent = LiquidGlassColors.Blue,
+            icon = Icons.Rounded.Refresh,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+
+    MotionTuningSection(backdrop, uiSensor, ink, sub)
+}
+
+/**
+ * Settings -> Liquid Glass -> Motion: the spring physics every glass control shares (press swell,
+ * release jiggle, drag stretch, long-press bloom, bounce and speed), with profiles and a button to
+ * feel the result. Values are multipliers on the designed motion; Normal is the design.
+ */
+@Composable
+private fun MotionTuningSection(
+    backdrop: Backdrop,
+    uiSensor: com.chethan616.clearpdf.ui.utils.UISensor,
+    ink: Color,
+    sub: Color
+) {
+    val context = LocalContext.current
+    val motion = com.chethan616.clearpdf.ui.components.MotionSettings.style
+    fun set(m: com.chethan616.clearpdf.ui.components.MotionStyle) =
+        com.chethan616.clearpdf.ui.components.MotionSettings.update(context, m)
+    val presets = listOf(
+        com.chethan616.clearpdf.ui.components.MotionStyle.Normal to stringResource(R.string.motion_preset_normal),
+        com.chethan616.clearpdf.ui.components.MotionStyle.Performance to stringResource(R.string.motion_preset_performance),
+        com.chethan616.clearpdf.ui.components.MotionStyle.Bouncy to stringResource(R.string.motion_preset_bouncy),
+        com.chethan616.clearpdf.ui.components.MotionStyle.SuperSpringy to stringResource(R.string.motion_preset_super)
+    )
+    SettingsSection(backdrop, uiSensor, Modifier, gap = 10.dp) {
+        BasicText(stringResource(R.string.glass_motion), style = TextStyle(ink, 17.sp, FontWeight.SemiBold))
+        BasicText(stringResource(R.string.glass_motion_desc), style = TextStyle(sub, 13.sp))
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            presets.forEach { (m, label) ->
+                GlassChoiceChip(label = label, selected = motion == m, onClick = { set(m) }, backdrop = backdrop, accent = LiquidGlassColors.Purple)
+            }
+            if (presets.none { it.first == motion }) {
+                GlassChoiceChip(label = stringResource(R.string.glass_preset_custom), selected = true, onClick = {}, backdrop = backdrop, accent = LiquidGlassColors.Purple)
+            }
+        }
+        // Press it to feel the current physics.
+        Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+            LiquidButton(onClick = {}, backdrop = backdrop, tint = LiquidGlassColors.Purple) {
+                BasicText(
+                    stringResource(R.string.motion_try),
+                    style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold),
+                    modifier = Modifier.padding(horizontal = 18.dp)
+                )
+            }
+        }
+    }
+    SettingsSection(backdrop, uiSensor, Modifier, gap = 6.dp) {
+        @Composable
+        fun knob(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                BasicText(label, style = TextStyle(ink, 14.sp, FontWeight.Medium))
+                BasicText("%.2f".format(value), style = TextStyle(sub, 13.sp))
+            }
+            LiquidSlider(
+                value = { value },
+                onValueChange = onChange,
+                valueRange = range,
+                visibilityThreshold = 0.005f,
+                backdrop = backdrop,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        knob(stringResource(R.string.motion_bounce), motion.bounce, 0f..1f) { set(motion.copy(bounce = it)) }
+        knob(stringResource(R.string.motion_speed), motion.speed, 0.5f..2f) { set(motion.copy(speed = it)) }
+        knob(stringResource(R.string.motion_press), motion.press, 0f..2.5f) { set(motion.copy(press = it)) }
+        knob(stringResource(R.string.motion_wobble), motion.wobble, 0f..3f) { set(motion.copy(wobble = it)) }
+        knob(stringResource(R.string.motion_stretch), motion.stretch, 0f..2.5f) { set(motion.copy(stretch = it)) }
+        knob(stringResource(R.string.motion_bloom), motion.bloom, 0f..2.5f) { set(motion.copy(bloom = it)) }
+        Spacer(Modifier.height(8.dp))
+        ToolPrimaryButton(
+            text = stringResource(R.string.motion_reset),
+            onClick = { set(com.chethan616.clearpdf.ui.components.MotionStyle.Normal) },
+            backdrop = backdrop,
+            accent = LiquidGlassColors.Purple,
             icon = Icons.Rounded.Refresh,
             modifier = Modifier.fillMaxWidth()
         )

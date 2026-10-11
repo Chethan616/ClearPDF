@@ -93,6 +93,13 @@ Use the shared springs in `GlassMotion` (or springs close to them):
 | `GlassMotion.unfold()` / `unfoldLag()` / `fold()` | Menus: width (0.68, 420), height a beat behind (0.6, 340), close (1, 900) |
 | `GlassMotion.settle()` / `fade()` | Alpha and layout. Critically damped, never bouncy |
 
+**The user tunes it (Settings -> Liquid Glass -> Motion).** `MotionSettings` holds multipliers on
+the numbers above (bounce, speed, press depth, release jiggle, drag stretch, long-press bloom) with
+the profiles Normal (the design, exactly), Performance, Bouncy and Super springy. So every bouncing
+spring goes through `MotionSettings.damping(designed)` / `stiffness(designed)`, and every press
+size goes through the style. The `GlassMotion` springs already do. A new bouncing spring written
+by hand must do the same. `settle`, `fade` and layout springs never bounce and ignore it.
+
 **Press jelly (the iOS 27 feel).**
 - Glass buttons (`LiquidButton`, `LiquidIconButton`) share `liquidPressTransform`. The button swells
   ~4 dp under the finger and leans toward a dragging finger. On release it springs back and jiggles once,
@@ -167,6 +174,10 @@ Use the shared springs in `GlassMotion` (or springs close to them):
   heading stays blue. Never use a plain RGB invert. Pictures: a photograph is drawn as printed; a
   scan or figure that `NightPaper.looksLikePaper` turns over with the page. PDF/PPTX pages find
   their pictures with `PdfImageRegions` and redraw photographs unfiltered (also in zoom tiles).
+- The reader's bottom circles (editor tools, auto-scroll, the open/share morph) are 44 dp with
+  20 dp icons, the Word editor's size, in the PDF and PowerPoint viewers too. The morph grows to
+  twice its size while armed. Settings -> Personalization -> Swap share and open makes the tap
+  share and the hold-and-swipe open; the ink still follows what is behind it.
 - Word documents open as pages, desktop-like: true proportions and margins, fit to width, pinch to
   zoom (the page relays out sharp, it is never bitmap-scaled), Word's own page breaks.
 

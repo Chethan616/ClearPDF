@@ -178,14 +178,14 @@ fun MergePdfScreen(
                         Icon(Icons.Rounded.PictureAsPdf, null, Modifier.size(18.dp), accent.copy(0.7f))
                         BasicText(file, style = TextStyle(sub, 14.sp), modifier = Modifier.weight(1f))
                         Icon(
-                            Icons.Rounded.ArrowUpward, "Move up",
+                            Icons.Rounded.ArrowUpward, androidx.compose.ui.res.stringResource(com.chethan616.clearpdf.R.string.move_up),
                             Modifier
                                 .size(18.dp)
                                 .clickable(enabled = index > 0) { viewModel.moveFile(index, index - 1) },
                             if (index > 0) accent else sub.copy(0.45f)
                         )
                         Icon(
-                            Icons.Rounded.ArrowDownward, "Move down",
+                            Icons.Rounded.ArrowDownward, androidx.compose.ui.res.stringResource(com.chethan616.clearpdf.R.string.move_down),
                             Modifier
                                 .size(18.dp)
                                 .clickable(enabled = index < state.selectedFiles.lastIndex) { viewModel.moveFile(index, index + 1) },

@@ -173,7 +173,7 @@ fun GlassBottomSheet(
                             hidden.snapTo(startFraction)
                             currentOnDismiss()
                         } else {
-                            dragOffset.animateTo(0f, spring(dampingRatio = 0.7f, stiffness = 500f), initialVelocity = velocity)
+                            dragOffset.animateTo(0f, spring(dampingRatio = MotionSettings.damping(0.7f), stiffness = MotionSettings.stiffness(500f)), initialVelocity = velocity)
                         }
                     }
                 )

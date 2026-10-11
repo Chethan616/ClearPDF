@@ -58,7 +58,7 @@ private fun rememberPressScale(interaction: MutableInteractionSource): State<Flo
         if (pressed) 0.96f else 1f,
         // Slightly under-damped and a touch stiffer than the rest of the app: release kicks back
         // with a visible bounce. Scoped to the tool tiles on purpose — everything else stays damped.
-        spring(dampingRatio = 0.42f, stiffness = Spring.StiffnessMedium),
+        spring(dampingRatio = MotionSettings.damping(0.42f), stiffness = MotionSettings.stiffness(Spring.StiffnessMedium)),
         label = "toolTilePress"
     )
 }

@@ -237,7 +237,7 @@ fun CropPanel(
             }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(CropMasks.size) { i ->
-                    EditorChip(CropMasks[i].label, session.outlineIndex == i, { vm.setOutline(i) }, accent = LiquidGlassColors.Purple)
+                    EditorChip(stringResource(CropMasks[i].labelRes), session.outlineIndex == i, { vm.setOutline(i) }, accent = LiquidGlassColors.Purple)
                 }
             }
         }
@@ -321,7 +321,7 @@ fun FiltersPanel(
             item { FilterThumb(stringResource(R.string.ie_filter_none), source, selected == null) { vm.selectFilter(null) } }
             items(FilterPreset.entries.size) { i ->
                 val p = FilterPreset.entries[i]
-                FilterThumb(p.label, thumbs[p], selected == p) { vm.selectFilter(p) }
+                FilterThumb(stringResource(p.labelRes), thumbs[p], selected == p) { vm.selectFilter(p) }
             }
         }
     }

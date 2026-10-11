@@ -49,7 +49,7 @@ fun GlassBead(
             selected -> 1.1f
             else -> 1f
         },
-        spring(dampingRatio = 0.45f, stiffness = 520f),
+        spring(dampingRatio = MotionSettings.damping(0.45f), stiffness = MotionSettings.stiffness(520f)),
         label = "beadScale"
     )
     Box(

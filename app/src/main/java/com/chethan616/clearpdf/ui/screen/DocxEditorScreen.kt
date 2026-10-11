@@ -1432,10 +1432,14 @@ private fun ParagraphBlock(
                     }
                     Box(Modifier.weight(1f).alignByBaseline()) {
                         if (editable) ParaField(para, pl, full, env)
+                        // Full width, like the edit field: centred and right-aligned titles were
+                        // drawn at the left while reading because the text only spanned itself.
                         else BasicText(
                             annotated,
                             style = if (first) pl.style else pl.style.copy(textIndent = null),
-                            modifier = if (env.editMode && !readOnly) Modifier.clickable(remember { MutableInteractionSource() }, indication = null) { env.onReadOnlyTap() } else Modifier
+                            modifier = Modifier.fillMaxWidth().then(
+                                if (env.editMode && !readOnly) Modifier.clickable(remember { MutableInteractionSource() }, indication = null) { env.onReadOnlyTap() } else Modifier
+                            )
                         )
                     }
                 }
@@ -1499,16 +1503,42 @@ private object DocImages {
 
     fun decode(key: String, bytes: ByteArray, targetW: Int): DecodedPicture? {
         cache.get(key)?.let { return DecodedPicture(it.first.asImageBitmap(), it.second) }
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-        if (bounds.outWidth <= 0) return null
-        var sample = 1
-        while (bounds.outWidth / (sample * 2) >= targetW.coerceAtLeast(1)) sample *= 2
-        val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+        val bmp = decodeScaled(bytes, targetW.coerceAtLeast(1))
+        if (bmp == null) {
+            android.util.Log.w("DocxImages", "Couldn't decode picture $key (${bytes.size} bytes)")
+            return null
+        }
         // A scan or a chart on white turns over with dark paper; a photograph never does.
         val paper = runCatching { NightPaper.looksLikePaper(bmp) }.getOrDefault(false)
         cache.put(key, bmp to paper)
         return DecodedPicture(bmp.asImageBitmap(), paper)
+    }
+
+    /**
+     * Big camera photos (a 3800 px progressive JPEG is common in Word files) decode through
+     * ImageDecoder at the size they're shown, in software so the night probe can read pixels;
+     * older Android, or a format ImageDecoder refuses, falls back to a sampled BitmapFactory.
+     */
+    private fun decodeScaled(bytes: ByteArray, targetW: Int): Bitmap? {
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            runCatching {
+                val src = android.graphics.ImageDecoder.createSource(java.nio.ByteBuffer.wrap(bytes))
+                return android.graphics.ImageDecoder.decodeBitmap(src) { decoder, info, _ ->
+                    decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                    val w = info.size.width
+                    if (w > targetW) {
+                        val h = (info.size.height.toLong() * targetW / w).toInt().coerceAtLeast(1)
+                        decoder.setTargetSize(targetW, h)
+                    }
+                }
+            }.onFailure { android.util.Log.w("DocxImages", "ImageDecoder failed: $it") }
+        }
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0) return null
+        var sample = 1
+        while (bounds.outWidth / (sample * 2) >= targetW) sample *= 2
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
     }
 }
 
@@ -1522,7 +1552,11 @@ private fun DocPicture(info: ObjInfo, pkg: DocxPackage, look: DocxLook, maxWidth
     val bucket = (px / 128 + 1) * 128
     val pic by produceState<DecodedPicture?>(null, bytes, bucket) {
         val b = bytes ?: return@produceState
-        value = withContext(Dispatchers.IO) { runCatching { DocImages.decode("$rid@${System.identityHashCode(pkg)}@$bucket", b, bucket) }.getOrNull() }
+        value = withContext(Dispatchers.IO) {
+            runCatching { DocImages.decode("$rid@${System.identityHashCode(pkg)}@$bucket", b, bucket) }
+                .onFailure { android.util.Log.w("DocxImages", "Picture $rid failed", it) }
+                .getOrNull()
+        }
     }
     val ratio = if (info.widthPt > 0f && info.heightPt > 0f) info.heightPt / info.widthPt
     else pic?.image?.let { it.height.toFloat() / it.width.coerceAtLeast(1) } ?: 0.6f

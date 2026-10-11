@@ -21,29 +21,29 @@ import android.graphics.PointF
  * [intensity] blends the look with its input: matrices are interpolated towards identity, GPU
  * looks are alpha-composited over the input.
  */
-enum class FilterPreset(val label: String) {
-    Vivid("Vivid"),
-    Warm("Warm"),
-    Cool("Cool"),
-    Fade("Fade"),
-    Mono("Mono"),
-    Noir("Noir"),
-    Sepia("Sepia"),
-    Vintage("Vintage"),
-    Chrome("Chrome"),
-    Dramatic("Dramatic"),
-    Golden("Golden"),
-    Teal("Teal & Orange"),
-    Polaroid("Polaroid"),
-    Lomo("Lomo"),
-    Invert("Invert"),
-    Posterize("Posterize"),
-    Sketch("Sketch"),
-    Toon("Toon"),
-    Emboss("Emboss"),
-    Crosshatch("Crosshatch"),
-    Halftone("Halftone"),
-    OilPaint("Oil paint");
+enum class FilterPreset(val label: String, @androidx.annotation.StringRes val labelRes: Int) {
+    Vivid("Vivid", com.chethan616.clearpdf.R.string.ie_fx_vivid),
+    Warm("Warm", com.chethan616.clearpdf.R.string.ie_fx_warm),
+    Cool("Cool", com.chethan616.clearpdf.R.string.ie_fx_cool),
+    Fade("Fade", com.chethan616.clearpdf.R.string.ie_fx_fade),
+    Mono("Mono", com.chethan616.clearpdf.R.string.ie_fx_mono),
+    Noir("Noir", com.chethan616.clearpdf.R.string.ie_fx_noir),
+    Sepia("Sepia", com.chethan616.clearpdf.R.string.ie_fx_sepia),
+    Vintage("Vintage", com.chethan616.clearpdf.R.string.ie_fx_vintage),
+    Chrome("Chrome", com.chethan616.clearpdf.R.string.ie_fx_chrome),
+    Dramatic("Dramatic", com.chethan616.clearpdf.R.string.ie_fx_dramatic),
+    Golden("Golden", com.chethan616.clearpdf.R.string.ie_fx_golden),
+    Teal("Teal & Orange", com.chethan616.clearpdf.R.string.ie_fx_teal),
+    Polaroid("Polaroid", com.chethan616.clearpdf.R.string.ie_fx_polaroid),
+    Lomo("Lomo", com.chethan616.clearpdf.R.string.ie_fx_lomo),
+    Invert("Invert", com.chethan616.clearpdf.R.string.ie_fx_invert),
+    Posterize("Posterize", com.chethan616.clearpdf.R.string.ie_fx_posterize),
+    Sketch("Sketch", com.chethan616.clearpdf.R.string.ie_fx_sketch),
+    Toon("Toon", com.chethan616.clearpdf.R.string.ie_fx_toon),
+    Emboss("Emboss", com.chethan616.clearpdf.R.string.ie_fx_emboss),
+    Crosshatch("Crosshatch", com.chethan616.clearpdf.R.string.ie_fx_crosshatch),
+    Halftone("Halftone", com.chethan616.clearpdf.R.string.ie_fx_halftone),
+    OilPaint("Oil paint", com.chethan616.clearpdf.R.string.ie_fx_oil_paint);
 
     fun matrix(): ColorMatrix? = when (this) {
         Vivid -> ColorMatrix().apply { setSaturation(1.45f) }.then(contrast(1.08f))

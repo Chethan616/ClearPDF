@@ -74,11 +74,11 @@ class WatermarkPdfViewModel : ViewModel() {
         if (_uiState.value.isProcessing) return
         val s0 = _uiState.value
         if (s0.mode == WatermarkMode.TEXT && s0.text.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Enter watermark text") }
+            _uiState.update { it.copy(errorMessage = context.getString(com.chethan616.clearpdf.R.string.watermark_need_text)) }
             return
         }
         if (s0.mode == WatermarkMode.IMAGE && s0.imageUri == null) {
-            _uiState.update { it.copy(errorMessage = "Pick a watermark image") }
+            _uiState.update { it.copy(errorMessage = context.getString(com.chethan616.clearpdf.R.string.watermark_need_image)) }
             return
         }
         _uiState.update { it.copy(isProcessing = true, errorMessage = null, resultMessage = null, lastOutputUri = null) }

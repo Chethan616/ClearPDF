@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.utils
 
+import com.chethan616.clearpdf.ui.components.MotionSettings
 import android.graphics.RuntimeShader
 import android.os.Build
 import android.os.SystemClock
@@ -50,14 +51,15 @@ class InteractiveHighlight(
 ) {
     // iOS 27 press: the swell lands fast with a small overshoot, the release springs back past rest
     // once, and [wobble] adds one out-of-phase squash on top (see liquidPressTransform).
-    private val pressInSpec = spring(0.66f, 620f, 0.001f)
-    private val pressOutSpec = spring(0.5f, 380f, 0.001f)
-    private val positionAnimationSpec = spring(0.52f, 360f, Offset.VisibilityThreshold)
-    private val wobbleSpec = spring(0.42f, 420f, 0.001f)
+    // Read at use, so Settings -> Liquid Glass -> Motion applies to the next press.
+    private val pressInSpec get() = spring(MotionSettings.damping(0.66f), MotionSettings.stiffness(620f), 0.001f)
+    private val pressOutSpec get() = spring(MotionSettings.damping(0.5f), MotionSettings.stiffness(380f), 0.001f)
+    private val positionAnimationSpec get() = spring(MotionSettings.damping(0.52f), MotionSettings.stiffness(360f), Offset.VisibilityThreshold)
+    private val wobbleSpec get() = spring(MotionSettings.damping(0.42f), MotionSettings.stiffness(420f), 0.001f)
     // Bloom in on a soft, slightly slower spring; let go on a livelier one that undershoots rest
     // a touch before settling — the "boing" that makes the release feel physical.
-    private val expandInSpec = spring(dampingRatio = 0.52f, stiffness = 340f, visibilityThreshold = 0.001f)
-    private val expandOutSpec = spring(dampingRatio = 0.46f, stiffness = 420f, visibilityThreshold = 0.001f)
+    private val expandInSpec get() = spring(dampingRatio = MotionSettings.damping(0.52f), stiffness = MotionSettings.stiffness(340f), visibilityThreshold = 0.001f)
+    private val expandOutSpec get() = spring(dampingRatio = MotionSettings.damping(0.46f), stiffness = MotionSettings.stiffness(420f), visibilityThreshold = 0.001f)
 
     private val pressProgressAnimation = Animatable(0f, 0.001f)
     private val positionAnimation = Animatable(Offset.Zero, Offset.VectorConverter, Offset.VisibilityThreshold)
@@ -136,7 +138,7 @@ half4 main(float2 coord) {
             // A quick tap still shows the whole swell before it lets go.
             val held = SystemClock.uptimeMillis() - downAt
             if (held < MinPressMillis) delay(MinPressMillis - held)
-            val kick = WobbleKick * pressProgressAnimation.value.fastCoerceIn(0f, 1.1f)
+            val kick = WobbleKick * MotionSettings.style.wobble.fastCoerceIn(0f, 3f) * pressProgressAnimation.value.fastCoerceIn(0f, 1.1f)
             launch { wobbleAnimation.animateTo(0f, wobbleSpec, initialVelocity = kick) }
             launch { pressProgressAnimation.animateTo(0f, pressOutSpec) }
             launch { positionAnimation.animateTo(startPosition, positionAnimationSpec) }
@@ -202,17 +204,20 @@ fun GraphicsLayerScope.liquidPressTransform(h: InteractiveHighlight) {
     val width = size.width
     val height = size.height
 
+    val motion = MotionSettings.style
     val progress = h.pressProgress
-    val bloom = h.expandProgress * (14f.dp.toPx() / size.maxDimension).fastCoerceAtMost(0.12f)
-    val scale = lerp(1f, 1f + 4f.dp.toPx() / height, progress) + bloom
+    val bloomAmount = motion.bloom.fastCoerceIn(0f, 2.5f)
+    val bloom = h.expandProgress * (14f.dp.toPx() * bloomAmount / size.maxDimension).fastCoerceAtMost(0.12f * bloomAmount)
+    val scale = lerp(1f, 1f + 4f.dp.toPx() * motion.press.fastCoerceIn(0f, 2.5f) / height, progress) + bloom
 
     val maxOffset = size.minDimension
-    val initialDerivative = 0.05f
+    val stretch = motion.stretch.fastCoerceIn(0f, 2.5f)
+    val initialDerivative = 0.05f * stretch
     val offset = h.offset
     translationX = maxOffset * tanh(initialDerivative * offset.x / maxOffset)
     translationY = maxOffset * tanh(initialDerivative * offset.y / maxOffset)
 
-    val maxDragScale = 4f.dp.toPx() / height
+    val maxDragScale = 4f.dp.toPx() * stretch / height
     val offsetAngle = atan2(offset.y, offset.x)
     val w = h.wobble
     val wobbleX = w * (2.5f.dp.toPx() / width).fastCoerceAtMost(0.045f)
