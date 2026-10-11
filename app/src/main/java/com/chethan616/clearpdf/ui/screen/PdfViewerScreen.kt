@@ -244,7 +244,10 @@ fun PdfViewerScreen(
     // dark; the moon button still switches it per document.
     val autoDarkPages = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current &&
         remember { com.chethan616.clearpdf.data.repository.AppSettingsManager.getAutoDarkPages(context) }
-    var darkPageAppearance by rememberSaveable { mutableStateOf(autoDarkPages) }
+    // Only the moon button's choice is saved; until it is used the pages follow the theme, so a
+    // first frame drawn before the theme setting applies can't freeze the wrong colours.
+    var darkPageOverride by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    val darkPageAppearance = darkPageOverride ?: autoDarkPages
     var bookmarkedPages by remember { mutableStateOf<List<Int>>(emptyList()) }
     // Annotation (text box / sticky note) editing
     var editingAnnoId       by remember { mutableStateOf<Long?>(null) }
@@ -1287,11 +1290,16 @@ fun PdfViewerScreen(
                             LaunchedEffect(page, renderWidthPx, needsRender) {
                                 if (needsRender) viewModel.renderPage(context, page, renderWidthPx)
                             }
+                            // Dark reader keeps photographs as printed (Gander's night mode).
+                            LaunchedEffect(page, darkPageAppearance, needsRender) {
+                                if (darkPageAppearance && !needsRender) viewModel.ensureNightPhotos(context, page)
+                            }
                             PdfContinuousPage(
                                 page               = page,
                                 backdrop           = backdrop,
                                 bitmap             = state.pageBitmaps.getOrNull(page),
                                 darkPageAppearance = darkPageAppearance,
+                                nightPhotos        = if (darkPageAppearance) viewModel.nightPhotos[page].orEmpty() else emptyList(),
                                 marks              = getPageMarks(page),
                                 textEditPatches    = textEditPatches,
                                 detailTile         = detailTiles[page],
@@ -1574,7 +1582,7 @@ fun PdfViewerScreen(
                         Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), topFg)
                     }
                     LiquidIconButton(
-                        onClick = { darkPageAppearance = !darkPageAppearance },
+                        onClick = { darkPageOverride = !darkPageAppearance },
                         backdrop = contentBackdrop
                     ) {
                         Icon(

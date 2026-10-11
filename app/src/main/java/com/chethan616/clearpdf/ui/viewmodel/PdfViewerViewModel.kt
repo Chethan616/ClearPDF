@@ -221,6 +221,52 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
     // time, capping the peak to a single in-flight copy. Pages still extract lazily; they just queue.
     private val textExtractionMutex = Mutex()
 
+    /**
+     * Dark reader: per page, the photographs to draw as printed over the turned-over page, as
+     * rectangles normalised to the page (see [com.kyant.pdfcore.image.PdfImageRegions]). Filled
+     * only while dark pages are on, a few pages around the one asked for at a time.
+     */
+    val nightPhotos = androidx.compose.runtime.mutableStateMapOf<Int, List<androidx.compose.ui.geometry.Rect>>()
+    private val pictureRects = HashMap<Int, List<android.graphics.RectF>>()
+    private val pictureScanning = HashSet<Int>()
+
+    fun ensureNightPhotos(context: Context, pageIndex: Int) {
+        val doc = _uiState.value.document ?: return
+        if (nightPhotos.containsKey(pageIndex)) return
+        val uri = doc.uri
+        val raw = pictureRects[pageIndex]
+        if (raw != null) { classifyNightPhotos(pageIndex, raw); return }
+        val batch = ((pageIndex - 2)..(pageIndex + 5)).filter { it in 0 until doc.pageCount && it !in pictureRects && it !in pictureScanning }
+        if (pageIndex !in batch) return
+        pictureScanning.addAll(batch)
+        viewModelScope.launch {
+            val found = withContext(AppDispatchers.pdf) {
+                textExtractionMutex.withLock {
+                    runCatching { com.kyant.pdfcore.image.PdfImageRegions.pages(context, uri, batch) }.getOrDefault(emptyMap())
+                }
+            }
+            pictureScanning.removeAll(batch.toSet())
+            if (_uiState.value.document?.uri != uri) return@launch
+            for (p in batch) pictureRects[p] = found[p] ?: emptyList()
+            classifyNightPhotos(pageIndex, pictureRects[pageIndex].orEmpty())
+        }
+    }
+
+    /** Keeps the pictures that are photographs; scans and figures on white turn over with the page. */
+    private fun classifyNightPhotos(pageIndex: Int, rects: List<android.graphics.RectF>) {
+        if (rects.isEmpty()) { nightPhotos[pageIndex] = emptyList(); return }
+        val uri = _uiState.value.document?.uri ?: return
+        val bitmap = _uiState.value.pageBitmaps.getOrNull(pageIndex)?.takeIf { !it.isRecycled } ?: return
+        viewModelScope.launch {
+            val photos = withContext(kotlinx.coroutines.Dispatchers.Default) {
+                rects.map { androidx.compose.ui.geometry.Rect(it.left, it.top, it.right, it.bottom) }.filter { r ->
+                    runCatching { !com.chethan616.clearpdf.ui.components.NightPaper.looksLikePaper(bitmap, r) }.getOrDefault(false)
+                }
+            }
+            if (_uiState.value.document?.uri == uri) nightPhotos[pageIndex] = photos
+        }
+    }
+
     private val textService = PdfServiceLocator.pdfTextService
 
     companion object {
@@ -248,6 +294,9 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         pendingRenderWidths.clear()
         renderedPageWidths.clear()
         textLoadingPages.clear()
+        nightPhotos.clear()
+        pictureRects.clear()
+        pictureScanning.clear()
         _uiState.value = _uiState.value.copy(
             isLoading = true,
             // A supplied password means this call is the actual unlock → drive the decrypt animation.

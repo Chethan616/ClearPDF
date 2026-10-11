@@ -219,6 +219,36 @@ fun SpreadsheetViewerScreen(
     onBack: () -> Unit,
     onOpenPdf: (android.net.Uri) -> Unit = {}
 ) {
+    // The sheet is white paper like Excel's (#71), whatever the app theme; the moon button (or
+    // Settings > Dark pages in dark mode) turns it dark, like a PDF's pages. The whole screen then
+    // follows the sheet, not the app theme: desk, glass chrome, menus and dialogs take their ink
+    // from what they sit on (DESIGN.md).
+    val appDark = LocalIsDarkMode.current
+    val context = LocalContext.current
+    val autoDarkSheet = appDark && remember { com.chethan616.clearpdf.data.repository.AppSettingsManager.getAutoDarkPages(context) }
+    var sheetDarkOverride by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<Boolean?>(null) }
+    val sheetDark = sheetDarkOverride ?: autoDarkSheet
+    val view = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.DisposableEffect(view, sheetDark) {
+        val window = (view.context as? android.app.Activity ?: (view.context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity)?.window
+        val ctrl = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
+        ctrl?.isAppearanceLightStatusBars = !sheetDark
+        onDispose { ctrl?.isAppearanceLightStatusBars = !appDark }
+    }
+    androidx.compose.runtime.CompositionLocalProvider(LocalIsDarkMode provides sheetDark) {
+        SpreadsheetViewerContent(backdrop, viewModel, onBack, onOpenPdf, sheetDark) { sheetDarkOverride = !sheetDark }
+    }
+}
+
+@Composable
+private fun SpreadsheetViewerContent(
+    backdrop: LayerBackdrop,
+    viewModel: SpreadsheetViewModel,
+    onBack: () -> Unit,
+    onOpenPdf: (android.net.Uri) -> Unit,
+    sheetDark: Boolean,
+    onToggleSheet: () -> Unit
+) {
     val state by viewModel.state.collectAsState()
     val isDark = LocalIsDarkMode.current
     val text = LiquidGlassColors.text(isDark)
@@ -276,12 +306,8 @@ fun SpreadsheetViewerScreen(
         runCatching { listState.scrollToItem(0) }
     }
 
-    // The sheet is white paper like Excel's (#71), whatever the app theme; the moon button (or
-    // Settings > Dark pages in dark mode) turns it dark, like a PDF's pages.
     val sheetContext = androidx.compose.ui.platform.LocalContext.current
-    var sheetDark by androidx.compose.runtime.saveable.rememberSaveable {
-        mutableStateOf(isDark && com.chethan616.clearpdf.data.repository.AppSettingsManager.getAutoDarkPages(sheetContext))
-    }
+    val desk = if (sheetDark) Color(0xFF0D0D0F) else Color(0xFFE3E4E9)
     val surface = if (sheetDark) Color(0xFF1C1C1E) else Color.White
     val gridColors = remember(sheetDark) {
         GridColors(
@@ -499,7 +525,7 @@ fun SpreadsheetViewerScreen(
                         LiquidIconButton(onClick = { showSearch = true }, backdrop = headerBackdrop) {
                             Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), text)
                         }
-                        LiquidIconButton(onClick = { sheetDark = !sheetDark }, backdrop = headerBackdrop) {
+                        LiquidIconButton(onClick = onToggleSheet, backdrop = headerBackdrop) {
                             Icon(
                                 if (sheetDark) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
                                 stringResource(if (sheetDark) R.string.viewer_page_colors_original else R.string.viewer_page_dark_mode),
@@ -523,6 +549,8 @@ fun SpreadsheetViewerScreen(
                 }
             }
         ) { contentPadding ->
+            // A desk in the sheet's own light or dark, behind the grid, header and dock alike.
+            Box(Modifier.fillMaxSize().background(desk))
             when {
                 state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = accent, strokeWidth = 2.5.dp)
@@ -721,11 +749,12 @@ fun SpreadsheetViewerScreen(
                 matchCount = matches.size,
                 currentMatchIndex = currentMatch,
                 focusRequester = searchFocus,
-                backdrop = backdrop,
+                // The live sheet behind it, like the PDF viewer's find bar (not just the wallpaper).
+                backdrop = screenBackdrop.content,
                 uiSensor = uiSensor,
                 fg = text,
                 fgSoft = sub,
-                surface = chromeGlass,
+                surface = Color.Transparent,
                 onQueryChange = { searchQuery = it },
                 onPrevMatch = { goToMatch(-1) },
                 onNextMatch = { goToMatch(1) },
