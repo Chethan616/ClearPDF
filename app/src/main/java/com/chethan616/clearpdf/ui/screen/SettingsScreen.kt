@@ -877,6 +877,7 @@ private val OpenSourceCredits = listOf(
     Credit("AndroidLiquidGlass", "Kyant", "Apache License 2.0", "https://github.com/Kyant0/AndroidLiquidGlass"),
     Credit("PdfBox-Android", "Tom Roush", "Apache License 2.0 — PDF text, forms and annotation export", "https://github.com/TomRoush/PdfBox-Android"),
     Credit("Apache POI", "The Apache Software Foundation", "Apache License 2.0 — legacy .doc / .xls / .ppt reading", "https://poi.apache.org"),
+    Credit("Carlito", "The Carlito Project Authors", "SIL Open Font License 1.1 — Calibri-metric font for spreadsheets", "https://github.com/googlefonts/carlito"),
     Credit("ML Kit Text Recognition", "Google", "Apache License 2.0 — bundled on-device OCR, no network", "https://developers.google.com/ml-kit/vision/text-recognition"),
     Credit("Tesseract4Android", "Adaptech s.r.o.", "Apache License 2.0 — offline OCR fallback", "https://github.com/adaptech-cz/Tesseract4Android"),
     Credit("Tesseract OCR", "Google / Tesseract contributors", "Apache License 2.0", "https://github.com/tesseract-ocr/tesseract"),

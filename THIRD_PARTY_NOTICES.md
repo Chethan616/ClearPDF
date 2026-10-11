@@ -9,6 +9,13 @@ ClearPDF uses open-source components and keeps their notices with the project. R
 - Use: PDF parsing, editing, merging, splitting, and password removal.
 - Notice practice: keep the Apache 2.0 license and upstream attribution available with redistributed builds. Do not imply that the Apache Software Foundation endorses ClearPDF.
 
+## Carlito font
+
+- Files: `app/src/main/res/font/carlito_regular.ttf`, `carlito_bold.ttf`
+- Copyright 2013 The Carlito Project Authors (https://github.com/googlefonts/carlito), with Reserved Font Name "Carlito"
+- License: SIL Open Font License, Version 1.1 (https://openfontlicense.org)
+- Used to draw spreadsheet cells styled in Calibri, whose metrics it matches.
+
 ## Apache POI
 
 - Artifacts: `org.apache.poi:poi:3.17`, `org.apache.poi:poi-scratchpad:3.17`

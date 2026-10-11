@@ -85,6 +85,8 @@ import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.SaveAs
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.TableRows
 import androidx.compose.material.icons.rounded.VerticalAlignBottom
 import androidx.compose.material.icons.rounded.VerticalAlignCenter
@@ -274,21 +276,32 @@ fun SpreadsheetViewerScreen(
         runCatching { listState.scrollToItem(0) }
     }
 
-    val surface = if (isDark) Color(0xFF1C1C1E) else Color.White
-    val gridColors = remember(isDark) {
+    // The sheet is white paper like Excel's (#71), whatever the app theme; the moon button (or
+    // Settings > Dark pages in dark mode) turns it dark, like a PDF's pages.
+    val sheetContext = androidx.compose.ui.platform.LocalContext.current
+    var sheetDark by androidx.compose.runtime.saveable.rememberSaveable {
+        mutableStateOf(isDark && com.chethan616.clearpdf.data.repository.AppSettingsManager.getAutoDarkPages(sheetContext))
+    }
+    val surface = if (sheetDark) Color(0xFF1C1C1E) else Color.White
+    val gridColors = remember(sheetDark) {
         GridColors(
             surface = surface,
-            headerBand = if (isDark) Color(0xFF26272B) else Color(0xFFF3F5F8),
-            headerText = if (isDark) Color(0xFFB5B6BF) else Color(0xFF5E6068),
-            headerDivider = if (isDark) Color(0xFF3A3B40) else Color(0xFFDADDE3),
+            headerBand = if (sheetDark) Color(0xFF26272B) else Color(0xFFF3F5F8),
+            headerText = if (sheetDark) Color(0xFFB5B6BF) else Color(0xFF5E6068),
+            headerDivider = if (sheetDark) Color(0xFF3A3B40) else Color(0xFFDADDE3),
             accent = accent
         )
     }
     val version = state.version
     val layout = remember(sheet, version) { sheet?.let { SheetLayout(it) } }
-    val painter = remember(wb, isDark) {
+    val painter = remember(wb, sheetDark) {
         wb?.let {
-            XlsxPainter(it, PaintTheme(isDark, surface.toArgb(), text.toArgb(), if (isDark) 0xFF34353A.toInt() else 0xFFE2E4E9.toInt()))
+            com.chethan616.clearpdf.utils.xlsx.XlsxFonts.init(sheetContext)
+            XlsxPainter(it, PaintTheme(
+                sheetDark, surface.toArgb(),
+                (if (sheetDark) Color(0xFFE6E6EA) else Color(0xFF111111)).toArgb(),
+                if (sheetDark) 0xFF34353A.toInt() else 0xFFE2E4E9.toInt()
+            ))
         }
     }
     remember(version) { painter?.invalidate(); version }
@@ -486,6 +499,13 @@ fun SpreadsheetViewerScreen(
                         LiquidIconButton(onClick = { showSearch = true }, backdrop = headerBackdrop) {
                             Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), text)
                         }
+                        LiquidIconButton(onClick = { sheetDark = !sheetDark }, backdrop = headerBackdrop) {
+                            Icon(
+                                if (sheetDark) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
+                                stringResource(if (sheetDark) R.string.viewer_page_colors_original else R.string.viewer_page_dark_mode),
+                                Modifier.size(19.dp), text
+                            )
+                        }
                     }
                     if (state.editable) {
                         LiquidIconButton(
@@ -567,7 +587,7 @@ fun SpreadsheetViewerScreen(
                             // other animation in this viewer stutter while the PDF viewer stayed smooth.
                             .clip(GlassPanelShape)
                             .background(surface)
-                            .border(0.5.dp, if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.06f), GlassPanelShape)
+                            .border(0.5.dp, if (sheetDark) Color.White.copy(0.10f) else Color.Black.copy(0.06f), GlassPanelShape)
                     ) {
                         SpreadsheetGrid(
                             sheet = sheet,

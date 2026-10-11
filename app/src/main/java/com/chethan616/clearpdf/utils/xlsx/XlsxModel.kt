@@ -65,6 +65,8 @@ class XlsxSheet(
     val cols = java.util.TreeMap<Int, ColumnInfo>()
     val merges = mutableListOf<CellRange>()
     val validations = mutableListOf<DataValidation>()
+    /** Pictures placed on the sheet (logos, photos), from its drawing part. */
+    val images = mutableListOf<SheetImage>()
     var defaultRowHeightPt = 15f
     var defaultColWidthChars = 8.43f
     var frozenRows = 0
@@ -72,6 +74,8 @@ class XlsxSheet(
     var showGridLines = true
     var tabColor: ColorSpec? = null
     var hidden = false
+    /** The `<drawing r:id>` of this sheet, when it has pictures or charts. */
+    var drawingRel: String? = null
     /** True when the reader stopped early (row cap). The grid shows what it has. */
     var truncated = false
 
@@ -205,3 +209,16 @@ class XlsxWorkbook(
         return days.toString()
     }
 }
+
+/**
+ * A picture on a sheet, anchored the way the drawing part anchors it: from a cell plus an offset
+ * (EMU) to another cell plus offset (`twoCellAnchor`), or from a cell with a fixed size
+ * (`oneCellAnchor`), or at an absolute position (`absoluteAnchor`, [fromCol] = -1).
+ */
+class SheetImage(
+    val fromCol: Int, val fromColOff: Long, val fromRow: Int, val fromRowOff: Long,
+    val toCol: Int, val toColOff: Long, val toRow: Int, val toRowOff: Long,
+    val extCx: Long, val extCy: Long,
+    val absX: Long, val absY: Long,
+    val bytes: ByteArray
+)

@@ -22,8 +22,10 @@ import com.chethan616.clearpdf.utils.ExcelCellFormat
  * or a scroll offset to a cell goes through here.
  */
 class SheetLayout(val sheet: XlsxSheet, extraRows: Int = 40, extraCols: Int = 8) {
-    val nRows: Int = maxOf(sheet.maxRow + 1 + extraRows, 60, sheet.frozenRows + 1).coerceAtMost(XlsxReader.MaxRows + extraRows)
-    val nCols: Int = maxOf(sheet.maxCol + 1 + extraCols, 12, sheet.frozenCols + 1).coerceAtMost(XlsxReader.MaxColumns)
+    val nRows: Int = maxOf(sheet.maxRow + 1 + extraRows, 60, sheet.frozenRows + 1, (sheet.images.maxOfOrNull { maxOf(it.fromRow, it.toRow) } ?: 0) + 2)
+        .coerceAtMost(XlsxReader.MaxRows + extraRows)
+    val nCols: Int = maxOf(sheet.maxCol + 1 + extraCols, 12, sheet.frozenCols + 1, (sheet.images.maxOfOrNull { maxOf(it.fromCol, it.toCol) } ?: 0) + 2)
+        .coerceAtMost(XlsxReader.MaxColumns)
     val colX = FloatArray(nCols + 1)
     val rowY = FloatArray(nRows + 1)
     /** Rows the scrolling list shows (not frozen, not hidden), in order. */
@@ -59,6 +61,31 @@ class SheetLayout(val sheet: XlsxSheet, extraRows: Int = 40, extraCols: Int = 8)
             }
         }
     }
+
+    /**
+     * Each picture's box in Excel px (index-aligned with `sheet.images`), and the pictures crossing
+     * each row: like merges, a row paints the slice of every picture that crosses it.
+     */
+    val imageRects: List<android.graphics.RectF> = sheet.images.map { img ->
+        fun x(c: Int, off: Long) = colX[c.coerceIn(0, nCols)] + off / EmuPerPx
+        fun y(r: Int, off: Long) = rowY[r.coerceIn(0, nRows)] + off / EmuPerPx
+        val left = if (img.fromCol < 0) img.absX / EmuPerPx else x(img.fromCol, img.fromColOff)
+        val top = if (img.fromCol < 0) img.absY / EmuPerPx else y(img.fromRow, img.fromRowOff)
+        val right = if (img.toCol >= 0) x(img.toCol, img.toColOff) else left + img.extCx / EmuPerPx
+        val bottom = if (img.toRow >= 0) y(img.toRow, img.toRowOff) else top + img.extCy / EmuPerPx
+        android.graphics.RectF(left, top, maxOf(right, left + 1f), maxOf(bottom, top + 1f))
+    }
+    private val rowImages: Array<IntArray?> = arrayOfNulls<IntArray>(nRows).also { arr ->
+        val lists = HashMap<Int, ArrayList<Int>>()
+        imageRects.forEachIndexed { i, rect ->
+            var r = rowAt(rect.top)
+            while (r < nRows && rowY[r] < rect.bottom) { lists.getOrPut(r) { ArrayList(2) }.add(i); r++ }
+        }
+        for ((r, l) in lists) arr[r] = l.toIntArray()
+    }
+
+    /** Indices of the pictures crossing row [r]. */
+    fun imagesAt(r: Int): IntArray? = rowImages.getOrNull(r)
 
     fun colW(c: Int) = colX[c + 1] - colX[c]
     fun rowH(r: Int) = rowY[r + 1] - rowY[r]
@@ -101,6 +128,9 @@ class SheetLayout(val sheet: XlsxSheet, extraRows: Int = 40, extraCols: Int = 8)
     }
 
     companion object {
+        /** English Metric Units per pixel at 96 dpi. */
+        const val EmuPerPx = 9525f
+
         /** Excel's character-width → pixel rule for the default 11pt Calibri (max digit width 7). */
         fun colWidthPx(chars: Float): Float = if (chars <= 0f) 0f else (chars * 7f + 5f).coerceAtLeast(4f)
         fun charsFromPx(px: Float): Float = ((px - 5f) / 7f).coerceAtLeast(0.5f)
@@ -222,7 +252,8 @@ class XlsxPainter(private val wb: XlsxWorkbook, val theme: PaintTheme) {
         val requestedName = st.fontName?.takeIf { fam == 0 }
         val key = "${requestedName ?: fam}|$style"
         val resolved = typefaces.getOrPut(key) {
-            if (requestedName != null) Typeface.create(requestedName, style)
+            XlsxFonts.forName(requestedName, style)
+                ?: if (requestedName != null) Typeface.create(requestedName, style)
             else Typeface.create(
                 when (fam) { 1 -> Typeface.SERIF; 2 -> Typeface.MONOSPACE; else -> Typeface.SANS_SERIF }, style
             )
@@ -445,7 +476,47 @@ class XlsxPainter(private val wb: XlsxWorkbook, val theme: PaintTheme) {
                 drawText(canvas, cell, ci, x0, x1, x0, x1, y0, y1, scale)
             }
         }
+        // Pass 5: pictures over the cells; this row paints the slice of each one that crosses it.
+        layout.imagesAt(r)?.let { idx ->
+            for (i in idx) {
+                val rect = layout.imageRects[i]
+                val img = sheet.images[i]
+                // Each picture belongs to the region (frozen or scrolling) holding its anchor column.
+                val anchorCol = if (img.fromCol < 0) layout.colAt(rect.left) else img.fromCol
+                if (anchorCol !in firstCol..lastCol) continue
+                val bmp = picture(i, img, (rect.width() * scale).toInt(), (rect.height() * scale).toInt()) ?: continue
+                val dst = android.graphics.RectF(
+                    originX + rect.left * scale, (rect.top - layout.rowY[r]) * scale,
+                    originX + rect.right * scale, (rect.bottom - layout.rowY[r]) * scale
+                )
+                canvas.save()
+                canvas.clipRect(clipL, 0f, clipR, h)
+                canvas.drawBitmap(bmp, null, dst, picturePaint)
+                canvas.restore()
+            }
+        }
         canvas.restore()
+    }
+
+    private val picturePaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+    private val pictures = HashMap<Int, android.graphics.Bitmap?>()
+
+    /** A sheet picture decoded once, at about the size it's drawn at (re-decoded when zoomed past it). */
+    private fun picture(i: Int, img: SheetImage, wantW: Int, wantH: Int): android.graphics.Bitmap? {
+        val cached = pictures[i]
+        if (cached != null && !cached.isRecycled && cached.width >= wantW.coerceAtMost(2048) / 2) return cached
+        if (pictures.containsKey(i) && cached == null) return null
+        val bmp = runCatching {
+            val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            android.graphics.BitmapFactory.decodeByteArray(img.bytes, 0, img.bytes.size, bounds)
+            var sample = 1
+            val target = maxOf(wantW, wantH, 64).coerceAtMost(2048)
+            while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= target) sample *= 2
+            android.graphics.BitmapFactory.decodeByteArray(img.bytes, 0, img.bytes.size,
+                android.graphics.BitmapFactory.Options().apply { inSampleSize = sample })
+        }.getOrNull()
+        pictures[i] = bmp
+        return bmp
     }
 
     private fun drawBorders(canvas: Canvas, st: ResolvedStyle, x: Float, y: Float, w: Float, h: Float, scale: Float) {
