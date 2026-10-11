@@ -459,9 +459,9 @@ class ImageEditorViewModel(app: Application) : AndroidViewModel(app) {
             result.onSuccess { mask ->
                 flushSession()
                 sessionEdit(Tool.More, BackgroundOp(mask), commitNow = true)
-                _state.update { it.copy(bgBusy = false, message = "Background removed") }
+                _state.update { it.copy(bgBusy = false, message = context.getString(com.chethan616.clearpdf.R.string.ie_bg_removed)) }
             }.onFailure { e ->
-                _state.update { it.copy(bgBusy = false, message = e.message ?: "Couldn't remove the background.") }
+                _state.update { it.copy(bgBusy = false, message = context.getString(com.chethan616.clearpdf.R.string.ie_bg_failed)) }
             }
         }
     }

@@ -75,11 +75,11 @@ class PdfToImagesViewModel : ViewModel() {
                         isProcessing = false,
                         progress = 1f,
                         resultPages = pages,
-                        resultMessage = "Rendered ${pages.size} image${if (pages.size == 1) "" else "s"}"
+                        resultMessage = context.getString(com.chethan616.clearpdf.R.string.pdf_to_images_done, pages.size)
                     )
                 }
             } catch (t: Throwable) {
-                _uiState.update { it.copy(isProcessing = false, errorMessage = t.message ?: "Failed to convert") }
+                _uiState.update { it.copy(isProcessing = false, errorMessage = context.getString(com.chethan616.clearpdf.R.string.conversion_failed)) }
             }
         }
     }
@@ -110,7 +110,7 @@ class PdfToImagesViewModel : ViewModel() {
             putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "Share images").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        context.startActivity(Intent.createChooser(intent, context.getString(com.chethan616.clearpdf.R.string.share_images_chooser)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     fun clearFeedback() = _uiState.update { it.copy(errorMessage = null, resultMessage = null) }

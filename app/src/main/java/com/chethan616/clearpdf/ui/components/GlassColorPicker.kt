@@ -166,7 +166,7 @@ fun GlassColorPicker(
     themeColors: List<Color> = OfficeThemeColors,
     showAlpha: Boolean = false,
     onClear: (() -> Unit)? = null,
-    clearLabel: String = "No colour",
+    clearLabel: String? = null,
     standardColors: List<Color> = OfficeStandardColors,
     /**
      * Optional: the 5 tint/shade variants under each theme swatch. Defaults to [officeVariants];
@@ -238,11 +238,11 @@ fun GlassColorPicker(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Icon(Icons.Rounded.Block, contentDescription = null, tint = secondary, modifier = Modifier.size(22.dp))
-                BasicText(clearLabel, style = TextStyle(textColor, 15.sp, FontWeight.Medium))
+                BasicText(clearLabel ?: androidx.compose.ui.res.stringResource(com.chethan616.clearpdf.R.string.color_none), style = TextStyle(textColor, 15.sp, FontWeight.Medium))
             }
         }
 
-        SectionLabel("Theme colours", secondary)
+        SectionLabel(androidx.compose.ui.res.stringResource(com.chethan616.clearpdf.R.string.color_theme), secondary)
         // Theme grid: base row, gap, then 5 variant rows.
         val columns = themeColors.map { listOf(it) + themeVariants(it) }
         fun pickTheme(col: Int, row: Int) {
@@ -262,11 +262,11 @@ fun GlassColorPicker(
             }
         }
 
-        SectionLabel("Standard colours", secondary)
+        SectionLabel(androidx.compose.ui.res.stringResource(com.chethan616.clearpdf.R.string.color_standard), secondary)
         SwatchRow(standardColors, color, isDark) { pick(it) }
 
         if (recent.isNotEmpty()) {
-            SectionLabel("Recent colours", secondary)
+            SectionLabel(androidx.compose.ui.res.stringResource(com.chethan616.clearpdf.R.string.color_recent), secondary)
             SwatchRow(
                 recent.toList() + List((themeColors.size - recent.size).coerceAtLeast(0)) { Color.Unspecified },
                 color, isDark
@@ -293,7 +293,7 @@ fun GlassColorPicker(
                         )
                     )
             )
-            BasicText("More colours…", Modifier.weight(1f), style = TextStyle(textColor, 15.sp, FontWeight.Medium))
+            BasicText(androidx.compose.ui.res.stringResource(com.chethan616.clearpdf.R.string.color_more), Modifier.weight(1f), style = TextStyle(textColor, 15.sp, FontWeight.Medium))
             Icon(
                 if (customOpen) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
                 contentDescription = null,

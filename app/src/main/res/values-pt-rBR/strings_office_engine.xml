@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Office engine -->
+    <string name="office_engine_module_title">Motor do Office (com tecnologia do LibreOffice)</string>
+    <string name="office_engine_title">Motor do Office</string>
+    <string name="office_engine_powered_by">Com tecnologia do LibreOffice</string>
+    <string name="office_engine_description">Abre arquivos do Word, Excel, PowerPoint e OpenDocument com o layout do próprio LibreOffice, para o resultado mais fiel. É opcional: os visualizadores integrados continuam funcionando sem ele.</string>
+    <string name="office_engine_not_installed">Não instalado · download de ~%1$s</string>
+    <string name="office_engine_installed">Instalado · %1$s · v%2$s</string>
+    <string name="office_engine_update_available">Atualização disponível · %1$s</string>
+    <string name="office_engine_downloading">Baixando…</string>
+    <string name="office_engine_downloading_progress">Baixando · %1$s de %2$s</string>
+    <string name="office_engine_waiting_network">Aguardando conexão…</string>
+    <string name="office_engine_installing">Verificando e instalando…</string>
+    <string name="office_engine_needs_confirmation">O Google Play precisa da sua aprovação para baixar</string>
+    <string name="office_engine_failed">Falha na instalação: %1$s</string>
+    <string name="office_engine_download">Baixar</string>
+    <string name="office_engine_install">Instalar</string>
+    <string name="office_engine_update">Atualizar</string>
+    <string name="office_engine_delete">Excluir</string>
+    <string name="office_engine_cancel">Cancelar</string>
+    <string name="office_engine_retry">Tentar de novo</string>
+    <string name="office_engine_approve">Aprovar</string>
+    <string name="office_engine_use_for_office">Usar para arquivos do Office</string>
+    <string name="office_engine_use_for_office_sub">Volta aos visualizadores integrados se um arquivo falhar</string>
+    <string name="office_engine_licences">Licenças do LibreOffice (MPL-2.0)</string>
+    <string name="office_engine_delete_title">Excluir o motor do Office?</string>
+    <string name="office_engine_delete_message">Libera %1$s. Os arquivos do Office vão abrir com os visualizadores integrados. Você pode baixar de novo quando quiser.</string>
+    <string name="office_engine_notification_channel">Download do motor do Office</string>
+    <string name="office_engine_hint">Melhore a fidelidade com o motor do Office</string>
+    <string name="office_engine_hint_sub">Download opcional · com tecnologia do LibreOffice</string>
+    <string name="office_engine_hint_action">Obter</string>
+</resources>

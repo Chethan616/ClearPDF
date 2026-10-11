@@ -55,7 +55,7 @@ class HtmlToPdfViewModel : ViewModel() {
                 runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } }.getOrNull()
             }
             if (content == null) {
-                _uiState.update { it.copy(errorMessage = "Couldn't read that file") }
+                _uiState.update { it.copy(errorMessage = context.getString(com.chethan616.clearpdf.R.string.html_to_pdf_read_failed)) }
             } else {
                 _uiState.update { it.copy(html = content, sourceName = name, lastOutputUri = null, resultMessage = null, errorMessage = null) }
             }
@@ -67,11 +67,11 @@ class HtmlToPdfViewModel : ViewModel() {
         val mode = _uiState.value.mode
         val rawUrl = _uiState.value.url.trim()
         if (mode == WebToPdfMode.URL && rawUrl.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Enter a web address") }
+            _uiState.update { it.copy(errorMessage = context.getString(com.chethan616.clearpdf.R.string.html_to_pdf_need_url)) }
             return
         }
         if (mode == WebToPdfMode.HTML && _uiState.value.html.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Enter or load some HTML") }
+            _uiState.update { it.copy(errorMessage = context.getString(com.chethan616.clearpdf.R.string.html_to_pdf_need_html)) }
             return
         }
         // Default the scheme so "example.com" works.
@@ -99,7 +99,7 @@ class HtmlToPdfViewModel : ViewModel() {
                     ))
                     _uiState.update { it.copy(isProcessing = false, lastOutputUri = outUri, resultMessage = "PDF created · saved to $saveLabel") }
                 } else {
-                    _uiState.update { it.copy(isProcessing = false, errorMessage = "Couldn't create the PDF") }
+                    _uiState.update { it.copy(isProcessing = false, errorMessage = context.getString(com.chethan616.clearpdf.R.string.html_to_pdf_create_failed)) }
                 }
             } catch (t: Throwable) {
                 _uiState.update { it.copy(isProcessing = false, errorMessage = t.message ?: "Couldn't convert HTML") }

@@ -103,7 +103,7 @@ class ImageToolsViewModel : ViewModel() {
             putExtra(Intent.EXTRA_STREAM, result.uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "Share image").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        context.startActivity(Intent.createChooser(intent, context.getString(com.chethan616.clearpdf.R.string.share_image_chooser)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     fun clearFeedback() = _uiState.update { it.copy(errorMessage = null, resultMessage = null) }

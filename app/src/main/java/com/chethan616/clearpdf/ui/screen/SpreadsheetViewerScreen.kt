@@ -189,18 +189,18 @@ private enum class Panel { NONE, FONT_COLOR, FILL_COLOR, ALIGN, BORDERS, NUMBER,
 private class DropdownState(val r: Int, val c: Int, val anchor: Rect, val items: List<String>, val strict: Boolean)
 
 private val NumberFormats = listOf(
-    "General" to "General",
-    "Number" to "#,##0.00",
-    "Integer" to "0",
-    "Currency" to "\"$\"#,##0.00",
-    "Accounting" to "_(\"$\"* #,##0.00_);_(\"$\"* (#,##0.00);_(\"$\"* \"-\"??_);_(@_)",
-    "Percent" to "0%",
-    "Percent (2dp)" to "0.00%",
-    "Scientific" to "0.00E+00",
-    "Short date" to "dd-mm-yyyy",
-    "Long date" to "d mmmm yyyy",
-    "Time" to "h:mm:ss",
-    "Text" to "@"
+    R.string.sheet_fmt_general to "General",
+    R.string.sheet_fmt_number to "#,##0.00",
+    R.string.sheet_fmt_integer to "0",
+    R.string.sheet_fmt_currency to "\"$\"#,##0.00",
+    R.string.sheet_fmt_accounting to "_(\"$\"* #,##0.00_);_(\"$\"* (#,##0.00);_(\"$\"* \"-\"??_);_(@_)",
+    R.string.sheet_fmt_percent to "0%",
+    R.string.sheet_fmt_percent2 to "0.00%",
+    R.string.sheet_fmt_scientific to "0.00E+00",
+    R.string.sheet_fmt_short_date to "dd-mm-yyyy",
+    R.string.sheet_fmt_long_date to "d mmmm yyyy",
+    R.string.sheet_fmt_time to "h:mm:ss",
+    R.string.sheet_fmt_text to "@"
 )
 
 /**
@@ -1073,7 +1073,7 @@ private fun AlignPanel(
     Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         PanelLabel(stringResource(R.string.sheet_horizontal), text)
         GlassSegmentedControl(
-            options = listOf("Left", "Center", "Right"),
+            options = listOf(stringResource(R.string.sheet_align_left), stringResource(R.string.sheet_align_center), stringResource(R.string.sheet_align_right)),
             selectedIndex = hOptions.indexOf(h).coerceAtLeast(0).let { if (h == "general") -1 else it },
             onSelect = { onH(hOptions[it]) },
             backdrop = backdrop,
@@ -1082,7 +1082,7 @@ private fun AlignPanel(
         )
         PanelLabel(stringResource(R.string.sheet_vertical), text)
         GlassSegmentedControl(
-            options = listOf("Top", "Middle", "Bottom"),
+            options = listOf(stringResource(R.string.sheet_align_top), stringResource(R.string.sheet_align_middle), stringResource(R.string.sheet_align_bottom)),
             selectedIndex = vOptions.indexOf(v).coerceAtLeast(0),
             onSelect = { onV(vOptions[it]) },
             backdrop = backdrop,
@@ -1122,15 +1122,15 @@ private fun PanelRow(icon: ImageVector?, label: String, color: Color, tint: Colo
 @Composable
 private fun BordersPanel(text: Color, accent: Color, onPick: (BorderPreset) -> Unit) {
     val items = listOf(
-        Triple(BorderPreset.ALL, Icons.Rounded.BorderAll, "All borders"),
-        Triple(BorderPreset.OUTER, Icons.Rounded.BorderOuter, "Outside borders"),
-        Triple(BorderPreset.THICK_OUTER, Icons.Rounded.BorderStyle, "Thick outside borders"),
-        Triple(BorderPreset.INNER, Icons.Rounded.BorderInner, "Inside borders"),
-        Triple(BorderPreset.TOP, Icons.Rounded.BorderTop, "Top border"),
-        Triple(BorderPreset.BOTTOM, Icons.Rounded.BorderBottom, "Bottom border"),
-        Triple(BorderPreset.LEFT, Icons.Rounded.BorderLeft, "Left border"),
-        Triple(BorderPreset.RIGHT, Icons.Rounded.BorderRight, "Right border"),
-        Triple(BorderPreset.NONE, Icons.Rounded.BorderClear, "No borders")
+        Triple(BorderPreset.ALL, Icons.Rounded.BorderAll, stringResource(R.string.sheet_border_all)),
+        Triple(BorderPreset.OUTER, Icons.Rounded.BorderOuter, stringResource(R.string.sheet_border_outer)),
+        Triple(BorderPreset.THICK_OUTER, Icons.Rounded.BorderStyle, stringResource(R.string.sheet_border_thick)),
+        Triple(BorderPreset.INNER, Icons.Rounded.BorderInner, stringResource(R.string.sheet_border_inner)),
+        Triple(BorderPreset.TOP, Icons.Rounded.BorderTop, stringResource(R.string.sheet_border_top)),
+        Triple(BorderPreset.BOTTOM, Icons.Rounded.BorderBottom, stringResource(R.string.sheet_border_bottom)),
+        Triple(BorderPreset.LEFT, Icons.Rounded.BorderLeft, stringResource(R.string.sheet_border_left)),
+        Triple(BorderPreset.RIGHT, Icons.Rounded.BorderRight, stringResource(R.string.sheet_border_right)),
+        Triple(BorderPreset.NONE, Icons.Rounded.BorderClear, stringResource(R.string.sheet_border_none))
     )
     Column(Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
         for ((p, icon, label) in items) PanelRow(icon, label, text, accent) { onPick(p) }
@@ -1140,7 +1140,8 @@ private fun BordersPanel(text: Color, accent: Color, onPick: (BorderPreset) -> U
 @Composable
 private fun NumberPanel(text: Color, sub: Color, accent: Color, current: String, onPick: (String) -> Unit) {
     Column(Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
-        for ((label, code) in NumberFormats) {
+        for ((labelRes, code) in NumberFormats) {
+            val label = stringResource(labelRes)
             val sample = com.chethan616.clearpdf.utils.ExcelCellFormat.apply(if (code.contains("d") && code.contains("y")) "45566" else "1234.5", code)
             Row(
                 Modifier.fillMaxWidth().heightIn(min = 48.dp)
