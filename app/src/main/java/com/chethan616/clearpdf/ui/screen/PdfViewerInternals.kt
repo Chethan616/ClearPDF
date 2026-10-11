@@ -880,6 +880,9 @@ internal fun PdfMarkup.TextEditMarkup.toTextReplace(frameW: Float, frameH: Float
  * An exact preview of a page's text edits: [bitmap] is the edited page rendered by the PDF engine
  * over the normalized horizontal [band] around the line, valid while the markup's text is [text].
  */
+/** A sharp, screen-resolution render of the normalized [region] of a page, shown while zoomed in. */
+internal class PageDetailTile(val region: android.graphics.RectF, val bitmap: Bitmap)
+
 internal class TextEditPatch(val text: String, val band: android.graphics.RectF, val bitmap: Bitmap)
 
 /** The band an edited line's preview covers: full page width, the line plus room for ascenders. */

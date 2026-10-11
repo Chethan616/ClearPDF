@@ -14,7 +14,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 import com.chethan616.clearpdf.ui.DocsApp
 
-class MainActivity : ComponentActivity() {
+open class MainActivity : ComponentActivity() {
+
+    /** True for [DocumentActivity]: a document opened from another app, in its own window. */
+    protected open val isDocumentWindow: Boolean = false
 
     override fun attachBaseContext(newBase: android.content.Context) {
         val savedLang = com.chethan616.clearpdf.data.repository.OnboardingManager.getSelectedLocale(newBase)
@@ -28,6 +31,22 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        // A file opened from another app (a file manager, a chat) gets its own window, like a
+        // document in any desktop-class app (#29), instead of running inside the caller's task.
+        // The launcher entry and shortcuts stay here.
+        if (!isDocumentWindow && savedInstanceState == null && isExternalDocument(intent)) {
+            runCatching {
+                startActivity(
+                    Intent(intent)
+                        .setClass(this, DocumentActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT or Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                )
+                finish()
+                @Suppress("DEPRECATION") overridePendingTransition(0, 0)
+                return
+            }
+        }
         WindowCompat.setDecorFitsSystemWindows(window, false)
         // Belt-and-suspenders against the translucent scrim Android can draw behind the nav bar
         // (API 29-34; reported as a "grey band" around it on some OEM skins/Android versions even
@@ -77,8 +96,28 @@ class MainActivity : ComponentActivity() {
             }
         } else shortcutRoute
 
+        if (isDocumentWindow && incomingPdfUri != null) {
+            // Recents shows the document's name for its window.
+            val label = queryDisplayName(incomingPdfUri)
+            if (label != null) runCatching {
+                @Suppress("DEPRECATION")
+                setTaskDescription(android.app.ActivityManager.TaskDescription(label))
+            }
+        }
+
         setContent {
-            DocsApp(shortcutRoute = effectiveRoute, incomingPdfUri = incomingPdfUri)
+            DocsApp(shortcutRoute = effectiveRoute, incomingPdfUri = incomingPdfUri, documentWindow = isDocumentWindow)
+        }
+    }
+
+    /** A VIEW / SEND of a file (not our own `clearpdf://` shortcuts). */
+    private fun isExternalDocument(intent: Intent?): Boolean {
+        intent ?: return false
+        return when (intent.action) {
+            Intent.ACTION_VIEW -> intent.data?.scheme.let { it == "content" || it == "file" } &&
+                isSupportedDocumentIntent(intent.type, intent.data.toString())
+            Intent.ACTION_SEND -> true
+            else -> false
         }
     }
 

@@ -38,9 +38,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.core)
 
-    // Bundled (no Play Services / no network) on-device OCR — primary engine.
-    // See THIRD_PARTY_NOTICES.md.
-    implementation(libs.mlkit.text.recognition)
+    // The bundled ML Kit engine is supplied by the app's play / foss builds (OcrServiceImpl's
+    // `primary`); this module stays free software so the F-Droid build can use it as is.
 
     // Fully open-source (Apache-2.0) offline OCR fallback for devices where the
     // bundled ML Kit model fails to initialize. See THIRD_PARTY_NOTICES.md.

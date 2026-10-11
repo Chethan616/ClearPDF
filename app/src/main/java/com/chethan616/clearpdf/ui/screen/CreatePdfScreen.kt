@@ -76,11 +76,6 @@ import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.CreateMode
 import com.chethan616.clearpdf.ui.viewmodel.CreatePdfViewModel
-import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
-import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_JPEG
-import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_FULL
-import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
-import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
 
@@ -114,40 +109,16 @@ fun CreatePdfScreen(
         }
     }
 
-    val scannerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val scanResult = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
-            val uris = scanResult?.pages?.mapNotNull { it.imageUri }.orEmpty()
-            if (uris.isNotEmpty()) {
-                viewModel.onModeSelected(CreateMode.FROM_IMAGES)
-                viewModel.onImagesSelected(uris)
-            }
-        }
-    }
+    val startScanner = com.chethan616.clearpdf.scan.rememberDocumentScanner(
+        onPages = { uris ->
+            viewModel.onModeSelected(CreateMode.FROM_IMAGES)
+            viewModel.onImagesSelected(uris)
+        },
+        onFinished = {},
+        onError = { viewModel.setError(context.getString(R.string.scanner_start_failed)) }
+    )
 
-    fun launchScanner() {
-        if (activity == null) {
-            viewModel.setError(context.getString(R.string.scanner_unavailable))
-            return
-        }
-        val options = GmsDocumentScannerOptions.Builder()
-            .setGalleryImportAllowed(true)
-            .setPageLimit(100)
-            .setResultFormats(RESULT_FORMAT_JPEG)
-            .setScannerMode(SCANNER_MODE_FULL)
-            .build()
-
-        GmsDocumentScanning.getClient(options)
-            .getStartScanIntent(activity)
-            .addOnSuccessListener { intentSender ->
-                scannerLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
-            }
-            .addOnFailureListener { error ->
-                viewModel.setError(context.getString(R.string.scanner_start_failed))
-            }
-    }
+    fun launchScanner() = startScanner()
 
     LaunchedEffect(state.resultMessage, state.errorMessage) {
         if (!state.resultMessage.isNullOrBlank() || !state.errorMessage.isNullOrBlank()) {

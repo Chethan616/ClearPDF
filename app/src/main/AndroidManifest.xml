@@ -39,6 +39,17 @@
         android:theme="@style/Theme.ClearPDF"
         android:localeConfig="@xml/locales_config"
         tools:targetApi="33">
+        <!-- A document opened from another app gets its own window (task + Recents entry);
+             MainActivity forwards every VIEW / SEND here. -->
+        <activity
+            android:name=".DocumentActivity"
+            android:exported="false"
+            android:documentLaunchMode="intoExisting"
+            android:autoRemoveFromRecents="true"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

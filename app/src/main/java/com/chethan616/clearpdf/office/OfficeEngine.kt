@@ -35,7 +35,7 @@ object OfficeEngine {
             installerInstance ?: OfficeEngineFlavor.createInstaller(context.applicationContext).also { installerInstance = it }
         }
 
-    fun isSupported(): Boolean = OfficeEngineManifest.bundleForDevice() != null
+    fun isSupported(): Boolean = OfficeEngineFlavor.available && OfficeEngineManifest.bundleForDevice() != null
 
     fun isOfficeFile(fileName: String): Boolean =
         fileName.substringAfterLast('.', "").lowercase() in OFFICE_EXTENSIONS

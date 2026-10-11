@@ -28,6 +28,7 @@ import java.util.zip.ZipFile
  * ~190 MB library is not kept twice.
  */
 internal object OfficeEngineFlavor {
+    const val available: Boolean = true
     fun createInstaller(context: Context): OfficeEngineInstaller = PlayOfficeEngineInstaller(context)
 }
 

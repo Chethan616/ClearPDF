@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 
 /** foss flavor: the engine is downloaded from the pinned release by [OfficeEngineDownloadWorker]. */
 internal object OfficeEngineFlavor {
+    const val available: Boolean = true
     fun createInstaller(context: Context): OfficeEngineInstaller = DownloadOfficeEngineInstaller(context)
 }
 

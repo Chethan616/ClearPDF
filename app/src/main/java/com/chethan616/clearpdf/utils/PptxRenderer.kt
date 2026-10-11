@@ -158,27 +158,34 @@ internal object PptxRenderer {
 
         // ── Theme colours ───────────────────────────────────────────────────────
 
-        /** Scheme name (`accent1`, `tx1`, …) → ARGB, from the master's theme. */
-        private fun themeColors(masterPath: String?): Map<String, Int> {
-            val themePath = masterPath?.let { m -> rels(m).values.firstOrNull { it.startsWith("ppt/theme/") } }
+        private fun themePath(masterPath: String?): String? =
+            masterPath?.let { m -> rels(m).values.firstOrNull { it.startsWith("ppt/theme/") } }
                 ?: entries.keys.firstOrNull { it.startsWith("ppt/theme/theme") }
-                ?: return emptyMap()
-            val scheme = part(themePath)?.find("a:clrScheme") ?: return emptyMap()
-            val out = HashMap<String, Int>()
+
+        /**
+         * Scheme name (`accent1`, `tx1`, …) → ARGB, from the master's theme. The slide-level names
+         * (`tx1`, `bg1`, …) go through the master's colour map (a layout may override it): a dark
+         * template maps text to `lt1`, which is why its text is white, not the theme's `dk1`.
+         */
+        private fun themeColors(masterPath: String?, layoutPath: String?): Map<String, Int> {
+            val path = themePath(masterPath) ?: return emptyMap()
+            val scheme = part(path)?.find("a:clrScheme") ?: return emptyMap()
+            val raw = HashMap<String, Int>()
             for (entry in scheme.children) {
                 // `<a:dk1><a:sysClr lastClr="000000"/></a:dk1>` or `<a:srgbClr val="4472C4"/>`
                 val key = entry.name.substringAfter(':')
                 val srgb = entry.child("a:srgbClr")?.attr("val")
                     ?: entry.child("a:sysClr")?.attr("lastClr")
                 val color = parseSrgb(srgb) ?: continue
-                out[key] = color
-                // PowerPoint's slide-level names are one indirection off the theme's own.
-                when (key) {
-                    "dk1" -> out["tx1"] = color
-                    "lt1" -> out["bg1"] = color
-                    "dk2" -> out["tx2"] = color
-                    "lt2" -> out["bg2"] = color
-                }
+                raw[key] = color
+            }
+            val map = layoutPath?.let { part(it) }?.find("a:overrideClrMapping")
+                ?: masterPath?.let { part(it) }?.find("p:clrMap")
+            val out = HashMap<String, Int>(raw)
+            val defaults = mapOf("bg1" to "lt1", "tx1" to "dk1", "bg2" to "lt2", "tx2" to "dk2")
+            for (name in listOf("bg1", "tx1", "bg2", "tx2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink")) {
+                val target = map?.attr(name) ?: defaults[name] ?: name
+                raw[target]?.let { out[name] = it }
             }
             return out
         }
@@ -189,32 +196,85 @@ internal object PptxRenderer {
             val slide = part(slidePath) ?: return
             val layoutPath = rels(slidePath).values.firstOrNull { it.startsWith("ppt/slideLayouts/") }
             val masterPath = layoutPath?.let { rels(it).values.firstOrNull { p -> p.startsWith("ppt/slideMasters/") } }
-            val theme = themeColors(masterPath)
+            val theme = themeColors(masterPath, layoutPath)
 
             val ctx = SlideContext(
                 theme = theme,
                 slidePath = slidePath,
                 slideNumber = slideNumber,
+                layout = layoutPath?.let { part(it) },
+                master = masterPath?.let { part(it) },
                 // A placeholder without its own `<a:xfrm>` inherits the layout's box, and the layout
                 // may in turn inherit the master's. Looking that up is what keeps titles and body
                 // text on the slide instead of stacked in the top-left corner.
                 placeholders = placeholderBoxes(masterPath) + placeholderBoxes(layoutPath)
             )
 
-            canvas.drawColor(
-                background(slide, theme)
-                    ?: layoutPath?.let { background(part(it), theme) }
-                    ?: masterPath?.let { background(part(it), theme) }
-                    ?: Color.WHITE
-            )
+            canvas.drawColor(Color.WHITE)
+            val w = canvas.width.toFloat()
+            val h = canvas.height.toFloat()
+            drawBackground(canvas, slide, theme, masterPath, w, h) ||
+                (layoutPath != null && drawBackground(canvas, part(layoutPath), theme, masterPath, w, h)) ||
+                (masterPath != null && drawBackground(canvas, part(masterPath), theme, masterPath, w, h))
 
             val tree = slide.find("p:spTree") ?: return
             drawShapeTree(canvas, tree, ctx, identityTransform())
         }
 
-        private fun background(part: OoxmlNode?, theme: Map<String, Int>): Int? {
-            val fill = part?.find("p:bg")?.find("a:solidFill") ?: return null
-            return solidFillColor(fill, theme)
+        /**
+         * Paints a part's `<p:bg>`: its own fill (`p:bgPr`: solid or gradient), or a reference into
+         * the theme's background fills (`p:bgRef`), whose placeholder colour is the referenced
+         * scheme colour. False when the part doesn't set a background.
+         */
+        private fun drawBackground(
+            canvas: Canvas, part: OoxmlNode?, theme: Map<String, Int>, masterPath: String?, w: Float, h: Float
+        ): Boolean {
+            val bg = part?.find("p:bg") ?: return false
+            bg.child("p:bgPr")?.let { return paintFill(canvas, it, theme, null, w, h) }
+            val ref = bg.child("p:bgRef") ?: return false
+            val idx = ref.attr("idx")?.toIntOrNull() ?: return false
+            val color = solidFillColor(ref, theme)
+            val list = themePath(masterPath)?.let { part(it) }?.find("a:bgFillStyleLst")?.children.orEmpty()
+            val chosen = (if (idx >= 1001) list.getOrNull(idx - 1001) else null)
+            if (chosen == null) {
+                color?.let { canvas.drawColor(it); return true }
+                return false
+            }
+            return paintFill(canvas, chosen, theme, color, w, h)
+        }
+
+        /** A solid or linear-gradient fill over the whole canvas; [phClr] stands in for `phClr`. */
+        private fun paintFill(canvas: Canvas, fill: OoxmlNode, theme: Map<String, Int>, phClr: Int?, w: Float, h: Float): Boolean {
+            val node = if (fill.name == "a:solidFill" || fill.name == "a:gradFill") fill
+                else fill.child("a:solidFill") ?: fill.child("a:gradFill") ?: return false
+            fun colorOf(holder: OoxmlNode): Int? {
+                holder.child("a:schemeClr")?.let { sc -> if (sc.attr("val") == "phClr" && phClr != null) return withMods(phClr, sc) }
+                return solidFillColor(holder, theme)
+            }
+            when (node.name) {
+                "a:solidFill" -> { canvas.drawColor(colorOf(node) ?: return false); return true }
+                "a:gradFill" -> {
+                    val stops = node.find("a:gsLst")?.childrenNamed("a:gs").orEmpty().mapNotNull { gs ->
+                        val c = colorOf(gs) ?: return@mapNotNull null
+                        ((gs.attr("pos")?.toFloatOrNull() ?: 0f) / 100000f).coerceIn(0f, 1f) to c
+                    }.sortedBy { it.first }
+                    if (stops.isEmpty()) return false
+                    if (stops.size == 1) { canvas.drawColor(stops[0].second); return true }
+                    // `<a:lin ang>` is in 60000ths of a degree, clockwise from left → right.
+                    val angle = Math.toRadians(((node.child("a:lin")?.attr("ang")?.toFloatOrNull() ?: 5400000f) / 60000f).toDouble())
+                    val half = (kotlin.math.abs(w * kotlin.math.cos(angle)) + kotlin.math.abs(h * kotlin.math.sin(angle))).toFloat() / 2f
+                    val dx = (kotlin.math.cos(angle) * half).toFloat()
+                    val dy = (kotlin.math.sin(angle) * half).toFloat()
+                    val shader = android.graphics.LinearGradient(
+                        w / 2f - dx, h / 2f - dy, w / 2f + dx, h / 2f + dy,
+                        stops.map { it.second }.toIntArray(), stops.map { it.first }.toFloatArray(),
+                        android.graphics.Shader.TileMode.CLAMP
+                    )
+                    canvas.drawRect(0f, 0f, w, h, Paint().apply { this.shader = shader })
+                    return true
+                }
+            }
+            return false
         }
 
         /** `"type|idx"` → box, from a layout or master part. */
@@ -278,7 +338,7 @@ internal object PptxRenderer {
                 })
             }
 
-            shape.child("p:txBody")?.let { drawTextBody(canvas, it, box, ctx, placeholderType(shape), fill) }
+            shape.child("p:txBody")?.let { drawTextBody(canvas, it, box, ctx, placeholderType(shape), fill, inheritanceOf(shape, ctx)) }
             canvas.restore()
         }
 
@@ -330,6 +390,45 @@ internal object PptxRenderer {
 
         private fun placeholderType(shape: OoxmlNode): String? = shape.find("p:ph")?.attr("type")
 
+        /**
+         * What a placeholder's text inherits, lowest priority first: the master's text style for
+         * its kind, then the master placeholder, then the layout placeholder. Orphan placeholders
+         * (no counterpart on the layout) inherit from the master by type, as PowerPoint does.
+         */
+        private fun inheritanceOf(shape: OoxmlNode, ctx: SlideContext): TextInheritance {
+            val ph = shape.find("p:ph") ?: return TextInheritance(emptyList(), emptyList())
+            val type = ph.attr("type") ?: "obj"
+            val layoutSp = inheritedPlaceholder(ctx.layout, shape, byTypeOnly = false)
+            val masterSp = inheritedPlaceholder(ctx.master, shape, byTypeOnly = true)
+            val txStyles = ctx.master?.find("p:txStyles")
+            val style = when (type) {
+                "title", "ctrTitle" -> txStyles?.child("p:titleStyle")
+                "dt", "ftr", "sldNum", "hdr" -> txStyles?.child("p:otherStyle")
+                else -> txStyles?.child("p:bodyStyle")
+            }
+            return TextInheritance(
+                bodies = listOfNotNull(masterSp?.find("a:bodyPr"), layoutSp?.find("a:bodyPr")),
+                lists = listOfNotNull(style, masterSp?.find("a:lstStyle"), layoutSp?.find("a:lstStyle"))
+            )
+        }
+
+        /** The layout/master placeholder shape [shape] inherits from, by idx then by type. */
+        private fun inheritedPlaceholder(part: OoxmlNode?, shape: OoxmlNode, byTypeOnly: Boolean): OoxmlNode? {
+            val ph = shape.find("p:ph") ?: return null
+            val tree = part?.find("p:spTree") ?: return null
+            val type = ph.attr("type") ?: "obj"
+            val idx = ph.attr("idx")?.takeIf { it != "4294967295" }
+            val shapes = tree.childrenNamed("p:sp")
+            if (!byTypeOnly && idx != null) shapes.firstOrNull { it.find("p:ph")?.attr("idx") == idx }?.let { return it }
+            val wanted = when (type) {
+                "title", "ctrTitle" -> setOf("title", "ctrTitle")
+                "body", "obj", "subTitle" -> if (byTypeOnly) setOf("body") else setOf(type)
+                else -> setOf(type)
+            }
+            if (!byTypeOnly && idx != null) return null
+            return shapes.firstOrNull { (it.find("p:ph")?.attr("type") ?: "obj") in wanted }
+        }
+
         /** A shape's own `<a:xfrm>`, else the box its placeholder inherits from layout/master. */
         private fun resolveBox(shape: OoxmlNode, ctx: SlideContext): Rect? {
             shapeBox(shape)?.let { return it }
@@ -366,8 +465,18 @@ internal object PptxRenderer {
         val theme: Map<String, Int>,
         val slidePath: String,
         val slideNumber: Int,
+        val layout: OoxmlNode?,
+        val master: OoxmlNode?,
         val placeholders: Map<String, Rect>
     )
+
+    /** Inherited text-box properties ([bodies]) and list styles ([lists]), lowest priority first. */
+    private class TextInheritance(val bodies: List<OoxmlNode>, val lists: List<OoxmlNode>) {
+        fun body(attr: String): String? = bodies.asReversed().firstNotNullOfOrNull { it.attr(attr) }
+        fun runAttr(level: Int, attr: String): String? = lists.asReversed().firstNotNullOfOrNull {
+            it.child("a:lvl${level + 1}pPr")?.child("a:defRPr")?.attr(attr)
+        }
+    }
 
     /** Default point size when neither the run nor the placeholder says. */
     private fun defaultSize(placeholder: String?): Float = when (placeholder) {
@@ -383,24 +492,31 @@ internal object PptxRenderer {
         box: Rect,
         ctx: SlideContext,
         placeholder: String?,
-        behindColor: Int?
+        behindColor: Int?,
+        inherited: TextInheritance = TextInheritance(emptyList(), emptyList())
     ) {
         val paragraphs = txBody.childrenNamed("a:p")
         if (paragraphs.isEmpty()) return
+        val bodyPr = txBody.child("a:bodyPr")
+        fun bodyAttr(name: String) = bodyPr?.attr(name) ?: inherited.body(name)
+        fun insetPt(name: String, defaultEmu: Float) = (bodyAttr(name)?.toFloatOrNull() ?: defaultEmu) / EmuPerPoint
+        val lIns = insetPt("lIns", 91440f)
+        val rIns = insetPt("rIns", 91440f)
+        val tIns = insetPt("tIns", 45720f)
+        val bIns = insetPt("bIns", 45720f)
 
         // Text over a filled shape has to stay legible against that fill, not against the slide.
         val defaultInk = behindColor?.let { if (isLight(it)) Color.BLACK else Color.WHITE }
             ?: ctx.theme["tx1"] ?: Color.BLACK
 
-        val inset = 6f
-        val width = (box.width() - inset * 2).toInt().coerceAtLeast(24)
+        val width = (box.width() - lIns - rIns).toInt().coerceAtLeast(24)
         val layouts = mutableListOf<Pair<StaticLayout, Float>>()   // layout + its left indent
         var totalHeight = 0f
 
         for (paragraph in paragraphs) {
             val level = paragraph.child("a:pPr")?.attr("lvl")?.toIntOrNull() ?: 0
             val indent = level * 16f
-            val (spanned, size) = buildParagraph(paragraph, ctx, defaultInk, placeholder)
+            val (spanned, size) = buildParagraph(paragraph, ctx, defaultInk, placeholder, inherited.runAttr(level, "cap"))
             if (spanned.isEmpty()) { totalHeight += size * 0.6f; continue }
 
             val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -419,26 +535,26 @@ internal object PptxRenderer {
         }
         if (layouts.isEmpty()) return
 
-        // Vertical anchor. PowerPoint centres title placeholders by default, which is why an
-        // uncentred render of a title slide looks subtly wrong even when every word is right.
-        val anchor = txBody.child("a:bodyPr")?.attr("anchor")
+        // Vertical anchor, inherited from the layout/master placeholder when the slide doesn't say
+        // (a master's title is usually centred). Text that outgrows its box overflows it, as in
+        // PowerPoint, instead of being clipped: a box starting above the slide still shows its text.
+        val anchor = bodyAttr("anchor")
             ?: if (placeholder == "title" || placeholder == "ctrTitle") "ctr" else "t"
+        val innerTop = box.top + tIns
+        val innerHeight = box.height() - tIns - bIns
         var y = when (anchor) {
-            "ctr" -> box.top + (box.height() - totalHeight) / 2f
-            "b" -> box.bottom - totalHeight
-            else -> box.top + inset
-        }.coerceAtLeast(box.top)
+            "ctr" -> innerTop + (innerHeight - totalHeight) / 2f
+            "b" -> box.bottom - bIns - totalHeight
+            else -> innerTop
+        }
 
-        canvas.save()
-        canvas.clipRect(box.left, box.top, box.right, box.bottom)
         for ((layout, indent) in layouts) {
             canvas.save()
-            canvas.translate(box.left + inset + indent, y)
+            canvas.translate(box.left + lIns + indent, y)
             layout.draw(canvas)
             canvas.restore()
             y += layout.height + layout.paint.textSize * 0.25f
         }
-        canvas.restore()
     }
 
     /** One `<a:p>` → styled text plus the size its first run asked for (used for spacing). */
@@ -446,7 +562,8 @@ internal object PptxRenderer {
         paragraph: OoxmlNode,
         ctx: SlideContext,
         defaultInk: Int,
-        placeholder: String?
+        placeholder: String?,
+        inheritedCap: String? = null
     ): Pair<SpannableStringBuilder, Float> {
         val out = SpannableStringBuilder()
         var firstSize = 0f
@@ -473,9 +590,12 @@ internal object PptxRenderer {
                         ctx.slideNumber.toString()
                     } else raw
                     if (value.isEmpty()) continue
+                    // `cap="all"` (often inherited from the master's title style) shows capitals.
+                    val cap = node.child("a:rPr")?.attr("cap") ?: inheritedCap
+                    val shown = if (cap == "all" || cap == "small") value.uppercase() else value
 
                     val start = out.length
-                    out.append(value)
+                    out.append(shown)
                     val end = out.length
 
                     val size = rPr?.attr("sz")?.toFloatOrNull()?.div(100f)?.coerceIn(4f, 200f)
@@ -609,6 +729,21 @@ internal object PptxRenderer {
         var g = Color.green(base) / 255f
         var b = Color.blue(base) / 255f
 
+        node.child("a:tint")?.attr("val")?.toFloatOrNull()?.let { v ->
+            val t = v / 100000f
+            r = r * t + (1f - t); g = g * t + (1f - t); b = b * t + (1f - t)
+        }
+        node.child("a:shade")?.attr("val")?.toFloatOrNull()?.let { v ->
+            val f = v / 100000f
+            r *= f; g *= f; b *= f
+        }
+        node.child("a:satMod")?.attr("val")?.toFloatOrNull()?.let { v ->
+            val hsv = FloatArray(3)
+            Color.RGBToHSV(Math.round(r.coerceIn(0f, 1f) * 255), Math.round(g.coerceIn(0f, 1f) * 255), Math.round(b.coerceIn(0f, 1f) * 255), hsv)
+            hsv[1] = (hsv[1] * v / 100000f).coerceIn(0f, 1f)
+            val c = Color.HSVToColor(hsv)
+            r = Color.red(c) / 255f; g = Color.green(c) / 255f; b = Color.blue(c) / 255f
+        }
         node.child("a:lumMod")?.attr("val")?.toFloatOrNull()?.let { v ->
             val f = v / 100000f
             r *= f; g *= f; b *= f

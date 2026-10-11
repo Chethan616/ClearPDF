@@ -452,6 +452,17 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         return FileProvider.getUriForFile(context, "${context.packageName}.provider", targetFile)
     }
 
+    /**
+     * The visible [region] of [pageIndex] at screen resolution for a zoomed-in view (see
+     * PdfViewer.renderRegion). Null if the document changed or rendering failed.
+     */
+    suspend fun renderRegion(pageIndex: Int, region: android.graphics.RectF, pageWidthPx: Float, outWidth: Int, outHeight: Int): Bitmap? {
+        val doc = _uiState.value.document ?: return null
+        return withContext(AppDispatchers.pdf) {
+            runCatching { openPdfUseCase.renderRegion(doc, pageIndex, region, pageWidthPx, outWidth, outHeight) }.getOrNull()
+        }?.takeIf { _uiState.value.document?.uri == doc.uri }
+    }
+
     fun renderPage(context: Context, pageIndex: Int, targetWidthPx: Int = DEFAULT_RENDER_WIDTH) {
         val state = _uiState.value
         val doc = state.document ?: return

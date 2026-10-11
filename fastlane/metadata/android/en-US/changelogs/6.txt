@@ -1,0 +1,6 @@
+• Fill PDF forms right on the page with Liquid Glass fields, checkboxes, dropdowns and list boxes
+• Edit only the text you select, in the document's own font
+• Sharp text at any zoom in PDFs, Word and PowerPoint files
+• Files opened from other apps open in their own window
+• PowerPoint titles no longer cut off at the top
+• Springier buttons and menus, and a What's New screen

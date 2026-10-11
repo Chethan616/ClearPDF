@@ -13,6 +13,9 @@ class OpenPdfUseCase(private val viewer: PdfViewer) {
     fun renderPage(document: PdfDocument, pageIndex: Int, width: Int, rotationDegrees: Int = 0): Bitmap? =
         viewer.renderPage(document, pageIndex, width, rotationDegrees)
 
+    fun renderRegion(document: PdfDocument, pageIndex: Int, region: android.graphics.RectF, pageWidthPx: Float, outWidth: Int, outHeight: Int): Bitmap? =
+        viewer.renderRegion(document, pageIndex, region, pageWidthPx, outWidth, outHeight)
+
     fun pageSize(document: PdfDocument, pageIndex: Int): Size? = viewer.pageSize(document, pageIndex)
 
     fun close(document: PdfDocument) = viewer.close(document)

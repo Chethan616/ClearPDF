@@ -128,6 +128,8 @@ internal fun PdfContinuousPage(
     marks: MutableList<PdfMarkup>,
     /** Exact renders of this page's in-place text edits, by markup id (see PdfTextEditPreview). */
     textEditPatches: Map<Long, TextEditPatch> = emptyMap(),
+    /** While zoomed in: the visible part of this page at screen resolution, drawn over the bitmap. */
+    detailTile: PageDetailTile? = null,
     /**
      * The PDF's own fillable boxes on this page (#68) and the values filled so far, by field name.
      * In Edit mode ([formEditing]) the boxes are outlined and a tap fills them in place.
@@ -136,7 +138,8 @@ internal fun PdfContinuousPage(
     formValues: Map<String, String> = emptyMap(),
     formEditing: Boolean = false,
     focusedFormKey: String? = null,
-    onTapFormWidget: (com.kyant.pdfcore.form.PdfFormWidget) -> Unit = {},
+    /** A field was tapped; the rect is its box in window coordinates (for a dropdown's menu). */
+    onTapFormWidget: (com.kyant.pdfcore.form.PdfFormWidget, Rect) -> Unit = { _, _ -> },
     onFormTextChange: (com.kyant.pdfcore.form.PdfFormWidget, String) -> Unit = { _, _ -> },
     onFormImeNext: (com.kyant.pdfcore.form.PdfFormWidget) -> Unit = {},
     ocrBlocks: List<OcrTextBlock>,
@@ -184,8 +187,13 @@ internal fun PdfContinuousPage(
     val latestSelectedMarkupIndices by rememberUpdatedState(selectedMarkupIndices)
     val latestOcrBlocks by rememberUpdatedState(ocrBlocks)
     val latestFormWidgets by rememberUpdatedState(formWidgets)
-    val latestFormEditing by rememberUpdatedState(formEditing)
+    val latestFormValues by rememberUpdatedState(formValues)
     val latestOnTapFormWidget by rememberUpdatedState(onTapFormWidget)
+    val latestOnFormValue by rememberUpdatedState(onFormTextChange)
+    // List boxes scroll inside their own box; offsets in rows, per field box.
+    val formListScroll = remember { androidx.compose.runtime.mutableStateMapOf<String, Float>() }
+    // This page's coordinates, to place a dropdown's menu under the field in window space.
+    val pageLayout = remember { arrayOfNulls<androidx.compose.ui.layout.LayoutCoordinates>(1) }
     DisposableEffect(page, textSelection) { onDispose { textSelection.unregisterPage(page, null) } }
     // Accessibility: expose the page's extracted text to TalkBack, plus a "select page text" action.
     val selectPageLabel = stringResource(R.string.selection_select_page_text)
@@ -231,7 +239,7 @@ internal fun PdfContinuousPage(
             .then(if (bitmap == null) Modifier.aspectRatio(placeholderAspect ?: (1f / 1.414f)) else Modifier)
             .background(Color(0xFF15181E))
             // Page-local coordinates for the text selection's screen mapping (see PdfViewportTransform).
-            .onGloballyPositioned { textSelection.registerPage(page, it) }
+            .onGloballyPositioned { textSelection.registerPage(page, it); pageLayout[0] = it }
             .then(pageTextSemantics)
             .onSizeChanged { sz ->
                 pageCanvasSizes[page] = Size(sz.width.toFloat(), sz.height.toFloat())
@@ -271,6 +279,25 @@ internal fun PdfContinuousPage(
         Canvas(Modifier.matchParentSize()) {
             val frame = Rect(0f, 0f, size.width, size.height)
 
+            // Sharp zoom: the visible part of the page at screen resolution, over the page bitmap.
+            detailTile?.takeIf { !it.bitmap.isRecycled }?.let { tile ->
+                val g = tile.region
+                val left = (g.left * size.width).roundToInt()
+                val top = (g.top * size.height).roundToInt()
+                drawImage(
+                    image = tile.bitmap.asImageBitmap(),
+                    srcOffset = IntOffset.Zero,
+                    srcSize = androidx.compose.ui.unit.IntSize(tile.bitmap.width, tile.bitmap.height),
+                    dstOffset = IntOffset(left, top),
+                    dstSize = androidx.compose.ui.unit.IntSize(
+                        ((g.right * size.width).roundToInt() - left).coerceAtLeast(1),
+                        ((g.bottom * size.height).roundToInt() - top).coerceAtLeast(1)
+                    ),
+                    filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
+                    colorFilter = if (darkPageAppearance) InvertColorFilter else null
+                )
+            }
+
             // Edited lines first, so highlights and other markups still draw on top: the band of
             // the page around each edit, rendered from the edited PDF itself.
             marks.forEach { m ->
@@ -294,7 +321,7 @@ internal fun PdfContinuousPage(
             }
 
             // The PDF's own form boxes: filled values in place, and the Edit-mode outline.
-            if (formWidgets.isNotEmpty()) drawFormWidgets(formWidgets, formValues, formEditing, focusedFormKey, darkPageAppearance)
+            if (formWidgets.isNotEmpty()) drawFormWidgets(formWidgets, formValues, formEditing, focusedFormKey, darkPageAppearance, formListScroll)
 
             // Text selection highlight — the platform selection colour, one band per line fragment.
             // Drawn inside the zoom layer so it scales with the page, exactly like the glyphs.
@@ -552,8 +579,9 @@ internal fun PdfContinuousPage(
                     val selBounds = sel?.movableBounds()
                     if (selBounds != null && selBounds.inflate(30f).contains(down.position)) return@awaitEachGesture
 
-                    // Edit mode: a tap on one of the PDF's own form boxes fills it (#68).
-                    if (latestFormEditing && latestFormWidgets.isNotEmpty()) {
+                    // The PDF's own form fields fill right where they are printed (#68): a tap
+                    // types / ticks / opens the dropdown; a list box scrolls and picks in place.
+                    if (latestFormWidgets.isNotEmpty()) {
                         val nx = down.position.x / size.width.toFloat()
                         val ny = down.position.y / size.height.toFloat()
                         val slop = 6f / size.width.toFloat()
@@ -561,10 +589,41 @@ internal fun PdfContinuousPage(
                             !w.readOnly && nx >= w.left - slop && nx <= w.right + slop && ny >= w.top - slop && ny <= w.bottom + slop
                         }
                         if (box != null) {
+                            val sz = Size(size.width.toFloat(), size.height.toFloat())
+                            if (box.type == com.kyant.pdfcore.form.PdfFormWidget.Type.LIST) {
+                                val current = latestFormValues[box.fieldName] ?: box.value
+                                val start = formListScroll[box.key] ?: box.listInitialScroll(sz, current)
+                                val rowH = box.listRowPx(sz)
+                                val maxScroll = (box.options.size - box.listVisibleRows(sz)).coerceAtLeast(0).toFloat()
+                                var dragged = false
+                                while (true) {
+                                    val ev = awaitPointerEvent()
+                                    val ch = ev.changes.firstOrNull { it.id == down.id } ?: break
+                                    val dy = ch.position.y - down.position.y
+                                    if (!dragged && kotlin.math.abs(dy) > viewConfiguration.touchSlop) dragged = true
+                                    if (dragged) {
+                                        formListScroll[box.key] = (start - dy / rowH).coerceIn(0f, maxScroll)
+                                        ch.consume()
+                                    }
+                                    if (!ch.pressed) {
+                                        if (!dragged) {
+                                            ch.consume()
+                                            val i = box.listIndexAt(sz, down.position.y, start)
+                                            if (i >= 0) latestOnFormValue(box, box.optionValues.getOrElse(i) { box.options[i] })
+                                        }
+                                        break
+                                    }
+                                }
+                                onInteraction()
+                                return@awaitEachGesture
+                            }
                             val up = waitForUpOrCancellation()
                             if (up != null) {
                                 up.consume()
-                                latestOnTapFormWidget(box)
+                                val r = box.rectIn(sz)
+                                val lc = pageLayout[0]?.takeIf { it.isAttached }
+                                val windowRect = if (lc != null) Rect(lc.localToWindow(r.topLeft), lc.localToWindow(r.bottomRight)) else r
+                                latestOnTapFormWidget(box, windowRect)
                                 onShowControls()
                                 onInteraction()
                             }
