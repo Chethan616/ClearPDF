@@ -101,10 +101,12 @@ private const val ROUTE_HTML_TO_PDF = "html_to_pdf"
 private const val ROUTE_FILL_FORM = "fill_form"
 private const val ROUTE_SPREADSHEET_BASE = "spreadsheet"
 private const val ROUTE_IMAGE_EDITOR_BASE = "image_editor"
+private const val ROUTE_DOCX_BASE = "docx_editor"
 private const val ARG_PDF_URI = "uri"
 private const val ROUTE_VIEWER = "$ROUTE_VIEWER_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
 private const val ROUTE_SPREADSHEET = "$ROUTE_SPREADSHEET_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
 private const val ROUTE_IMAGE_EDITOR = "$ROUTE_IMAGE_EDITOR_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
+private const val ROUTE_DOCX = "$ROUTE_DOCX_BASE?$ARG_PDF_URI={$ARG_PDF_URI}"
 
 private val OPEN_DOC_MIMES = arrayOf(
     "application/pdf",
@@ -156,6 +158,10 @@ private fun NavHostController.navigateToDocument(
     when (docKindOf(name)) {
         DocKind.Excel -> navigate("$ROUTE_SPREADSHEET_BASE?$ARG_PDF_URI=${Uri.encode(uri.toString())}") { launchSingleTop = true }
         DocKind.Image -> navigate("$ROUTE_IMAGE_EDITOR_BASE?$ARG_PDF_URI=${Uri.encode(uri.toString())}") { launchSingleTop = true }
+        // .docx opens in the Word editor (#73); .doc/.odt/.rtf still go through the PDF path.
+        DocKind.Word -> if (name?.lowercase()?.trim()?.endsWith(".docx") == true)
+            navigate("$ROUTE_DOCX_BASE?$ARG_PDF_URI=${Uri.encode(uri.toString())}") { launchSingleTop = true }
+        else navigateToPdfViewer(uri)
         else -> navigateToPdfViewer(uri)
     }
 }
@@ -183,7 +189,8 @@ private fun isDocViewerRoute(route: String?): Boolean =
     route != null && (
         route.startsWith(ROUTE_VIEWER_BASE) ||
         route.startsWith(ROUTE_SPREADSHEET_BASE) ||
-        route.startsWith(ROUTE_IMAGE_EDITOR_BASE)
+        route.startsWith(ROUTE_IMAGE_EDITOR_BASE) ||
+        route.startsWith(ROUTE_DOCX_BASE)
     )
 
 /**
@@ -557,6 +564,29 @@ fun DocsNavGraph(
                 if (target != null) vm.load(context, target)
             }
             SpreadsheetViewerScreen(
+                backdrop = backdrop,
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onOpenPdf = { pdfUri -> navController.navigateToPdfViewer(pdfUri) }
+            )
+        }
+
+        composable(
+            route = ROUTE_DOCX,
+            arguments = listOf(navArgument(ARG_PDF_URI) { type = NavType.StringType; nullable = true; defaultValue = null }),
+            enterTransition = { documentLiftIn() },
+            popExitTransition = {
+                androidx.compose.animation.fadeOut(tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+            }
+        ) { backStackEntry ->
+            val context = LocalContext.current
+            val vm: com.chethan616.clearpdf.ui.viewmodel.DocxEditorViewModel = viewModel()
+            val routeUri = backStackEntry.arguments?.getString(ARG_PDF_URI)?.let { parseViewerUriArg(it) }
+            LaunchedEffect(routeUri, incomingPdfUri) {
+                val target = routeUri ?: incomingPdfUri
+                if (target != null) vm.load(context, target)
+            }
+            com.chethan616.clearpdf.ui.screen.DocxEditorScreen(
                 backdrop = backdrop,
                 viewModel = vm,
                 onBack = { navController.popBackStack() },

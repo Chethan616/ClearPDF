@@ -45,9 +45,6 @@ import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.shapes.Capsule
 
@@ -65,6 +62,7 @@ fun GlassToolbar(
     val isDark = LocalIsDarkMode.current
     val containerColor = if (isDark) Color(0xFF1E1E1E).copy(0.42f) else Color(0xFFFAFAFA).copy(0.42f)
     val scroll = rememberScrollState()
+    val style = GlassSettings.style
 
     Box(
         modifier
@@ -72,15 +70,13 @@ fun GlassToolbar(
             .drawBackdrop(
                 backdrop = backdrop,
                 shape = { Capsule },
-                effects = {
-                    vibrancy()
-                    blur(8f.dp.toPx())
-                    lens(16f.dp.toPx(), 32f.dp.toPx())
-                },
-                highlight = { Highlight.Ambient },
+                // The user's Liquid Glass settings (blur, refraction, tint, highlight…), like every
+                // other glass surface; this stack used to be hand-rolled and ignored them.
+                effects = { glassEffects(style, 8f.dp.toPx(), 16f.dp.toPx(), 32f.dp.toPx()) },
+                highlight = { glassHighlight(style, Highlight.Ambient) },
                 shadow = null,
                 innerShadow = null,
-                onDrawSurface = { drawRect(containerColor) }
+                onDrawSurface = { drawRect(containerColor.glassTint(style)) }
             )
             .clip(Capsule),
         contentAlignment = Alignment.CenterStart

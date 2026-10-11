@@ -87,11 +87,14 @@ open class MainActivity : ComponentActivity() {
         }?.takeIf { uri -> isSupportedDocumentIntent(intent?.type, uri.toString()) }
 
         // Route an incoming document by its kind: spreadsheets → interactive grid, images → image
-        // editor, everything else → the PDF viewer.
+        // editor, .docx → the Word editor, everything else → the PDF viewer.
         val effectiveRoute = if (incomingPdfUri != null) {
-            when (com.chethan616.clearpdf.utils.docKindOf(queryDisplayName(incomingPdfUri))) {
+            val incomingName = queryDisplayName(incomingPdfUri)
+            when (com.chethan616.clearpdf.utils.docKindOf(incomingName)) {
                 com.chethan616.clearpdf.utils.DocKind.Excel -> "spreadsheet"
                 com.chethan616.clearpdf.utils.DocKind.Image -> "image_editor"
+                com.chethan616.clearpdf.utils.DocKind.Word ->
+                    if (incomingName?.lowercase()?.trim()?.endsWith(".docx") == true) "docx_editor" else "pdf_viewer"
                 else -> "pdf_viewer"
             }
         } else shortcutRoute
