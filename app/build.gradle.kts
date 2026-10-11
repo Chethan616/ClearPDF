@@ -27,7 +27,6 @@ val releaseKeyPassword = signingValue("keyPassword", "CLEARPDF_UPLOAD_KEY_PASSWO
 // F-Droid builds one APK per CPU (its recipe passes -PfdroidAbi=<abi>, one build block each). Every
 // APK keeps only that ABI's native libraries and gets its own versionCode, 10 x versionCode + n, in
 // the order F-Droid asks for: armeabi-v7a < arm64-v8a < x86 < x86_64.
-val appVersionCode = 6
 val fdroidAbis = listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
 val fdroidAbi = (findProperty("fdroidAbi") as String?)?.trim()?.takeIf { it in fdroidAbis }
 
@@ -45,7 +44,8 @@ android {
         applicationId = "com.chethan616.clearpdf"
         minSdk = 23
         targetSdk = 36
-        versionCode = appVersionCode
+        // Keep this a literal: F-Droid's update checker reads it from this file.
+        versionCode = 6
         versionName = "2.1.1"
         // Keep every locale declared by the app. Filtering this to English
         // removes values-pt-rBR from the packaged APK, so the language picker
@@ -108,7 +108,7 @@ android {
         create("fdroid") {
             dimension = "distribution"
             if (fdroidAbi != null) {
-                versionCode = 10 * appVersionCode + fdroidAbis.indexOf(fdroidAbi) + 1
+                versionCode = 10 * (defaultConfig.versionCode ?: 0) + fdroidAbis.indexOf(fdroidAbi) + 1
                 ndk { abiFilters += fdroidAbi }
             }
         }
