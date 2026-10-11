@@ -328,6 +328,20 @@ fun SettingsScreen(
                         style = TextStyle(sub, 12.sp)
                     )
                     SettingsDivider(isLight)
+                    // #74: dark pages follow the app's dark mode, so night reading needs no tap.
+                    var autoDarkPages by remember { mutableStateOf(com.chethan616.clearpdf.data.repository.AppSettingsManager.getAutoDarkPages(context)) }
+                    SettingsToggleRow(
+                        icon = Icons.Rounded.DarkMode,
+                        title = stringResource(R.string.settings_auto_dark_pages),
+                        desc = stringResource(R.string.settings_auto_dark_pages_desc),
+                        checked = autoDarkPages,
+                        onCheckedChange = {
+                            autoDarkPages = it
+                            com.chethan616.clearpdf.data.repository.AppSettingsManager.setAutoDarkPages(context, it)
+                        },
+                        backdrop = backdrop
+                    )
+                    SettingsDivider(isLight)
                     SettingsToggleRow(
                         icon = Icons.Rounded.Vibration,
                         title = stringResource(R.string.settings_reduce_glass_motion),

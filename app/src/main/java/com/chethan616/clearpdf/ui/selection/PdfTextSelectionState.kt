@@ -197,7 +197,8 @@ class PdfTextSelectionState {
             val (from, to) = pageRange(p) ?: continue
             layout(p)?.substring(from, to)?.let { if (it.isNotBlank()) parts.add(it) }
         }
-        return parts.joinToString("\n\n")
+        // PDFs store right-to-left lines in visual order; copy them in reading order (#72).
+        return com.kyant.pdfcore.text.PdfBidi.visualToLogical(parts.joinToString("\n\n"))
     }
 
     /** Screen caret geometry for a selection end, or null when that page is not laid out. */

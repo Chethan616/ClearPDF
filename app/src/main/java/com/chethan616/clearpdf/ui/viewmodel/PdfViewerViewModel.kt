@@ -1099,17 +1099,20 @@ private fun OcrTextBlock.findMatches(lower: String, page: Int): List<FindMatch> 
     if (lower.isEmpty()) return emptyList()
     val bt = text.lowercase()
     val out = ArrayList<FindMatch>()
+    // Right-to-left text is stored in visual order: look for the query's visual form too (#72).
+    for (q in com.kyant.pdfcore.text.PdfBidi.searchForms(lower)) {
     var from = 0
     while (true) {
-        val idx = bt.indexOf(lower, from)
+        val idx = bt.indexOf(q, from)
         if (idx < 0) break
-        val endC = idx + lower.length - 1
+        val endC = idx + q.length - 1
         if (charLefts.isNotEmpty() && idx < charLefts.size && endC < charRights.size) {
             out.add(FindMatch(page, charLefts[idx], top, charRights[endC], bottom))
         } else {
             out.add(FindMatch(page, left, top, right, bottom))
         }
-        from = idx + lower.length
+        from = idx + q.length
+    }
     }
     return out
 }

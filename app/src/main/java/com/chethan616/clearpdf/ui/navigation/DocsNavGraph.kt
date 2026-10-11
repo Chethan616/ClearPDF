@@ -775,7 +775,7 @@ fun DocsNavGraph(
                 backdrop = backdrop,
                 viewModel = vm,
                 onBack = { navController.popBackStack() },
-                onViewOutput = { uri -> navController.navigateToPdfViewer(uri) }
+                onFillOnPage = { uri -> navController.navigateToPdfViewer(uri) }
             )
         }
     }

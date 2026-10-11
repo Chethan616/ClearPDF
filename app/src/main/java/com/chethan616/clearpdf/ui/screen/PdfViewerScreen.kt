@@ -240,7 +240,11 @@ fun PdfViewerScreen(
     val passwordFocusRequester = remember { FocusRequester() }
     var showSignaturePad    by remember { mutableStateOf(false) }
     var showZoomHud         by remember { mutableStateOf(false) }
-    var darkPageAppearance by rememberSaveable { mutableStateOf(false) }
+    // #74: with "Dark pages in dark mode" on, every document opens with dark pages while the app is
+    // dark; the moon button still switches it per document.
+    val autoDarkPages = com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current &&
+        remember { com.chethan616.clearpdf.data.repository.AppSettingsManager.getAutoDarkPages(context) }
+    var darkPageAppearance by rememberSaveable { mutableStateOf(autoDarkPages) }
     var bookmarkedPages by remember { mutableStateOf<List<Int>>(emptyList()) }
     // Annotation (text box / sticky note) editing
     var editingAnnoId       by remember { mutableStateOf<Long?>(null) }

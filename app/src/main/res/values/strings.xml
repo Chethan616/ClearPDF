@@ -155,6 +155,18 @@
     <string name="tool_fill_form">Fill Form</string>
     <string name="tool_fill_form_sub">Complete PDF form fields</string>
     <string name="fill_form_fields">Form fields</string>
+    <string name="fill_form_hero_title">Fill forms right on the page</string>
+    <string name="fill_form_hero_desc">Pick a PDF form and it opens with every field ready to fill where it\'s printed.</string>
+    <string name="fill_form_pick">Choose a PDF form</string>
+    <string name="fill_form_step_type_title">Type in place</string>
+    <string name="fill_form_step_type_desc">Tap a text field and type. A bar above the keyboard jumps to the next field.</string>
+    <string name="fill_form_step_tick_title">Tick and choose</string>
+    <string name="fill_form_step_tick_desc">Checkboxes and radio buttons switch with a tap.</string>
+    <string name="fill_form_step_pick_title">Dropdowns and lists</string>
+    <string name="fill_form_step_pick_desc">Pick from a glass menu, or scroll a list right in its box.</string>
+    <string name="fill_form_step_save_title">Save or share</string>
+    <string name="fill_form_step_save_desc">Values are saved into the form itself, in its own style.</string>
+    <string name="fill_form_no_fields">This PDF has no fillable form fields</string>
     <string name="fill_form_flatten">Flatten when saving</string>
     <string name="fill_form_flatten_desc">Make the filled values permanent</string>
     <string name="fill_form_action">Save Filled PDF</string>
@@ -327,6 +339,8 @@
     <string name="text_edit_title">Edit text</string>
     <string name="text_edit_hint">Rewrites this line of the document in its own font. Tap empty space with the Text tool to add new text instead.</string>
     <string name="text_edit_revert">Restore</string>
+    <string name="settings_auto_dark_pages">Dark pages in dark mode</string>
+    <string name="settings_auto_dark_pages_desc">Documents open with dark pages whenever the app is dark</string>
     <string name="form_fill_previous">Previous field</string>
     <string name="form_fill_next">Next field</string>
     <string name="tour_form_title">Fill the form on the page</string>

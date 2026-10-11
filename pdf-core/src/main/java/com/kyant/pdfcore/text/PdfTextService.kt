@@ -274,17 +274,20 @@ fun PdfTextBlock.matchRects(lower: String, pageIndex: Int): List<PdfSearchMatch>
     if (lower.isEmpty() || charLefts.isEmpty()) return emptyList()
     val bt = text.lowercase()
     val out = ArrayList<PdfSearchMatch>()
-    var from = 0
-    while (true) {
-        val idx = bt.indexOf(lower, from)
-        if (idx < 0) break
-        val endC = idx + lower.length - 1
-        if (idx < charLefts.size && endC < charRights.size) {
-            out.add(PdfSearchMatch(pageIndex, charLefts[idx], top, charRights[endC], bottom))
-        } else {
-            out.add(PdfSearchMatch(pageIndex, left, top, right, bottom))
+    // Right-to-left text is stored in visual order: look for the query's visual form too (#72).
+    for (q in PdfBidi.searchForms(lower)) {
+        var from = 0
+        while (true) {
+            val idx = bt.indexOf(q, from)
+            if (idx < 0) break
+            val endC = idx + q.length - 1
+            if (idx < charLefts.size && endC < charRights.size) {
+                out.add(PdfSearchMatch(pageIndex, charLefts[idx], top, charRights[endC], bottom))
+            } else {
+                out.add(PdfSearchMatch(pageIndex, left, top, right, bottom))
+            }
+            from = idx + q.length
         }
-        from = idx + lower.length
     }
     return out
 }
