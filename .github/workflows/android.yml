@@ -23,7 +23,9 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
       - name: Build release variant
-        run: ./gradlew assembleRelease --stacktrace
+        # Three flavors (play, foss, fdroid) compile in one Kotlin daemon; its default 2 GB heap ran
+        # out (GC overhead limit). The runner has 16 GB, so give Gradle and Kotlin 4 GB each.
+        run: ./gradlew assembleRelease --stacktrace -Dorg.gradle.jvmargs="-Xmx4g -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
