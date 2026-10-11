@@ -1,0 +1,6 @@
+• Word documents open as real pages and can be edited in place, then saved to the same .docx
+• Dark reading keeps photos as printed and blue headings blue, in PDFs, slides and Word
+• Spreadsheets show pictures and logos, fit text like Excel, and have a white or dark sheet
+• Arabic language, and Arabic text copies and searches in the right order
+• Print Word documents and reopen them at the page you were reading
+• Fill Form tool opens the form ready to fill on the page

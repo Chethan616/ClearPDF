@@ -24,6 +24,13 @@ val releaseStorePassword = signingValue("storePassword", "CLEARPDF_UPLOAD_STORE_
 val releaseKeyAlias = signingValue("keyAlias", "CLEARPDF_UPLOAD_KEY_ALIAS")
 val releaseKeyPassword = signingValue("keyPassword", "CLEARPDF_UPLOAD_KEY_PASSWORD")
 
+// F-Droid builds one APK per CPU (its recipe passes -PfdroidAbi=<abi>, one build block each). Every
+// APK keeps only that ABI's native libraries and gets its own versionCode, 10 x versionCode + n, in
+// the order F-Droid asks for: armeabi-v7a < arm64-v8a < x86 < x86_64.
+val appVersionCode = 6
+val fdroidAbis = listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+val fdroidAbi = (findProperty("fdroidAbi") as String?)?.trim()?.takeIf { it in fdroidAbis }
+
 val hasReleaseSigning = !releaseStoreFilePath.isNullOrBlank() &&
     !releaseStorePassword.isNullOrBlank() &&
     !releaseKeyAlias.isNullOrBlank() &&
@@ -38,7 +45,7 @@ android {
         applicationId = "com.chethan616.clearpdf"
         minSdk = 23
         targetSdk = 36
-        versionCode = 6
+        versionCode = appVersionCode
         versionName = "2.1.1"
         // Keep every locale declared by the app. Filtering this to English
         // removes values-pt-rBR from the packaged APK, so the language picker
@@ -100,6 +107,10 @@ android {
         // no downloaded Office engine. Same applicationId, so it updates like the GitHub build.
         create("fdroid") {
             dimension = "distribution"
+            if (fdroidAbi != null) {
+                versionCode = 10 * appVersionCode + fdroidAbis.indexOf(fdroidAbi) + 1
+                ndk { abiFilters += fdroidAbi }
+            }
         }
     }
     // Code that needs Google's libraries lives in src/gms, shared by the play and foss builds;

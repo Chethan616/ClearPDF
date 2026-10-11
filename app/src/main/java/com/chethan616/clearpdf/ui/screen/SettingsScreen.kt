@@ -328,6 +328,20 @@ fun SettingsScreen(
                         style = TextStyle(sub, 12.sp)
                     )
                     SettingsDivider(isLight)
+                    // #74: dark pages follow the app's dark mode, so night reading needs no tap.
+                    var autoDarkPages by remember { mutableStateOf(com.chethan616.clearpdf.data.repository.AppSettingsManager.getAutoDarkPages(context)) }
+                    SettingsToggleRow(
+                        icon = Icons.Rounded.DarkMode,
+                        title = stringResource(R.string.settings_auto_dark_pages),
+                        desc = stringResource(R.string.settings_auto_dark_pages_desc),
+                        checked = autoDarkPages,
+                        onCheckedChange = {
+                            autoDarkPages = it
+                            com.chethan616.clearpdf.data.repository.AppSettingsManager.setAutoDarkPages(context, it)
+                        },
+                        backdrop = backdrop
+                    )
+                    SettingsDivider(isLight)
                     SettingsToggleRow(
                         icon = Icons.Rounded.Vibration,
                         title = stringResource(R.string.settings_reduce_glass_motion),
@@ -863,12 +877,14 @@ private val OpenSourceCredits = listOf(
     Credit("AndroidLiquidGlass", "Kyant", "Apache License 2.0", "https://github.com/Kyant0/AndroidLiquidGlass"),
     Credit("PdfBox-Android", "Tom Roush", "Apache License 2.0 — PDF text, forms and annotation export", "https://github.com/TomRoush/PdfBox-Android"),
     Credit("Apache POI", "The Apache Software Foundation", "Apache License 2.0 — legacy .doc / .xls / .ppt reading", "https://poi.apache.org"),
+    Credit("Carlito", "The Carlito Project Authors", "SIL Open Font License 1.1 — Calibri-metric font for spreadsheets", "https://github.com/googlefonts/carlito"),
     Credit("ML Kit Text Recognition", "Google", "Apache License 2.0 — bundled on-device OCR, no network", "https://developers.google.com/ml-kit/vision/text-recognition"),
     Credit("Tesseract4Android", "Adaptech s.r.o.", "Apache License 2.0 — offline OCR fallback", "https://github.com/adaptech-cz/Tesseract4Android"),
     Credit("Tesseract OCR", "Google / Tesseract contributors", "Apache License 2.0", "https://github.com/tesseract-ocr/tesseract"),
     Credit("Leptonica", "Dan Bloomberg", "BSD 2-Clause — image processing behind Tesseract", "https://github.com/DanBloomberg/leptonica"),
     Credit("docx-preview", "Volodymyr Baydalka", "Apache License 2.0 — Word document layout", "https://github.com/VolodymyrBaydalka/docxjs"),
     Credit("JSZip", "Stuart Knightley", "MIT License (used under MIT of its MIT/GPLv3 dual licence)", "https://github.com/Stuk/jszip"),
+    Credit("Gander", "Arjun Maniyani", "MIT License — night reading (hue-keeping colours, photos left as printed) and Word page ideas", "https://github.com/mokshablr/gander"),
     Credit("ImageToolbox", "T8RIN (Malik Mukhametzyanov)", "Apache License 2.0 — image editor cropper, perspective crop and draw engine (adapted)", "https://github.com/T8RIN/ImageToolbox"),
     Credit("GPUImage for Android", "CyberAgent, Inc.", "Apache License 2.0 — image editor adjustments and filters", "https://github.com/cats-oss/android-gpuimage"),
     Credit("ML Kit Subject Segmentation", "Google", "Google APIs Terms — optional background removal via Play services", "https://developers.google.com/ml-kit/vision/subject-segmentation"),

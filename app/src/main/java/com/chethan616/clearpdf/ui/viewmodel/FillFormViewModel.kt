@@ -54,7 +54,7 @@ class FillFormViewModel : ViewModel() {
             _uiState.update {
                 it.copy(
                     fields = fields, loaded = true,
-                    errorMessage = if (fields.isEmpty()) "This PDF has no fillable form fields" else null
+                    errorMessage = if (fields.isEmpty()) context.getString(com.chethan616.clearpdf.R.string.fill_form_no_fields) else null
                 )
             }
         }
@@ -93,6 +93,9 @@ class FillFormViewModel : ViewModel() {
             }
         }
     }
+
+    /** Back to the empty state (after handing a form to the viewer). */
+    fun reset() = _uiState.update { FillFormUiState() }
 
     fun clearFeedback() = _uiState.update { it.copy(errorMessage = null, resultMessage = null) }
 

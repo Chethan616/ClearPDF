@@ -163,6 +163,7 @@ object AppSettingsManager {
     private const val KEY_REMEMBER_RECENT_FILES = "remember_recent_files"
     private const val KEY_KEEP_LOCAL_COPIES = "keep_local_document_copies"
     private const val KEY_REDUCE_GLASS_MOTION = "reduce_glass_motion"
+    private const val KEY_AUTO_DARK_PAGES = "auto_dark_pages"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -176,6 +177,10 @@ object AppSettingsManager {
     // Opt-in (default off: full quality). Freezes the gravity-tracked specular highlight that
     // every liquidGlassPanel/capsule reads instead of letting it keep publishing tilt updates —
     // see UISensor's own KDoc for why that is the dominant redraw cost on devices sensitive to it.
+    /** Documents open with dark pages whenever the app is in dark mode (#74). */
+    fun getAutoDarkPages(context: Context): Boolean = prefs(context).getBoolean(KEY_AUTO_DARK_PAGES, false)
+    fun setAutoDarkPages(context: Context, enabled: Boolean) = prefs(context).edit().putBoolean(KEY_AUTO_DARK_PAGES, enabled).apply()
+
     fun getReduceGlassMotion(context: Context): Boolean =
         prefs(context).getBoolean(KEY_REDUCE_GLASS_MOTION, false)
 

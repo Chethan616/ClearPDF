@@ -9,6 +9,13 @@ ClearPDF uses open-source components and keeps their notices with the project. R
 - Use: PDF parsing, editing, merging, splitting, and password removal.
 - Notice practice: keep the Apache 2.0 license and upstream attribution available with redistributed builds. Do not imply that the Apache Software Foundation endorses ClearPDF.
 
+## Carlito font
+
+- Files: `app/src/main/res/font/carlito_regular.ttf`, `carlito_bold.ttf`
+- Copyright 2013 The Carlito Project Authors (https://github.com/googlefonts/carlito), with Reserved Font Name "Carlito"
+- License: SIL Open Font License, Version 1.1 (https://openfontlicense.org)
+- Used to draw spreadsheet cells styled in Calibri, whose metrics it matches.
+
 ## Apache POI
 
 - Artifacts: `org.apache.poi:poi:3.17`, `org.apache.poi:poi-scratchpad:3.17`
@@ -126,3 +133,28 @@ The app does not bundle GPL or LGPL components for document rendering. If a futu
 - Trademark: "LibreOffice" is a trademark of The Document Foundation; ClearPDF uses it only to say
   the optional engine is powered by LibreOffice and is not affiliated with or endorsed by TDF.
 - Credited in Settings → Licenses and Settings → Office engine.
+
+## Gander (adapted ideas and constants)
+
+- Source: https://github.com/mokshablr/gander, MIT License, Copyright (c) 2026 Arjun Maniyani.
+- Use: night mode for documents (`ui/components/NightPaper.kt`): the hue-keeping colour matrix
+  (invert + 180 degree hue turn) and the "looks like paper" picture probe with its thresholds, so dark
+  reading leaves photographs as printed (PDF viewer, slides, Word editor). Also the idea of showing
+  a Word file in the pages Word recorded (`w:lastRenderedPageBreak`), printing through Android's
+  print screen, and reopening a document at the page last read. ClearPDF's code and UI are its own.
+- Licence text:
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+  associated documentation files (the "Software"), to deal in the Software without restriction,
+  including without limitation the rights to use, copy, modify, merge, publish, distribute,
+  sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies or
+  substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+  NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+  DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

@@ -55,6 +55,7 @@ object XlsxReader {
             XlsxSheet(name, path).also { s ->
                 s.hidden = hidden
                 runCatching { parseWorksheet(entries[path]!!, s) }
+                runCatching { loadImages(s, entries) }
             }
         }
         return XlsxWorkbook(sheets, styles, shared, editable = entries.containsKey("xl/workbook.xml"))
@@ -63,7 +64,10 @@ object XlsxReader {
     private fun isNeeded(n: String): Boolean =
         n == "xl/workbook.xml" || n == "xl/_rels/workbook.xml.rels" || n == "xl/sharedStrings.xml" ||
             n == "xl/styles.xml" || (n.startsWith("xl/theme/") && n.endsWith(".xml")) ||
-            (n.startsWith("xl/worksheets/") && n.endsWith(".xml") && !n.contains("_rels"))
+            (n.startsWith("xl/worksheets/") && n.endsWith(".xml") && !n.contains("_rels")) ||
+            // Pictures: each sheet's relationships, its drawing part, and the images themselves.
+            (n.startsWith("xl/worksheets/_rels/") && n.endsWith(".rels")) ||
+            n.startsWith("xl/drawings/") || n.startsWith("xl/media/")
 
     private fun parser(bytes: ByteArray): XmlPullParser = parserFactory().apply {
         setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
@@ -245,6 +249,70 @@ object XlsxReader {
         return out
     }
 
+    // ── pictures ───────────────────────────────────────────────────────────────
+
+    private fun resolvePart(fromPart: String, target: String): String {
+        if (target.startsWith("/")) return target.drop(1)
+        val stack = ArrayDeque(fromPart.substringBeforeLast('/', "").split('/').filter { it.isNotEmpty() })
+        for (seg in target.split('/')) when (seg) {
+            "", "." -> Unit
+            ".." -> stack.removeLastOrNull()
+            else -> stack.addLast(seg)
+        }
+        return stack.joinToString("/")
+    }
+
+    private fun relsOf(part: String, entries: Map<String, ByteArray>): Map<String, String> {
+        val relPath = part.substringBeforeLast('/') + "/_rels/" + part.substringAfterLast('/') + ".rels"
+        return entries[relPath]?.let { parseRels(it) } ?: emptyMap()
+    }
+
+    /** The pictures in [sheet]'s drawing part (charts and shapes are skipped). */
+    private fun loadImages(sheet: XlsxSheet, entries: Map<String, ByteArray>) {
+        val rel = sheet.drawingRel ?: return
+        val drawingPath = relsOf(sheet.partPath, entries)[rel]?.let { resolvePart(sheet.partPath, it) } ?: return
+        val drawing = entries[drawingPath] ?: return
+        val drawingRels = relsOf(drawingPath, entries)
+        val root = readEl(parser(drawing).also { while (it.eventType != XmlPullParser.START_TAG) it.next() })
+        var budget = 40L * 1024 * 1024 // never keep more than ~40 MB of pictures per sheet
+        for (anchor in root.children) {
+            if (anchor.name !in setOf("twoCellAnchor", "oneCellAnchor", "absoluteAnchor")) continue
+            val pic = anchor.children.firstOrNull { it.name == "pic" } ?: continue
+            val blip = findEl(pic, "blip") ?: continue
+            val embed = blip.attrs.entries.firstOrNull { it.key.substringAfter(':') == "embed" }?.value ?: continue
+            val media = drawingRels[embed]?.let { resolvePart(drawingPath, it) } ?: continue
+            val bytes = entries[media] ?: continue
+            if (bytes.size > budget) continue
+            budget -= bytes.size
+            fun num(el: XmlEl?, n: String) = el?.children?.firstOrNull { it.name == n }?.text?.trim()?.toLongOrNull() ?: 0L
+            val from = anchor.children.firstOrNull { it.name == "from" }
+            val to = anchor.children.firstOrNull { it.name == "to" }
+            val ext = anchor.children.firstOrNull { it.name == "ext" } ?: findEl(pic, "ext")
+            val pos = anchor.children.firstOrNull { it.name == "pos" }
+            sheet.images += SheetImage(
+                fromCol = if (anchor.name == "absoluteAnchor") -1 else num(from, "col").toInt(),
+                fromColOff = num(from, "colOff"),
+                fromRow = num(from, "row").toInt(),
+                fromRowOff = num(from, "rowOff"),
+                toCol = if (to != null) num(to, "col").toInt() else -1,
+                toColOff = num(to, "colOff"),
+                toRow = if (to != null) num(to, "row").toInt() else -1,
+                toRowOff = num(to, "rowOff"),
+                extCx = ext?.attrs?.get("cx")?.toLongOrNull() ?: 0L,
+                extCy = ext?.attrs?.get("cy")?.toLongOrNull() ?: 0L,
+                absX = pos?.attrs?.get("x")?.toLongOrNull() ?: 0L,
+                absY = pos?.attrs?.get("y")?.toLongOrNull() ?: 0L,
+                bytes = bytes
+            )
+        }
+    }
+
+    private fun findEl(el: XmlEl, name: String): XmlEl? {
+        if (el.name == name) return el
+        for (c in el.children) findEl(c, name)?.let { return it }
+        return null
+    }
+
     // ── worksheet ──────────────────────────────────────────────────────────────
 
     fun parseWorksheet(bytes: ByteArray, sheet: XlsxSheet) {
@@ -301,6 +369,7 @@ object XlsxReader {
                         }
                     }
                     "mergeCell" -> p.attr("ref")?.let { XlsxRefs.parseRange(it) }?.let { sheet.merges.add(it) }
+                    "drawing" -> sheet.drawingRel = p.attr("id")
                     "dataValidation" -> readValidation(p)?.let { sheet.validations.add(it) }
                 }
             }

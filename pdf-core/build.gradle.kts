@@ -32,4 +32,6 @@ dependencies {
     // Lossless PDF page operations (merge / split / reorder / rotate / text extraction).
     // PdfRenderer can only rasterise pages; PdfBox preserves the original text & vectors.
     implementation(libs.pdfbox.android)
+
+    testImplementation("junit:junit:4.13.2")
 }

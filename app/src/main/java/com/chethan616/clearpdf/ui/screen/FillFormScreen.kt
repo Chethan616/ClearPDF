@@ -1,13 +1,8 @@
 package com.chethan616.clearpdf.ui.screen
 
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.activity.compose.BackHandler
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,11 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowDropDownCircle
+import androidx.compose.material.icons.rounded.CheckBox
 import androidx.compose.material.icons.rounded.EditNote
+import androidx.compose.material.icons.rounded.Keyboard
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -30,170 +27,117 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
-import com.chethan616.clearpdf.ui.components.GlassSectionHeader
+import com.chethan616.clearpdf.ui.components.AccentIconTile
 import com.chethan616.clearpdf.ui.components.LiquidButton
 import com.chethan616.clearpdf.ui.components.LiquidGlassErrorCard
-import com.chethan616.clearpdf.ui.components.LiquidToggle
 import com.chethan616.clearpdf.ui.components.ToolScaffold
-import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
+import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.FillFormViewModel
-import com.kyant.pdfcore.form.PdfFormService
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.delay
 
 private val FormAccent = Color(0xFF00695C)
 
+/**
+ * The Fill Form tool. Forms are filled on the page now (#68): pick a PDF, and if it has fields it
+ * opens in the viewer, where every field is a Liquid Glass control you fill where it's printed —
+ * instead of the old list of field names, where it was impossible to tell which field was which.
+ */
 @Composable
 fun FillFormScreen(
     backdrop: LayerBackdrop,
     viewModel: FillFormViewModel,
     onBack: () -> Unit,
-    onViewOutput: (Uri) -> Unit
+    onFillOnPage: (Uri) -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     val isDark = LocalIsDarkMode.current
-    val isLight = !isDark
-    val text = if (isLight) Color(0xFF222222) else Color(0xFFF0F0F0)
-    val sub = if (isLight) Color(0xFF888888) else Color(0xFFAAAAAA)
+    val text = LiquidGlassColors.text(isDark)
+    val sub = LiquidGlassColors.secondary(isDark)
     val uiSensor = rememberUISensor()
     val context = LocalContext.current
 
-    LaunchedEffect(state.resultMessage, state.errorMessage) {
-        if (state.resultMessage != null || state.errorMessage != null) { delay(3500); viewModel.clearFeedback() }
+    LaunchedEffect(state.errorMessage) {
+        if (state.errorMessage != null) { delay(4000); viewModel.clearFeedback() }
+    }
+    // A form with fields goes straight to the page. Reset first, so coming back here doesn't
+    // reopen it.
+    LaunchedEffect(state.loaded, state.fields.size, state.sourceUri) {
+        val uri = state.sourceUri ?: return@LaunchedEffect
+        if (state.loaded && state.fields.isNotEmpty()) {
+            viewModel.reset()
+            onFillOnPage(uri)
+        }
     }
 
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri -> if (uri != null) viewModel.onSelectFile(context, uri) }
 
-    var confirmExit by remember { mutableStateOf(false) }
-    val requestBack = { if (state.dirty && !state.isProcessing) confirmExit = true else onBack() }
-    BackHandler(enabled = state.dirty && !confirmExit) { requestBack() }
-
     ToolScaffold(
         title = stringResource(R.string.tool_fill_form),
         backdrop = backdrop,
-        onBack = requestBack,
-        onBackLongPress = requestBack,
-        overlay = { screenGlass ->
-            UnsavedChangesDialog(
-                visible = confirmExit,
-                onDiscard = { confirmExit = false; onBack() },
-                onCancel = { confirmExit = false },
-                onSave = { confirmExit = false; viewModel.save(context, onSaved = onBack) },
-                backdrop = screenGlass,
-                accent = FormAccent
-            )
-        }
+        onBack = onBack
     ) {
         Column(
             Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(Icons.Rounded.EditNote, null, Modifier.size(56.dp), FormAccent)
-            BasicText(stringResource(R.string.tool_fill_form), style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold))
-            BasicText(stringResource(R.string.tool_fill_form_sub), style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center))
-            LiquidButton(onClick = { filePicker.launch(arrayOf("application/pdf")) }, backdrop = backdrop, tint = FormAccent) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
-                    BasicText(stringResource(R.string.viewer_pick_pdf), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium))
+            AccentIconTile(Icons.Rounded.EditNote, FormAccent, size = 64, iconSize = 34)
+            BasicText(stringResource(R.string.fill_form_hero_title), style = TextStyle(text, 20.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center))
+            BasicText(stringResource(R.string.fill_form_hero_desc), style = TextStyle(sub, 14.sp, textAlign = TextAlign.Center, lineHeight = 19.sp))
+            LiquidButton(
+                onClick = { if (state.sourceUri == null || state.loaded) filePicker.launch(arrayOf("application/pdf")) },
+                backdrop = backdrop,
+                tint = FormAccent
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (state.sourceUri != null && !state.loaded) CircularProgressIndicator(Modifier.size(18.dp), Color.White, strokeWidth = 2.dp)
+                    else Icon(Icons.Rounded.UploadFile, null, Modifier.size(18.dp), Color.White)
+                    BasicText(stringResource(R.string.fill_form_pick), style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.SemiBold))
                 }
             }
         }
 
-        if (state.fields.isNotEmpty()) {
-            Column(
-                Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                GlassSectionHeader(
-                    title = stringResource(R.string.fill_form_fields),
-                    icon = Icons.Rounded.EditNote, iconTint = FormAccent, titleColor = text,
-                    trailing = { BasicText("${state.fields.size}", style = TextStyle(sub, 13.sp)) }
-                )
-                state.fields.forEach { field ->
-                    when (field.type) {
-                        PdfFormService.FieldType.CHECKBOX -> {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                                BasicText(field.name, style = TextStyle(text, 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                                LiquidToggle(
-                                    selected = { field.value == "true" },
-                                    onSelect = { viewModel.onFieldChange(field.name, if (it) "true" else "false") },
-                                    backdrop = backdrop
-                                )
-                            }
-                        }
-                        else -> {
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                BasicText(field.name, style = TextStyle(sub, 12.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                BasicTextField(
-                                    value = field.value,
-                                    onValueChange = { viewModel.onFieldChange(field.name, it) },
-                                    singleLine = true,
-                                    textStyle = TextStyle(text, 15.sp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.05f))
-                                        .padding(horizontal = 12.dp, vertical = 10.dp)
-                                )
-                                if (field.options.isNotEmpty()) {
-                                    BasicText(field.options.joinToString(" · "), style = TextStyle(sub.copy(0.8f), 11.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column(Modifier.weight(1f)) {
-                        BasicText(stringResource(R.string.fill_form_flatten), style = TextStyle(text, 15.sp, fontWeight = FontWeight.Medium))
-                        BasicText(stringResource(R.string.fill_form_flatten_desc), style = TextStyle(sub, 12.sp))
-                    }
-                    LiquidToggle(selected = { state.flatten }, onSelect = viewModel::onFlattenChange, backdrop = backdrop)
-                }
-            }
-
-            LiquidButton(
-                onClick = { if (!state.isProcessing) viewModel.save(context) },
-                backdrop = backdrop, tint = FormAccent, modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
-                    if (state.isProcessing) CircularProgressIndicator(Modifier.size(18.dp), Color.White, strokeWidth = 2.dp)
-                    else Icon(Icons.Rounded.EditNote, null, Modifier.size(18.dp), Color.White)
-                    BasicText(
-                        stringResource(if (state.isProcessing) R.string.fill_form_working else R.string.fill_form_action),
-                        style = TextStyle(Color.White, 15.sp, fontWeight = FontWeight.Medium), maxLines = 1
-                    )
-                }
-            }
+        Column(
+            Modifier.fillMaxWidth().liquidGlassPanel(backdrop, uiSensor).padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            FillFormStep(Icons.Rounded.Keyboard, LiquidGlassColors.Blue, R.string.fill_form_step_type_title, R.string.fill_form_step_type_desc, text, sub)
+            FillFormStep(Icons.Rounded.CheckBox, LiquidGlassColors.Indigo, R.string.fill_form_step_tick_title, R.string.fill_form_step_tick_desc, text, sub)
+            FillFormStep(Icons.Rounded.ArrowDropDownCircle, LiquidGlassColors.Teal, R.string.fill_form_step_pick_title, R.string.fill_form_step_pick_desc, text, sub)
+            FillFormStep(Icons.Rounded.Save, FormAccent, R.string.fill_form_step_save_title, R.string.fill_form_step_save_desc, text, sub)
         }
 
         if (state.errorMessage != null) {
             LiquidGlassErrorCard(message = state.errorMessage!!, backdrop = backdrop, uiSensor = uiSensor, onDismiss = { viewModel.clearFeedback() })
         }
 
-        state.lastOutputUri?.let { outUri ->
-            LiquidButton(onClick = { onViewOutput(outUri) }, backdrop = backdrop, tint = FormAccent, modifier = Modifier.fillMaxWidth()) {
-                BasicText(stringResource(R.string.viewer_open_pdf), style = TextStyle(Color.White, 15.sp, FontWeight.SemiBold), modifier = Modifier.padding(vertical = 8.dp))
-            }
-        }
-
         Spacer(Modifier.height(40.dp))
+    }
+}
+
+@Composable
+private fun FillFormStep(icon: ImageVector, accent: Color, title: Int, desc: Int, text: Color, sub: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        AccentIconTile(icon, accent, size = 40, iconSize = 21)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            BasicText(stringResource(title), style = TextStyle(text, 15.sp, FontWeight.SemiBold))
+            BasicText(stringResource(desc), style = TextStyle(sub, 12.5.sp, lineHeight = 17.sp))
+        }
     }
 }

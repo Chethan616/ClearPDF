@@ -85,6 +85,8 @@ import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.SaveAs
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.TableRows
 import androidx.compose.material.icons.rounded.VerticalAlignBottom
 import androidx.compose.material.icons.rounded.VerticalAlignCenter
@@ -217,6 +219,36 @@ fun SpreadsheetViewerScreen(
     onBack: () -> Unit,
     onOpenPdf: (android.net.Uri) -> Unit = {}
 ) {
+    // The sheet is white paper like Excel's (#71), whatever the app theme; the moon button (or
+    // Settings > Dark pages in dark mode) turns it dark, like a PDF's pages. The whole screen then
+    // follows the sheet, not the app theme: desk, glass chrome, menus and dialogs take their ink
+    // from what they sit on (DESIGN.md).
+    val appDark = LocalIsDarkMode.current
+    val context = LocalContext.current
+    val autoDarkSheet = appDark && remember { com.chethan616.clearpdf.data.repository.AppSettingsManager.getAutoDarkPages(context) }
+    var sheetDarkOverride by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<Boolean?>(null) }
+    val sheetDark = sheetDarkOverride ?: autoDarkSheet
+    val view = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.DisposableEffect(view, sheetDark) {
+        val window = (view.context as? android.app.Activity ?: (view.context as? android.content.ContextWrapper)?.baseContext as? android.app.Activity)?.window
+        val ctrl = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
+        ctrl?.isAppearanceLightStatusBars = !sheetDark
+        onDispose { ctrl?.isAppearanceLightStatusBars = !appDark }
+    }
+    androidx.compose.runtime.CompositionLocalProvider(LocalIsDarkMode provides sheetDark) {
+        SpreadsheetViewerContent(backdrop, viewModel, onBack, onOpenPdf, sheetDark) { sheetDarkOverride = !sheetDark }
+    }
+}
+
+@Composable
+private fun SpreadsheetViewerContent(
+    backdrop: LayerBackdrop,
+    viewModel: SpreadsheetViewModel,
+    onBack: () -> Unit,
+    onOpenPdf: (android.net.Uri) -> Unit,
+    sheetDark: Boolean,
+    onToggleSheet: () -> Unit
+) {
     val state by viewModel.state.collectAsState()
     val isDark = LocalIsDarkMode.current
     val text = LiquidGlassColors.text(isDark)
@@ -274,21 +306,28 @@ fun SpreadsheetViewerScreen(
         runCatching { listState.scrollToItem(0) }
     }
 
-    val surface = if (isDark) Color(0xFF1C1C1E) else Color.White
-    val gridColors = remember(isDark) {
+    val sheetContext = androidx.compose.ui.platform.LocalContext.current
+    val desk = if (sheetDark) Color(0xFF0D0D0F) else Color(0xFFE3E4E9)
+    val surface = if (sheetDark) Color(0xFF1C1C1E) else Color.White
+    val gridColors = remember(sheetDark) {
         GridColors(
             surface = surface,
-            headerBand = if (isDark) Color(0xFF26272B) else Color(0xFFF3F5F8),
-            headerText = if (isDark) Color(0xFFB5B6BF) else Color(0xFF5E6068),
-            headerDivider = if (isDark) Color(0xFF3A3B40) else Color(0xFFDADDE3),
+            headerBand = if (sheetDark) Color(0xFF26272B) else Color(0xFFF3F5F8),
+            headerText = if (sheetDark) Color(0xFFB5B6BF) else Color(0xFF5E6068),
+            headerDivider = if (sheetDark) Color(0xFF3A3B40) else Color(0xFFDADDE3),
             accent = accent
         )
     }
     val version = state.version
     val layout = remember(sheet, version) { sheet?.let { SheetLayout(it) } }
-    val painter = remember(wb, isDark) {
+    val painter = remember(wb, sheetDark) {
         wb?.let {
-            XlsxPainter(it, PaintTheme(isDark, surface.toArgb(), text.toArgb(), if (isDark) 0xFF34353A.toInt() else 0xFFE2E4E9.toInt()))
+            com.chethan616.clearpdf.utils.xlsx.XlsxFonts.init(sheetContext)
+            XlsxPainter(it, PaintTheme(
+                sheetDark, surface.toArgb(),
+                (if (sheetDark) Color(0xFFE6E6EA) else Color(0xFF111111)).toArgb(),
+                if (sheetDark) 0xFF34353A.toInt() else 0xFFE2E4E9.toInt()
+            ))
         }
     }
     remember(version) { painter?.invalidate(); version }
@@ -486,6 +525,13 @@ fun SpreadsheetViewerScreen(
                         LiquidIconButton(onClick = { showSearch = true }, backdrop = headerBackdrop) {
                             Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), text)
                         }
+                        LiquidIconButton(onClick = onToggleSheet, backdrop = headerBackdrop) {
+                            Icon(
+                                if (sheetDark) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
+                                stringResource(if (sheetDark) R.string.viewer_page_colors_original else R.string.viewer_page_dark_mode),
+                                Modifier.size(19.dp), text
+                            )
+                        }
                     }
                     if (state.editable) {
                         LiquidIconButton(
@@ -503,6 +549,8 @@ fun SpreadsheetViewerScreen(
                 }
             }
         ) { contentPadding ->
+            // A desk in the sheet's own light or dark, behind the grid, header and dock alike.
+            Box(Modifier.fillMaxSize().background(desk))
             when {
                 state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = accent, strokeWidth = 2.5.dp)
@@ -567,7 +615,7 @@ fun SpreadsheetViewerScreen(
                             // other animation in this viewer stutter while the PDF viewer stayed smooth.
                             .clip(GlassPanelShape)
                             .background(surface)
-                            .border(0.5.dp, if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.06f), GlassPanelShape)
+                            .border(0.5.dp, if (sheetDark) Color.White.copy(0.10f) else Color.Black.copy(0.06f), GlassPanelShape)
                     ) {
                         SpreadsheetGrid(
                             sheet = sheet,
@@ -701,11 +749,12 @@ fun SpreadsheetViewerScreen(
                 matchCount = matches.size,
                 currentMatchIndex = currentMatch,
                 focusRequester = searchFocus,
-                backdrop = backdrop,
+                // The live sheet behind it, like the PDF viewer's find bar (not just the wallpaper).
+                backdrop = screenBackdrop.content,
                 uiSensor = uiSensor,
                 fg = text,
                 fgSoft = sub,
-                surface = chromeGlass,
+                surface = Color.Transparent,
                 onQueryChange = { searchQuery = it },
                 onPrevMatch = { goToMatch(-1) },
                 onNextMatch = { goToMatch(1) },

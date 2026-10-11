@@ -148,3 +148,25 @@ Use the shared springs in `GlassMotion` (or springs close to them):
 - Menus are compact: rows about 40 dp, menu width about 228 dp.
 - Every popover, menu and sheet dismisses on Back and on an outside tap.
 - Strings live in `values/strings.xml`. Never hard-code user-facing text.
+
+---
+
+## 7. Document viewers: reader mode is not the app theme
+
+- A document's light/dark **reader mode** (the moon button, or Settings -> Dark pages in dark mode)
+  is separate from the app theme. A light app can show dark pages and a dark app white ones.
+- Inside a viewer, **chrome follows the document, never the app theme**:
+  - PDF viewer: each bar samples the luminance behind it (`bandLuminance`, inverted in dark reader)
+    and picks `chipGlass(onLight)` / `chipInk(onLight)`.
+  - Word editor and spreadsheet: the screen provides `LocalIsDarkMode = reader mode` to everything
+    inside it and draws its own desk (light grey `#E3E4E9`, near-black `#0D0D0F`) behind the pages,
+    so every glass control, dropdown menu, dock, dialog and the status-bar icons follow the paper.
+- The find bar is the shared `PdfSearchBar`: it samples the live page layer (`contentBackdrop` /
+  `screenBackdrop.content`), clear surface, adaptive ink. Never give it only the wallpaper.
+- **Night colours** come from `NightPaper` (Gander's matrix: invert + 180 degree hue turn), so a blue
+  heading stays blue. Never use a plain RGB invert. Pictures: a photograph is drawn as printed; a
+  scan or figure that `NightPaper.looksLikePaper` turns over with the page. PDF/PPTX pages find
+  their pictures with `PdfImageRegions` and redraw photographs unfiltered (also in zoom tiles).
+- Word documents open as pages, desktop-like: true proportions and margins, fit to width, pinch to
+  zoom (the page relays out sharp, it is never bitmap-scaled), Word's own page breaks.
+

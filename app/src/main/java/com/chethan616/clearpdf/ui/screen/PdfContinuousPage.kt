@@ -62,6 +62,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import com.chethan616.clearpdf.ui.components.NightPaper
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -125,6 +126,8 @@ internal fun PdfContinuousPage(
     backdrop: LayerBackdrop,
     bitmap: Bitmap?,
     darkPageAppearance: Boolean = false,
+    /** Dark reader: photographs on this page (normalised rects), drawn as printed over the night page. */
+    nightPhotos: List<Rect> = emptyList(),
     marks: MutableList<PdfMarkup>,
     /** Exact renders of this page's in-place text edits, by markup id (see PdfTextEditPreview). */
     textEditPatches: Map<Long, TextEditPatch> = emptyMap(),
@@ -258,26 +261,18 @@ internal fun PdfContinuousPage(
             contentDescription = null,
             contentScale = ContentScale.FillWidth,
             modifier = Modifier.fillMaxWidth(),
-            colorFilter = if (darkPageAppearance) {
-                remember {
-                    ColorFilter.colorMatrix(
-                        ColorMatrix(
-                            floatArrayOf(
-                                -1f, 0f, 0f, 0f, 255f,
-                                0f, -1f, 0f, 0f, 255f,
-                                0f, 0f, -1f, 0f, 255f,
-                                0f, 0f, 0f, 1f, 0f
-                            )
-                        )
-                    )
-                }
-            } else null
+            colorFilter = if (darkPageAppearance) NightPaper.filter else null
         )
 
         // The image fills the box width and the box height follows it, so the content
         // frame is the full box.
         Canvas(Modifier.matchParentSize()) {
             val frame = Rect(0f, 0f, size.width, size.height)
+
+            // Night: photographs go back to how they were printed (the page around them stays turned).
+            if (darkPageAppearance && !bitmap.isRecycled) {
+                nightPhotos.forEach { r -> drawRegion(bitmap, Rect(0f, 0f, 1f, 1f), r) }
+            }
 
             // Sharp zoom: the visible part of the page at screen resolution, over the page bitmap.
             detailTile?.takeIf { !it.bitmap.isRecycled }?.let { tile ->
@@ -296,6 +291,13 @@ internal fun PdfContinuousPage(
                     filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
                     colorFilter = if (darkPageAppearance) InvertColorFilter else null
                 )
+                if (darkPageAppearance) {
+                    val tileRect = Rect(g.left, g.top, g.right, g.bottom)
+                    nightPhotos.forEach { r ->
+                        val cut = r.intersect(tileRect)
+                        if (cut.width > 0f && cut.height > 0f) drawRegion(tile.bitmap, tileRect, cut)
+                    }
+                }
             }
 
             // Edited lines first, so highlights and other markups still draw on top: the band of
@@ -372,7 +374,7 @@ internal fun PdfContinuousPage(
                         // Quick preview until the exact render lands: the old line hidden under the page's own
                         // paper colour, the new text in the line's size, baseline and closest face.
                         // Dark reader inverts the page, so the preview inverts with it.
-                        fun c(x: Color) = if (darkPageAppearance) Color(1f - x.red, 1f - x.green, 1f - x.blue, x.alpha) else x
+                        fun c(x: Color) = if (darkPageAppearance) NightPaper.color(x) else x
                         val pad = markup.fontSize * 0.08f
                         drawRect(
                             c(markup.background),
@@ -964,16 +966,34 @@ internal fun PdfContinuousPage(
     }
 }
 
-private val InvertColorFilter = ColorFilter.colorMatrix(
-    ColorMatrix(
-        floatArrayOf(
-            -1f, 0f, 0f, 0f, 255f,
-            0f, -1f, 0f, 0f, 255f,
-            0f, 0f, -1f, 0f, 255f,
-            0f, 0f, 0f, 1f, 0f
-        )
+/** Dark reader's page colours: Gander's hue-keeping turn, not a plain invert (blue stays blue). */
+private val InvertColorFilter = NightPaper.filter
+
+/**
+ * Draws the part [part] (normalised to the page) of [source], which itself covers [sourceRegion]
+ * of the page, unfiltered at its place on this page.
+ */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRegion(source: Bitmap, sourceRegion: Rect, part: Rect) {
+    val sw = sourceRegion.width.takeIf { it > 0f } ?: return
+    val sh = sourceRegion.height.takeIf { it > 0f } ?: return
+    val sx = ((part.left - sourceRegion.left) / sw * source.width).roundToInt().coerceIn(0, source.width - 1)
+    val sy = ((part.top - sourceRegion.top) / sh * source.height).roundToInt().coerceIn(0, source.height - 1)
+    val sx2 = ((part.right - sourceRegion.left) / sw * source.width).roundToInt().coerceIn(sx + 1, source.width)
+    val sy2 = ((part.bottom - sourceRegion.top) / sh * source.height).roundToInt().coerceIn(sy + 1, source.height)
+    val dx = (part.left * size.width).roundToInt()
+    val dy = (part.top * size.height).roundToInt()
+    drawImage(
+        image = source.asImageBitmap(),
+        srcOffset = IntOffset(sx, sy),
+        srcSize = androidx.compose.ui.unit.IntSize(sx2 - sx, sy2 - sy),
+        dstOffset = IntOffset(dx, dy),
+        dstSize = androidx.compose.ui.unit.IntSize(
+            ((part.right * size.width).roundToInt() - dx).coerceAtLeast(1),
+            ((part.bottom * size.height).roundToInt() - dy).coerceAtLeast(1)
+        ),
+        filterQuality = androidx.compose.ui.graphics.FilterQuality.High
     )
-)
+}
 
 private val MarkupBarWidth = 236.dp
 private val MarkupBarHeight = 48.dp
