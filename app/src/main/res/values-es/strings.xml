@@ -937,4 +937,10 @@
     <string name="ie_mask_hexagon">Hexágono</string>
     <string name="ie_mask_heart">Corazón</string>
     <string name="ie_mask_star">Estrella</string>
+
+    <!-- Restart for a language that reads the other way -->
+    <string name="restart_title">¿Reiniciar ClearPDF?</string>
+    <string name="restart_body">Este idioma se lee en la otra dirección. Reinicia ClearPDF para que todas las pantallas cambien.</string>
+    <string name="restart_now">Reiniciar ahora</string>
+    <string name="restart_later">Más tarde</string>
 </resources>

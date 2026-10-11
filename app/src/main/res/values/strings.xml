@@ -942,4 +942,10 @@
     <string name="ie_mask_hexagon">Hexagon</string>
     <string name="ie_mask_heart">Heart</string>
     <string name="ie_mask_star">Star</string>
+
+    <!-- Restart for a language that reads the other way -->
+    <string name="restart_title">Restart ClearPDF?</string>
+    <string name="restart_body">This language reads in the other direction. Restart ClearPDF so every screen switches over.</string>
+    <string name="restart_now">Restart now</string>
+    <string name="restart_later">Later</string>
 </resources>

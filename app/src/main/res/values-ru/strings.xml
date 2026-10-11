@@ -942,4 +942,10 @@
     <string name="ie_mask_hexagon">Шестиугольник</string>
     <string name="ie_mask_heart">Сердце</string>
     <string name="ie_mask_star">Звезда</string>
+
+    <!-- Restart for a language that reads the other way -->
+    <string name="restart_title">Перезапустить ClearPDF?</string>
+    <string name="restart_body">Этот язык читается в другую сторону. Перезапустите ClearPDF, чтобы все экраны перестроились.</string>
+    <string name="restart_now">Перезапустить</string>
+    <string name="restart_later">Позже</string>
 </resources>

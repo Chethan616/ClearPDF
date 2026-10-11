@@ -912,4 +912,10 @@
     <string name="ie_mask_hexagon">سداسي</string>
     <string name="ie_mask_heart">قلب</string>
     <string name="ie_mask_star">نجمة</string>
+
+    <!-- Restart for a language that reads the other way -->
+    <string name="restart_title">إعادة تشغيل ClearPDF؟</string>
+    <string name="restart_body">تُقرأ هذه اللغة في الاتجاه الآخر. أعد تشغيل ClearPDF لتتبدّل كل الشاشات.</string>
+    <string name="restart_now">إعادة التشغيل الآن</string>
+    <string name="restart_later">لاحقًا</string>
 </resources>
