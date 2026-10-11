@@ -7,7 +7,7 @@
 Read and annotate PDFs, sign forms, work with Office documents, edit spreadsheets and images, and create PDFs on your phone. Built with Kotlin and Jetpack Compose.
 
 <p>
-  <a href="https://github.com/Chethan616/ClearPDF/releases/tag/v4"><strong>Download ClearPDF V4</strong></a>
+  <a href="https://github.com/Chethan616/ClearPDF/releases/latest"><strong>Download the latest ClearPDF</strong></a>
   · <a href="https://github.com/Chethan616/ClearPDF/releases">All releases</a>
   · <a href="https://github.com/Chethan616/ClearPDF/issues/new/choose">Report a problem or request a feature</a>
   · <a href="CONTRIBUTING.md">Contribute</a>

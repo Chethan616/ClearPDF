@@ -6,7 +6,7 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.utils.LocaleHelper
 
 /** The app's UI languages, in order, keyed by the tags [LocaleHelper.normalizeForUi] produces. */
-val AppLanguageTags = listOf("en", "pt-BR", "es", "it", "ru")
+val AppLanguageTags = listOf("en", "pt-BR", "es", "it", "ru", "ar")
 
 /**
  * [AppLanguageTags] as dropdown rows, iOS-style: the name in the current UI language, with the
@@ -20,7 +20,8 @@ fun rememberLanguageOptions(): List<GlassDropdownOption<String>> {
         stringResource(R.string.language_portuguese),
         stringResource(R.string.language_spanish),
         stringResource(R.string.language_italian),
-        stringResource(R.string.language_russian)
+        stringResource(R.string.language_russian),
+        stringResource(R.string.language_arabic)
     )
     return AppLanguageTags.mapIndexed { i, tag ->
         val native = LocaleHelper.getLanguageDisplayName(tag)

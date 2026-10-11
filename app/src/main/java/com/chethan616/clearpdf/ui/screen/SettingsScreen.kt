@@ -884,6 +884,7 @@ private val OpenSourceCredits = listOf(
     Credit("Leptonica", "Dan Bloomberg", "BSD 2-Clause — image processing behind Tesseract", "https://github.com/DanBloomberg/leptonica"),
     Credit("docx-preview", "Volodymyr Baydalka", "Apache License 2.0 — Word document layout", "https://github.com/VolodymyrBaydalka/docxjs"),
     Credit("JSZip", "Stuart Knightley", "MIT License (used under MIT of its MIT/GPLv3 dual licence)", "https://github.com/Stuk/jszip"),
+    Credit("Gander", "Arjun Maniyani", "MIT License — night reading (hue-keeping colours, photos left as printed) and Word page ideas", "https://github.com/mokshablr/gander"),
     Credit("ImageToolbox", "T8RIN (Malik Mukhametzyanov)", "Apache License 2.0 — image editor cropper, perspective crop and draw engine (adapted)", "https://github.com/T8RIN/ImageToolbox"),
     Credit("GPUImage for Android", "CyberAgent, Inc.", "Apache License 2.0 — image editor adjustments and filters", "https://github.com/cats-oss/android-gpuimage"),
     Credit("ML Kit Subject Segmentation", "Google", "Google APIs Terms — optional background removal via Play services", "https://developers.google.com/ml-kit/vision/subject-segmentation"),
