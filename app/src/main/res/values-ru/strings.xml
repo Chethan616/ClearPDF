@@ -948,4 +948,22 @@
     <string name="restart_body">Этот язык читается в другую сторону. Перезапустите ClearPDF, чтобы все экраны перестроились.</string>
     <string name="restart_now">Перезапустить</string>
     <string name="restart_later">Позже</string>
+
+    <!-- Liquid Glass motion; swap the viewer's share and open -->
+    <string name="glass_motion">Движение</string>
+    <string name="glass_motion_desc">Как пружинят все стеклянные кнопки, ползунки и панели. Выберите профиль или настройте каждую часть и нажмите «Попробовать», чтобы почувствовать.</string>
+    <string name="motion_preset_normal">Обычный</string>
+    <string name="motion_preset_performance">Производительность</string>
+    <string name="motion_preset_bouncy">Упругий</string>
+    <string name="motion_preset_super">Суперпружинистый</string>
+    <string name="motion_try">Попробовать</string>
+    <string name="motion_bounce">Отскок</string>
+    <string name="motion_speed">Скорость</string>
+    <string name="motion_press">Глубина нажатия</string>
+    <string name="motion_wobble">Дрожание при отпускании</string>
+    <string name="motion_stretch">Растяжение при перетаскивании</string>
+    <string name="motion_bloom">Рост при долгом нажатии</string>
+    <string name="motion_reset">Сбросить движение</string>
+    <string name="settings_invert_share_morph">Поменять «Поделиться» и «Открыть»</string>
+    <string name="settings_invert_share_morph_desc">В просмотрщике нажмите круглую кнопку, чтобы поделиться документом, а нажмите, удерживайте и проведите вверх, чтобы открыть другой файл.</string>
 </resources>

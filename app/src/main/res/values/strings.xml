@@ -948,4 +948,22 @@
     <string name="restart_body">This language reads in the other direction. Restart ClearPDF so every screen switches over.</string>
     <string name="restart_now">Restart now</string>
     <string name="restart_later">Later</string>
+
+    <!-- Liquid Glass motion; swap the viewer's share and open -->
+    <string name="glass_motion">Motion</string>
+    <string name="glass_motion_desc">How every glass button, slider and sheet springs. Pick a profile or tune each part, then press Try it to feel it.</string>
+    <string name="motion_preset_normal">Normal</string>
+    <string name="motion_preset_performance">Performance</string>
+    <string name="motion_preset_bouncy">Bouncy</string>
+    <string name="motion_preset_super">Super springy</string>
+    <string name="motion_try">Try it</string>
+    <string name="motion_bounce">Bounce</string>
+    <string name="motion_speed">Speed</string>
+    <string name="motion_press">Press depth</string>
+    <string name="motion_wobble">Release jiggle</string>
+    <string name="motion_stretch">Drag stretch</string>
+    <string name="motion_bloom">Long-press bloom</string>
+    <string name="motion_reset">Reset motion</string>
+    <string name="settings_invert_share_morph">Swap share and open</string>
+    <string name="settings_invert_share_morph_desc">In the viewer, tap the round button to share the document and press, hold and swipe up to open another file.</string>
 </resources>

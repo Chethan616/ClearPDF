@@ -179,6 +179,13 @@ object AppSettingsManager {
     // see UISensor's own KDoc for why that is the dominant redraw cost on devices sensitive to it.
     /** Documents open with dark pages whenever the app is in dark mode (#74). */
     fun getAutoDarkPages(context: Context): Boolean = prefs(context).getBoolean(KEY_AUTO_DARK_PAGES, false)
+
+    /**
+     * Swaps the viewer's share/open button: tap shares the document, press-and-hold then swipe up
+     * opens another file (the default is the other way round).
+     */
+    fun getInvertShareMorph(context: Context): Boolean = prefs(context).getBoolean("invert_share_morph", false)
+    fun setInvertShareMorph(context: Context, enabled: Boolean) = prefs(context).edit().putBoolean("invert_share_morph", enabled).apply()
     fun setAutoDarkPages(context: Context, enabled: Boolean) = prefs(context).edit().putBoolean(KEY_AUTO_DARK_PAGES, enabled).apply()
 
     fun getReduceGlassMotion(context: Context): Boolean =

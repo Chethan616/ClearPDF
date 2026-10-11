@@ -918,4 +918,22 @@
     <string name="restart_body">تُقرأ هذه اللغة في الاتجاه الآخر. أعد تشغيل ClearPDF لتتبدّل كل الشاشات.</string>
     <string name="restart_now">إعادة التشغيل الآن</string>
     <string name="restart_later">لاحقًا</string>
+
+    <!-- Liquid Glass motion; swap the viewer's share and open -->
+    <string name="glass_motion">الحركة</string>
+    <string name="glass_motion_desc">طريقة ارتداد كل الأزرار والمنزلقات واللوحات الزجاجية. اختر ملفًا جاهزًا أو اضبط كل جزء ثم اضغط «جرّبها» لتشعر بها.</string>
+    <string name="motion_preset_normal">عادي</string>
+    <string name="motion_preset_performance">الأداء</string>
+    <string name="motion_preset_bouncy">مرن</string>
+    <string name="motion_preset_super">مرن جدًا</string>
+    <string name="motion_try">جرّبها</string>
+    <string name="motion_bounce">الارتداد</string>
+    <string name="motion_speed">السرعة</string>
+    <string name="motion_press">عمق الضغط</string>
+    <string name="motion_wobble">الاهتزاز عند الإفلات</string>
+    <string name="motion_stretch">التمدد عند السحب</string>
+    <string name="motion_bloom">التضخم عند الضغط المطوّل</string>
+    <string name="motion_reset">إعادة ضبط الحركة</string>
+    <string name="settings_invert_share_morph">تبديل المشاركة والفتح</string>
+    <string name="settings_invert_share_morph_desc">في العارض، انقر الزر الدائري لمشاركة المستند، واضغط مطولًا ثم اسحب لأعلى لفتح ملف آخر.</string>
 </resources>

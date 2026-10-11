@@ -30,14 +30,15 @@ class DampedDragAnimation(
 
     private val valueAnimationSpec =
         spring(1f, 1000f, visibilityThreshold)
-    private val velocityAnimationSpec =
-        spring(0.5f, 300f, visibilityThreshold * 10f)
+    // The bouncy parts (thumb squash and velocity) follow Settings -> Liquid Glass -> Motion.
+    private val velocityAnimationSpec get() =
+        spring(com.chethan616.clearpdf.ui.components.MotionSettings.damping(0.5f), com.chethan616.clearpdf.ui.components.MotionSettings.stiffness(300f), visibilityThreshold * 10f)
     private val pressProgressAnimationSpec =
         spring(1f, 1000f, 0.001f)
-    private val scaleXAnimationSpec =
-        spring(0.6f, 250f, 0.001f)
-    private val scaleYAnimationSpec =
-        spring(0.7f, 250f, 0.001f)
+    private val scaleXAnimationSpec get() =
+        spring(com.chethan616.clearpdf.ui.components.MotionSettings.damping(0.6f), com.chethan616.clearpdf.ui.components.MotionSettings.stiffness(250f), 0.001f)
+    private val scaleYAnimationSpec get() =
+        spring(com.chethan616.clearpdf.ui.components.MotionSettings.damping(0.7f), com.chethan616.clearpdf.ui.components.MotionSettings.stiffness(250f), 0.001f)
 
     private val valueAnimation =
         Animatable(initialValue, visibilityThreshold)

@@ -941,4 +941,22 @@
     <string name="restart_body">Este idioma é lido na outra direção. Reinicie o ClearPDF para que todas as telas mudem.</string>
     <string name="restart_now">Reiniciar agora</string>
     <string name="restart_later">Depois</string>
+
+    <!-- Liquid Glass motion; swap the viewer's share and open -->
+    <string name="glass_motion">Movimento</string>
+    <string name="glass_motion_desc">Como saltam todos os botões, controlos deslizantes e painéis de vidro. Escolha um perfil ou ajuste cada parte e toque em Experimentar para sentir.</string>
+    <string name="motion_preset_normal">Normal</string>
+    <string name="motion_preset_performance">Desempenho</string>
+    <string name="motion_preset_bouncy">Saltitante</string>
+    <string name="motion_preset_super">Super elástico</string>
+    <string name="motion_try">Experimentar</string>
+    <string name="motion_bounce">Salto</string>
+    <string name="motion_speed">Velocidade</string>
+    <string name="motion_press">Profundidade ao premir</string>
+    <string name="motion_wobble">Tremor ao soltar</string>
+    <string name="motion_stretch">Esticar ao arrastar</string>
+    <string name="motion_bloom">Crescer ao manter premido</string>
+    <string name="motion_reset">Repor movimento</string>
+    <string name="settings_invert_share_morph">Trocar partilhar e abrir</string>
+    <string name="settings_invert_share_morph_desc">No visualizador, toque no botão redondo para partilhar o documento e mantenha premido e deslize para cima para abrir outro ficheiro.</string>
 </resources>
