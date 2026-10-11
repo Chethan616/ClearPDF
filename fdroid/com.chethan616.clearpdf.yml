@@ -1,6 +1,6 @@
 Categories:
-  - Reading
-  - Writing
+  - Ebook Reader
+  - OCR
 License: MIT
 AuthorName: Chethan616
 SourceCode: https://github.com/Chethan616/ClearPDF
@@ -18,31 +18,116 @@ Repo: https://github.com/Chethan616/ClearPDF.git
 # user enters to PDF. Store text and images come from fastlane/metadata/android.
 #
 # Tesseract4Android (Apache-2.0) is built from source (srclib) and published to mavenLocal in
-# place of the JitPack artifact. pdf-core and ocr-core use a JDK 21 toolchain.
+# place of the JitPack artifact. The F-Droid buildserver only has JDK 21, so prebuild moves the
+# app and backdrop toolchains from 17 to 21 and drops the foojay resolver plugin.
+#
+# One build per ABI: -PfdroidAbi=<abi> (gradleprops) keeps that ABI's native libraries and sets
+# versionCode 10 x code + n (armeabi-v7a 1, arm64-v8a 2, x86 3, x86_64 4). This copy mirrors the
+# recipe submitted to fdroiddata (MR !52093). Each block also builds Tesseract for its ABI only.
 
 Builds:
   - versionName: 2.1.1
-    versionCode: 6
-    commit: v5.1
+    versionCode: 61
+    commit: e33ef2067354df085a77bac428a0cb240697e59f
     subdir: app
-    sudo:
-      - apt-get update
-      - apt-get install -y -t bookworm-backports openjdk-21-jdk-headless
-      - update-java-alternatives -a
     gradle:
       - fdroid
     srclibs:
       - tesseract4android@4.9.0
     prebuild:
+      - sed -i -e '/foojay-resolver/d' ../settings.gradle.kts
+      - sed -i -e 's/jvmToolchain(17)/jvmToolchain(21)/' -e 's/VERSION_17/VERSION_21/'
+        build.gradle.kts ../backdrop/build.gradle.kts
       - sed -i -e '/jitpack.io/d' -e 's/mavenCentral()/mavenCentral()\n        mavenLocal()/'
         ../settings.gradle.kts
-      - sed -i -e 's/group = "cz.adaptech.tesseract4android"/group = "cz.adaptech"/' ../gradle/libs.versions.toml
+      - sed -i -e 's/group = "cz.adaptech.tesseract4android"/group = "cz.adaptech"/'
+        ../gradle/libs.versions.toml
       - pushd $$tesseract4android$$
+      - sed -i -e "s|//abiFilters .*|abiFilters 'armeabi-v7a'|" tesseract4android/build.gradle
       - gradle publishToMavenLocal -x test -x lint
       - popd
     ndk: r27c
+    gradleprops:
+      - fdroidAbi=armeabi-v7a
+
+  - versionName: 2.1.1
+    versionCode: 62
+    commit: e33ef2067354df085a77bac428a0cb240697e59f
+    subdir: app
+    gradle:
+      - fdroid
+    srclibs:
+      - tesseract4android@4.9.0
+    prebuild:
+      - sed -i -e '/foojay-resolver/d' ../settings.gradle.kts
+      - sed -i -e 's/jvmToolchain(17)/jvmToolchain(21)/' -e 's/VERSION_17/VERSION_21/'
+        build.gradle.kts ../backdrop/build.gradle.kts
+      - sed -i -e '/jitpack.io/d' -e 's/mavenCentral()/mavenCentral()\n        mavenLocal()/'
+        ../settings.gradle.kts
+      - sed -i -e 's/group = "cz.adaptech.tesseract4android"/group = "cz.adaptech"/'
+        ../gradle/libs.versions.toml
+      - pushd $$tesseract4android$$
+      - sed -i -e "s|//abiFilters .*|abiFilters 'arm64-v8a'|" tesseract4android/build.gradle
+      - gradle publishToMavenLocal -x test -x lint
+      - popd
+    ndk: r27c
+    gradleprops:
+      - fdroidAbi=arm64-v8a
+
+  - versionName: 2.1.1
+    versionCode: 63
+    commit: e33ef2067354df085a77bac428a0cb240697e59f
+    subdir: app
+    gradle:
+      - fdroid
+    srclibs:
+      - tesseract4android@4.9.0
+    prebuild:
+      - sed -i -e '/foojay-resolver/d' ../settings.gradle.kts
+      - sed -i -e 's/jvmToolchain(17)/jvmToolchain(21)/' -e 's/VERSION_17/VERSION_21/'
+        build.gradle.kts ../backdrop/build.gradle.kts
+      - sed -i -e '/jitpack.io/d' -e 's/mavenCentral()/mavenCentral()\n        mavenLocal()/'
+        ../settings.gradle.kts
+      - sed -i -e 's/group = "cz.adaptech.tesseract4android"/group = "cz.adaptech"/'
+        ../gradle/libs.versions.toml
+      - pushd $$tesseract4android$$
+      - sed -i -e "s|//abiFilters .*|abiFilters 'x86'|" tesseract4android/build.gradle
+      - gradle publishToMavenLocal -x test -x lint
+      - popd
+    ndk: r27c
+    gradleprops:
+      - fdroidAbi=x86
+
+  - versionName: 2.1.1
+    versionCode: 64
+    commit: e33ef2067354df085a77bac428a0cb240697e59f
+    subdir: app
+    gradle:
+      - fdroid
+    srclibs:
+      - tesseract4android@4.9.0
+    prebuild:
+      - sed -i -e '/foojay-resolver/d' ../settings.gradle.kts
+      - sed -i -e 's/jvmToolchain(17)/jvmToolchain(21)/' -e 's/VERSION_17/VERSION_21/'
+        build.gradle.kts ../backdrop/build.gradle.kts
+      - sed -i -e '/jitpack.io/d' -e 's/mavenCentral()/mavenCentral()\n        mavenLocal()/'
+        ../settings.gradle.kts
+      - sed -i -e 's/group = "cz.adaptech.tesseract4android"/group = "cz.adaptech"/'
+        ../gradle/libs.versions.toml
+      - pushd $$tesseract4android$$
+      - sed -i -e "s|//abiFilters .*|abiFilters 'x86_64'|" tesseract4android/build.gradle
+      - gradle publishToMavenLocal -x test -x lint
+      - popd
+    ndk: r27c
+    gradleprops:
+      - fdroidAbi=x86_64
 
 AutoUpdateMode: Version
-UpdateCheckMode: Tags ^v[\d.]+$
+UpdateCheckMode: Tags
+VercodeOperation:
+  - 10 * %c + 1
+  - 10 * %c + 2
+  - 10 * %c + 3
+  - 10 * %c + 4
 CurrentVersion: 2.1.1
-CurrentVersionCode: 6
+CurrentVersionCode: 64
