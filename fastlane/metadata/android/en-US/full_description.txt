@@ -1,0 +1,32 @@
+<p><b>ClearPDF</b> is a free, open-source PDF reader and editor for Android with a Liquid Glass interface. Your documents are processed on your device: there are no ads, no accounts and no uploads.</p>
+
+<p><b>Read and edit PDFs</b></p>
+<ul>
+<li>Fast continuous reading, search, page bookmarks, auto-scroll and a dark mode for pages</li>
+<li>Sharp text at any zoom level</li>
+<li>Edit a PDF's own text in place, in its original font</li>
+<li>Fill PDF forms right on the page: text fields, checkboxes, radio buttons, dropdowns and list boxes</li>
+<li>Highlight, underline, strike through, draw, add shapes, text boxes, notes, images and signatures</li>
+<li>Select and copy text, with a loupe; OCR for scanned pages</li>
+</ul>
+
+<p><b>PDF tools</b></p>
+<ul>
+<li>Merge, split, extract and organize pages; compress; add page numbers and watermarks</li>
+<li>Encrypt and decrypt; flatten forms; export pages as images or text</li>
+<li>Create PDFs from images, text, web pages and scans</li>
+</ul>
+
+<p><b>Office and images</b></p>
+<ul>
+<li>Open Word, PowerPoint and text documents; edit Excel (XLSX) spreadsheets and save them back</li>
+<li>Image editor: crop, adjust, filters and drawing</li>
+</ul>
+
+<p><b>Make it yours</b></p>
+<ul>
+<li>Tune the Liquid Glass look (blur, refraction, tint and more) or pick a preset</li>
+<li>Haptics you can switch off; English, Spanish, Italian, Portuguese and Russian</li>
+</ul>
+
+<p>Files opened from other apps open in their own ClearPDF window. The only network use is converting a web address you enter to PDF.</p>

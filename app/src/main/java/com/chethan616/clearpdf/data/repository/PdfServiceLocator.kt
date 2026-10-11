@@ -29,5 +29,5 @@ object PdfServiceLocator {
     val pdfConverter: PdfConverter by lazy { PdfConverterImpl() }
     val pdfTextService: PdfTextService by lazy { PdfTextServiceImpl() }
     /** Fully on-device OCR — ML Kit primary, Tesseract4Android fallback. No network access. */
-    val ocrService: OcrService by lazy { OcrServiceImpl() }
+    val ocrService: OcrService by lazy { OcrServiceImpl(com.chethan616.clearpdf.ocr.OcrFlavor.primaryEngine) }
 }

@@ -89,7 +89,7 @@ private tailrec fun android.content.Context.findActivity(): android.app.Activity
  * Provides the wallpaper backdrop, floating bottom tabs, and navigation host.
  */
 @Composable
-fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = null) {
+fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = null, documentWindow: Boolean = false) {
     val context = LocalContext.current
     var selectedLocale by rememberSaveable { mutableStateOf<String>(OnboardingManager.getSelectedLocale(context)) }
     val localizedContext = remember(context, selectedLocale) {
@@ -209,6 +209,20 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
     ) {
         val backdrop = rememberLayerBackdrop()
         val navController = rememberNavController()
+        // A document window (#29) closes once its document does: back from the viewer lands on
+        // Home, and instead of showing Home inside the document's window we close the window,
+        // returning to the app that opened the file.
+        if (documentWindow) {
+            val activity = LocalContext.current as? android.app.Activity
+            LaunchedEffect(navController) {
+                var shownDocument = false
+                navController.currentBackStackEntryFlow.collect { entry ->
+                    val route = entry.destination.route
+                    if (route != null && route != "home") shownDocument = true
+                    else if (route == "home" && shownDocument) activity?.finishAndRemoveTask()
+                }
+            }
+        }
         val backToLibrary: () -> Unit = remember(navController) {
             {
                 if (!navController.popBackStack("home", inclusive = false)) {

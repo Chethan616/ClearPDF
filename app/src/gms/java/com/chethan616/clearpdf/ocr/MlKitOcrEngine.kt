@@ -1,4 +1,7 @@
-package com.kyant.ocrcore
+package com.chethan616.clearpdf.ocr
+
+import com.kyant.ocrcore.OcrPageResult
+import com.kyant.ocrcore.OcrWord
 
 import android.graphics.Bitmap
 import com.google.mlkit.vision.common.InputImage

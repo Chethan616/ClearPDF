@@ -11,6 +11,7 @@ import com.tom_roush.pdfbox.pdmodel.interactive.annotation.PDAnnotationWidget
 import com.tom_roush.pdfbox.pdmodel.interactive.form.PDCheckBox
 import com.tom_roush.pdfbox.pdmodel.interactive.form.PDChoice
 import com.tom_roush.pdfbox.pdmodel.interactive.form.PDField
+import com.tom_roush.pdfbox.pdmodel.interactive.form.PDListBox
 import com.tom_roush.pdfbox.pdmodel.interactive.form.PDNonTerminalField
 import com.tom_roush.pdfbox.pdmodel.interactive.form.PDRadioButton
 import com.tom_roush.pdfbox.pdmodel.interactive.form.PDTextField
@@ -30,8 +31,9 @@ data class PdfFormWidget(
     val right: Float,
     val bottom: Float,
     val value: String,
-    /** Choice fields: what the list shows. */
+    /** Choice fields: what the list shows, and the value each option saves ([optionValues]). */
     val options: List<String> = emptyList(),
+    val optionValues: List<String> = emptyList(),
     /** Checkbox / radio: the value this box sets when on. */
     val onValue: String = "",
     /** From the field's default appearance: points (0 = auto-size) and as a fraction of page height. */
@@ -48,7 +50,14 @@ data class PdfFormWidget(
     /** The page's display height in points, to turn point sizes and paddings into pixels. */
     val pageHeightPt: Float = 792f
 ) {
-    enum class Type { TEXT, CHECKBOX, RADIO, CHOICE }
+    /** CHOICE is a dropdown (combo box); LIST is a scrolling list box. */
+    enum class Type { TEXT, CHECKBOX, RADIO, CHOICE, LIST }
+
+    /** What the box shows for a saved [v]alue (an option's label, for choice fields). */
+    fun displayOf(v: String): String {
+        val i = optionValues.indexOf(v)
+        return if (i >= 0) options.getOrElse(i) { v } else v
+    }
 
     /** Unique per box: radio groups and repeated fields share a name. */
     val key: String get() = "$fieldName#$pageIndex#${(left * 10000).toInt()}#${(top * 10000).toInt()}"
@@ -98,10 +107,13 @@ object PdfFormWidgets {
                         ?.let { out += it.copy(onValue = on) }
                 }
                 is PDChoice -> field.widgets.forEach { w ->
-                    val options = runCatching { field.optionsDisplayValues }.getOrNull().orEmpty()
-                        .ifEmpty { runCatching { field.optionsExportValues }.getOrNull().orEmpty() }
-                    widget(doc, w, pageOf, field.fullyQualifiedName, PdfFormWidget.Type.CHOICE, field.valueAsString.orEmpty().trim('[', ']'), field)
-                        ?.let { out += it.copy(options = options) }
+                    val exports = runCatching { field.optionsExportValues }.getOrNull().orEmpty()
+                    val labels = runCatching { field.optionsDisplayValues }.getOrNull().orEmpty().ifEmpty { exports }
+                    val values = exports.ifEmpty { labels }
+                    val type = if (field is PDListBox) PdfFormWidget.Type.LIST else PdfFormWidget.Type.CHOICE
+                    val current = runCatching { field.value }.getOrNull()?.firstOrNull().orEmpty()
+                    widget(doc, w, pageOf, field.fullyQualifiedName, type, current, field)
+                        ?.let { out += it.copy(options = labels, optionValues = values) }
                 }
                 else -> Unit // push buttons, signatures
             }

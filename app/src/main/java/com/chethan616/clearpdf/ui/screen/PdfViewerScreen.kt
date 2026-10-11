@@ -297,6 +297,8 @@ fun PdfViewerScreen(
 
     // ── Page annotation state ──────────────────────────────────────────────
     val annotationsByPage = remember { mutableStateMapOf<Int, MutableList<PdfMarkup>>() }
+    // Screen-resolution renders of the visible part of each page while zoomed in (sharp zoom, #29).
+    val detailTiles = remember { mutableStateMapOf<Int, PageDetailTile>() }
     val pageCanvasSizes   = remember { mutableStateMapOf<Int, Size>() }
     val pageBitmapSizes   = remember { mutableStateMapOf<Int, Size>() }
 
@@ -404,6 +406,8 @@ fun PdfViewerScreen(
     val markupBarHost = remember { MarkupBarHost() }
     textSelection.blocksProvider = { p -> viewModel.uiState.value.ocrBlocksByPage[p].orEmpty() }
     var containerWidthPx by remember { mutableIntStateOf(0) }
+
+
     textSelection.transformProvider = { PdfViewportTransform(containerWidthPx.toFloat(), scale, offsetX) }
     val selectionAutoScroller = rememberSelectionAutoScroller(listState, textSelection)
     selectionAutoScroller.panBy = { dx ->
@@ -819,7 +823,7 @@ fun PdfViewerScreen(
     val formEditing = editorToolsOpen && state.formWidgetsByPage.isNotEmpty()
     val formOrder = remember(state.formWidgetsByPage) {
         state.formWidgetsByPage.values.flatten()
-            .filter { !it.readOnly && (it.type == com.kyant.pdfcore.form.PdfFormWidget.Type.TEXT || it.type == com.kyant.pdfcore.form.PdfFormWidget.Type.CHOICE) }
+            .filter { !it.readOnly && it.type == com.kyant.pdfcore.form.PdfFormWidget.Type.TEXT }
             .sortedWith(compareBy({ it.pageIndex }, { it.top }, { it.left }))
     }
     var showFormTour by remember { mutableStateOf(!OnboardingManager.hasSeenFormFillTour(context)) }
@@ -834,10 +838,20 @@ fun PdfViewerScreen(
         val offset = if (canvas != null) (w.top * canvas.height - viewport * 0.22f).toInt() else 0
         runCatching { listState.animateScrollToItem(w.pageIndex, offset.coerceAtLeast(0)) }
     }
-    val onTapFormWidget: (com.kyant.pdfcore.form.PdfFormWidget) -> Unit = { w ->
+    // A dropdown field's open menu, and its field's box in window space.
+    var formMenu by remember { mutableStateOf<com.kyant.pdfcore.form.PdfFormWidget?>(null) }
+    var formMenuAnchor by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    val onTapFormWidget: (com.kyant.pdfcore.form.PdfFormWidget, androidx.compose.ui.geometry.Rect) -> Unit = { w, anchor ->
         if (showFormTour) { showFormTour = false; OnboardingManager.markFormFillTourSeen(context) }
         when (w.type) {
-            com.kyant.pdfcore.form.PdfFormWidget.Type.TEXT, com.kyant.pdfcore.form.PdfFormWidget.Type.CHOICE -> focusedForm = w
+            com.kyant.pdfcore.form.PdfFormWidget.Type.TEXT -> focusedForm = w
+            com.kyant.pdfcore.form.PdfFormWidget.Type.LIST -> Unit
+            com.kyant.pdfcore.form.PdfFormWidget.Type.CHOICE -> {
+                focusedForm = null
+                keyboard?.hide()
+                formMenuAnchor = anchor
+                formMenu = w
+            }
             com.kyant.pdfcore.form.PdfFormWidget.Type.CHECKBOX -> {
                 focusedForm = null
                 haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.SegmentTick)
@@ -1009,6 +1023,46 @@ fun PdfViewerScreen(
         }
 
         var containerHeightPx by remember { mutableStateOf(0) }
+
+        // Sharp zoom (#29): once a zoom / pan settles, the visible part of each on-screen page is
+        // rendered at exact screen resolution and laid over the page, so text and fine diagrams stay
+        // crisp at any zoom instead of being a stretched page bitmap. Cleared again near 1x.
+        LaunchedEffect(state.document?.uri) {
+            detailTiles.clear()
+            snapshotFlow { Triple(scale, offsetX, listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset) }
+                .distinctUntilChanged()
+                .debounce(160)
+                .collectLatest { (s, ox, _) ->
+                    if (s < 1.15f) { detailTiles.clear(); return@collectLatest }
+                    val cw = containerWidthPx.toFloat()
+                    val ch = containerHeightPx.toFloat()
+                    if (cw <= 0f || ch <= 0f) return@collectLatest
+                    // The viewport in the zoom layer's own (unscaled) space: the layer scales about
+                    // its top-centre and is shifted by `offsetX`.
+                    val lx0 = (-cw / 2f - ox) / s + cw / 2f
+                    val lx1 = (cw / 2f - ox) / s + cw / 2f
+                    val ly1 = ch / s
+                    val keep = HashSet<Int>()
+                    for (item in listState.layoutInfo.visibleItemsInfo) {
+                        val p = item.index
+                        val o = textSelection.pageOrigin(p) ?: continue
+                        val sz = textSelection.pageSize(p) ?: continue
+                        if (sz.width <= 0f || sz.height <= 0f) continue
+                        val l = maxOf(lx0, o.x); val r = minOf(lx1, o.x + sz.width)
+                        val t = maxOf(0f, o.y); val b = minOf(ly1, o.y + sz.height)
+                        if (r <= l || b <= t) continue
+                        val region = android.graphics.RectF(
+                            (l - o.x) / sz.width, (t - o.y) / sz.height, (r - o.x) / sz.width, (b - o.y) / sz.height
+                        )
+                        val w = ((r - l) * s).roundToInt().coerceIn(1, 4096)
+                        val h = ((b - t) * s).roundToInt().coerceIn(1, 4096)
+                        val bmp = viewModel.renderRegion(p, region, sz.width * s, w, h) ?: continue
+                        detailTiles[p] = PageDetailTile(region, bmp)
+                        keep += p
+                    }
+                    detailTiles.keys.retainAll(keep)
+                }
+        }
 
         // ── Adaptive control ink, sampled per bar (Apple-style) ──────────────────────────────
         // Each bar reads the luminance of the content *directly behind it*, so on a page that is a
@@ -1236,12 +1290,18 @@ fun PdfViewerScreen(
                                 darkPageAppearance = darkPageAppearance,
                                 marks              = getPageMarks(page),
                                 textEditPatches    = textEditPatches,
+                                detailTile         = detailTiles[page],
                                 formWidgets        = state.formWidgetsByPage[page].orEmpty(),
                                 formValues         = formValues,
                                 formEditing        = formEditing,
                                 focusedFormKey     = focusedForm?.key,
                                 onTapFormWidget    = onTapFormWidget,
-                                onFormTextChange   = { w, v -> setFormValue(w, v) },
+                                onFormTextChange   = { w, v ->
+                                    if (w.type == com.kyant.pdfcore.form.PdfFormWidget.Type.LIST) {
+                                        haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.SegmentTick)
+                                    }
+                                    setFormValue(w, v)
+                                },
                                 onFormImeNext      = { w ->
                                     val i = formOrder.indexOfFirst { it.key == w.key }
                                     focusedForm = formOrder.getOrNull(i + 1)
@@ -1987,7 +2047,6 @@ fun PdfViewerScreen(
             val imeUp = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(LocalDensity.current) > 0
             PdfFormAccessoryBar(
                 widget = w,
-                value = formValueOf(w),
                 backdrop = contentBackdrop,
                 ink = panelFg,
                 glass = chromePanel,
@@ -1996,10 +2055,6 @@ fun PdfViewerScreen(
                 onPrevious = { formOrder.getOrNull(i - 1)?.let { focusedForm = it } },
                 onNext = { formOrder.getOrNull(i + 1)?.let { focusedForm = it } },
                 onDone = { keyboard?.hide(); focusedForm = null },
-                onPick = { option ->
-                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.SegmentTick)
-                    setFormValue(w, option)
-                },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .imePadding()
@@ -2008,8 +2063,23 @@ fun PdfViewerScreen(
                     .padding(bottom = if (imeUp) 8.dp else 104.dp)
             )
         }
+        PdfFormChoiceMenu(
+            widget = formMenu,
+            anchor = formMenuAnchor,
+            value = formMenu?.let { formValueOf(it) }.orEmpty(),
+            // The menu belongs to the page, so dark reader makes it dark too, whatever the app theme.
+            dark = darkPageAppearance || com.chethan616.clearpdf.ui.theme.LocalIsDarkMode.current,
+            onPick = { option ->
+                formMenu?.let { w ->
+                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.SegmentTick)
+                    setFormValue(w, option)
+                }
+                formMenu = null
+            },
+            onDismiss = { formMenu = null }
+        )
         com.chethan616.clearpdf.ui.components.GlassGuideCallout(
-            visible = showFormTour && formEditing && focusedForm == null,
+            visible = showFormTour && state.formWidgetsByPage.isNotEmpty() && focusedForm == null && formMenu == null,
             title = stringResource(R.string.tour_form_title),
             message = stringResource(R.string.tour_form_message),
             backdrop = contentBackdrop,

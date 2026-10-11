@@ -330,7 +330,7 @@
     <string name="form_fill_previous">Previous field</string>
     <string name="form_fill_next">Next field</string>
     <string name="tour_form_title">Fill the form on the page</string>
-    <string name="tour_form_message">Tap a highlighted field to type, tick or choose. It saves in the form\'s own style.</string>
+    <string name="tour_form_message">Tap any field to type, tick or choose, right on the page. It saves in the form\'s own style.</string>
     <string name="text_edit_hint_selection">Only the selected text changes, in the document\'s own font. The rest of the line moves to fit.</string>
     <string name="text_edit_original">Original: %1$s</string>
     <string name="not_now">Not now</string>
@@ -784,7 +784,11 @@
     <string name="whats_new_edit_title">Edit PDF text</string>
     <string name="whats_new_edit_desc">Select words and tap Edit text, or tap a line with the Text tool. Only what you change is rewritten, in the document\'s own font.</string>
     <string name="whats_new_forms_title">Fill forms on the page</string>
-    <string name="whats_new_forms_desc">In Edit mode, tap a form field to type, tick or choose right where it\'s printed.</string>
+    <string name="whats_new_forms_desc">Tap any form field to type, tick or choose right where it\'s printed, with Liquid Glass fields, dropdowns and list boxes.</string>
+    <string name="whats_new_zoom_title">Sharp at any zoom</string>
+    <string name="whats_new_zoom_desc">PDFs, Word and PowerPoint files stay crisp when you zoom in.</string>
+    <string name="whats_new_window_title">Its own window</string>
+    <string name="whats_new_window_desc">Files opened from WhatsApp or a file manager open in a separate ClearPDF window.</string>
     <string name="whats_new_glass_title">Liquid Glass settings</string>
     <string name="whats_new_glass_desc">Tune blur, refraction and tint, or pick a preset.</string>
     <string name="whats_new_share_title">Share in more formats</string>
@@ -794,7 +798,7 @@
     <string name="whats_new_sheets_title">Hindi and Indic spreadsheets</string>
     <string name="whats_new_sheets_desc">Every script displays, edits and saves correctly.</string>
     <string name="whats_new_fixes_title">Fixes</string>
-    <string name="whats_new_fixes_desc">Images open reliably, and resized text stays where you put it.</string>
+    <string name="whats_new_fixes_desc">PowerPoint titles no longer get cut off, images open reliably, and resized text stays where you put it.</string>
     <string name="whats_new_continue">Continue</string>
     <string name="tour_edit_text_title">Edit the PDF\'s own text</string>
     <string name="tour_edit_text_message">Tap the edit icon and pick Text, then tap any line to rewrite it in its own font. Or long-press a word and tap Edit text.</string>

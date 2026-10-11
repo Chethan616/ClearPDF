@@ -34,6 +34,21 @@ interface PdfViewer {
     fun renderPage(document: PdfDocument, pageIndex: Int, width: Int, rotationDegrees: Int = 0): Bitmap?
 
     /**
+     * Render only [region] (normalized 0..1 of the page) of [pageIndex] into a [outWidth] x
+     * [outHeight] bitmap, as if the whole page were [pageWidthPx] wide. This is how a zoomed-in
+     * viewer stays sharp: the visible part of the page at exact screen resolution, instead of a
+     * whole-page bitmap stretched (or a whole page at 5x, which no phone has the memory for).
+     */
+    fun renderRegion(
+        document: PdfDocument,
+        pageIndex: Int,
+        region: android.graphics.RectF,
+        pageWidthPx: Float,
+        outWidth: Int,
+        outHeight: Int
+    ): Bitmap? = null
+
+    /**
      * Return the natural size (in PDF points) of [pageIndex], or `null` on failure.
      */
     fun pageSize(document: PdfDocument, pageIndex: Int): Size?
@@ -133,6 +148,39 @@ class PdfViewerImpl : PdfViewer {
                 runCatching { page.close() }
             }
         }
+
+    override fun renderRegion(
+        document: PdfDocument,
+        pageIndex: Int,
+        region: android.graphics.RectF,
+        pageWidthPx: Float,
+        outWidth: Int,
+        outHeight: Int
+    ): Bitmap? = lock.withLock {
+        val renderer = renderers[document.uri] ?: return null
+        if (pageIndex < 0 || pageIndex >= renderer.pageCount || outWidth <= 0 || outHeight <= 0) return null
+        val page = try { renderer.openPage(pageIndex) } catch (t: Throwable) { return@withLock null }
+        var bitmap: Bitmap? = null
+        try {
+            val srcW = page.width.toFloat().coerceAtLeast(1f)
+            val srcH = page.height.toFloat().coerceAtLeast(1f)
+            val s = pageWidthPx / srcW
+            val pageHeightPx = srcH * s
+            bitmap = Bitmap.createBitmap(outWidth, outHeight, Bitmap.Config.ARGB_8888)
+            bitmap.eraseColor(android.graphics.Color.WHITE)
+            val matrix = Matrix().apply {
+                postScale(s, s)
+                postTranslate(-region.left * pageWidthPx, -region.top * pageHeightPx)
+            }
+            page.render(bitmap, null, matrix, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            bitmap
+        } catch (t: Throwable) {
+            bitmap?.recycle()
+            null
+        } finally {
+            runCatching { page.close() }
+        }
+    }
 
     override fun pageSize(document: PdfDocument, pageIndex: Int): Size? = lock.withLock {
         val renderer = renderers[document.uri] ?: return null

@@ -1,0 +1,48 @@
+Categories:
+  - Reading
+  - Writing
+License: MIT
+AuthorName: Chethan616
+SourceCode: https://github.com/Chethan616/ClearPDF
+IssueTracker: https://github.com/Chethan616/ClearPDF/issues
+Changelog: https://github.com/Chethan616/ClearPDF/releases
+
+AutoName: ClearPDF
+
+RepoType: git
+Repo: https://github.com/Chethan616/ClearPDF.git
+
+# The `fdroid` product flavor is free software only: no Google Play services / ML Kit (the
+# document scanner uses the camera app, OCR uses Tesseract4Android, background removal is not
+# offered) and no downloaded Office engine. Network is used only to convert a web address the
+# user enters to PDF. Store text and images come from fastlane/metadata/android.
+#
+# Tesseract4Android (Apache-2.0) is built from source (srclib) and published to mavenLocal in
+# place of the JitPack artifact. pdf-core and ocr-core use a JDK 21 toolchain.
+
+Builds:
+  - versionName: 2.1.1
+    versionCode: 6
+    commit: v5.1
+    subdir: app
+    sudo:
+      - apt-get update
+      - apt-get install -y -t bookworm-backports openjdk-21-jdk-headless
+      - update-java-alternatives -a
+    gradle:
+      - fdroid
+    srclibs:
+      - tesseract4android@4.9.0
+    prebuild:
+      - sed -i -e '/jitpack.io/d' -e 's/mavenCentral()/mavenCentral()\n        mavenLocal()/'
+        ../settings.gradle.kts
+      - sed -i -e 's/group = "cz.adaptech.tesseract4android"/group = "cz.adaptech"/' ../gradle/libs.versions.toml
+      - pushd $$tesseract4android$$
+      - gradle publishToMavenLocal -x test -x lint
+      - popd
+    ndk: r27c
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[\d.]+$
+CurrentVersion: 2.1.1
+CurrentVersionCode: 6

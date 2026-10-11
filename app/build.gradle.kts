@@ -38,8 +38,8 @@ android {
         applicationId = "com.chethan616.clearpdf"
         minSdk = 23
         targetSdk = 36
-        versionCode = 5
-        versionName = "2.1.0"
+        versionCode = 6
+        versionName = "2.1.1"
         // Keep every locale declared by the app. Filtering this to English
         // removes values-pt-rBR from the packaged APK, so the language picker
         // can appear to work while the app continues to resolve English.
@@ -95,6 +95,18 @@ android {
         create("foss") {
             dimension = "distribution"
         }
+        // F-Droid: free software only. No Google Play services / ML Kit (the document scanner
+        // falls back to the camera app, OCR to Tesseract, background removal is not offered) and
+        // no downloaded Office engine. Same applicationId, so it updates like the GitHub build.
+        create("fdroid") {
+            dimension = "distribution"
+        }
+    }
+    // Code that needs Google's libraries lives in src/gms, shared by the play and foss builds;
+    // the fdroid build has its own free implementations in src/fdroid.
+    sourceSets {
+        getByName("play").kotlin.srcDir("src/gms/java")
+        getByName("foss").kotlin.srcDir("src/gms/java")
     }
     // AGP can't link a dynamic feature against ABI-split APK outputs, and the feature is only
     // ever delivered through a Play bundle anyway — so register it for bundle builds only.
@@ -110,7 +122,8 @@ android {
     // APK builds/installs (`assembleDebug`/`assembleRelease`, `installDebug`, sideloading).
     splits {
         abi {
-            isEnable = true
+            // F-Droid builds and signs one APK per version itself, so its builds skip the split.
+            isEnable = gradle.startParameter.taskNames.none { it.contains("fdroid", ignoreCase = true) }
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
             isUniversalApk = true
@@ -155,6 +168,9 @@ kotlin {
 dependencies {
     testImplementation("junit:junit:4.13.2")
     implementation(libs.androidx.core.ktx)
+    // Per-app language (LocaleHelper). Declared directly: the play / foss builds used to get it
+    // only transitively through Google's libraries, which the F-Droid build doesn't have.
+    implementation("androidx.appcompat:appcompat:1.7.0")
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.ui)
@@ -179,7 +195,8 @@ dependencies {
     implementation(libs.pdfbox.android)
 
     // ML Kit Document Scanner & Camera
-    implementation(libs.play.services.mlkit.scanner)
+    "playImplementation"(libs.play.services.mlkit.scanner)
+    "fossImplementation"(libs.play.services.mlkit.scanner)
     implementation(libs.camerax.core)
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)
@@ -194,7 +211,10 @@ dependencies {
     // isolated behind BackgroundRemover so a FOSS flavor can swap it out).
     implementation(libs.gpuimage)
     implementation(libs.androidx.exifinterface)
-    implementation(libs.mlkit.subject.segmentation)
+    "playImplementation"(libs.mlkit.subject.segmentation)
+    "fossImplementation"(libs.mlkit.subject.segmentation)
+    "playImplementation"(libs.mlkit.text.recognition)
+    "fossImplementation"(libs.mlkit.text.recognition)
     // A real XmlPullParser for JVM tests; android.jar only carries stubs of it.
     testImplementation("net.sf.kxml:kxml2:2.3.0")
 

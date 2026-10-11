@@ -90,11 +90,6 @@ import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.StarPromptEventBus
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
 import com.chethan616.clearpdf.ui.viewmodel.ScanViewModel
-import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
-import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_JPEG
-import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_FULL
-import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
-import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -153,21 +148,12 @@ fun ScanDocumentScreen(
         label = "scanContentOffsetY"
     )
 
-    // ── ML Kit Document Scanner (created lazily to avoid composition crash) ──
-    val scannerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val scanResult = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
-            scanResult?.pages?.let { pages ->
-                val uris = pages.mapNotNull { it.imageUri }
-                if (uris.isNotEmpty()) {
-                    viewModel.onScanComplete(uris, ScanFilter.ORIGINAL)
-                }
-            }
-        }
-        viewModel.cancelScanning()
-    }
+    // ── Document scanner (Google's in play / foss builds, the camera app in F-Droid) ──
+    val startScanner = com.chethan616.clearpdf.scan.rememberDocumentScanner(
+        onPages = { uris -> viewModel.onScanComplete(uris, ScanFilter.ORIGINAL) },
+        onFinished = { viewModel.cancelScanning() },
+        onError = { viewModel.setError(context.getString(R.string.scanner_start_failed)) }
+    )
 
     // Gallery picker (multiple images)
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -181,23 +167,7 @@ fun ScanDocumentScreen(
 
     fun launchDocumentScanner() {
         viewModel.startScanning()
-        val options = GmsDocumentScannerOptions.Builder()
-            .setGalleryImportAllowed(true)
-            .setPageLimit(100)
-            .setResultFormats(RESULT_FORMAT_JPEG)
-            .setScannerMode(SCANNER_MODE_FULL)
-            .build()
-        val scanner = GmsDocumentScanning.getClient(options)
-        scanner.getStartScanIntent(activity)
-            .addOnSuccessListener { intentSender ->
-                scannerLauncher.launch(
-                    IntentSenderRequest.Builder(intentSender).build()
-                )
-            }
-            .addOnFailureListener { e ->
-                viewModel.setError(context.getString(R.string.scanner_start_failed))
-                viewModel.cancelScanning()
-            }
+        startScanner()
     }
 
     GlassScreenScaffold(
