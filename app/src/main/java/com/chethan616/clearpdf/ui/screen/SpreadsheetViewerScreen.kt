@@ -504,7 +504,9 @@ private fun SpreadsheetViewerContent(
                     Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                         GlassTitlePill(
                             text = (if (state.dirty) "• " else "") + state.fileName.ifBlank { stringResource(R.string.viewer_title) },
-                            backdrop = headerBackdrop
+                            backdrop = headerBackdrop,
+                            // Clear like the header circles beside it (the PDF viewer's page pill too).
+                            surfaceColor = Color.Transparent
                         )
                     }
                     if (state.dirty && state.editable) {
