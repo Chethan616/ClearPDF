@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.components
 
+import kotlinx.coroutines.launch
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -68,8 +69,29 @@ fun GlassBackButton(
     onLongPressBack: (() -> Unit)? = LocalBackToLibraryAction.current,
     longPressLabel: String? = null
 ) {
+    // A tap waits [GlassMotion.BackTapDelayMillis] so the press is seen before the screen goes; it
+    // used to leave on the same frame, before the glass had moved. The system back gesture stays
+    // instant (it is the screen's BackHandler, not this). Further taps while waiting are ignored, and
+    // leaving the screen meanwhile cancels the wait, so Back never fires twice.
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val currentOnBack by androidx.compose.runtime.rememberUpdatedState(onBack)
+    val reduced = com.chethan616.clearpdf.ui.theme.LocalReducedGlassMotion.current
+    val pending = remember { booleanArrayOf(false) }
     LiquidIconButton(
-        onClick = onBack,
+        onClick = {
+            if (reduced) currentOnBack()
+            else if (!pending[0]) {
+                pending[0] = true
+                scope.launch {
+                    try {
+                        kotlinx.coroutines.delay(GlassMotion.BackTapDelayMillis)
+                        currentOnBack()
+                    } finally {
+                        pending[0] = false
+                    }
+                }
+            }
+        },
         onLongClick = onLongPressBack,
         onLongClickLabel = onLongPressBack?.let { longPressLabel ?: stringResource(R.string.back_to_library) },
         backdrop = backdrop,

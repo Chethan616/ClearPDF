@@ -124,6 +124,9 @@ by hand must do the same. `settle`, `fade` and layout springs never bounce and i
   Back.
 - Long-press on a glass button blooms (grows ≤ ~14 dp, glows brighter, one LongPress haptic). A
   long-press **action** runs on release, never mid-press.
+- A tapped back button (`GlassBackButton`) leaves after `GlassMotion.BackTapDelayMillis` (140 ms),
+  so the press is seen first, as on iOS. Not longer: it must never read as lag. The system back
+  gesture stays instant, and Reduce glass motion skips the wait.
 
 ---
 
@@ -152,6 +155,10 @@ by hand must do the same. `settle`, `fade` and layout springs never bounce and i
 ---
 
 ## 6. Layout and UX
+- Holding a back button goes to the root of where you are: the library from a tool or document,
+  the Settings index from a Settings page (never past it to Home).
+- The tab bar is rebuilt whenever it reappears, so it must follow the current tab from its first
+  frame; never skip the first selection change it sees.
 - Settings is an iOS-style index of rows. Each topic opens its own page with a back button. Keep the
   root light: three small panels.
 - Use 16 dp screen gutters and 12–16 dp between panels. Rows are 44–48 dp tall. Text is 13–16 sp:
