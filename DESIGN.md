@@ -168,6 +168,12 @@ by hand must do the same. `settle`, `fade` and layout springs never bounce and i
   - Word editor and spreadsheet: the screen provides `LocalIsDarkMode = reader mode` to everything
     inside it and draws its own desk (light grey `#E3E4E9`, near-black `#0D0D0F`) behind the pages,
     so every glass control, dropdown menu, dock, dialog and the status-bar icons follow the paper.
+- Chrome that sits on the document beside the clear glass circles (title pill, page capsule,
+  ribbon dropdown triggers and steppers) is **clear glass too**: `surfaceColor = Color.Transparent`
+  / `viewerGlass(backdrop, Color.Transparent)`, never a `chipGlass` frost. A frost reads as a grey
+  slab over pictures and makes the chip look like a different material from the buttons beside it.
+  An open dropdown menu keeps its frost (`LiquidGlassDropdown` falls back to the theme frost when
+  its trigger is clear), because rows of text need it.
 - The find bar is the shared `PdfSearchBar`: it samples the live page layer (`contentBackdrop` /
   `screenBackdrop.content`), clear surface, adaptive ink. Never give it only the wallpaper.
 - **Night colours** come from `NightPaper` (Gander's matrix: invert + 180 degree hue turn), so a blue

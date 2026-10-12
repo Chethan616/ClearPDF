@@ -129,8 +129,11 @@ fun <T> LiquidGlassDropdown(
     val isDark = LocalIsDarkMode.current
     val fg = if (contentColor.isSpecified) contentColor else LiquidGlassColors.text(isDark)
     val fgSoft = fg.copy(alpha = 0.62f)
-    val field = if (triggerSurface.isSpecified) triggerSurface
-    else if (isDark) Color(0xFF111318).copy(0.74f) else Color.White.copy(0.55f)
+    val themeField = if (isDark) Color(0xFF111318).copy(0.74f) else Color.White.copy(0.55f)
+    val field = if (triggerSurface.isSpecified) triggerSurface else themeField
+    // A clear trigger (one sitting among clear glass buttons) still opens a frosted menu: rows of
+    // text need it to stay legible over whatever page or picture the menu drops onto.
+    val menuField = if (field.alpha > 0f) field else themeField
     val haptics = LocalHapticFeedback.current
     var open by remember { mutableStateOf(false) }
     var anchor by remember { mutableStateOf(Rect.Zero) }
@@ -226,7 +229,7 @@ fun <T> LiquidGlassDropdown(
                             // during the fade and snap it in at the end (the flicker).
                             compositingStrategy = CompositingStrategy.ModulateAlpha
                         }
-                        .liquidGlassPanel(backdrop, uiSensor, field)
+                        .liquidGlassPanel(backdrop, uiSensor, menuField)
                         .padding(4.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {

@@ -202,7 +202,6 @@ import com.chethan616.clearpdf.ui.components.NightPaper
 import com.chethan616.clearpdf.ui.components.OfficeStandardColors
 import com.chethan616.clearpdf.ui.components.OfficeThemeColors
 import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
-import com.chethan616.clearpdf.ui.components.chipGlass
 import com.chethan616.clearpdf.ui.components.liquidRowClick
 import com.chethan616.clearpdf.ui.components.rememberScreenBackdrop
 import com.chethan616.clearpdf.ui.components.viewerGlass
@@ -786,8 +785,11 @@ private fun DocxEditorContent(
     val screenBackdrop = rememberScreenBackdrop(backdrop)
     val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val ribbonHeight = 52.dp
-    // Clear glass like the PDF viewer's chrome; the tint and ink follow the paper (see above).
-    val chipTint = chipGlass(onLight = !paperDark)
+    // Clear glass, exactly like the header and reading circles beside it and the PDF viewer's page
+    // pill: no frost, so the title pill, the ribbon's style/font/size controls and the page capsule
+    // refract the page the way the buttons do, and every Liquid Glass setting reads the same on all
+    // of them. A frost here made them grey slabs over pictures. The ink follows the paper (see above).
+    val chipTint = Color.Transparent
 
     Box(
         Modifier
