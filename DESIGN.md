@@ -167,6 +167,9 @@ by hand must do the same. `settle`, `fade` and layout springs never bounce and i
   titles SemiBold, values in the secondary colour.
 - Menus are compact: rows about 40 dp, menu width about 228 dp.
 - Every popover, menu and sheet dismisses on Back and on an outside tap.
+- Asks the app makes of people (the GitHub star prompt) wait for a calm moment after something
+  went right: never at launch, mid-task, in a document opened from another app, or after a failure,
+  and they back off when dismissed. `GitHubStarPromptManager` holds the rules; don't add fixed counts.
 - Strings live in `values/strings.xml`. Never hard-code user-facing text.
 
 ---

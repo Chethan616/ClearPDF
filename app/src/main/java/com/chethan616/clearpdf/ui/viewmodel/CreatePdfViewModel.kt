@@ -172,10 +172,11 @@ class CreatePdfViewModel(private val createPdfUseCase: CreatePdfUseCase) : ViewM
                     )
                 }
 
-                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                if (GitHubStarPromptManager.recordSuccess(context)) {
                     StarPromptEventBus.requestPrompt()
                 }
             } catch (e: Exception) {
+                GitHubStarPromptManager.recordFailure(context)
                 _uiState.update {
                     it.copy(isCreating = false, errorMessage = context.getString(R.string.create_failed))
                 }

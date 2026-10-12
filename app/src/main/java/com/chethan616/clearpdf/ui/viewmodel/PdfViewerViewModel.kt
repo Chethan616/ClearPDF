@@ -422,7 +422,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     pageCount = doc.pageCount,
                     sizeBytes = doc.sizeBytes
                 ))
-                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                if (GitHubStarPromptManager.recordDocumentOpened(context)) {
                     StarPromptEventBus.requestPrompt()
                 }
                 renderPage(context, 0, DEFAULT_RENDER_WIDTH)
@@ -823,10 +823,11 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     exportMessage = context.getString(R.string.viewer_save_success, outputName),
                     lastExportedUri = outputUri
                 )
-                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                if (GitHubStarPromptManager.recordSuccess(context)) {
                     StarPromptEventBus.requestPrompt()
                 }
             } catch (_: Exception) {
+                GitHubStarPromptManager.recordFailure(context)
                 _uiState.value = _uiState.value.copy(
                     isExporting = false,
                     exportError = context.getString(R.string.viewer_save_failed)
