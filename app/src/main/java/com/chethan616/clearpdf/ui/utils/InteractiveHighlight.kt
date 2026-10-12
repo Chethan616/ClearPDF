@@ -60,11 +60,19 @@ class InteractiveHighlight(
     // a touch before settling — the "boing" that makes the release feel physical.
     private val expandInSpec get() = spring(dampingRatio = MotionSettings.damping(0.52f), stiffness = MotionSettings.stiffness(340f), visibilityThreshold = 0.001f)
     private val expandOutSpec get() = spring(dampingRatio = MotionSettings.damping(0.46f), stiffness = MotionSettings.stiffness(420f), visibilityThreshold = 0.001f)
+    // The light never bounces (DESIGN.md: alpha never bounces). It used to read the press and bloom
+    // springs above, so on release, while those rang through rest (a lot under Bouncy / Super
+    // springy), every swing back above rest lit the glass up again: a shine on each jiggle.
+    // Critically damped, so it only ever rises with the finger and fades once it lifts.
+    private val glowInSpec get() = spring(dampingRatio = 1f, stiffness = MotionSettings.stiffness(900f), visibilityThreshold = 0.001f)
+    private val glowOutSpec get() = spring(dampingRatio = 1f, stiffness = MotionSettings.stiffness(380f), visibilityThreshold = 0.001f)
 
     private val pressProgressAnimation = Animatable(0f, 0.001f)
     private val positionAnimation = Animatable(Offset.Zero, Offset.VectorConverter, Offset.VisibilityThreshold)
     private val expandAnimation = Animatable(0f, 0.001f)
     private val wobbleAnimation = Animatable(0f, 0.001f)
+    private val glowAnimation = Animatable(0f, 0.001f)
+    private val bloomGlowAnimation = Animatable(0f, 0.001f)
 
     private var startPosition = Offset.Zero
     private var positionUpdateJob: Job? = null
@@ -104,10 +112,10 @@ half4 main(float2 coord) {
 
     val modifier: Modifier =
         Modifier.drawWithContent {
-            val progress = pressProgressAnimation.value
+            val progress = glowAnimation.value.fastCoerceIn(0f, 1f)
             // A bloomed long-press lifts the glow a little further, so the control reads as "picked up".
-            val bloom = expandAnimation.value.fastCoerceIn(0f, 1f)
-            if (progress > 0f) {
+            val bloom = bloomGlowAnimation.value.fastCoerceIn(0f, 1f)
+            if (progress > 0f || bloom > 0f) {
                 val shader = this@InteractiveHighlight.shader
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && shader != null) {
                     drawRect(Color.White.copy(0.08f * progress + 0.05f * bloom), blendMode = BlendMode.Plus)
@@ -141,9 +149,11 @@ half4 main(float2 coord) {
             val kick = WobbleKick * MotionSettings.style.wobble.fastCoerceIn(0f, 3f) * pressProgressAnimation.value.fastCoerceIn(0f, 1.1f)
             launch { wobbleAnimation.animateTo(0f, wobbleSpec, initialVelocity = kick) }
             launch { pressProgressAnimation.animateTo(0f, pressOutSpec) }
+            launch { glowAnimation.animateTo(0f, glowOutSpec) }
             launch { positionAnimation.animateTo(startPosition, positionAnimationSpec) }
             if (expandAnimation.value != 0f || expandAnimation.targetValue != 0f) {
                 launch { expandAnimation.animateTo(0f, expandOutSpec) }
+                launch { bloomGlowAnimation.animateTo(0f, glowOutSpec) }
             }
         }
     }
@@ -161,6 +171,7 @@ half4 main(float2 coord) {
                     releaseJob?.cancel()
                     animationScope.launch {
                         launch { pressProgressAnimation.animateTo(1f, pressInSpec) }
+                        launch { glowAnimation.animateTo(1f, glowInSpec) }
                         launch { positionAnimation.snapTo(startPosition) }
                         // A small taller-first nudge as the glass swells under the finger.
                         launch { wobbleAnimation.animateTo(0f, wobbleSpec, initialVelocity = -PressKick) }
@@ -171,6 +182,7 @@ half4 main(float2 coord) {
                         longPressJob = animationScope.launch {
                             delay(longPressMs)
                             onLongPressExpand?.invoke()
+                            launch { bloomGlowAnimation.animateTo(1f, glowInSpec) }
                             expandAnimation.animateTo(1f, expandInSpec)
                         }
                     }

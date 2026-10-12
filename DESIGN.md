@@ -108,6 +108,10 @@ by hand must do the same. `settle`, `fade` and layout springs never bounce and i
   read `jelly.scale` in `graphicsLayer`. Never use `animateFloatAsState(if (pressed) ...)`: in a scrolling
   list a quick tap's Press and Release arrive together, so the dip never shows.
 - A tap shorter than `GlassMotion.MinPressMillis` (90 ms) still plays the whole press before releasing.
+- The press light (the white glow under the finger, and the brighter glow of a long-press bloom) has
+  its own critically damped spring. Never drive it from the bouncy press or bloom value: those ring
+  through rest on release, and under Bouncy / Super springy every swing back up re-lit the glass, a
+  shine on each jiggle. The shape jiggles; the light only fades.
 - Menus unfold from their anchor with anisotropic scale (the width first, then the height) and fold back
   fast without a bounce. Rows cascade in behind the unfold.
 
