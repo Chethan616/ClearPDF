@@ -95,7 +95,9 @@ Use the shared springs in `GlassMotion` (or springs close to them):
 
 **The user tunes it (Settings -> Liquid Glass -> Motion).** `MotionSettings` holds multipliers on
 the numbers above (bounce, speed, press depth, release jiggle, drag stretch, long-press bloom) with
-the profiles Normal (the design, exactly), Performance, Bouncy and Super springy. So every bouncing
+the profiles Normal (the design, exactly), Performance, Bouncy and Super springy. Bouncy
+(`MotionStyle.Default`) runs until the user picks one, here or in the onboarding Appearance step,
+and Reset returns to it. So every bouncing
 spring goes through `MotionSettings.damping(designed)` / `stiffness(designed)`, and every press
 size goes through the style. The `GlassMotion` springs already do. A new bouncing spring written
 by hand must do the same. `settle`, `fade` and layout springs never bounce and ignore it.

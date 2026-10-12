@@ -822,7 +822,7 @@ private fun MotionTuningSection(
         Spacer(Modifier.height(8.dp))
         ToolPrimaryButton(
             text = stringResource(R.string.motion_reset),
-            onClick = { set(com.chethan616.clearpdf.ui.components.MotionStyle.Normal) },
+            onClick = { set(com.chethan616.clearpdf.ui.components.MotionStyle.Default) },
             backdrop = backdrop,
             accent = LiquidGlassColors.Purple,
             icon = Icons.Rounded.Refresh,
