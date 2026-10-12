@@ -126,7 +126,7 @@ by hand must do the same. `settle`, `fade` and layout springs never bounce and i
   Back.
 - Long-press on a glass button blooms (grows ≤ ~14 dp, glows brighter, one LongPress haptic). A
   long-press **action** runs on release, never mid-press.
-- A tapped back button (`GlassBackButton`) leaves after `GlassMotion.BackTapDelayMillis` (140 ms),
+- A tapped back button (`GlassBackButton`) leaves after `GlassMotion.BackTapDelayMillis` (280 ms),
   so the press is seen first, as on iOS. Not longer: it must never read as lag. The system back
   gesture stays instant, and Reduce glass motion skips the wait.
 
@@ -200,6 +200,10 @@ by hand must do the same. `settle`, `fade` and layout springs never bounce and i
   20 dp icons, the Word editor's size, in the PDF and PowerPoint viewers too. The morph grows to
   twice its size while armed. Settings -> Personalization -> Swap share and open makes the tap
   share and the hold-and-swipe open; the ink still follows what is behind it.
+- The Word editor's PDF and Print buttons make the PDF from the editor's own pages
+  (`DocxPdfWriter`: same styles, labels, pictures, tables and Word's page breaks, real text), or
+  from the Office engine when it is installed. Never the old web-preview converter, whose output
+  looks like the previous viewer.
 - Word documents open as pages, desktop-like: true proportions and margins, fit to width, pinch to
   zoom (the page relays out sharp, it is never bitmap-scaled), Word's own page breaks.
 

@@ -68,5 +68,5 @@ object GlassMotion {
      * How long a tapped back button waits before leaving: long enough for the swell to land and start
      * springing back (the press is visible, as on iOS), short enough that it never reads as lag.
      */
-    const val BackTapDelayMillis = 140L
+    const val BackTapDelayMillis = 280L
 }

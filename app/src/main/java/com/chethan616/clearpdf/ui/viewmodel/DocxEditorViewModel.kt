@@ -302,12 +302,30 @@ class DocxEditorViewModel : ViewModel() {
         }
     }
 
+    /**
+     * The document as a PDF, for the PDF button and Print, best source first: the Office engine
+     * (LibreOffice, Word's own layout rules) when it is installed; otherwise the editor's own pages
+     * drawn straight into a PDF ([DocxPdfWriter]), exactly as they read here, unsaved edits
+     * included; and only if that fails, the old web-preview converter.
+     */
     fun exportToPdf(context: Context, onDone: (Uri?) -> Unit) {
+        val p = pkg
+        val d = doc
+        val name = meta.fileName.ifBlank { "Document.docx" }
         currentFile(context) { src ->
-            if (src == null) return@currentFile onDone(null)
             viewModelScope.launch {
-                val out = withContext(Dispatchers.IO) {
-                    runCatching { com.chethan616.clearpdf.utils.UniversalDocumentConverter.convertToPdf(context, src) }.getOrNull()
+                val out = withContext(Dispatchers.Default) {
+                    if (src != null) {
+                        runCatching { com.chethan616.clearpdf.office.OfficeEngine.tryConvert(context, src, name.lowercase()) }
+                            .getOrNull()?.let { return@withContext Uri.fromFile(it) }
+                    }
+                    if (p != null && d != null) {
+                        val dir = File(context.cacheDir, "converted_pdfs/${System.currentTimeMillis()}")
+                        val pdf = File(dir, name.substringBeforeLast('.').ifBlank { "Document" }.replace('/', '_') + ".pdf")
+                        if (com.chethan616.clearpdf.ui.screen.DocxPdfWriter.write(context, p, d.blocks, pdf)) return@withContext Uri.fromFile(pdf)
+                    }
+                    if (src == null) null
+                    else runCatching { com.chethan616.clearpdf.utils.UniversalDocumentConverter.convertToPdf(context, src) }.getOrNull()
                 }
                 onDone(out)
             }
