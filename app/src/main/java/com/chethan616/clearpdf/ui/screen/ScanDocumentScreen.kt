@@ -499,7 +499,7 @@ fun ScanDocumentScreen(
                         viewModel.cancelScanning()
                         if (pdfUri != null) {
                             viewModel.markAsSaved(pdfUri)
-                            if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                            if (GitHubStarPromptManager.recordSuccess(context)) {
                                 StarPromptEventBus.requestPrompt()
                             }
                             Toast.makeText(context, context.getString(R.string.pdf_saved_successfully), Toast.LENGTH_SHORT).show()

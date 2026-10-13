@@ -190,9 +190,10 @@ class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
                     savedLayout = layoutOf(pages)
                 )
                 onSaved?.invoke()
-                val shouldPrompt = withContext(Dispatchers.IO) { GitHubStarPromptManager.recordPdfInteraction(context) }
+                val shouldPrompt = withContext(Dispatchers.IO) { GitHubStarPromptManager.recordSuccess(context) }
                 if (shouldPrompt) StarPromptEventBus.requestPrompt()
             } catch (e: Exception) {
+                GitHubStarPromptManager.recordFailure(context)
                 _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = context.getString(R.string.organize_save_failed))
             }
         }

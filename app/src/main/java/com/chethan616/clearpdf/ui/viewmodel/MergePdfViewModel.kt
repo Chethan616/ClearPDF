@@ -122,10 +122,11 @@ class MergePdfViewModel(private val mergePdfUseCase: MergePdfUseCase) : ViewMode
                     resultMessage = context.getString(R.string.merge_success, uris.size, outName, saveLabel)
                 )
 
-                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                if (GitHubStarPromptManager.recordSuccess(context)) {
                     StarPromptEventBus.requestPrompt()
                 }
             } catch (e: Exception) {
+                GitHubStarPromptManager.recordFailure(context)
                 _uiState.value = _uiState.value.copy(
                     isMerging = false,
                     errorMessage = context.getString(R.string.merge_failed)

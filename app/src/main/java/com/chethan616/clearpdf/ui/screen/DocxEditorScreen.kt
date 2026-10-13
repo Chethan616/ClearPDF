@@ -234,7 +234,7 @@ private enum class DocPanel { NONE, TEXT_COLOR, HIGHLIGHT }
 /** Formatting chosen with nothing selected: it applies to what is typed next at [at]. */
 private class Pending(val paraId: Long, val at: Int, val fmt: CharFmt)
 
-private sealed class DocItem(val key: Any, val page: Int) {
+internal sealed class DocItem(val key: Any, val page: Int) {
     /** A paragraph, or (reading) the part of one that falls on [page], when Word broke it across pages. */
     class Para(
         val para: DocPara,
@@ -254,7 +254,7 @@ private sealed class DocItem(val key: Any, val page: Int) {
     class Bottom(page: Int) : DocItem("bottom", page)
 }
 
-private class Flat(val items: List<DocItem>, val indexOf: Map<Long, Int>, val pageStarts: List<Int>) {
+internal class Flat(val items: List<DocItem>, val indexOf: Map<Long, Int>, val pageStarts: List<Int>) {
     val pages: Int get() = pageStarts.size
 }
 
@@ -264,7 +264,7 @@ private class Flat(val items: List<DocItem>, val indexOf: Map<Long, Int>, val pa
  * breaks, and before paragraphs set to start a page. While reading, a paragraph Word broke across
  * two pages is shown in two parts; while editing it stays whole (one field) and the page ends after it.
  */
-private fun flatten(blocks: List<DocBlock>, styles: DocxStyles, splitParas: Boolean): Flat {
+internal fun flatten(blocks: List<DocBlock>, styles: DocxStyles, splitParas: Boolean): Flat {
     val items = ArrayList<DocItem>()
     val index = HashMap<Long, Int>()
     val pageStarts = arrayListOf(0)
@@ -757,8 +757,10 @@ private fun DocxEditorContent(
     // The exact page layout comes from the PDF path, which uses the Office engine (LibreOffice)
     // whenever it is installed.
     fun openAsPdf() {
-        if (!viewModel.dirty) meta.sourceUri?.let(onOpenPdf)
-        else viewModel.exportToPdf(context) { pdf ->
+        // Always this document's own pages as a PDF (see exportToPdf). Handing the untouched .docx
+        // to the PDF route made that route convert it with the old web preview instead, which
+        // opened the previous viewer's look rather than the page being read.
+        viewModel.exportToPdf(context) { pdf ->
             if (pdf != null) onOpenPdf(pdf) else Toast.makeText(context, R.string.docx_read_failed, Toast.LENGTH_SHORT).show()
         }
     }
@@ -1496,9 +1498,9 @@ private fun StaticBlock(block: DocBlock, look: DocxLook, env: DocEnv) {
 
 // ── pictures ──────────────────────────────────────────────────────────────────
 
-private class DecodedPicture(val image: ImageBitmap, val paperLike: Boolean)
+internal class DecodedPicture(val image: ImageBitmap, val paperLike: Boolean)
 
-private object DocImages {
+internal object DocImages {
     private val cache = object : LruCache<String, Pair<Bitmap, Boolean>>(48 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Pair<Bitmap, Boolean>) = value.first.byteCount
     }
@@ -1579,7 +1581,7 @@ private fun DocPicture(info: ObjInfo, pkg: DocxPackage, look: DocxLook, maxWidth
 
 // ── tables ────────────────────────────────────────────────────────────────────
 
-private class TableLook(
+internal class TableLook(
     val fractions: FloatArray,
     val width: Dp,
     val indent: Dp,
@@ -1593,12 +1595,12 @@ private class TableLook(
     val scale: Float
 )
 
-private class CellProps(val span: Int, val vContinue: Boolean, val fill: Int?, val vAlign: String?)
+internal class CellProps(val span: Int, val vContinue: Boolean, val fill: Int?, val vAlign: String?)
 
 private val cellPropsCache = HashMap<String, CellProps>()
 private val tableLookCache = java.util.WeakHashMap<DocTable, Pair<Float, TableLook>>()
 
-private fun cellProps(tcPr: String): CellProps = synchronized(cellPropsCache) {
+internal fun cellProps(tcPr: String): CellProps = synchronized(cellPropsCache) {
     cellPropsCache.getOrPut(tcPr) {
         val root = if (tcPr.isEmpty()) null else XmlScan.scan(tcPr).children.firstOrNull()
         fun child(n: String): XNode? = root?.child(n)
@@ -1616,7 +1618,7 @@ private fun cellProps(tcPr: String): CellProps = synchronized(cellPropsCache) {
  * A table at its real size on the page: Word's column grid, alignment and indent. Only a table
  * wider than the page's text area (plus a little of the margin, which Word allows) is shrunk.
  */
-private fun tableLookOf(t: DocTable, pkg: DocxPackage, look: DocxLook, availWidth: Dp): TableLook {
+internal fun tableLookOf(t: DocTable, pkg: DocxPackage, look: DocxLook, availWidth: Dp): TableLook {
     val cacheKey = look.scale * 100_000f + availWidth.value
     synchronized(tableLookCache) { tableLookCache[t]?.let { if (it.first == cacheKey) return it.second } }
     val tblPr = if (t.tblPr.isEmpty()) null else XmlScan.scan(t.tblPr).children.firstOrNull()

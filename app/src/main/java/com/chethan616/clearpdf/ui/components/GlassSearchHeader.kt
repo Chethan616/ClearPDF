@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.components
 
+import kotlinx.coroutines.flow.first
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -99,7 +100,8 @@ val GlassSearchPillHeight = 36.dp
  * what each one is allowed to do: `progress` owns the layout width and stays critically damped (an
  * overshooting width re-measures the glass and re-runs its blur+lens at a new size, and a negative
  * one throws), `fade` owns alpha and stays critically damped (overshoot clips at 1.0 and reads as a
- * flicker), and `bounce` owns the scales and the icon spin, where overshoot is the whole point.
+ * flicker), and `grow` owns the scales and the icon spin. `grow` is critically damped too; the
+ * spring you feel is a separate wobble with the glass buttons' physics (see below).
  */
 @Composable
 fun GlassSearchHeader(
@@ -129,20 +131,32 @@ fun GlassSearchHeader(
         transitionSpec = { GlassMotion.fade() },
         label = "searchFade"
     ) { if (it) 1f else 0f }
-    // The bounce rides its own clock so it can overshoot without dragging `progress` — and therefore
-    // the layout width — past 1. Everything it drives is a draw-time property, so the overshoot costs
-    // a layer-matrix update, not a re-measure: `drawBackdrop` never re-runs its blur or lens.
-    // Symmetric on purpose: this used to spring open with `morph()` but close with the fully
-    // rigid `settle()` (no overshoot at all), on the theory that overshooting past the field's
-    // floor scale on the way in would look broken. It doesn't — every use of `bounce` below either
-    // clamps to [0,1] (the pill's shrink) or tolerates a few percent past its floor for a couple of
-    // frames (the field's grow-in, the icon's spin) — so there was nothing actually protecting
-    // against, just an animation that sprang open and then went dead on the way back, closing every
-    // single time compared with opening.
-    val bounce by transition.animateFloat(
-        transitionSpec = { GlassMotion.morph() },
-        label = "searchBounce"
+    // The unfurl itself never overshoots. It used to ride `morph()`, and a 0.32 -> 1 scale on a
+    // full-width capsule turns that spring's overshoot into tens of dp (far more under Bouncy /
+    // Super springy), with the icon swinging well past its quarter turn: the pill over-jiggled.
+    // Now it lands cleanly at the morph's speed, and the spring comes from `wobble` below.
+    val growState = transition.animateFloat(
+        transitionSpec = { spring(dampingRatio = 1f, stiffness = MotionSettings.stiffness(420f)) },
+        label = "searchGrow"
     ) { if (it) 1f else 0f }
+    val grow by growState
+    // The glass buttons' release jiggle (InteractiveHighlight): once the capsule lands it is kicked
+    // into one out-of-phase squash, about 2.5 dp a side, on the same spring and Motion settings as
+    // every LiquidButton, instead of the whole pill rebounding.
+    val wobble = remember { androidx.compose.animation.core.Animatable(0f, 0.001f) }
+    val firstRun = remember { booleanArrayOf(true) }
+    LaunchedEffect(active) {
+        if (firstRun[0]) { firstRun[0] = false; return@LaunchedEffect }
+        val target = if (active) 1f else 0f
+        androidx.compose.runtime.snapshotFlow { growState.value }
+            .first { kotlin.math.abs(it - target) < 0.15f }
+        wobble.snapTo(0f)
+        wobble.animateTo(
+            0f,
+            GlassMotion.wobble(),
+            initialVelocity = 34f * MotionSettings.style.wobble.coerceIn(0f, 3f)
+        )
+    }
 
     val dismiss = {
         onQueryChange("")
@@ -184,11 +198,12 @@ fun GlassSearchHeader(
                 Box(
                     Modifier.graphicsLayer {
                         alpha = 1f - fade
-                        // Clamped: the pill only needs the eased shape, not the overshoot — it is on
-                        // its way out and a rebound would fight the fade.
-                        val s = lerp(1f, 0.86f, bounce.coerceIn(0f, 1f))
-                        scaleX = s
-                        scaleY = s
+                        // Shrinks toward the circle as search opens; coming back it gets the
+                        // buttons' landing jiggle.
+                        val s = lerp(1f, 0.86f, grow)
+                        val w = if (active) 0f else wobble.value
+                        scaleX = s + w * (2.5f.dp.toPx() / size.width).coerceAtMost(0.045f)
+                        scaleY = s - w * (2.5f.dp.toPx() / size.height).coerceAtMost(0.045f)
                     }
                 ) {
                     GlassTitlePill(
@@ -206,11 +221,12 @@ fun GlassSearchHeader(
                         .graphicsLayer {
                             alpha = fade
                             // Grow out of the circle: the capsule's right edge is pinned, so it
-                            // unfurls leftward, overshoots past full width and springs back. The
-                            // overshoot runs into the leading slot, which has collapsed by then.
+                            // unfurls leftward and lands, then jiggles like a released glass button
+                            // (X and Y out of phase, ~2.5 dp).
                             transformOrigin = TransformOrigin(1f, 0.5f)
-                            scaleX = lerp(0.32f, 1f, bounce)
-                            scaleY = lerp(0.72f, 1f, bounce)
+                            val w = if (active) wobble.value else 0f
+                            scaleX = lerp(0.32f, 1f, grow) + w * (2.5f.dp.toPx() / size.width).coerceAtMost(0.045f)
+                            scaleY = lerp(0.72f, 1f, grow) - w * (2.5f.dp.toPx() / size.height).coerceAtMost(0.045f)
                         }
                 ) {
                     GlassSearchPill(
@@ -239,10 +255,10 @@ fun GlassSearchHeader(
         ) {
             val tint = LiquidGlassColors.text(LocalIsDarkMode.current)
             // The icon spins a quarter turn as it swaps, so the circle feels like it re-purposes
-            // rather than just blinking to a new glyph. On `bounce`, so it overshoots the turn in
-            // step with the capsule instead of arriving ahead of it.
+            // rather than just blinking to a new glyph. It lands with the capsule and shares its
+            // small wobble rather than swinging past the turn on its own.
             Box(
-                Modifier.graphicsLayer { rotationZ = lerp(0f, 90f, bounce) },
+                Modifier.graphicsLayer { rotationZ = lerp(0f, 90f, grow) + wobble.value * 6f },
                 contentAlignment = Alignment.Center
             ) {
                 if (showTitle) {

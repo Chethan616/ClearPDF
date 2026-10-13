@@ -87,8 +87,9 @@ class ImagesToPdfViewModel(private val converter: PdfConverter) : ViewModel() {
                     saveLocationLabel = saveLabel,
                     resultMessage = context.getString(R.string.images_success, images.size, saveLabel)
                 )
-                if (GitHubStarPromptManager.recordPdfInteraction(context)) StarPromptEventBus.requestPrompt()
+                if (GitHubStarPromptManager.recordSuccess(context)) StarPromptEventBus.requestPrompt()
             } catch (e: Exception) {
+                GitHubStarPromptManager.recordFailure(context)
                 _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = context.getString(R.string.conversion_failed))
             }
         }

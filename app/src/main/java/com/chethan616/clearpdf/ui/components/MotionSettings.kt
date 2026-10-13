@@ -8,7 +8,8 @@ import androidx.compose.runtime.setValue
 
 /**
  * How springy the Liquid Glass motion is (Settings -> Liquid Glass -> Motion). Every value is a
- * multiplier on the physics the app was designed with, so [Normal] reproduces it exactly:
+ * multiplier on the physics the app was designed with, so [Normal] reproduces it exactly. Until the
+ * user picks one (in Settings or the onboarding tour) the app runs [Default], which is [Bouncy]:
  *
  * - [bounce]: 0.5 is the design; higher lowers the springs' damping (more overshoot), lower raises
  *   it. Springs that must never bounce (fades, layout, dismissals) ignore it.
@@ -33,13 +34,15 @@ data class MotionStyle(
         val Bouncy = MotionStyle(bounce = 0.75f, speed = 0.92f, press = 1.3f, wobble = 1.6f, stretch = 1.2f, bloom = 1.2f)
         val SuperSpringy = MotionStyle(bounce = 0.95f, speed = 0.82f, press = 1.6f, wobble = 2.2f, stretch = 1.5f, bloom = 1.5f)
         val Presets = listOf(Normal, Performance, Bouncy, SuperSpringy)
+        /** What the app runs until the user picks a profile, and what Reset returns to. */
+        val Default = Bouncy
     }
 }
 
 object MotionSettings {
     private const val PREFS = "ui_prefs"
 
-    var style: MotionStyle by mutableStateOf(MotionStyle.Normal)
+    var style: MotionStyle by mutableStateOf(MotionStyle.Default)
         private set
 
     private var loaded = false
@@ -48,7 +51,7 @@ object MotionSettings {
         if (loaded) return
         loaded = true
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val d = MotionStyle.Normal
+        val d = MotionStyle.Default
         style = MotionStyle(
             bounce = p.getFloat("motion_bounce", d.bounce),
             speed = p.getFloat("motion_speed", d.speed),

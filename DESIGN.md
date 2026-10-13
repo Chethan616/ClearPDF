@@ -95,7 +95,9 @@ Use the shared springs in `GlassMotion` (or springs close to them):
 
 **The user tunes it (Settings -> Liquid Glass -> Motion).** `MotionSettings` holds multipliers on
 the numbers above (bounce, speed, press depth, release jiggle, drag stretch, long-press bloom) with
-the profiles Normal (the design, exactly), Performance, Bouncy and Super springy. So every bouncing
+the profiles Normal (the design, exactly), Performance, Bouncy and Super springy. Bouncy
+(`MotionStyle.Default`) runs until the user picks one, here or in the onboarding Appearance step,
+and Reset returns to it. So every bouncing
 spring goes through `MotionSettings.damping(designed)` / `stiffness(designed)`, and every press
 size goes through the style. The `GlassMotion` springs already do. A new bouncing spring written
 by hand must do the same. `settle`, `fade` and layout springs never bounce and ignore it.
@@ -108,6 +110,10 @@ by hand must do the same. `settle`, `fade` and layout springs never bounce and i
   read `jelly.scale` in `graphicsLayer`. Never use `animateFloatAsState(if (pressed) ...)`: in a scrolling
   list a quick tap's Press and Release arrive together, so the dip never shows.
 - A tap shorter than `GlassMotion.MinPressMillis` (90 ms) still plays the whole press before releasing.
+- The press light (the white glow under the finger, and the brighter glow of a long-press bloom) has
+  its own critically damped spring. Never drive it from the bouncy press or bloom value: those ring
+  through rest on release, and under Bouncy / Super springy every swing back up re-lit the glass, a
+  shine on each jiggle. The shape jiggles; the light only fades.
 - Menus unfold from their anchor with anisotropic scale (the width first, then the height) and fold back
   fast without a bounce. Rows cascade in behind the unfold.
 
@@ -120,6 +126,9 @@ by hand must do the same. `settle`, `fade` and layout springs never bounce and i
   Back.
 - Long-press on a glass button blooms (grows ≤ ~14 dp, glows brighter, one LongPress haptic). A
   long-press **action** runs on release, never mid-press.
+- A tapped back button (`GlassBackButton`) leaves after `GlassMotion.BackTapDelayMillis` (280 ms),
+  so the press is seen first, as on iOS. Not longer: it must never read as lag. The system back
+  gesture stays instant, and Reduce glass motion skips the wait.
 
 ---
 
@@ -148,12 +157,19 @@ by hand must do the same. `settle`, `fade` and layout springs never bounce and i
 ---
 
 ## 6. Layout and UX
+- Holding a back button goes to the root of where you are: the library from a tool or document,
+  the Settings index from a Settings page (never past it to Home).
+- The tab bar is rebuilt whenever it reappears, so it must follow the current tab from its first
+  frame; never skip the first selection change it sees.
 - Settings is an iOS-style index of rows. Each topic opens its own page with a back button. Keep the
   root light: three small panels.
 - Use 16 dp screen gutters and 12–16 dp between panels. Rows are 44–48 dp tall. Text is 13–16 sp:
   titles SemiBold, values in the secondary colour.
 - Menus are compact: rows about 40 dp, menu width about 228 dp.
 - Every popover, menu and sheet dismisses on Back and on an outside tap.
+- Asks the app makes of people (the GitHub star prompt) wait for a calm moment after something
+  went right: never at launch, mid-task, in a document opened from another app, or after a failure,
+  and they back off when dismissed. `GitHubStarPromptManager` holds the rules; don't add fixed counts.
 - Strings live in `values/strings.xml`. Never hard-code user-facing text.
 
 ---
@@ -184,6 +200,10 @@ by hand must do the same. `settle`, `fade` and layout springs never bounce and i
   20 dp icons, the Word editor's size, in the PDF and PowerPoint viewers too. The morph grows to
   twice its size while armed. Settings -> Personalization -> Swap share and open makes the tap
   share and the hold-and-swipe open; the ink still follows what is behind it.
+- The Word editor's PDF and Print buttons make the PDF from the editor's own pages
+  (`DocxPdfWriter`: same styles, labels, pictures, tables and Word's page breaks, real text), or
+  from the Office engine when it is installed. Never the old web-preview converter, whose output
+  looks like the previous viewer.
 - Word documents open as pages, desktop-like: true proportions and margins, fit to width, pinch to
   zoom (the page relays out sharp, it is never bitmap-scaled), Word's own page breaks.
 

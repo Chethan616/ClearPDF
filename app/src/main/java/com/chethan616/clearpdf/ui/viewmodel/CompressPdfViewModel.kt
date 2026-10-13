@@ -177,10 +177,11 @@ class CompressPdfViewModel(private val compressPdfUseCase: CompressPdfUseCase) :
                     resultMessage = context.getString(R.string.compression_success, origKb, compKb, reduction, saveLabel)
                 )
 
-                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                if (GitHubStarPromptManager.recordSuccess(context)) {
                     StarPromptEventBus.requestPrompt()
                 }
             } catch (e: Exception) {
+                GitHubStarPromptManager.recordFailure(context)
                 _uiState.value = _uiState.value.copy(
                     isCompressing = false,
                     errorMessage = context.getString(R.string.compression_failed)

@@ -616,6 +616,41 @@ private fun AppearanceChooser(
             }
         }
 
+        // Motion profile: the same presets as Settings -> Liquid Glass -> Motion (Bouncy until the
+        // user picks). Each chip is itself a glass button, so tapping one plays the new physics.
+        BasicText(
+            stringResource(R.string.glass_motion),
+            style = TextStyle(inkSoft, 13.sp, fontWeight = FontWeight.SemiBold)
+        )
+        val motionStyle = com.chethan616.clearpdf.ui.components.MotionSettings.style
+        val motionPresets = listOf(
+            com.chethan616.clearpdf.ui.components.MotionStyle.Normal to stringResource(R.string.motion_preset_normal),
+            com.chethan616.clearpdf.ui.components.MotionStyle.Performance to stringResource(R.string.motion_preset_performance),
+            com.chethan616.clearpdf.ui.components.MotionStyle.Bouncy to stringResource(R.string.motion_preset_bouncy),
+            com.chethan616.clearpdf.ui.components.MotionStyle.SuperSpringy to stringResource(R.string.motion_preset_super)
+        )
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            motionPresets.forEach { (preset, label) ->
+                val selected = motionStyle == preset
+                LiquidButton(
+                    onClick = { com.chethan616.clearpdf.ui.components.MotionSettings.update(context, preset) },
+                    backdrop = backdrop,
+                    tint = if (selected) LiquidGlassColors.Purple else Color.Unspecified,
+                    surfaceColor = if (selected) Color.Unspecified else (if (isDark) Color.White.copy(0.10f) else Color.Black.copy(0.06f)),
+                    horizontalContentPadding = 14.dp
+                ) {
+                    BasicText(
+                        label,
+                        style = TextStyle(if (selected) Color.White else ink, 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium),
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+
         Box(Modifier.fillMaxWidth().height(1.dp).background(ink.copy(0.10f)))
 
         Row(

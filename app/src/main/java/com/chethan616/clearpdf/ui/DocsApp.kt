@@ -75,7 +75,6 @@ import com.chethan616.clearpdf.ui.components.LocalGlassOverlayHost
 import com.chethan616.clearpdf.ui.components.LocalBackToLibraryAction
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import kotlinx.coroutines.flow.collectLatest
 
 /** Walk the ContextWrapper chain to the hosting Activity (for locale-change recreate). */
 private tailrec fun android.content.Context.findActivity(): android.app.Activity? = when (this) {
@@ -148,14 +147,11 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
             OnboardingManager.shouldShowWhatsNew(context)
     }
 
+    // A finished task only reports that a good moment happened; the ask itself waits for a calm
+    // screen (below). It no longer pops up at launch.
+    var starMoment by remember { mutableIntStateOf(0) }
     LaunchedEffect(context) {
-        if (showWhatsNew) return@LaunchedEffect
-        showStarPrompt = GitHubStarPromptManager.shouldShowPrompt(context)
-        StarPromptEventBus.promptRequests.collectLatest {
-            if (GitHubStarPromptManager.shouldShowPrompt(context)) {
-                showStarPrompt = true
-            }
-        }
+        StarPromptEventBus.promptRequests.collect { starMoment++ }
     }
 
     val openRepo = remember(context) {
@@ -267,6 +263,20 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
             }
         }
 
+        // The star ask, at a calm moment only: back on Home or Tools after something went right in
+        // this launch (GitHubStarPromptManager holds the rest: earned use, a returning user, no
+        // recent failure, backing off). Never mid-task, never in a document opened from another
+        // app, never on a launch that showed the tour or What's New. Leaving the tab cancels it.
+        LaunchedEffect(currentRoute, starMoment) {
+            if (showWhatsNew || needsOnboarding || documentWindow) return@LaunchedEffect
+            if (currentRoute != "home" && currentRoute != "tools") return@LaunchedEffect
+            kotlinx.coroutines.delay(900)
+            if (GitHubStarPromptManager.shouldShowPrompt(context)) {
+                GitHubStarPromptManager.onPromptShown()
+                showStarPrompt = true
+            }
+        }
+
         // Keep tab highlight synced even when navigation occurs from cards/deep links.
         LaunchedEffect(currentRoute) {
             selectedTab = when (currentRoute) {
@@ -290,6 +300,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
         remember(context) {
             com.chethan616.clearpdf.ui.components.GlassSettings.load(context)
             com.chethan616.clearpdf.ui.components.MotionSettings.load(context)
+            GitHubStarPromptManager.recordActiveDay(context)
             true
         }
         val platformHaptics = androidx.compose.ui.platform.LocalHapticFeedback.current

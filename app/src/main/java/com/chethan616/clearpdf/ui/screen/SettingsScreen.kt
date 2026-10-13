@@ -241,6 +241,10 @@ fun SettingsScreen(
                     title = pageTitle,
                     backdrop = headerBackdrop,
                     onBack = if (page != PageIndex) ({ page = PageIndex }) else null,
+                    // Holding Back on a Settings page returns to Settings itself. The app-wide
+                    // default (back to the library) popped all the way Home from in here.
+                    onBackLongPress = if (page != PageIndex) ({ page = PageIndex }) else null,
+                    backLongPressLabel = stringResource(R.string.settings_title),
                     modifier = entrance.sectionFade(0)
                 )
             }
@@ -818,7 +822,7 @@ private fun MotionTuningSection(
         Spacer(Modifier.height(8.dp))
         ToolPrimaryButton(
             text = stringResource(R.string.motion_reset),
-            onClick = { set(com.chethan616.clearpdf.ui.components.MotionStyle.Normal) },
+            onClick = { set(com.chethan616.clearpdf.ui.components.MotionStyle.Default) },
             backdrop = backdrop,
             accent = LiquidGlassColors.Purple,
             icon = Icons.Rounded.Refresh,

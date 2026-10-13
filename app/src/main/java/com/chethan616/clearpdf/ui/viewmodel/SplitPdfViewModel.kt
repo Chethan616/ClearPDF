@@ -176,10 +176,11 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                     resultMessage = context.getString(R.string.split_success, results.size, saveLabel)
                 )
 
-                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                if (GitHubStarPromptManager.recordSuccess(context)) {
                     StarPromptEventBus.requestPrompt()
                 }
             } catch (e: Exception) {
+                GitHubStarPromptManager.recordFailure(context)
                 _uiState.value = _uiState.value.copy(
                     isSplitting = false,
                     errorMessage = context.getString(R.string.split_failed)
@@ -210,10 +211,11 @@ class SplitPdfViewModel(private val splitter: PdfSplitter) : ViewModel() {
                     resultMessage = context.getString(R.string.extract_success, pages.size, saveLabel)
                 )
 
-                if (GitHubStarPromptManager.recordPdfInteraction(context)) {
+                if (GitHubStarPromptManager.recordSuccess(context)) {
                     StarPromptEventBus.requestPrompt()
                 }
             } catch (e: Exception) {
+                GitHubStarPromptManager.recordFailure(context)
                 _uiState.value = _uiState.value.copy(
                     isSplitting = false,
                     errorMessage = context.getString(R.string.extract_failed)

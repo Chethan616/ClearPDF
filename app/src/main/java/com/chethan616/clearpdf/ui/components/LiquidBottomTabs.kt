@@ -54,7 +54,6 @@ import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
@@ -142,11 +141,17 @@ fun LiquidBottomTabs(
                 }
         }
         LaunchedEffect(dampedDragAnimation) {
+            // No drop(1): the bar is rebuilt every time it reappears (it steps away on Settings pages
+            // and tool screens), and the selection can change between its first frame and this
+            // effect starting. Holding Back on a Settings page did exactly that, and drop(1) threw
+            // the change away, leaving the pill on Settings over Home. Move the pill whenever it is
+            // not where the index says, and report only the bar's own changes (a drag) upward.
             snapshotFlow { currentIndex }
-                .drop(1)
                 .collectLatest { index ->
-                    dampedDragAnimation.animateToValue(index.toFloat())
-                    onTabSelected(index)
+                    if (dampedDragAnimation.targetValue.fastRoundToInt() != index) {
+                        dampedDragAnimation.animateToValue(index.toFloat())
+                    }
+                    if (index != selectedTabIndexState.value()) onTabSelected(index)
                 }
         }
 
