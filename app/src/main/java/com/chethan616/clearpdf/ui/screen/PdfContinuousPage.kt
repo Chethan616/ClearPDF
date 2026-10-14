@@ -77,6 +77,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -125,6 +128,9 @@ internal fun PdfContinuousPage(
     page: Int,
     backdrop: LayerBackdrop,
     bitmap: Bitmap?,
+    modifier: Modifier = Modifier,
+    /** Trim page margins (#85): the 0..1 part of the page to show; the rest is laid out but clipped. */
+    crop: android.graphics.RectF? = null,
     darkPageAppearance: Boolean = false,
     /** Dark reader: photographs on this page (normalised rects), drawn as printed over the night page. */
     nightPhotos: List<Rect> = emptyList(),
@@ -145,6 +151,9 @@ internal fun PdfContinuousPage(
     onTapFormWidget: (com.kyant.pdfcore.form.PdfFormWidget, Rect) -> Unit = { _, _ -> },
     onFormTextChange: (com.kyant.pdfcore.form.PdfFormWidget, String) -> Unit = { _, _ -> },
     onFormImeNext: (com.kyant.pdfcore.form.PdfFormWidget) -> Unit = {},
+    /** The PDF's own links on this page; a tap on one opens it (#83). */
+    links: List<com.kyant.pdfcore.link.PdfLink> = emptyList(),
+    onOpenLink: (com.kyant.pdfcore.link.PdfLink) -> Unit = {},
     ocrBlocks: List<OcrTextBlock>,
     findMatches: List<FindMatch>,
     currentMatchIndex: Int,
@@ -193,6 +202,8 @@ internal fun PdfContinuousPage(
     val latestFormValues by rememberUpdatedState(formValues)
     val latestOnTapFormWidget by rememberUpdatedState(onTapFormWidget)
     val latestOnFormValue by rememberUpdatedState(onFormTextChange)
+    val latestLinks by rememberUpdatedState(links)
+    val latestOnOpenLink by rememberUpdatedState(onOpenLink)
     // List boxes scroll inside their own box; offsets in rows, per field box.
     val formListScroll = remember { androidx.compose.runtime.mutableStateMapOf<String, Float>() }
     // This page's coordinates, to place a dropdown's menu under the field in window space.
@@ -233,12 +244,14 @@ internal fun PdfContinuousPage(
     }
 
     Box(
-        Modifier
+        modifier
             // While an image is dragged across a page boundary, this page draws above its
             // neighbours so the image isn't hidden behind the next page.
             .zIndex(if (imageDragging) 1f else 0f)
             .fillMaxWidth()
             .padding(vertical = 6.dp)
+            // The placeholder is trimmed too, so the page keeps its height when the bitmap lands.
+            .then(if (crop != null) Modifier.trimToContent(crop) else Modifier)
             .then(if (bitmap == null) Modifier.aspectRatio(placeholderAspect ?: (1f / 1.414f)) else Modifier)
             .background(Color(0xFF15181E))
             // Page-local coordinates for the text selection's screen mapping (see PdfViewportTransform).
@@ -660,6 +673,20 @@ internal fun PdfContinuousPage(
                             onShowControls()
                             onInteraction()
                         }
+                    } else if (currentSelected < 0 && currentGroup.isEmpty() && latestLinks.isNotEmpty()) {
+                        // A link printed on the page: a tap (not a drag, not a long-press) follows it.
+                        val nx = down.position.x / size.width.toFloat()
+                        val ny = down.position.y / size.height.toFloat()
+                        val slop = 4f / size.width.toFloat()
+                        val link = latestLinks.lastOrNull { l ->
+                            nx >= l.left - slop && nx <= l.right + slop && ny >= l.top - slop && ny <= l.bottom + slop
+                        } ?: return@awaitEachGesture
+                        val up = waitForUpOrCancellation() ?: return@awaitEachGesture
+                        // A zoomed pan doesn't consume, so tell a pan that ended on the link apart from a tap.
+                        if ((up.position - down.position).getDistance() > viewConfiguration.touchSlop) return@awaitEachGesture
+                        up.consume()
+                        latestOnOpenLink(link)
+                        onInteraction()
                     } else {
                         // Missed everything → clear any selection (tap propagates to container).
                         if (currentSelected >= 0) onSelectMarkup(-1)
@@ -1244,5 +1271,23 @@ private fun MarkupBarItem(
     ) {
         Icon(icon, if (iconOnly) label else null, Modifier.size(17.dp), color)
         if (!iconOnly) BasicText(label, style = TextStyle(color, 14.sp, FontWeight.SemiBold), maxLines = 1)
+    }
+}
+
+/**
+ * Trim page margins (#85): the page is laid out larger, so [crop] spans the available width, and
+ * only that part is shown. Everything inside keeps its own page coordinates, so markups, links,
+ * form fields and the text selection stay where they are printed.
+ */
+private fun Modifier.trimToContent(crop: android.graphics.RectF): Modifier = clipToBounds().layout { measurable, constraints ->
+    if (!constraints.hasBoundedWidth || crop.width() <= 0f || crop.height() <= 0f) {
+        val p = measurable.measure(constraints)
+        return@layout layout(p.width, p.height) { p.place(0, 0) }
+    }
+    val width = constraints.maxWidth
+    val inner = (width / crop.width()).roundToInt()
+    val p = measurable.measure(Constraints(minWidth = inner, maxWidth = inner))
+    layout(width, (p.height * crop.height()).roundToInt()) {
+        p.place(-(crop.left * inner).roundToInt(), -(crop.top * p.height).roundToInt())
     }
 }

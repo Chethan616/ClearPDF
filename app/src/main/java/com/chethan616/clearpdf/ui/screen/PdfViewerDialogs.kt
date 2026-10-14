@@ -384,7 +384,9 @@ internal fun ExportShareDialog(
     onDismiss: () -> Unit,
     onShare: (format: ShareFormat, encrypt: Boolean, password: String) -> Unit,
     /** Prints the document exactly as it is, through Android's print screen (after Gander). */
-    onPrint: (() -> Unit)? = null
+    onPrint: (() -> Unit)? = null,
+    /** Saves the chosen format to a place the user picks, edited or not (#76). */
+    onSaveCopy: ((format: ShareFormat, encrypt: Boolean, password: String) -> Unit)? = null
 ) {
     val pdfOnly = originalExt == null
     // Keyed on `visible` so every open starts fresh.
@@ -472,6 +474,17 @@ internal fun ExportShareDialog(
                             focusRequester = passwordFocus
                         )
                     }
+                }
+            }
+            if (onSaveCopy != null) {
+                // Page images are a set of files; everything else saves as one.
+                val canSave = canShare && format != ShareFormat.IMAGES
+                Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                    GlassDialogAction(
+                        stringResource(R.string.viewer_save_copy),
+                        { if (canSave) onSaveCopy(format, encrypt && pdfSelected, password) },
+                        enabled = canSave
+                    )
                 }
             }
         }

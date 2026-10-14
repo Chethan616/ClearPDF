@@ -329,6 +329,9 @@
     <string name="viewer_share_encrypt">Criptografar com senha</string>
     <string name="viewer_share_password_hint">Senha</string>
     <string name="viewer_share_button">Compartilhar</string>
+    <string name="viewer_save_copy">Guardar uma cópia</string>
+    <string name="viewer_save_copy_done">Cópia guardada</string>
+    <string name="viewer_save_copy_failed">Não foi possível guardar a cópia</string>
     <string name="viewer_share_pdf">PDF</string>
     <string name="viewer_share_normal">Normal</string>
     <string name="viewer_share_encrypted">Criptografado</string>
@@ -600,6 +603,10 @@
     <string name="text_edit_revert">Restaurar</string>
     <string name="settings_auto_dark_pages">Páginas escuras no modo escuro</string>
     <string name="settings_auto_dark_pages_desc">Os documentos abrem com páginas escuras sempre que o app estiver escuro</string>
+    <string name="settings_trim_margins">Cortar margens</string>
+    <string name="settings_trim_margins_desc">Corta a margem vazia das páginas para o texto preencher o ecrã</string>
+    <string name="settings_book_mode">Modo livro</string>
+    <string name="settings_book_mode_desc">Uma página de cada vez, deslize para o lado para virar a página</string>
     <string name="form_fill_previous">Campo anterior</string>
     <string name="form_fill_next">Próximo campo</string>
     <string name="tour_form_title">Preencha o formulário na página</string>

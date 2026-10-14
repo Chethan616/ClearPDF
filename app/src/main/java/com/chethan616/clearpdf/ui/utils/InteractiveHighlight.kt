@@ -2,7 +2,9 @@ package com.chethan616.clearpdf.ui.utils
 
 import com.chethan616.clearpdf.ui.components.MotionSettings
 import android.graphics.RuntimeShader
+import android.graphics.Shader
 import android.os.Build
+import androidx.annotation.RequiresApi
 import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
@@ -90,24 +92,10 @@ class InteractiveHighlight(
     // owns one of these, and `RuntimeShader(...)` compiles its AGSL on the calling thread — so a
     // screen of buttons used to pay one shader compile per button during composition (and a list
     // paid it again for every row it scrolled in), for a highlight most buttons never show.
-    private val shader: RuntimeShader? by lazy(LazyThreadSafetyMode.NONE) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            RuntimeShader(
-                """
-uniform float2 size;
-layout(color) uniform half4 color;
-uniform float radius;
-uniform float2 position;
-
-half4 main(float2 coord) {
-    float dist = distance(coord, position);
-    float intensity = smoothstep(radius, radius * 0.5, dist);
-    return color * intensity;
-}"""
-            )
-        } else {
-            null
-        }
+    // Typed Shader, not RuntimeShader: reading a RuntimeShader property casts to that class, which
+    // doesn't exist before Android 13, so every press crashed there (#80). Only PressGlow touches it.
+    private val shader: Shader? by lazy(LazyThreadSafetyMode.NONE) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) PressGlow.create() else null
     }
 
     val modifier: Modifier =
@@ -119,17 +107,14 @@ half4 main(float2 coord) {
                 val shader = this@InteractiveHighlight.shader
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && shader != null) {
                     drawRect(Color.White.copy(0.08f * progress + 0.05f * bloom), blendMode = BlendMode.Plus)
-                    shader.apply {
-                        val position = position(size, positionAnimation.value)
-                        setFloatUniform("size", size.width, size.height)
-                        setColorUniform("color", Color.White.copy(0.15f * progress + 0.10f * bloom).toArgb())
-                        setFloatUniform("radius", size.minDimension * (1.5f + 0.5f * bloom))
-                        setFloatUniform(
-                            "position",
-                            position.x.fastCoerceIn(0f, size.width),
-                            position.y.fastCoerceIn(0f, size.height)
-                        )
-                    }
+                    val position = position(size, positionAnimation.value)
+                    PressGlow.update(
+                        shader,
+                        size,
+                        Color.White.copy(0.15f * progress + 0.10f * bloom).toArgb(),
+                        size.minDimension * (1.5f + 0.5f * bloom),
+                        Offset(position.x.fastCoerceIn(0f, size.width), position.y.fastCoerceIn(0f, size.height))
+                    )
                     drawRect(ShaderBrush(shader), blendMode = BlendMode.Plus)
                 } else {
                     drawRect(Color.White.copy(0.25f * progress), blendMode = BlendMode.Plus)
@@ -137,6 +122,33 @@ half4 main(float2 coord) {
             }
             drawContent()
         }
+
+    /** Everything that names RuntimeShader, kept out of code that runs on older Android. */
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private object PressGlow {
+        fun create(): Shader = RuntimeShader(
+            """
+uniform float2 size;
+layout(color) uniform half4 color;
+uniform float radius;
+uniform float2 position;
+
+half4 main(float2 coord) {
+    float dist = distance(coord, position);
+    float intensity = smoothstep(radius, radius * 0.5, dist);
+    return color * intensity;
+}"""
+        )
+
+        fun update(shader: Shader, size: Size, color: Int, radius: Float, position: Offset) {
+            (shader as RuntimeShader).apply {
+                setFloatUniform("size", size.width, size.height)
+                setColorUniform("color", color)
+                setFloatUniform("radius", radius)
+                setFloatUniform("position", position.x, position.y)
+            }
+        }
+    }
 
     private fun release() {
         positionUpdateJob?.cancel()
@@ -215,6 +227,9 @@ half4 main(float2 coord) {
 fun GraphicsLayerScope.liquidPressTransform(h: InteractiveHighlight) {
     val width = size.width
     val height = size.height
+    // A control not laid out yet (or collapsed to nothing) has no size: dividing by it gives NaN,
+    // which Android 9's View-backed layers reject with a crash (#80).
+    if (!(width > 0f && height > 0f)) return
 
     val motion = MotionSettings.style
     val progress = h.pressProgress

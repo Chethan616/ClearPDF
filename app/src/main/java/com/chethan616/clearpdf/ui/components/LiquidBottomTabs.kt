@@ -184,8 +184,9 @@ fun LiquidBottomTabs(
                     },
                     highlight = { glassHighlight(GlassSettings.style) },
                     layerBlock = {
+                        // No width yet: 16 dp / 0 would be NaN, a crash on Android 9 (#80).
                         val progress = dampedDragAnimation.pressProgress
-                        val scale = lerp(1f, 1f + 16f.dp.toPx() / size.width, progress)
+                        val scale = if (size.width <= 0f) 1f else lerp(1f, 1f + 16f.dp.toPx() / size.width, progress)
                         scaleX = scale
                         scaleY = scale
                     },

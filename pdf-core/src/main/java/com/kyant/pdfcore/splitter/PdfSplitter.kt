@@ -58,6 +58,7 @@ class PdfSplitterImpl : PdfSplitter {
             val input = context.contentResolver.openInputStream(source.uri)
                 ?: throw IllegalArgumentException("Cannot open source")
             input.use { stream ->
+                // The source stays open until the output is saved: importPage shares its resources.
                 PDDocument.load(stream).use { doc ->
                     for (i in pages) {
                         if (i in 0 until doc.numberOfPages) {
@@ -65,11 +66,11 @@ class PdfSplitterImpl : PdfSplitter {
                             written++
                         }
                     }
+                    val out = context.contentResolver.openOutputStream(outputUri)
+                        ?: throw IllegalStateException("Cannot write split PDF output")
+                    out.use { output.save(it) }
                 }
             }
-            val out = context.contentResolver.openOutputStream(outputUri)
-                ?: throw IllegalStateException("Cannot write split PDF output")
-            out.use { output.save(it) }
         } finally {
             output.close()
         }

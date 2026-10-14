@@ -270,6 +270,9 @@
     <string name="viewer_share_encrypt">التشفير بكلمة مرور</string>
     <string name="viewer_share_password_hint">كلمة المرور</string>
     <string name="viewer_share_button">مشاركة</string>
+    <string name="viewer_save_copy">حفظ نسخة</string>
+    <string name="viewer_save_copy_done">تم حفظ النسخة</string>
+    <string name="viewer_save_copy_failed">تعذّر حفظ النسخة</string>
     <string name="viewer_share_pdf">PDF</string>
     <string name="viewer_share_images">صور (PNG)</string>
     <string name="viewer_share_text">نص (.txt)</string>
@@ -320,6 +323,10 @@
     <string name="text_edit_revert">استعادة</string>
     <string name="settings_auto_dark_pages">صفحات داكنة في الوضع الداكن</string>
     <string name="settings_auto_dark_pages_desc">تُفتح المستندات بصفحات داكنة كلما كان التطبيق داكنًا</string>
+    <string name="settings_trim_margins">قص هوامش الصفحة</string>
+    <string name="settings_trim_margins_desc">يقص الحواف الفارغة حول الصفحات ليملأ النص الشاشة</string>
+    <string name="settings_book_mode">وضع الكتاب</string>
+    <string name="settings_book_mode_desc">صفحة واحدة في كل مرة، اسحب جانبيًا لتقليب الصفحة</string>
     <string name="form_fill_previous">الحقل السابق</string>
     <string name="form_fill_next">الحقل التالي</string>
     <string name="tour_form_title">املأ النموذج على الصفحة</string>

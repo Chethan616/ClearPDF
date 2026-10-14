@@ -180,7 +180,14 @@ by hand must do the same. `settle`, `fade` and layout springs never bounce and i
   is separate from the app theme. A light app can show dark pages and a dark app white ones.
 - Inside a viewer, **chrome follows the document, never the app theme**:
   - PDF viewer: each bar samples the luminance behind it (`bandLuminance`, inverted in dark reader)
-    and picks `chipGlass(onLight)` / `chipInk(onLight)`.
+    and picks `chipGlass(onLight)` / `chipInk(onLight)`. It reads where the page really is
+    (`pageFrame`), so book mode's letterbox and trimmed margins count as dark desk, not paper.
+- Reading layouts are settings, not new screens: **Trim page margins** shows one document-wide
+  content rect (`PdfViewerViewModel.contentCrop`), laid out with `trimToContent` so markups, links,
+  form fields and selection keep their page coordinates; **Book mode** fits one page per screen,
+  a fling or sideways swipe turns exactly one page. Both stay on the vertical list.
+- Gestures on a page (moving a markup, a list box) consume their pointer; the viewer's pan skips
+  a one-finger drag a page child has claimed.
   - Word editor and spreadsheet: the screen provides `LocalIsDarkMode = reader mode` to everything
     inside it and draws its own desk (light grey `#E3E4E9`, near-black `#0D0D0F`) behind the pages,
     so every glass control, dropdown menu, dock, dialog and the status-bar icons follow the paper.

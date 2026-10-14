@@ -252,6 +252,9 @@
     <string name="viewer_share_encrypt">Cripta con password</string>
     <string name="viewer_share_password_hint">Password</string>
     <string name="viewer_share_button">Condividi</string>
+    <string name="viewer_save_copy">Salva una copia</string>
+    <string name="viewer_save_copy_done">Copia salvata</string>
+    <string name="viewer_save_copy_failed">Impossibile salvare la copia</string>
     <string name="viewer_share_pdf">PDF</string>
     <string name="viewer_share_normal">Normale</string>
     <string name="viewer_share_encrypted">Criptato</string>
@@ -755,6 +758,10 @@
     <string name="text_edit_revert">Ripristina</string>
     <string name="settings_auto_dark_pages">Pagine scure in modalità scura</string>
     <string name="settings_auto_dark_pages_desc">I documenti si aprono con pagine scure quando l\'app è in modalità scura</string>
+    <string name="settings_trim_margins">Rifila i margini</string>
+    <string name="settings_trim_margins_desc">Taglia il bordo vuoto delle pagine così il testo riempie lo schermo</string>
+    <string name="settings_book_mode">Modalità libro</string>
+    <string name="settings_book_mode_desc">Una pagina alla volta, scorri di lato per girare pagina</string>
     <string name="form_fill_previous">Campo precedente</string>
     <string name="form_fill_next">Campo successivo</string>
     <string name="tour_form_title">Compila il modulo sulla pagina</string>

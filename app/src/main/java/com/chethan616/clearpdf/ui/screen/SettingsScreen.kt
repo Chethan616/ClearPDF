@@ -39,6 +39,8 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Compress
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Crop
+import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.FileCopy
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -343,6 +345,34 @@ fun SettingsScreen(
                         onCheckedChange = {
                             autoDarkPages = it
                             com.chethan616.clearpdf.data.repository.AppSettingsManager.setAutoDarkPages(context, it)
+                        },
+                        backdrop = backdrop
+                    )
+                    SettingsDivider(isLight)
+                    // #85: page margins trimmed in the viewer, so the text fills the screen.
+                    var trimMargins by remember { mutableStateOf(com.chethan616.clearpdf.data.repository.AppSettingsManager.getTrimMargins(context)) }
+                    SettingsToggleRow(
+                        icon = Icons.Rounded.Crop,
+                        title = stringResource(R.string.settings_trim_margins),
+                        desc = stringResource(R.string.settings_trim_margins_desc),
+                        checked = trimMargins,
+                        onCheckedChange = {
+                            trimMargins = it
+                            com.chethan616.clearpdf.data.repository.AppSettingsManager.setTrimMargins(context, it)
+                        },
+                        backdrop = backdrop
+                    )
+                    SettingsDivider(isLight)
+                    // #84: one page per screen, turned with a sideways swipe.
+                    var bookMode by remember { mutableStateOf(com.chethan616.clearpdf.data.repository.AppSettingsManager.getBookMode(context)) }
+                    SettingsToggleRow(
+                        icon = Icons.Rounded.AutoStories,
+                        title = stringResource(R.string.settings_book_mode),
+                        desc = stringResource(R.string.settings_book_mode_desc),
+                        checked = bookMode,
+                        onCheckedChange = {
+                            bookMode = it
+                            com.chethan616.clearpdf.data.repository.AppSettingsManager.setBookMode(context, it)
                         },
                         backdrop = backdrop
                     )
