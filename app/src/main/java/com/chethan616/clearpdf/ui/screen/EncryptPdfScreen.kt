@@ -55,6 +55,7 @@ import com.chethan616.clearpdf.ui.components.GlassScreenScaffold
 import com.chethan616.clearpdf.ui.components.liquidGlassPanel
 import com.chethan616.clearpdf.ui.theme.LocalIsDarkMode
 import com.chethan616.clearpdf.ui.utils.rememberUISensor
+import com.chethan616.clearpdf.utils.displayNameOf
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.pdfcore.security.PdfSecurityService
 import kotlinx.coroutines.Dispatchers
@@ -173,7 +174,7 @@ fun EncryptPdfScreen(
 
             sourceUri?.let { source ->
                 BasicText(
-                    source.lastPathSegment ?: stringResource(R.string.viewer_title),
+                    remember(source) { displayNameOf(context, source) } ?: stringResource(R.string.viewer_title),
                     style = TextStyle(text, 14.sp, FontWeight.Medium),
                     maxLines = 1
                 )
