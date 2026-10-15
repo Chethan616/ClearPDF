@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
+import com.chethan616.clearpdf.ui.components.rememberAdaptiveInk
 import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 import com.chethan616.clearpdf.ui.components.GlassSearchPill
 import com.chethan616.clearpdf.ui.components.LiquidIconButton
@@ -63,6 +64,11 @@ internal fun PdfSearchBar(
         try { focusRequester.requestFocus() } catch (_: Exception) {}
     }
 
+    // Every control takes its ink from what is behind it; [fg] is the fallback.
+    val pillInk = rememberAdaptiveInk(fg)
+    val prevInk = rememberAdaptiveInk(fg)
+    val nextInk = rememberAdaptiveInk(fg)
+    val closeInk = rememberAdaptiveInk(fg)
     Row(
         Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -74,21 +80,21 @@ internal fun PdfSearchBar(
             hint = stringResource(R.string.viewer_find_hint),
             backdrop = backdrop,
             uiSensor = uiSensor,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).then(pillInk.modifier),
             focusRequester = focusRequester,
             // The bar's own slide-up is the entrance; a spring-in on the pill would stack on it.
             animateIn = false,
             // Same material as the top bar's title pill, not Home's heavier app chrome.
             viewerChrome = true,
             surfaceColor = surface,
-            contentColor = fg,
-            hintColor = fgSoft,
+            contentColor = pillInk.color,
+            hintColor = pillInk.soft,
             // The match count belongs with the query it counts, not out beside the buttons.
             trailing = {
                 if (matchCount > 0) {
                     BasicText(
                         "${currentMatchIndex + 1}/$matchCount",
-                        style = TextStyle(fgSoft, 11.sp, FontWeight.SemiBold)
+                        style = TextStyle(pillInk.soft, 11.sp, FontWeight.SemiBold)
                     )
                 } else if (query.isNotBlank()) {
                     BasicText(
@@ -104,22 +110,22 @@ internal fun PdfSearchBar(
         LiquidIconButton(
             onClick = onPrevMatch,
             backdrop = backdrop,
-            modifier = Modifier.size(FindBarButtonSize)
+            modifier = prevInk.modifier.size(FindBarButtonSize)
         ) {
-            Icon(Icons.Rounded.KeyboardArrowUp, stringResource(R.string.previous), Modifier.size(20.dp), fg)
+            Icon(Icons.Rounded.KeyboardArrowUp, stringResource(R.string.previous), Modifier.size(20.dp), prevInk.color)
         }
         LiquidIconButton(
             onClick = onNextMatch,
             backdrop = backdrop,
-            modifier = Modifier.size(FindBarButtonSize)
+            modifier = nextInk.modifier.size(FindBarButtonSize)
         ) {
-            Icon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.next), Modifier.size(20.dp), fg)
+            Icon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.next), Modifier.size(20.dp), nextInk.color)
         }
-        val closeTint = if (fg.luminance() > 0.5f) Color(0xFFD78A92) else Color(0xFFA84D58)
+        val closeTint = if (closeInk.color.luminance() > 0.5f) Color(0xFFD78A92) else Color(0xFFA84D58)
         LiquidIconButton(
             onClick = onClose,
             backdrop = backdrop,
-            modifier = Modifier.size(FindBarButtonSize),
+            modifier = closeInk.modifier.size(FindBarButtonSize),
             surfaceColor = closeTint.copy(alpha = 0.12f)
         ) {
             CloseCrossIcon(Modifier.size(13.dp), closeTint)

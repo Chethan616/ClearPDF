@@ -88,6 +88,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.theme.LiquidGlassColors
+import com.chethan616.clearpdf.ui.components.rememberAdaptiveInk
 import com.chethan616.clearpdf.ui.components.CloseCrossIcon
 import com.chethan616.clearpdf.ui.components.GlassMotion
 import com.chethan616.clearpdf.ui.components.GlassGuideCallout
@@ -737,6 +738,10 @@ internal fun PdfViewerBottomToolbar(
         }
 
         // ── Reader actions: editor, auto-scroll, speed, and ShareMorph share one bottom row.
+        // Each control takes its own ink from what is behind it; the bar's [fg] is the fallback.
+        val editorInk = rememberAdaptiveInk(fg)
+        val autoScrollInk = rememberAdaptiveInk(fg)
+        val speedInk = rememberAdaptiveInk(fg)
         AnimatedVisibility(
             // Same `selectorGate` as the tool chips above, so the controls fade out together
             // before the focused sub-toolbar arrives.
@@ -757,25 +762,25 @@ internal fun PdfViewerBottomToolbar(
                             if (!editorOpen) onSetActiveTool(PdfEditTool.None)
                         },
                         backdrop = backdrop,
-                        modifier = Modifier.size(ReaderControlSize),
+                        modifier = editorInk.modifier.size(ReaderControlSize),
                         tint = if (editorOpen) accent else Color.Unspecified,
                         surfaceColor = if (!editorOpen && (readerTourStep == 0 || readerTourStep == 2)) LiquidGlassColors.Blue.copy(alpha = 0.22f) else Color.Unspecified
                     ) {
-                        Icon(Icons.Rounded.Edit, stringResource(R.string.viewer_editor_tools), Modifier.size(20.dp), if (editorOpen) Color.White else fg)
+                        Icon(Icons.Rounded.Edit, stringResource(R.string.viewer_editor_tools), Modifier.size(20.dp), if (editorOpen) Color.White else editorInk.color)
                     }
                 }
                 Box(Modifier.size(ReaderControlSize), contentAlignment = Alignment.Center) {
                     LiquidIconButton(
                         onClick = onToggleAutoScroll,
                         backdrop = backdrop,
-                        modifier = Modifier.size(ReaderControlSize),
+                        modifier = autoScrollInk.modifier.size(ReaderControlSize),
                         tint = if (autoScrollActive) LiquidGlassColors.Green else Color.Unspecified
                     ) {
                         Icon(
                             if (autoScrollActive) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             stringResource(if (autoScrollActive) R.string.viewer_auto_scroll_pause else R.string.viewer_auto_scroll_start),
                             Modifier.size(20.dp),
-                            if (autoScrollActive) Color.White else fg
+                            if (autoScrollActive) Color.White else autoScrollInk.color
                         )
                     }
                 }
@@ -788,12 +793,12 @@ internal fun PdfViewerBottomToolbar(
                     LiquidButton(
                         onClick = onCycleAutoScrollSpeed,
                         backdrop = backdrop,
-                        modifier = Modifier.widthIn(min = 72.dp),
+                        modifier = speedInk.modifier.widthIn(min = 72.dp),
                         surfaceColor = Color.Transparent
                     ) {
                         BasicText(
                             text = "${autoScrollSpeed}×",
-                            style = TextStyle(fg, 13.sp, FontWeight.SemiBold)
+                            style = TextStyle(speedInk.color, 13.sp, FontWeight.SemiBold)
                         )
                     }
                 }
@@ -805,6 +810,7 @@ internal fun PdfViewerBottomToolbar(
         }
 
         // Every document format uses the same ShareMorph position and open/share actions.
+        val shareInk = rememberAdaptiveInk(fg)
         AnimatedVisibility(
             visible = selectorGate && !showFindBar && !showSignaturePad,
             enter = fadeIn(tween(180)),
@@ -815,7 +821,8 @@ internal fun PdfViewerBottomToolbar(
                 size = ReaderControlSize,
                 backdrop = backdrop,
                 glass = if (readerTourStep == 1) LiquidGlassColors.Blue.copy(alpha = 0.2f) else pillGlass,
-                fg = fg,
+                fg = shareInk.color,
+                modifier = shareInk.modifier,
                 onOpen = onOpenAnotherPdf,
                 onShare = onShareDocument,
                 onShareModeChanged = { shareActive = it; onShareHoldChanged(it) }

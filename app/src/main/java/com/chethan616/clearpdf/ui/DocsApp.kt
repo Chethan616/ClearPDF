@@ -315,6 +315,8 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
             LocalGlassOverlayHost provides overlayHost,
             androidx.compose.ui.platform.LocalHapticFeedback provides haptics
         ) {
+            // Per-icon ink in the document viewers (each control samples what's behind it).
+            com.chethan616.clearpdf.ui.components.ProvideScreenInk {
             Box(Modifier.fillMaxSize()) {
                 // Captured layer = wallpaper + the live screen. The floating tab bar
                 // (below) samples THIS, so it reflects real content scrolling under it
@@ -561,6 +563,7 @@ fun DocsApp(shortcutRoute: String? = null, incomingPdfUri: android.net.Uri? = nu
 
                 // Last child: above the tab bar and dialogs, outside the layer it samples.
                 GlassOverlayLayer(overlayHost, contentBackdrop)
+            }
             }
         }
     }

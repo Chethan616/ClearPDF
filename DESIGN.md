@@ -75,6 +75,10 @@ chromatic aberration, vibrancy, brightness, tint, highlight, corners, plus prese
 - Over documents use `chipGlass(onLight)` and `chipInk(onLight)`, picking `onLight` from the content
   behind the control (the viewer's `bandLuminance`). **In dark reader mode, invert the luminance**
   (`1 - l`).
+- **Every viewer control picks its own ink** (PDF, PPT, Word, spreadsheet, find bar): wrap it with
+  `rememberAdaptiveInk(barInk)` and put `probe.modifier` first on the control. It reads the real
+  pixels at the control's corners and beside its glyph (`ProvideScreenInk`, a scaled window copy,
+  Android 8+), so two circles in one bar can differ. The bar's ink is only the fallback.
 - Vivid actions use the per-screen accent (`ToolAccents`, `LiquidGlassColors`) via `tint`.
 
 ---

@@ -140,6 +140,7 @@ import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.OnboardingManager
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.PdfPageBookmarksManager
+import com.chethan616.clearpdf.ui.components.rememberAdaptiveInk
 import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
 import com.chethan616.clearpdf.ui.components.GlassBottomSheet
 import com.chethan616.clearpdf.ui.components.DecryptingAnimation
@@ -1649,12 +1650,19 @@ fun PdfViewerScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier              = Modifier.fillMaxWidth()
                 ) {
+                    // Each control picks its own ink from what is behind it (book mode's letterbox,
+                    // a page edge, a photo), with the bar's band reading as the fallback.
+                    val backInk = rememberAdaptiveInk(topFg)
+                    val pillInk = rememberAdaptiveInk(topFg)
+                    val findInk = rememberAdaptiveInk(topFg)
+                    val moonInk = rememberAdaptiveInk(topFg)
                     // No `surfaceColor`, exactly as Home calls it: the circle paints nothing of its own
                     // and is pure refraction. Only the icon's colour adapts to the page.
                     GlassBackButton(
                         onBack = { requestExit() },
                         backdrop = contentBackdrop,
-                        foreground = topFg,
+                        modifier = backInk.modifier,
+                        foreground = backInk.color,
                         surfaceColor = Color.Unspecified,
                         onLongPressBack = if (hasUnsavedEdits) ({ requestExit() }) else LocalBackToLibraryAction.current,
                         longPressLabel = if (hasUnsavedEdits) stringResource(R.string.back) else null
@@ -1666,6 +1674,7 @@ fun PdfViewerScreen(
                         GlassTitlePill(
                             text = stringResource(R.string.viewer_page_of, currentPageIndex + 1, safePageCount),
                             backdrop = contentBackdrop,
+                            modifier = pillInk.modifier,
                             onClick = { showPageJumpDialog = true },
                             // Transparent, not omitted: omitting falls back to the theme's 0.35 tint,
                             // and this pill sits between two circles that paint nothing at all, so any
@@ -1673,7 +1682,7 @@ fun PdfViewerScreen(
                             // `drawRect(Color.Transparent)` is the same no-op `LiquidIconButton`
                             // performs when it is given no `surfaceColor`.
                             surfaceColor = Color.Transparent,
-                            contentColor = topFg,
+                            contentColor = pillInk.color,
                             // The enclosing AnimatedVisibility already slides and fades the whole bar
                             // in every time the chrome returns; the pill's own spring would stack on
                             // top of that and read as a stutter. Same call the find bar makes.
@@ -1686,19 +1695,21 @@ fun PdfViewerScreen(
                             if (showFindBar) viewModel.triggerOcrForAllPages(context)
                             else { focusManager.clearFocus(); viewModel.clearSearch(); findQuery = "" }
                         },
-                        backdrop = contentBackdrop
+                        backdrop = contentBackdrop,
+                        modifier = findInk.modifier
                     ) {
-                        Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), topFg)
+                        Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), findInk.color)
                     }
                     LiquidIconButton(
                         onClick = { darkPageOverride = !darkPageAppearance },
-                        backdrop = contentBackdrop
+                        backdrop = contentBackdrop,
+                        modifier = moonInk.modifier
                     ) {
                         Icon(
                             if (darkPageAppearance) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
                             stringResource(if (darkPageAppearance) R.string.viewer_page_colors_original else R.string.viewer_page_dark_mode),
                             Modifier.size(20.dp),
-                            topFg
+                            moonInk.color
                         )
                     }
                 }
