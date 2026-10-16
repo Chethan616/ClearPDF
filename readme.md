@@ -36,13 +36,17 @@ ClearPDF was featured by HowToMen. [Watch the video from 9:08](https://www.youtu
   <img src="screenshots/light%20home%20screen.jpg" width="24%" alt="ClearPDF home screen in light mode">
   <img src="screenshots/light%20pdf%20tools.jpg" width="24%" alt="ClearPDF PDF tools in light mode">
   <img src="screenshots/light%20settings%20screen.jpg" width="24%" alt="ClearPDF settings in light mode">
-  <img src="demo/3.jpg" width="24%" alt="ClearPDF PDF editing tools">
+  <img src="screenshots/docx%20editing.jpg" width="24%" alt="ClearPDF opening a Word document">
 </p>
 <p align="center">
   <img src="screenshots/dark%20home%20screen.jpg" width="24%" alt="ClearPDF home screen in dark mode">
   <img src="screenshots/dark%20pdf%20tools.jpg" width="24%" alt="ClearPDF PDF tools in dark mode">
   <img src="screenshots/dark%20settings%20screen.jpg" width="24%" alt="ClearPDF settings in dark mode">
-  <img src="demo/4.jpg" width="24%" alt="ClearPDF annotation tools">
+  <img src="screenshots/xlsx%20editing.jpg" width="24%" alt="ClearPDF editing a spreadsheet">
+</p>
+
+<p align="center">
+  <img src="screenshots/pdf_scroll.gif" width="40%" alt="Scrolling a PDF in the ClearPDF viewer">
 </p>
 
 Short walkthroughs: [onboarding](demo/1.mp4) · [PDF viewer](demo/2.mp4).
