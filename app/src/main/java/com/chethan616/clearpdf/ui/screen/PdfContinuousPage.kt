@@ -190,6 +190,11 @@ internal fun PdfContinuousPage(
     onMoveImageToPage: (fromPage: Int, img: PdfMarkup.ImageMarkup, toPage: Int) -> Boolean = { _, _, _ -> false }
 ) {
     var imageDragging by remember { mutableStateOf(false) }
+    // A dragged text box / shape / note can swing below this page's bottom edge toward the next
+    // page while still being moved. Compose doesn't clip a page's overlay to its own bounds, and
+    // the next page is a later LazyColumn item, so without raising this page too it drew on top
+    // of the markup being dragged over it.
+    var markupDragging by remember { mutableStateOf(false) }
     var draftPoints    by remember(page, activeTool) { mutableStateOf<List<Offset>>(emptyList()) }
     var draftRectStart by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
     var draftRectEnd   by remember(page, activeTool) { mutableStateOf<Offset?>(null) }
@@ -245,9 +250,10 @@ internal fun PdfContinuousPage(
 
     Box(
         modifier
-            // While an image is dragged across a page boundary, this page draws above its
-            // neighbours so the image isn't hidden behind the next page.
-            .zIndex(if (imageDragging) 1f else 0f)
+            // While an image or a selected text box / shape / note is dragged across a page
+            // boundary, this page draws above its neighbours so the markup isn't hidden behind
+            // the next page.
+            .zIndex(if (imageDragging || markupDragging) 1f else 0f)
             .fillMaxWidth()
             .padding(vertical = 6.dp)
             // The placeholder is trimmed too, so the page keeps its height when the bitmap lands.
@@ -734,6 +740,7 @@ internal fun PdfContinuousPage(
                                 total = Offset.Zero
                                 val pPage = Offset(local.x + (bb?.left ?: 0f) - pad, local.y + (bb?.top ?: 0f) - pad)
                                 mode = if (bb != null && cur.isResizable() && (pPage - bb.bottomRight).getDistance() <= 64f) 2 else 1
+                                markupDragging = true
                                 onInteraction()
                             },
                             onDrag = { ch, drag ->
@@ -745,8 +752,8 @@ internal fun PdfContinuousPage(
                                 marks[selectedMarkupIndex] = if (mode == 2) m0.resizedFrom(b0, total) else m0.translated(total)
                                 onInteraction()
                             },
-                            onDragEnd = { mode = 0; frozen = null },
-                            onDragCancel = { mode = 0; frozen = null }
+                            onDragEnd = { mode = 0; frozen = null; markupDragging = false },
+                            onDragCancel = { mode = 0; frozen = null; markupDragging = false }
                         )
                     }
             )
