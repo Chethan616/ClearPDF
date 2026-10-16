@@ -46,6 +46,8 @@ class PdfEditorImpl : PdfEditor {
             val input = context.contentResolver.openInputStream(source.uri)
                 ?: throw IllegalArgumentException("Cannot open source")
             input.use { stream ->
+                // importPage shares the source's fonts and images, so the source has to stay open
+                // until the output is saved ("COSStream has been closed" otherwise).
                 PDDocument.load(stream).use { doc ->
                     for (orig in order) {
                         if (orig !in 0 until doc.numberOfPages) continue
@@ -57,12 +59,12 @@ class PdfEditorImpl : PdfEditor {
                         }
                         written++
                     }
+                    if (written == 0) throw IllegalArgumentException("Result would have no pages")
+                    val out = context.contentResolver.openOutputStream(outputUri)
+                        ?: throw IllegalStateException("Cannot write edited PDF output")
+                    out.use { output.save(it) }
                 }
             }
-            if (written == 0) throw IllegalArgumentException("Result would have no pages")
-            val out = context.contentResolver.openOutputStream(outputUri)
-                ?: throw IllegalStateException("Cannot write edited PDF output")
-            out.use { output.save(it) }
         } finally {
             output.close()
         }

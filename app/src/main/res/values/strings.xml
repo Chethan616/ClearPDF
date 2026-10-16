@@ -285,6 +285,9 @@
     <string name="viewer_share_encrypt">Encrypt with password</string>
     <string name="viewer_share_password_hint">Password</string>
     <string name="viewer_share_button">Share</string>
+    <string name="viewer_save_copy">Save a copy</string>
+    <string name="viewer_save_copy_done">Copy saved</string>
+    <string name="viewer_save_copy_failed">Couldn\'t save the copy</string>
     <string name="viewer_share_pdf">PDF</string>
     <string name="viewer_share_images">Images (PNG)</string>
     <string name="viewer_share_text">Text (.txt)</string>
@@ -341,6 +344,10 @@
     <string name="text_edit_revert">Restore</string>
     <string name="settings_auto_dark_pages">Dark pages in dark mode</string>
     <string name="settings_auto_dark_pages_desc">Documents open with dark pages whenever the app is dark</string>
+    <string name="settings_trim_margins">Trim page margins</string>
+    <string name="settings_trim_margins_desc">Crops the empty border around pages so the text fills the screen</string>
+    <string name="settings_book_mode">Book mode</string>
+    <string name="settings_book_mode_desc">One page at a time, swipe sideways to turn the page</string>
     <string name="form_fill_previous">Previous field</string>
     <string name="form_fill_next">Next field</string>
     <string name="tour_form_title">Fill the form on the page</string>

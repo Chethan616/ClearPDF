@@ -185,6 +185,7 @@ import com.chethan616.clearpdf.docx.XNode
 import com.chethan616.clearpdf.docx.XmlScan
 import com.chethan616.clearpdf.docx.findPara
 import com.chethan616.clearpdf.docx.forEachPara
+import com.chethan616.clearpdf.ui.components.rememberAdaptiveInk
 import com.chethan616.clearpdf.ui.components.GlassBackButton
 import com.chethan616.clearpdf.ui.components.GlassColorPicker
 import com.chethan616.clearpdf.ui.components.GlassDialog
@@ -809,6 +810,12 @@ private fun DocxEditorContent(
             contentHorizontalPadding = 0.dp,
             headerHorizontalPadding = 12.dp,
             header = { headerBackdrop ->
+                // Each control takes its own ink from what is behind it; the paper's ink is the fallback.
+                val backInk = rememberAdaptiveInk(text)
+                val titleInk = rememberAdaptiveInk(text)
+                val findInk = rememberAdaptiveInk(text)
+                val paperInk = rememberAdaptiveInk(text)
+                val editInk = rememberAdaptiveInk(text)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -817,7 +824,8 @@ private fun DocxEditorContent(
                     GlassBackButton(
                         onBack = { requestBack() },
                         backdrop = headerBackdrop,
-                        foreground = text,
+                        modifier = backInk.modifier,
+                        foreground = backInk.color,
                         onLongPressBack = if (viewModel.dirty || editMode) ({ requestBack() }) else LocalBackToLibraryAction.current,
                         longPressLabel = if (viewModel.dirty || editMode) stringResource(R.string.back) else null
                     )
@@ -825,8 +833,9 @@ private fun DocxEditorContent(
                         GlassTitlePill(
                             text = (if (viewModel.dirty) "• " else "") + meta.fileName.ifBlank { stringResource(R.string.viewer_title) },
                             backdrop = headerBackdrop,
+                            modifier = titleInk.modifier,
                             surfaceColor = chipTint,
-                            contentColor = text
+                            contentColor = titleInk.color
                         )
                     }
                     if (viewModel.dirty && editable) {
@@ -839,14 +848,14 @@ private fun DocxEditorContent(
                         }
                     }
                     if (!editMode) {
-                        LiquidIconButton(onClick = { showSearch = true }, backdrop = headerBackdrop) {
-                            Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), text)
+                        LiquidIconButton(onClick = { showSearch = true }, backdrop = headerBackdrop, modifier = findInk.modifier) {
+                            Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), findInk.color)
                         }
-                        LiquidIconButton(onClick = onTogglePaper, backdrop = headerBackdrop) {
+                        LiquidIconButton(onClick = onTogglePaper, backdrop = headerBackdrop, modifier = paperInk.modifier) {
                             Icon(
                                 if (paperDark) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
                                 stringResource(if (paperDark) R.string.viewer_page_colors_original else R.string.viewer_page_dark_mode),
-                                Modifier.size(19.dp), text
+                                Modifier.size(19.dp), paperInk.color
                             )
                         }
                     }
@@ -854,10 +863,11 @@ private fun DocxEditorContent(
                         LiquidIconButton(
                             onClick = { if (editMode) exitEdit() else { editMode = true; showSearch = false; searchQuery = "" } },
                             backdrop = headerBackdrop,
+                            modifier = editInk.modifier,
                             surfaceColor = if (editMode) accent.copy(0.22f) else Color.Unspecified
                         ) {
                             if (editMode) BasicText(stringResource(R.string.sheet_done), style = TextStyle(accent, 13.sp, FontWeight.SemiBold))
-                            else Icon(Icons.Rounded.Edit, stringResource(R.string.sheet_edit), Modifier.size(19.dp), text)
+                            else Icon(Icons.Rounded.Edit, stringResource(R.string.sheet_edit), Modifier.size(19.dp), editInk.color)
                         }
                     }
                 }
@@ -1079,9 +1089,14 @@ private fun DocxEditorContent(
 
         // ── reading chrome: page counter, print, PDF layout and share ──
         if (doc != null && flat != null && !editMode && !showSearch) {
+            val pageInk = rememberAdaptiveInk(text)
+            val printInk = rememberAdaptiveInk(text)
+            val pdfInk = rememberAdaptiveInk(text)
+            val shareInk = rememberAdaptiveInk(text)
             Row(
                 Modifier.align(Alignment.BottomStart).navigationBarsPadding().padding(start = 12.dp, bottom = 10.dp)
                     .height(44.dp)
+                    .then(pageInk.modifier)
                     .viewerGlass(screenBackdrop.glass, chipTint, shape = { Capsule })
                     .clip(Capsule)
                     .liquidRowClick(corner = 22.dp) { showGoTo = true }
@@ -1091,7 +1106,7 @@ private fun DocxEditorContent(
                 BasicText(
                     stringResource(R.string.docx_page_of, currentPage + 1, flat.pages) +
                         if (zoom != 1f) "  ·  ${(zoom * 100).roundToInt()}%" else "",
-                    style = TextStyle(text, 12.sp, FontWeight.SemiBold),
+                    style = TextStyle(pageInk.color, 12.sp, FontWeight.SemiBold),
                     maxLines = 1
                 )
             }
@@ -1099,18 +1114,18 @@ private fun DocxEditorContent(
                 Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 12.dp, bottom = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                LiquidIconButton(onClick = { print() }, backdrop = screenBackdrop.glass, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Rounded.Print, stringResource(R.string.docx_print), Modifier.size(20.dp), text)
+                LiquidIconButton(onClick = { print() }, backdrop = screenBackdrop.glass, modifier = printInk.modifier.size(44.dp)) {
+                    Icon(Icons.Rounded.Print, stringResource(R.string.docx_print), Modifier.size(20.dp), printInk.color)
                 }
-                LiquidIconButton(onClick = { openAsPdf() }, backdrop = screenBackdrop.glass, modifier = Modifier.size(44.dp)) {
-                    Icon(Icons.Rounded.PictureAsPdf, stringResource(R.string.docx_open_as_pdf), Modifier.size(20.dp), text)
+                LiquidIconButton(onClick = { openAsPdf() }, backdrop = screenBackdrop.glass, modifier = pdfInk.modifier.size(44.dp)) {
+                    Icon(Icons.Rounded.PictureAsPdf, stringResource(R.string.docx_open_as_pdf), Modifier.size(20.dp), pdfInk.color)
                 }
                 LiquidIconButton(
                     onClick = { viewModel.currentFile(context) { u -> u?.let { shareFile(context, it) } } },
                     backdrop = screenBackdrop.glass,
-                    modifier = Modifier.size(44.dp)
+                    modifier = shareInk.modifier.size(44.dp)
                 ) {
-                    Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), text)
+                    Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), shareInk.color)
                 }
             }
         }

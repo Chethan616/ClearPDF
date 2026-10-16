@@ -271,6 +271,9 @@
     <string name="viewer_share_encrypt">Зашифровать паролем</string>
     <string name="viewer_share_password_hint">Пароль</string>
     <string name="viewer_share_button">Поделиться</string>
+    <string name="viewer_save_copy">Сохранить копию</string>
+    <string name="viewer_save_copy_done">Копия сохранена</string>
+    <string name="viewer_save_copy_failed">Не удалось сохранить копию</string>
     <string name="viewer_share_pdf">PDF</string>
     <string name="viewer_share_normal">Обычный</string>
     <string name="viewer_share_encrypted">Зашифрованный</string>
@@ -766,6 +769,10 @@
     <string name="text_edit_revert">Восстановить</string>
     <string name="settings_auto_dark_pages">Тёмные страницы в тёмной теме</string>
     <string name="settings_auto_dark_pages_desc">Документы открываются с тёмными страницами, когда приложение в тёмной теме</string>
+    <string name="settings_trim_margins">Обрезать поля</string>
+    <string name="settings_trim_margins_desc">Обрезает пустые края страниц, чтобы текст заполнял экран</string>
+    <string name="settings_book_mode">Режим книги</string>
+    <string name="settings_book_mode_desc">По одной странице, листайте вбок, чтобы перевернуть</string>
     <string name="form_fill_previous">Предыдущее поле</string>
     <string name="form_fill_next">Следующее поле</string>
     <string name="tour_form_title">Заполните форму на странице</string>

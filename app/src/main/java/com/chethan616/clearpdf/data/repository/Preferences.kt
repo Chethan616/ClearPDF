@@ -188,6 +188,14 @@ object AppSettingsManager {
     fun setInvertShareMorph(context: Context, enabled: Boolean) = prefs(context).edit().putBoolean("invert_share_morph", enabled).apply()
     fun setAutoDarkPages(context: Context, enabled: Boolean) = prefs(context).edit().putBoolean(KEY_AUTO_DARK_PAGES, enabled).apply()
 
+    /** The viewer trims the empty border around pages, so the text fills the screen (#85). */
+    fun getTrimMargins(context: Context): Boolean = prefs(context).getBoolean("trim_page_margins", false)
+    fun setTrimMargins(context: Context, enabled: Boolean) = prefs(context).edit().putBoolean("trim_page_margins", enabled).apply()
+
+    /** Book mode: one page per screen, a sideways swipe turns the page (#84). */
+    fun getBookMode(context: Context): Boolean = prefs(context).getBoolean("book_mode", false)
+    fun setBookMode(context: Context, enabled: Boolean) = prefs(context).edit().putBoolean("book_mode", enabled).apply()
+
     fun getReduceGlassMotion(context: Context): Boolean =
         prefs(context).getBoolean(KEY_REDUCE_GLASS_MOTION, false)
 

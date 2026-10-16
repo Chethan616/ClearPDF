@@ -77,8 +77,10 @@ object PdfSecurityService {
                         setCanModify(false)
                         setCanExtractContent(true)
                     }
-                    val policy = StandardProtectionPolicy(password, password, permissions).apply {
-                        encryptionKeyLength = 128
+                    // AES-256, and an owner password of its own: with owner == user the open password also
+                    // grants owner rights, so the "no modify" permission would mean nothing.
+                    val policy = StandardProtectionPolicy(randomOwnerPassword(), password, permissions).apply {
+                        encryptionKeyLength = 256
                     }
                     document.protect(policy)
                     context.contentResolver.openOutputStream(destinationUri)?.use { output ->
@@ -90,6 +92,11 @@ object PdfSecurityService {
             if (isPasswordError(error)) throw PasswordRequiredException()
             throw error
         }
+    }
+
+    private fun randomOwnerPassword(): String {
+        val bytes = ByteArray(24).also { java.security.SecureRandom().nextBytes(it) }
+        return android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
     }
 
     private fun isPasswordError(error: Throwable): Boolean {

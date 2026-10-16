@@ -184,6 +184,8 @@ data class PdfViewerUiState(
     val ocrBlocksByPage: Map<Int, List<OcrTextBlock>> = emptyMap(),
     /** The PDF's fillable form boxes, by page — filled in place in Edit mode (#68). */
     val formWidgetsByPage: Map<Int, List<com.kyant.pdfcore.form.PdfFormWidget>> = emptyMap(),
+    /** The PDF's own links (web addresses, jumps inside the document), by page (#83). */
+    val linksByPage: Map<Int, List<com.kyant.pdfcore.link.PdfLink>> = emptyMap(),
     val ocrPagesInProgress: Set<Int> = emptySet(),
     val isExporting: Boolean = false,
     val exportMessage: String? = null,
@@ -382,6 +384,7 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     pageBitmaps = List(doc.pageCount) { if (it == resumePage) firstPaint else null },
                     ocrBlocksByPage = emptyMap(),
                     formWidgetsByPage = emptyMap(),
+                    linksByPage = emptyMap(),
                     ocrPagesInProgress = emptySet(),
                     isExporting = false,
                     exportMessage = null,
@@ -390,14 +393,24 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     showOfficeEngineHint = com.chethan616.clearpdf.office.OfficeEngine.shouldOfferHint(context, displayName),
                     renderedByOfficeEngine = renderedUri.path?.contains("/office-pdf/") == true
                 )
-                // Fillable fields, read off the main thread; most PDFs have none and stay empty.
+                // Fillable fields and links, read off the main thread in one pass; most PDFs have
+                // no form and stay empty.
                 val formDocUri = doc.uri
                 viewModelScope.launch {
-                    val widgets = withContext(Dispatchers.IO) {
-                        runCatching { com.kyant.pdfcore.form.PdfFormWidgets.read(context, formDocUri) }.getOrDefault(emptyMap())
+                    val (widgets, links) = withContext(Dispatchers.IO) {
+                        runCatching {
+                            com.kyant.pdfcore.internal.PdfBox.ensureInitialized(context)
+                            context.contentResolver.openInputStream(formDocUri)?.use { input ->
+                                com.tom_roush.pdfbox.pdmodel.PDDocument.load(input).use { pd ->
+                                    val w = runCatching { com.kyant.pdfcore.form.PdfFormWidgets.read(pd) }.getOrDefault(emptyMap())
+                                    val l = runCatching { com.kyant.pdfcore.link.PdfLinks.read(pd) }.getOrDefault(emptyMap())
+                                    w to l
+                                }
+                            }
+                        }.getOrNull() ?: (emptyMap<Int, List<com.kyant.pdfcore.form.PdfFormWidget>>() to emptyMap())
                     }
-                    if (widgets.isNotEmpty() && _uiState.value.document?.uri == formDocUri) {
-                        _uiState.value = _uiState.value.copy(formWidgetsByPage = widgets)
+                    if ((widgets.isNotEmpty() || links.isNotEmpty()) && _uiState.value.document?.uri == formDocUri) {
+                        _uiState.value = _uiState.value.copy(formWidgetsByPage = widgets, linksByPage = links)
                     }
                 }
                 // The ORIGINAL uri, deliberately — not `openedUri`.
@@ -510,6 +523,42 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         return withContext(AppDispatchers.pdf) {
             runCatching { openPdfUseCase.renderRegion(doc, pageIndex, region, pageWidthPx, outWidth, outHeight) }.getOrNull()
         }?.takeIf { _uiState.value.document?.uri == doc.uri }
+    }
+
+    /**
+     * The part of the page that holds content, as a 0..1 rect shared by the whole document (#85).
+     * A few pages spread through the document are measured at thumbnail size and each side takes
+     * the generous end of what they print on, so a cover picture or a short chapter page doesn't
+     * decide it, and every page is trimmed the same (the text keeps one size). Null when the
+     * margins are too thin to be worth trimming.
+     */
+    suspend fun contentCrop(): android.graphics.RectF? {
+        val doc = _uiState.value.document ?: return null
+        val count = _uiState.value.pageCount
+        if (count <= 0) return null
+        val samples = minOf(count, 8)
+        val pages = (0 until samples).map { if (samples == 1) 0 else (it * (count - 1).toFloat() / (samples - 1)).toInt() }.distinct()
+        val found = ArrayList<android.graphics.RectF>()
+        for (p in pages) {
+            val bmp = withContext(AppDispatchers.pdf) { runCatching { openPdfUseCase.renderPage(doc, p, 240) }.getOrNull() } ?: continue
+            val r = withContext(Dispatchers.Default) { pageContentBounds(bmp) }
+            bmp.recycle()
+            if (_uiState.value.document?.uri != doc.uri) return null
+            if (r != null) found += r
+        }
+        if (found.isEmpty()) return null
+        fun low(v: List<Float>) = v.sorted()[(v.size - 1) / 4]
+        fun high(v: List<Float>) = v.sorted()[v.size - 1 - (v.size - 1) / 4]
+        val pad = 0.02f
+        val crop = android.graphics.RectF(
+            (low(found.map { it.left }) - pad).coerceAtLeast(0f),
+            (low(found.map { it.top }) - pad).coerceAtLeast(0f),
+            (high(found.map { it.right }) + pad).coerceAtMost(1f),
+            (high(found.map { it.bottom }) + pad).coerceAtMost(1f)
+        )
+        if (crop.width() < 0.25f || crop.height() < 0.25f) return null
+        if (crop.width() > 0.94f && crop.height() > 0.94f) return null
+        return crop
     }
 
     fun renderPage(context: Context, pageIndex: Int, targetWidthPx: Int = DEFAULT_RENDER_WIDTH) {
@@ -1166,3 +1215,36 @@ private fun OcrTextBlock.findMatches(lower: String, page: Int): List<FindMatch> 
     }
     return out
 }
+
+/**
+ * Where a rendered page prints anything, as a 0..1 rect, or null for a blank page: every pixel that
+ * differs clearly from the paper (the commonest corner colour), ignoring rows and columns with a
+ * single stray speck.
+ */
+internal fun pageContentBounds(page: Bitmap): android.graphics.RectF? = runCatching {
+    if (page.isRecycled || page.width < 8 || page.height < 8) return null
+    val w = minOf(page.width, 200)
+    val h = (page.height * w / page.width.toFloat()).toInt().coerceAtLeast(8)
+    val small = if (w == page.width) page else Bitmap.createScaledBitmap(page, w, h, true)
+    val px = IntArray(small.width * small.height)
+    small.getPixels(px, 0, small.width, 0, 0, small.width, small.height)
+    val sw = small.width
+    val sh = small.height
+    if (small !== page) small.recycle()
+    val corners = listOf(px[0], px[sw - 1], px[(sh - 1) * sw], px[sh * sw - 1])
+    val paper = corners.groupingBy { it }.eachCount().maxByOrNull { it.value }!!.key
+    val pr = (paper shr 16) and 0xFF; val pg = (paper shr 8) and 0xFF; val pb = paper and 0xFF
+    val rowHits = IntArray(sh)
+    val colHits = IntArray(sw)
+    for (y in 0 until sh) for (x in 0 until sw) {
+        val c = px[y * sw + x]
+        val d = kotlin.math.abs(((c shr 16) and 0xFF) - pr) + kotlin.math.abs(((c shr 8) and 0xFF) - pg) + kotlin.math.abs((c and 0xFF) - pb)
+        if (d > 60) { rowHits[y]++; colHits[x]++ }
+    }
+    val top = rowHits.indexOfFirst { it >= 2 }
+    val bottom = rowHits.indexOfLast { it >= 2 }
+    val left = colHits.indexOfFirst { it >= 2 }
+    val right = colHits.indexOfLast { it >= 2 }
+    if (top < 0 || left < 0 || bottom <= top || right <= left) return null
+    android.graphics.RectF(left / sw.toFloat(), top / sh.toFloat(), (right + 1) / sw.toFloat(), (bottom + 1) / sh.toFloat())
+}.getOrNull()

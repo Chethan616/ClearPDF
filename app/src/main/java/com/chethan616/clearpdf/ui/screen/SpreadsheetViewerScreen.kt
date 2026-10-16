@@ -133,6 +133,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import com.chethan616.clearpdf.R
+import com.chethan616.clearpdf.ui.components.rememberAdaptiveInk
 import com.chethan616.clearpdf.ui.components.GlassBottomSheet
 import com.chethan616.clearpdf.ui.components.GlassGuideCallout
 import com.chethan616.clearpdf.ui.components.GlassBackButton
@@ -489,6 +490,12 @@ private fun SpreadsheetViewerContent(
             contentHorizontalPadding = 12.dp,
             headerHorizontalPadding = 12.dp,
             header = { headerBackdrop ->
+                // Each control takes its own ink from what is behind it; the sheet's ink is the fallback.
+                val backInk = rememberAdaptiveInk(text)
+                val titleInk = rememberAdaptiveInk(text)
+                val findInk = rememberAdaptiveInk(text)
+                val sheetInk = rememberAdaptiveInk(text)
+                val editInk = rememberAdaptiveInk(text)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -497,7 +504,8 @@ private fun SpreadsheetViewerContent(
                     GlassBackButton(
                         onBack = { requestBack() },
                         backdrop = headerBackdrop,
-                        foreground = text,
+                        modifier = backInk.modifier,
+                        foreground = backInk.color,
                         onLongPressBack = if (state.dirty || editing) ({ requestBack() }) else LocalBackToLibraryAction.current,
                         longPressLabel = if (state.dirty || editing) stringResource(R.string.back) else null
                     )
@@ -505,8 +513,10 @@ private fun SpreadsheetViewerContent(
                         GlassTitlePill(
                             text = (if (state.dirty) "• " else "") + state.fileName.ifBlank { stringResource(R.string.viewer_title) },
                             backdrop = headerBackdrop,
+                            modifier = titleInk.modifier,
                             // Clear like the header circles beside it (the PDF viewer's page pill too).
-                            surfaceColor = Color.Transparent
+                            surfaceColor = Color.Transparent,
+                            contentColor = titleInk.color
                         )
                     }
                     if (state.dirty && state.editable) {
@@ -524,14 +534,14 @@ private fun SpreadsheetViewerContent(
                         }
                     }
                     if (!editMode) {
-                        LiquidIconButton(onClick = { showSearch = true }, backdrop = headerBackdrop) {
-                            Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), text)
+                        LiquidIconButton(onClick = { showSearch = true }, backdrop = headerBackdrop, modifier = findInk.modifier) {
+                            Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), findInk.color)
                         }
-                        LiquidIconButton(onClick = onToggleSheet, backdrop = headerBackdrop) {
+                        LiquidIconButton(onClick = onToggleSheet, backdrop = headerBackdrop, modifier = sheetInk.modifier) {
                             Icon(
                                 if (sheetDark) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
                                 stringResource(if (sheetDark) R.string.viewer_page_colors_original else R.string.viewer_page_dark_mode),
-                                Modifier.size(19.dp), text
+                                Modifier.size(19.dp), sheetInk.color
                             )
                         }
                     }
@@ -542,10 +552,11 @@ private fun SpreadsheetViewerContent(
                                 else { editMode = true; showSearch = false }
                             },
                             backdrop = headerBackdrop,
+                            modifier = editInk.modifier,
                             surfaceColor = if (editMode || showSpreadsheetTour) accent.copy(0.22f) else Color.Unspecified
                         ) {
                             if (editMode) BasicText(stringResource(R.string.sheet_done), style = TextStyle(accent, 13.sp, FontWeight.SemiBold))
-                            else Icon(Icons.Rounded.Edit, stringResource(R.string.sheet_edit), Modifier.size(19.dp), if (showSpreadsheetTour) accent else text)
+                            else Icon(Icons.Rounded.Edit, stringResource(R.string.sheet_edit), Modifier.size(19.dp), if (showSpreadsheetTour) accent else editInk.color)
                         }
                     }
                 }
@@ -726,6 +737,7 @@ private fun SpreadsheetViewerContent(
         // one control only needs to do the one thing its icon says. No long-press: it used to open
         // a PDF export, which surprised people tapping-and-holding by habit.
         if (sheet != null && !showSearch && !editMode) {
+            val shareInk = rememberAdaptiveInk(text)
             LiquidIconButton(
                 onClick = { viewModel.shareableUri(context) { u -> u?.let { shareFile(context, it) } } },
                 backdrop = screenBackdrop.glass,
@@ -735,8 +747,9 @@ private fun SpreadsheetViewerContent(
                 // asks for (that's also why the old 52dp here rendered at a full 52dp, not 40dp --
                 // visibly oversized next to the header's unmodified 40dp icon buttons).
                 modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 12.dp, bottom = 10.dp).size(44.dp)
+                    .then(shareInk.modifier)
             ) {
-                Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), text)
+                Icon(Icons.Rounded.IosShare, stringResource(R.string.viewer_share_document), Modifier.size(20.dp), shareInk.color)
             }
         }
 

@@ -7,6 +7,8 @@ import androidx.compose.runtime.derivedStateOf
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.width
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -138,6 +140,7 @@ import com.chethan616.clearpdf.data.repository.AppSettingsManager
 import com.chethan616.clearpdf.data.repository.OnboardingManager
 import com.chethan616.clearpdf.data.repository.RecentFilesManager
 import com.chethan616.clearpdf.data.repository.PdfPageBookmarksManager
+import com.chethan616.clearpdf.ui.components.rememberAdaptiveInk
 import com.chethan616.clearpdf.ui.components.UnsavedChangesDialog
 import com.chethan616.clearpdf.ui.components.GlassBottomSheet
 import com.chethan616.clearpdf.ui.components.DecryptingAnimation
@@ -247,6 +250,13 @@ fun PdfViewerScreen(
     // Only the moon button's choice is saved; until it is used the pages follow the theme, so a
     // first frame drawn before the theme setting applies can't freeze the wrong colours.
     var darkPageOverride by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    // Settings > Appearance: trim page margins (#85) and book mode (#84), read once per document.
+    val trimMargins = remember { com.chethan616.clearpdf.data.repository.AppSettingsManager.getTrimMargins(context) }
+    val bookMode = remember { com.chethan616.clearpdf.data.repository.AppSettingsManager.getBookMode(context) }
+    var contentCrop by remember { mutableStateOf<android.graphics.RectF?>(null) }
+    LaunchedEffect(state.document?.uri, state.pageCount) {
+        contentCrop = if (trimMargins && state.document != null) viewModel.contentCrop() else null
+    }
     val darkPageAppearance = darkPageOverride ?: autoDarkPages
     var bookmarkedPages by remember { mutableStateOf<List<Int>>(emptyList()) }
     // Annotation (text box / sticky note) editing
@@ -432,6 +442,14 @@ fun PdfViewerScreen(
     // glides longer and settles smoothly (vs the stiffer platform spline), so even 2–3 page
     // docs feel continuous instead of stopping abruptly. Only the fling curve changes — the
     // scroll mechanics and the default stretch overscroll (rubber-band at the edges) are intact.
+    // Book mode (#84): a fling turns exactly one page, however hard, like a page of a book.
+    val bookSnap = remember(listState) {
+        val base = androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider(listState)
+        object : androidx.compose.foundation.gestures.snapping.SnapLayoutInfoProvider by base {
+            override fun calculateApproachOffset(velocity: Float, decayOffset: Float): Float = 0f
+        }
+    }
+    val bookFling = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(bookSnap)
     val iosPageDecay = remember { androidx.compose.animation.core.exponentialDecay<Float>(frictionMultiplier = 0.55f) }
     val pageFling = remember(iosPageDecay) {
         object : androidx.compose.foundation.gestures.FlingBehavior {
@@ -845,6 +863,27 @@ fun PdfViewerScreen(
         val offset = if (canvas != null) (w.top * canvas.height - viewport * 0.22f).toInt() else 0
         runCatching { listState.animateScrollToItem(w.pageIndex, offset.coerceAtLeast(0)) }
     }
+    // A link on the page (#83): a jump inside the document scrolls there; a web or mail address
+    // goes to the app that handles it. Other schemes (javascript:, file:, intent:) are ignored.
+    val onOpenLink: (com.kyant.pdfcore.link.PdfLink) -> Unit = { link ->
+        val target = link.targetPage
+        if (target != null) {
+            val canvas = pageCanvasSizes[target]
+            val top = link.targetTop
+            val offset = if (canvas != null && top != null) (top * canvas.height).toInt() else 0
+            viewerScope.launch {
+                runCatching { listState.animateScrollToItem(target.coerceIn(0, safePageCount - 1), offset.coerceAtLeast(0)) }
+            }
+        } else link.uri?.let { raw ->
+            val withScheme = if (Regex("^[a-zA-Z][a-zA-Z0-9+.-]*:").containsMatchIn(raw)) raw else "https://$raw"
+            val parsed = android.net.Uri.parse(withScheme)
+            if (parsed.scheme?.lowercase() in setOf("http", "https", "mailto", "tel")) {
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, parsed).addCategory(Intent.CATEGORY_BROWSABLE))
+                }
+            }
+        }
+    }
     // A dropdown field's open menu, and its field's box in window space.
     var formMenu by remember { mutableStateOf<com.kyant.pdfcore.form.PdfFormWidget?>(null) }
     var formMenuAnchor by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
@@ -1002,7 +1041,9 @@ fun PdfViewerScreen(
             .fillMaxSize()
             .background(if (isLight) Color(0xFF0A0E14).copy(0.85f) else Color(0xFF020305).copy(0.88f))
     ) {
-        val renderWidthPx = with(LocalDensity.current) { maxWidth.roundToPx() }.coerceAtLeast(720)
+        // Trimmed margins lay the page out wider than the screen, so it renders wider too.
+        val renderWidthPx = (with(LocalDensity.current) { maxWidth.roundToPx() }.coerceAtLeast(720) /
+            (contentCrop?.width() ?: 1f)).roundToInt().coerceAtMost(4096)
 
         // Re-render the focused page after zoom settles. Scaling a screen-sized bitmap makes PDF
         // text and fine diagrams soft; a bounded higher-resolution page keeps pinch zoom readable
@@ -1071,6 +1112,19 @@ fun PdfViewerScreen(
                 }
         }
 
+        // Book mode / trimmed margins: where each page really sits, for the ink sampling below.
+        val pageFrameOf: (Int) -> FloatArray? = { p ->
+            val c = contentCrop
+            val o = textSelection.pageOrigin(p)
+            val sz = textSelection.pageSize(p)
+            when {
+                !bookMode && c == null -> null
+                // Not placed yet: a book-mode page sits inside letterbox, so count nothing for now.
+                o == null || sz == null || sz.height <= 0f -> if (bookMode) floatArrayOf(0f, 1f, 0f, 0f) else null
+                else -> floatArrayOf(o.y, sz.height, o.y + (c?.top ?: 0f) * sz.height, o.y + (c?.bottom ?: 1f) * sz.height)
+            }
+        }
+
         // ── Adaptive control ink, sampled per bar (Apple-style) ──────────────────────────────
         // Each bar reads the luminance of the content *directly behind it*, so on a page that is a
         // dark image up top and a white canvas below, the top bar goes white while the bottom toolbar
@@ -1089,7 +1143,7 @@ fun PdfViewerScreen(
         LaunchedEffect(containerHeightPx, darkPageAppearance) {
             var firstSample = true
             snapshotFlow {
-                bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, 0f, topBandBottomPx, darkPageAppearance)
+                bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, 0f, topBandBottomPx, darkPageAppearance, pageFrame = pageFrameOf)
             }.collect { lum ->
                 if (firstSample) {
                     topBarLight = lum > 0.60f
@@ -1102,7 +1156,7 @@ fun PdfViewerScreen(
             snapshotFlow {
                 val h = containerHeightPx.toFloat()
                 if (h <= 0f) 0f
-                else bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, h - bottomBandDepthPx, h, darkPageAppearance)
+                else bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, h - bottomBandDepthPx, h, darkPageAppearance, pageFrame = pageFrameOf)
             }.collect { lum ->
                 if (firstSample) {
                     bottomBarLight = lum > 0.60f
@@ -1136,7 +1190,7 @@ fun PdfViewerScreen(
                 if (h <= 0f) 0f
                 else {
                     val bottom = (h - imeInset.getBottom(density)).coerceAtLeast(bottomBandDepthPx)
-                    bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, bottom - bottomBandDepthPx, bottom, darkPageAppearance)
+                    bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, bottom - bottomBandDepthPx, bottom, darkPageAppearance, pageFrame = pageFrameOf)
                 }
             }.collect { lum ->
                 if (lum > 0.62f) findBarLight = true else if (lum < 0.58f) findBarLight = false
@@ -1159,6 +1213,29 @@ fun PdfViewerScreen(
                 Modifier
                     .fillMaxSize()
                     .onSizeChanged { containerHeightPx = it.height; containerWidthPx = it.width }
+                    // Book mode (#84): a sideways swipe turns the page. Outside the pan handler, so a
+                    // zoomed-in pan still sees the finger first; a markup drag consumes it first.
+                    .then(
+                        if (!bookMode || activeTool != PdfEditTool.None) Modifier
+                        else Modifier.pointerInput(state.pageCount) {
+                            var dx = 0f
+                            detectHorizontalDragGestures(
+                                onDragStart = { dx = 0f },
+                                onHorizontalDrag = { _, amount -> dx += amount },
+                                onDragEnd = {
+                                    if (scale <= 1.01f && !textSelection.gestureActive && kotlin.math.abs(dx) > 48.dp.toPx()) {
+                                        val info = listState.layoutInfo
+                                        val shown = info.visibleItemsInfo
+                                            .minByOrNull { kotlin.math.abs(it.offset + it.size / 2 - info.viewportEndOffset / 2) }
+                                            ?.index ?: listState.firstVisibleItemIndex
+                                        val target = (shown + if (dx < 0f) 1 else -1).coerceIn(0, safePageCount - 1)
+                                        viewerScope.launch { listState.animateScrollToItem(target) }
+                                        lastInteractionAtMs = System.currentTimeMillis()
+                                    }
+                                }
+                            )
+                        }
+                    )
                     // Long-press → select word. First in the chain so, once it fires, it can consume
                     // in the Initial pass ahead of the zoom/tap handlers and the page list.
                     .pdfTextSelectionGestures(
@@ -1176,17 +1253,31 @@ fun PdfViewerScreen(
                             awaitEachGesture {
                                 awaitFirstDown(requireUnconsumed = false)
                                 var accumulatedPan = Offset.Zero
+                                // A one-finger pan only starts past touch slop, and a drag a page
+                                // child claimed first (moving or resizing a markup, an image) keeps
+                                // the finger for the whole gesture: the page stays put under it (#88).
+                                var childOwnsDrag = false
+                                var panStarted = false
                                 do {
                                     val event = awaitPointerEvent()
                                     // A selection drag owns the finger: no one-finger pan underneath it.
                                     if (textSelection.gestureActive) continue
+                                    val oneFinger = event.changes.count { it.pressed } <= 1
+                                    if (oneFinger && event.changes.any { it.isConsumed }) childOwnsDrag = true
+                                    if (childOwnsDrag && oneFinger) continue
                                     val zoomChange = event.calculateZoom()
-                                    val panChange  = event.calculatePan()
+                                    var panChange  = event.calculatePan()
                                     accumulatedPan += panChange
                                     // A tap may hide the chrome, but must not stop reading. Stop only
                                     // after a real drag or pinch takes ownership of the page.
                                     if (autoScroll && (zoomChange != 1f || accumulatedPan.getDistance() > viewConfiguration.touchSlop)) {
                                         autoScroll = false
+                                    }
+                                    if (!panStarted) {
+                                        if (oneFinger && zoomChange == 1f && accumulatedPan.getDistance() <= viewConfiguration.touchSlop) continue
+                                        // Catch up on the movement held back while waiting for slop.
+                                        panStarted = true
+                                        panChange = accumulatedPan
                                     }
                                     val zoomed = scale > 1.001f
                                     if (zoomChange != 1f || zoomed) {
@@ -1273,7 +1364,7 @@ fun PdfViewerScreen(
                 ) {
                     LazyColumn(
                         state = listState,
-                        flingBehavior = pageFling,
+                        flingBehavior = if (bookMode) bookFling else pageFling,
                         userScrollEnabled = activeTool == PdfEditTool.None && scale <= 1.01f,
                         modifier = Modifier.fillMaxSize(),
                         // Center the block when it's shorter than the viewport (e.g. a
@@ -1281,9 +1372,22 @@ fun PdfViewerScreen(
                         // the top with a dark blank half below. No effect once content
                         // overflows (multi-page / zoomed), where it scrolls normally.
                         verticalArrangement = Arrangement.Center,
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 4.dp, bottom = 4.dp + extraBottomPadding)
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            top = if (bookMode) 0.dp else 4.dp,
+                            bottom = (if (bookMode) 0.dp else 4.dp) + extraBottomPadding
+                        )
                     ) {
                         items(count = safePageCount, key = { it }, contentType = { "pdfPage" }) { page ->
+                            // Book mode (#84): each page fits the screen, centred in a screen-tall slot.
+                            val bookSlot = if (bookMode) Modifier.fillParentMaxSize() else null
+                            val bookPage = if (!bookMode) Modifier else {
+                                val sz = pageBitmapSizes[page] ?: pageBitmapSizes.values.firstOrNull { it.width > 0f && it.height > 0f }
+                                val aspect = sz?.takeIf { it.height > 0f }
+                                    ?.let { (it.width * (contentCrop?.width() ?: 1f)) / (it.height * (contentCrop?.height() ?: 1f)) }
+                                val gap = with(density) { 12.dp.toPx() }
+                                if (aspect == null || containerHeightPx <= 0 || containerWidthPx <= 0) Modifier
+                                else Modifier.width(with(density) { minOf(containerWidthPx.toFloat(), (containerHeightPx - gap) * aspect).toDp() })
+                            }
                             // Re-request whenever this page has no bitmap (covers cache eviction
                             // while the item stays composed in the lazy list).
                             val needsRender = state.pageBitmaps.getOrNull(page) == null
@@ -1294,10 +1398,13 @@ fun PdfViewerScreen(
                             LaunchedEffect(page, darkPageAppearance, needsRender) {
                                 if (darkPageAppearance && !needsRender) viewModel.ensureNightPhotos(context, page)
                             }
+                            OptionalSlot(bookSlot) {
                             PdfContinuousPage(
                                 page               = page,
                                 backdrop           = backdrop,
                                 bitmap             = state.pageBitmaps.getOrNull(page),
+                                modifier           = bookPage,
+                                crop               = contentCrop,
                                 darkPageAppearance = darkPageAppearance,
                                 nightPhotos        = if (darkPageAppearance) viewModel.nightPhotos[page].orEmpty() else emptyList(),
                                 marks              = getPageMarks(page),
@@ -1318,6 +1425,8 @@ fun PdfViewerScreen(
                                     val i = formOrder.indexOfFirst { it.key == w.key }
                                     focusedForm = formOrder.getOrNull(i + 1)
                                 },
+                                links              = state.linksByPage[page].orEmpty(),
+                                onOpenLink         = onOpenLink,
                                 ocrBlocks          = state.ocrBlocksByPage[page].orEmpty(),
                                 findMatches        = state.findMatches,
                                 currentMatchIndex  = state.currentMatchIndex,
@@ -1467,6 +1576,7 @@ fun PdfViewerScreen(
                                     }
                                 }
                             )
+                            }
                         }
                     }
                 }
@@ -1540,12 +1650,19 @@ fun PdfViewerScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier              = Modifier.fillMaxWidth()
                 ) {
+                    // Each control picks its own ink from what is behind it (book mode's letterbox,
+                    // a page edge, a photo), with the bar's band reading as the fallback.
+                    val backInk = rememberAdaptiveInk(topFg)
+                    val pillInk = rememberAdaptiveInk(topFg)
+                    val findInk = rememberAdaptiveInk(topFg)
+                    val moonInk = rememberAdaptiveInk(topFg)
                     // No `surfaceColor`, exactly as Home calls it: the circle paints nothing of its own
                     // and is pure refraction. Only the icon's colour adapts to the page.
                     GlassBackButton(
                         onBack = { requestExit() },
                         backdrop = contentBackdrop,
-                        foreground = topFg,
+                        modifier = backInk.modifier,
+                        foreground = backInk.color,
                         surfaceColor = Color.Unspecified,
                         onLongPressBack = if (hasUnsavedEdits) ({ requestExit() }) else LocalBackToLibraryAction.current,
                         longPressLabel = if (hasUnsavedEdits) stringResource(R.string.back) else null
@@ -1557,6 +1674,7 @@ fun PdfViewerScreen(
                         GlassTitlePill(
                             text = stringResource(R.string.viewer_page_of, currentPageIndex + 1, safePageCount),
                             backdrop = contentBackdrop,
+                            modifier = pillInk.modifier,
                             onClick = { showPageJumpDialog = true },
                             // Transparent, not omitted: omitting falls back to the theme's 0.35 tint,
                             // and this pill sits between two circles that paint nothing at all, so any
@@ -1564,7 +1682,7 @@ fun PdfViewerScreen(
                             // `drawRect(Color.Transparent)` is the same no-op `LiquidIconButton`
                             // performs when it is given no `surfaceColor`.
                             surfaceColor = Color.Transparent,
-                            contentColor = topFg,
+                            contentColor = pillInk.color,
                             // The enclosing AnimatedVisibility already slides and fades the whole bar
                             // in every time the chrome returns; the pill's own spring would stack on
                             // top of that and read as a stutter. Same call the find bar makes.
@@ -1577,19 +1695,21 @@ fun PdfViewerScreen(
                             if (showFindBar) viewModel.triggerOcrForAllPages(context)
                             else { focusManager.clearFocus(); viewModel.clearSearch(); findQuery = "" }
                         },
-                        backdrop = contentBackdrop
+                        backdrop = contentBackdrop,
+                        modifier = findInk.modifier
                     ) {
-                        Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), topFg)
+                        Icon(Icons.Rounded.Search, stringResource(R.string.viewer_find), Modifier.size(20.dp), findInk.color)
                     }
                     LiquidIconButton(
                         onClick = { darkPageOverride = !darkPageAppearance },
-                        backdrop = contentBackdrop
+                        backdrop = contentBackdrop,
+                        modifier = moonInk.modifier
                     ) {
                         Icon(
                             if (darkPageAppearance) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
                             stringResource(if (darkPageAppearance) R.string.viewer_page_colors_original else R.string.viewer_page_dark_mode),
                             Modifier.size(20.dp),
-                            topFg
+                            moonInk.color
                         )
                     }
                 }
@@ -2032,7 +2152,7 @@ fun PdfViewerScreen(
         // Floating contextual chrome, in the title-chip glass over the live page, with ink sampled from
         // the document behind each control (same band sampling as the bars).
         val pageLuminanceAt: (Float, Float) -> Float = { top, bottom ->
-            bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, top, bottom, darkPageAppearance)
+            bandLuminance(listState.layoutInfo, state.pageBitmaps, scale, top, bottom, darkPageAppearance, pageFrame = pageFrameOf)
         }
         PdfMarkupBarLayer(
             host = markupBarHost,
@@ -2282,6 +2402,104 @@ fun PdfViewerScreen(
         // Original vs PDF (with optional encryption). `originalExt` is null for a plain PDF, which
         // collapses the dialog to just the encrypt toggle.
         val shareExt = state.fileName.substringAfterLast('.', "").uppercase()
+        // The file a Share or a Save a copy hands over, built off the main thread: copy/encrypt into
+        // cacheDir/shared, which the app FileProvider serves (file_paths.xml cache-path "/").
+        fun buildSharePayload(format: ShareFormat, encrypt: Boolean, password: String): Pair<android.net.Uri, String>? =
+            runCatching {
+                fun wrap(u: android.net.Uri): android.net.Uri =
+                    if (u.scheme == "file")
+                        androidx.core.content.FileProvider.getUriForFile(
+                            context, "${context.packageName}.provider", java.io.File(u.path!!)
+                        )
+                    else u
+                val shareDir = java.io.File(context.cacheDir, "shared").apply { mkdirs() }
+                // Unsaved edits travel with the share: build an edited copy first and
+                // make every PDF-derived format (PDF, images, text) from it.
+                val edited: android.net.Uri? = if (hasUnsavedEdits && format != ShareFormat.ORIGINAL) {
+                    val overlays = buildExportOverlays(annotationsByPage, state.ocrBlocksByPage, pageCanvasSizes, pageBitmapSizes)
+                    val name = state.fileName.substringBeforeLast('.').ifBlank { "document" }
+                        .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                    viewModel.writeEditedCopy(context, overlays, java.io.File(shareDir, "${name}_edited.pdf"))
+                } else null
+                val sourcePdf = edited ?: state.document?.uri
+                when (format) {
+                    ShareFormat.IMAGES -> sourcePdf?.let { pdf ->
+                        val stem = state.fileName.substringBeforeLast('.').ifBlank { "page" }
+                            .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                        val count = state.pageCount.coerceAtLeast(1)
+                        val uris = ArrayList<android.net.Uri>()
+                        for (p in 0 until count) {
+                            val bmp = com.kyant.pdfcore.raster.PdfRasterizer.rasterizePageBitmap(context, pdf, p) ?: continue
+                            val f = java.io.File(shareDir, "${stem}_${p + 1}.png")
+                            f.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                            bmp.recycle()
+                            uris += androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", f)
+                        }
+                        shareMultiple = uris
+                        uris.firstOrNull()?.let { it to "image/png" }
+                    }
+                    ShareFormat.TEXT -> sourcePdf?.let { pdf ->
+                        val stem = state.fileName.substringBeforeLast('.').ifBlank { "document" }
+                            .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                        val f = java.io.File(shareDir, "$stem.txt")
+                        f.writeText(viewModel.extractAllText(context, pdf))
+                        androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", f) to "text/plain"
+                    }
+                    ShareFormat.ORIGINAL -> state.originalUri?.let { orig ->
+                        // Mirror the original into our own storage so the target app can
+                        // actually read it — a SAF uri from another provider can't be
+                        // re-granted to a third app.
+                        val safeName = state.fileName.ifBlank { "document.$shareExt" }
+                            .replace(Regex("[^A-Za-z0-9._-]"), "_")
+                        val out = java.io.File(shareDir, "${System.currentTimeMillis()}_$safeName")
+                        context.contentResolver.openInputStream(orig)?.use { input ->
+                            out.outputStream().use { input.copyTo(it) }
+                        } ?: return@runCatching null
+                        androidx.core.content.FileProvider.getUriForFile(
+                            context, "${context.packageName}.provider", out
+                        ) to (context.contentResolver.getType(orig) ?: "application/octet-stream")
+                    }
+                    ShareFormat.PDF -> sourcePdf?.let { pdf ->
+                        if (encrypt && password.isNotBlank()) {
+                            val out = java.io.File(shareDir, "protected_${System.currentTimeMillis()}.pdf")
+                            val outUri = androidx.core.content.FileProvider.getUriForFile(
+                                context, "${context.packageName}.provider", out
+                            )
+                            com.kyant.pdfcore.security.PdfSecurityService.encryptToUri(context, pdf, outUri, password)
+                            outUri to "application/pdf"
+                        } else {
+                            wrap(pdf) to "application/pdf"
+                        }
+                    }
+                }
+            }.getOrNull()
+        // Save a copy (#76): the file the user picked, as it is (or as the chosen format), to a
+        // place they choose. The format etc. wait here while the system save screen is up.
+        var pendingSaveCopy by remember { mutableStateOf<Triple<ShareFormat, Boolean, String>?>(null) }
+        val saveCopyLauncher = rememberLauncherForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+        ) { res ->
+            val target = res.data?.data
+            val req = pendingSaveCopy
+            pendingSaveCopy = null
+            if (res.resultCode != android.app.Activity.RESULT_OK || target == null || req == null) return@rememberLauncherForActivityResult
+            viewerScope.launch {
+                val ok = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val (src, _) = buildSharePayload(req.first, req.second, req.third) ?: return@runCatching false
+                        shareMultiple = emptyList()
+                        context.contentResolver.openInputStream(src)?.use { input ->
+                            context.contentResolver.openOutputStream(target, "w")?.use { input.copyTo(it) }
+                        } != null
+                    }.getOrDefault(false)
+                }
+                android.widget.Toast.makeText(
+                    context,
+                    if (ok) R.string.viewer_save_copy_done else R.string.viewer_save_copy_failed,
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
         ExportShareDialog(
             visible     = showShareDialog,
             originalExt = if (shareExt.isNotBlank() && shareExt != "PDF") shareExt else null,
@@ -2294,82 +2512,30 @@ fun PdfViewerScreen(
                         android.widget.Toast.makeText(context, R.string.docx_print_failed, android.widget.Toast.LENGTH_SHORT).show()
                 }
             },
+            onSaveCopy  = { format, encrypt, password ->
+                showShareDialog = false
+                // Unedited, a copy keeps the file's own name (no "_Edited").
+                val stem = state.fileName.substringBeforeLast('.').ifBlank { "document" }
+                val (name, mime) = when (format) {
+                    ShareFormat.ORIGINAL -> state.fileName.ifBlank { "document.${shareExt.lowercase()}" } to
+                        (state.originalUri?.let { context.contentResolver.getType(it) } ?: "application/octet-stream")
+                    ShareFormat.TEXT -> "$stem.txt" to "text/plain"
+                    else -> (if (hasUnsavedEdits) "${stem}_Edited.pdf" else "$stem.pdf") to "application/pdf"
+                }
+                pendingSaveCopy = Triple(format, encrypt, password)
+                runCatching {
+                    saveCopyLauncher.launch(
+                        Intent(Intent.ACTION_CREATE_DOCUMENT)
+                            .addCategory(Intent.CATEGORY_OPENABLE)
+                            .setType(mime)
+                            .putExtra(Intent.EXTRA_TITLE, name)
+                    )
+                }.onFailure { pendingSaveCopy = null }
+            },
             onShare     = { format, encrypt, password ->
                 showShareDialog = false
                 viewerScope.launch {
-                    // All file work off the main thread: copy/encrypt, then hand a FileProvider uri to
-                    // the chooser. Everything lands in cacheDir/shared, which the app FileProvider
-                    // serves (file_paths.xml cache-path "/").
-                    val payload = withContext(Dispatchers.IO) {
-                        runCatching {
-                            fun wrap(u: android.net.Uri): android.net.Uri =
-                                if (u.scheme == "file")
-                                    androidx.core.content.FileProvider.getUriForFile(
-                                        context, "${context.packageName}.provider", java.io.File(u.path!!)
-                                    )
-                                else u
-                            val shareDir = java.io.File(context.cacheDir, "shared").apply { mkdirs() }
-                            // Unsaved edits travel with the share: build an edited copy first and
-                            // make every PDF-derived format (PDF, images, text) from it.
-                            val edited: android.net.Uri? = if (hasUnsavedEdits && format != ShareFormat.ORIGINAL) {
-                                val overlays = buildExportOverlays(annotationsByPage, state.ocrBlocksByPage, pageCanvasSizes, pageBitmapSizes)
-                                val name = state.fileName.substringBeforeLast('.').ifBlank { "document" }
-                                    .replace(Regex("[^A-Za-z0-9._-]"), "_")
-                                viewModel.writeEditedCopy(context, overlays, java.io.File(shareDir, "${name}_edited.pdf"))
-                            } else null
-                            val sourcePdf = edited ?: state.document?.uri
-                            when (format) {
-                                ShareFormat.IMAGES -> sourcePdf?.let { pdf ->
-                                    val stem = state.fileName.substringBeforeLast('.').ifBlank { "page" }
-                                        .replace(Regex("[^A-Za-z0-9._-]"), "_")
-                                    val count = state.pageCount.coerceAtLeast(1)
-                                    val uris = ArrayList<android.net.Uri>()
-                                    for (p in 0 until count) {
-                                        val bmp = com.kyant.pdfcore.raster.PdfRasterizer.rasterizePageBitmap(context, pdf, p) ?: continue
-                                        val f = java.io.File(shareDir, "${stem}_${p + 1}.png")
-                                        f.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-                                        bmp.recycle()
-                                        uris += androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", f)
-                                    }
-                                    shareMultiple = uris
-                                    uris.firstOrNull()?.let { it to "image/png" }
-                                }
-                                ShareFormat.TEXT -> sourcePdf?.let { pdf ->
-                                    val stem = state.fileName.substringBeforeLast('.').ifBlank { "document" }
-                                        .replace(Regex("[^A-Za-z0-9._-]"), "_")
-                                    val f = java.io.File(shareDir, "$stem.txt")
-                                    f.writeText(viewModel.extractAllText(context, pdf))
-                                    androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", f) to "text/plain"
-                                }
-                                ShareFormat.ORIGINAL -> state.originalUri?.let { orig ->
-                                    // Mirror the original into our own storage so the target app can
-                                    // actually read it — a SAF uri from another provider can't be
-                                    // re-granted to a third app.
-                                    val safeName = state.fileName.ifBlank { "document.$shareExt" }
-                                        .replace(Regex("[^A-Za-z0-9._-]"), "_")
-                                    val out = java.io.File(shareDir, "${System.currentTimeMillis()}_$safeName")
-                                    context.contentResolver.openInputStream(orig)?.use { input ->
-                                        out.outputStream().use { input.copyTo(it) }
-                                    } ?: return@runCatching null
-                                    androidx.core.content.FileProvider.getUriForFile(
-                                        context, "${context.packageName}.provider", out
-                                    ) to (context.contentResolver.getType(orig) ?: "application/octet-stream")
-                                }
-                                ShareFormat.PDF -> sourcePdf?.let { pdf ->
-                                    if (encrypt && password.isNotBlank()) {
-                                        val out = java.io.File(shareDir, "protected_${System.currentTimeMillis()}.pdf")
-                                        val outUri = androidx.core.content.FileProvider.getUriForFile(
-                                            context, "${context.packageName}.provider", out
-                                        )
-                                        com.kyant.pdfcore.security.PdfSecurityService.encryptToUri(context, pdf, outUri, password)
-                                        outUri to "application/pdf"
-                                    } else {
-                                        wrap(pdf) to "application/pdf"
-                                    }
-                                }
-                            }
-                        }.getOrNull()
-                    }
+                    val payload = withContext(Dispatchers.IO) { buildSharePayload(format, encrypt, password) }
                     if (payload != null) {
                         val (shareUri, mime) = payload
                         val many = shareMultiple
@@ -2539,7 +2705,11 @@ private fun bandLuminance(
     // Dark page appearance draws every page through an RGB-inverting colour matrix, so the pixels
     // on screen are 1 - (bitmap). Sampling the bitmap as-is read a white page behind a black one and
     // picked dark ink — the "icons invisible in dark mode" bug. Mirror the matrix here.
-    inverted: Boolean = false
+    inverted: Boolean = false,
+    // Where a page really is, when it doesn't fill its list item: (bitmap frame top, frame height,
+    // visible top, visible bottom) in the same list-local px. Book mode letterboxes the page inside
+    // a screen-tall item, and trimmed margins show only part of a larger frame (#84, #85).
+    pageFrame: (Int) -> FloatArray? = { null }
 ): Float {
     val s = scale.coerceAtLeast(0.01f)
     val lTop = screenTopPx / s
@@ -2548,15 +2718,19 @@ private fun bandLuminance(
     var weight = 0.0
     for (item in layoutInfo.visibleItemsInfo) {
         if (item.size <= 0) continue
-        val io = item.offset.toFloat()
-        val ib = io + item.size.toFloat()
+        val f = pageFrame(item.index)
+        val frameTop = f?.get(0) ?: item.offset.toFloat()
+        val frameH = f?.get(1) ?: item.size.toFloat()
+        if (frameH <= 0f) continue
+        val io = f?.get(2) ?: frameTop
+        val ib = f?.get(3) ?: (frameTop + frameH)
         val interTop = maxOf(io, lTop)
         val interBottom = minOf(ib, lBottom)
         val cover = interBottom - interTop
         if (cover <= 0f) continue
         val bmp = pageBitmaps.getOrNull(item.index) ?: continue
-        val fTop = (interTop - io) / item.size
-        val fBottom = (interBottom - io) / item.size
+        val fTop = (interTop - frameTop) / frameH
+        val fBottom = (interBottom - frameTop) / frameH
         val l = regionLuminance(bmp, fTop, fBottom)
         lum += (if (inverted) 1f - l else l).toDouble() * cover
         weight += cover.toDouble()
@@ -2597,4 +2771,10 @@ internal fun OcrTextRange.snappedToWords(text: String): OcrTextRange {
     while (a > 0 && inWord(text[a - 1]) && inWord(text[a])) a--
     while (b < text.length && inWord(text[b]) && inWord(text[b - 1])) b++
     return copy(start = a, end = b)
+}
+
+/** [content] centred in a box with [slot] when there is one, otherwise placed as it is. */
+@Composable
+private fun OptionalSlot(slot: Modifier?, content: @Composable () -> Unit) {
+    if (slot != null) Box(slot, contentAlignment = Alignment.Center) { content() } else content()
 }

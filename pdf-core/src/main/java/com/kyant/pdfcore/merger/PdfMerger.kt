@@ -57,19 +57,20 @@ class PdfMergerImpl : PdfMerger {
         PdfBox.ensureInitialized(context)
 
         val output = PDDocument()
+        // importPage shares each source's fonts and images, so every source stays open until the
+        // output is saved ("COSStream has been closed" otherwise).
+        val opened = mutableListOf<PDDocument>()
         var written = 0
         try {
             for ((src, pages) in sources) {
                 val input = context.contentResolver.openInputStream(src.uri)
                     ?: throw IllegalStateException("Cannot read ${src.name}")
-                input.use { stream ->
-                    PDDocument.load(stream).use { doc ->
-                        for (i in pages) {
-                            if (i in 0 until doc.numberOfPages) {
-                                output.importPage(doc.getPage(i))
-                                written++
-                            }
-                        }
+                val doc = input.use { PDDocument.load(it) }
+                opened += doc
+                for (i in pages) {
+                    if (i in 0 until doc.numberOfPages) {
+                        output.importPage(doc.getPage(i))
+                        written++
                     }
                 }
             }
@@ -78,6 +79,7 @@ class PdfMergerImpl : PdfMerger {
             out.use { output.save(it) }
         } finally {
             output.close()
+            opened.forEach { runCatching { it.close() } }
         }
 
         return PdfDocument(uri = outputUri, name = "Merged.pdf", pageCount = written)

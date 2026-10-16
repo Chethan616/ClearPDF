@@ -165,14 +165,17 @@ class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
         if (pages.isEmpty()) return
         _uiState.value = _uiState.value.copy(isSaving = true, errorMessage = null, resultMessage = null, lastOutputUri = null)
         viewModelScope.launch {
+            var created: Uri? = null
             try {
                 val target = if (fileName.endsWith(".pdf", true)) fileName else "$fileName.pdf"
                 val saveLabel = SaveLocationManager.getSavePathDisplay(context)
                 val outUri = withContext(Dispatchers.IO) { createOutputUri(context, target, overrideUri) }
+                created = outUri
                 val source = PdfDocument(uri = src, name = _uiState.value.sourceFileName)
                 val order = pages.map { it.originalIndex }
                 val rotations = pages.associate { it.originalIndex to it.rotation }.filterValues { it != 0 }
                 withContext(Dispatchers.IO) { editor.applyPageEdits(context, source, order, rotations, outUri) }
+                created = null
 
                 withContext(Dispatchers.IO) {
                     RecentFilesManager.addRecent(context, RecentFile(
@@ -193,6 +196,8 @@ class PageOrganizerViewModel(private val editor: PdfEditor) : ViewModel() {
                 val shouldPrompt = withContext(Dispatchers.IO) { GitHubStarPromptManager.recordSuccess(context) }
                 if (shouldPrompt) StarPromptEventBus.requestPrompt()
             } catch (e: Exception) {
+                // Don't leave an empty PDF behind in Downloads.
+                created?.let { uri -> withContext(Dispatchers.IO) { runCatching { context.contentResolver.delete(uri, null, null) } } }
                 GitHubStarPromptManager.recordFailure(context)
                 _uiState.value = _uiState.value.copy(isSaving = false, errorMessage = context.getString(R.string.organize_save_failed))
             }
