@@ -287,6 +287,10 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
         // gives that race a head start.
         private const val PREFETCH_AHEAD = 2
         private const val PREFETCH_BEHIND = 1
+        // Above this, the on-open form/link scan is skipped outright rather than risking PDFBox's
+        // temp-file-backed load on a huge document for a feature (form fields, in-document links)
+        // that scanned books essentially never have.
+        private const val FORM_SCAN_SIZE_LIMIT_BYTES = 150L * 1024 * 1024
     }
 
     fun openPdf(context: Context, uri: Uri, password: String? = null) {
@@ -394,14 +398,24 @@ class PdfViewerViewModel(private val openPdfUseCase: OpenPdfUseCase) : ViewModel
                     renderedByOfficeEngine = renderedUri.path?.contains("/office-pdf/") == true
                 )
                 // Fillable fields and links, read off the main thread in one pass; most PDFs have
-                // no form and stay empty.
+                // no form and stay empty. This used to load the whole file into PDFBox's in-memory
+                // model unconditionally on every open — a multi-hundred-MB scanned book (all image
+                // XObjects, no forms) OOM'd right after opening, before the user did anything. Above
+                // FORM_SCAN_SIZE_LIMIT_BYTES skip the scan (forms/links are rare in huge scans and
+                // not worth the risk); below it, load through a temp-file-backed buffer instead of
+                // the heap.
                 val formDocUri = doc.uri
                 viewModelScope.launch {
                     val (widgets, links) = withContext(Dispatchers.IO) {
-                        runCatching {
+                        if (doc.sizeBytes > FORM_SCAN_SIZE_LIMIT_BYTES) {
+                            emptyMap<Int, List<com.kyant.pdfcore.form.PdfFormWidget>>() to emptyMap()
+                        } else runCatching {
                             com.kyant.pdfcore.internal.PdfBox.ensureInitialized(context)
                             context.contentResolver.openInputStream(formDocUri)?.use { input ->
-                                com.tom_roush.pdfbox.pdmodel.PDDocument.load(input).use { pd ->
+                                com.tom_roush.pdfbox.pdmodel.PDDocument.load(
+                                    input,
+                                    com.tom_roush.pdfbox.io.MemoryUsageSetting.setupTempFileOnly()
+                                ).use { pd ->
                                     val w = runCatching { com.kyant.pdfcore.form.PdfFormWidgets.read(pd) }.getOrDefault(emptyMap())
                                     val l = runCatching { com.kyant.pdfcore.link.PdfLinks.read(pd) }.getOrDefault(emptyMap())
                                     w to l
