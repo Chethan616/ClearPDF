@@ -12,7 +12,7 @@ Read and annotate PDFs, sign forms, work with Office documents, edit spreadsheet
 
 <p>
   <a href="https://github.com/Chethan616/ClearPDF/releases/latest"><img src="https://img.shields.io/badge/Download-ClearPDF-0A84FF?style=for-the-badge&logo=android&logoColor=white" alt="Download the latest ClearPDF"></a>
-  <a href="https://apps.obtainium.imranr.dev/redirect?r=https://github.com/Chethan616/ClearPDF"><img src="https://img.shields.io/badge/Add%20to-Obtainium-1B5E20?style=for-the-badge&logo=f-droid&logoColor=white" alt="Add to Obtainium"></a>
+  <a href="obtainium://add?url=https%3A%2F%2Fgithub.com%2FChethan616%2FClearPDF"><img src="https://img.shields.io/badge/Add%20to-Obtainium-1B5E20?style=for-the-badge&logo=f-droid&logoColor=white" alt="Add to Obtainium"></a>
   <a href="https://github.com/Chethan616/ClearPDF/issues/new/choose"><img src="https://img.shields.io/badge/Report-an%20issue-FF375F?style=for-the-badge&logo=github&logoColor=white" alt="Report a problem or request a feature"></a>
 </p>
 
@@ -122,10 +122,10 @@ The GitHub APKs are the FOSS distribution. The optional Office engine is downloa
 [Obtainium](https://github.com/ImranR98/Obtainium) tracks this repository's releases and installs/updates the APK for you, no manual downloads.
 
 <p>
-  <a href="https://apps.obtainium.imranr.dev/redirect?r=https://github.com/Chethan616/ClearPDF"><img src="https://img.shields.io/badge/Add%20to-Obtainium-1B5E20?style=for-the-badge&logo=f-droid&logoColor=white" alt="Add to Obtainium"></a>
+  <a href="obtainium://add?url=https%3A%2F%2Fgithub.com%2FChethan616%2FClearPDF"><img src="https://img.shields.io/badge/Add%20to-Obtainium-1B5E20?style=for-the-badge&logo=f-droid&logoColor=white" alt="Add to Obtainium"></a>
 </p>
 
-1. Tap **Add to Obtainium** above on a device with Obtainium installed, or open Obtainium → **Add App** and paste `https://github.com/Chethan616/ClearPDF`.
+1. On a device with Obtainium installed, tap **Add to Obtainium** above, or open Obtainium → **Add App** and paste `https://github.com/Chethan616/ClearPDF`.
 2. Pick the APK suffix for your device from the table above when prompted.
 
 ## Privacy and network use
