@@ -1265,6 +1265,12 @@ fun PdfViewerScreen(
                                     val oneFinger = event.changes.count { it.pressed } <= 1
                                     if (oneFinger && event.changes.any { it.isConsumed }) childOwnsDrag = true
                                     if (childOwnsDrag && oneFinger) continue
+                                    // A second finger down is unambiguously a pinch, never a tap. Without
+                                    // this, these events reached the sibling `detectTapGestures` below
+                                    // untouched — a fast pinch (fingers briefly reporting as separate
+                                    // down/up pairs) could register as a double-tap there and its
+                                    // onDoubleTap reset zoom back to 1x mid-gesture (#93).
+                                    if (!oneFinger) event.changes.forEach { it.consume() }
                                     val zoomChange = event.calculateZoom()
                                     var panChange  = event.calculatePan()
                                     accumulatedPan += panChange
@@ -1281,6 +1287,9 @@ fun PdfViewerScreen(
                                     }
                                     val zoomed = scale > 1.001f
                                     if (zoomChange != 1f || zoomed) {
+                                        // Same reasoning as the two-finger consume above, for the
+                                        // single-finger pan that continues after a pinch zooms in.
+                                        event.changes.forEach { it.consume() }
                                         val cw = size.width.toFloat()
                                         val oldScale = scale
                                         val newScale = (oldScale * zoomChange).coerceIn(1f, 5f)
