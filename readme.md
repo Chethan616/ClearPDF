@@ -7,11 +7,19 @@
 Read and annotate PDFs, sign forms, work with Office documents, edit spreadsheets and images, and create PDFs on your phone. Built with Kotlin and Jetpack Compose.
 
 <p>
-  <a href="https://github.com/Chethan616/ClearPDF/releases/latest"><strong>Download the latest ClearPDF</strong></a>
-  · <a href="https://apps.obtainium.imranr.dev/redirect?r=https://github.com/Chethan616/ClearPDF"><strong>Add to Obtainium</strong></a>
-  · <a href="https://github.com/Chethan616/ClearPDF/releases">All releases</a>
-  · <a href="https://github.com/Chethan616/ClearPDF/issues/new/choose">Report a problem or request a feature</a>
+  <a href="https://trendshift.io/repositories/107392?utm_source=repository-badge&utm_medium=badge&utm_campaign=badge-repository-107392" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/107392" alt="Chethan616%2FClearPDF | Trendshift" width="250" height="55"/></a>
+</p>
+
+<p>
+  <a href="https://github.com/Chethan616/ClearPDF/releases/latest"><img src="https://img.shields.io/badge/Download-ClearPDF-0A84FF?style=for-the-badge&logo=android&logoColor=white" alt="Download the latest ClearPDF"></a>
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=https://github.com/Chethan616/ClearPDF"><img src="https://img.shields.io/badge/Add%20to-Obtainium-1B5E20?style=for-the-badge&logo=f-droid&logoColor=white" alt="Add to Obtainium"></a>
+  <a href="https://github.com/Chethan616/ClearPDF/issues/new/choose"><img src="https://img.shields.io/badge/Report-an%20issue-FF375F?style=for-the-badge&logo=github&logoColor=white" alt="Report a problem or request a feature"></a>
+</p>
+
+<p>
+  <a href="https://github.com/Chethan616/ClearPDF/releases">All releases</a>
   · <a href="CONTRIBUTING.md">Contribute</a>
+  · <a href="https://github.com/sponsors/Chethan616">Sponsor</a>
 </p>
 
 <p>
@@ -21,8 +29,6 @@ Read and annotate PDFs, sign forms, work with Office documents, edit spreadsheet
   <a href="LICENSE"><img src="https://img.shields.io/github/license/Chethan616/ClearPDF?style=flat-square&color=30D158" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/Android-6.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android 6.0 or newer">
   <a href="https://github.com/Chethan616/ClearPDF/actions/workflows/android.yml"><img src="https://img.shields.io/github/actions/workflow/status/Chethan616/ClearPDF/android.yml?branch=main&style=flat-square&label=Android%20build" alt="Android build status"></a>
-  <a href="https://apps.obtainium.imranr.dev/redirect?r=https://github.com/Chethan616/ClearPDF"><img src="https://img.shields.io/badge/Obtainium-Add%20repo-1B5E20?style=flat-square" alt="Add to Obtainium"></a>
-  <img src="https://img.shields.io/badge/GitHub%20Trending-%232-FF375F?style=flat-square" alt="Number 2 on GitHub Trending">
 </p>
 
 </div>
@@ -38,7 +44,7 @@ ClearPDF was featured by HowToMen. [Watch the video from 9:08](https://www.youtu
 <p align="center">
   <img src="screenshots/light%20home%20screen.jpg" width="24%" alt="ClearPDF home screen in light mode">
   <img src="screenshots/light%20pdf%20tools.jpg" width="24%" alt="ClearPDF PDF tools in light mode">
-  <img src="screenshots/light%20settings%20screen.jpg" width="24%" alt="ClearPDF settings in light mode">
+  <img src="screenshots/liquid%20glass%20crystal.jpg" width="24%" alt="ClearPDF's Crystal Liquid Glass preset, with live blur and refraction preview">
   <img src="screenshots/docx%20editing.jpg" width="24%" alt="ClearPDF opening a Word document">
 </p>
 <p align="center">
@@ -94,7 +100,13 @@ ClearPDF annotates PDFs and edits form fields, signatures, and pages, but it doe
 
 ## Download
 
-The current stable release is **V5.1 (app version 2.1.1)**. Open the [latest release page](https://github.com/Chethan616/ClearPDF/releases/latest) and choose the APK that matches your device:
+The current stable release is **V5.1 (app version 2.1.1)**.
+
+<p>
+  <a href="https://github.com/Chethan616/ClearPDF/releases/latest"><img src="https://img.shields.io/badge/Go%20to-Latest%20Release-0A84FF?style=for-the-badge&logo=github&logoColor=white" alt="Go to the latest release page"></a>
+</p>
+
+Open the release page and choose the APK that matches your device:
 
 | APK suffix | Choose it for |
 |---|---|
@@ -109,9 +121,12 @@ The GitHub APKs are the FOSS distribution. The optional Office engine is downloa
 
 [Obtainium](https://github.com/ImranR98/Obtainium) tracks this repository's releases and installs/updates the APK for you, no manual downloads.
 
-1. Open Obtainium → **Add App**.
-2. Paste `https://github.com/Chethan616/ClearPDF`, or tap **[Add to Obtainium](https://apps.obtainium.imranr.dev/redirect?r=https://github.com/Chethan616/ClearPDF)** on a device with Obtainium installed.
-3. Pick the APK suffix for your device from the table above when prompted.
+<p>
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=https://github.com/Chethan616/ClearPDF"><img src="https://img.shields.io/badge/Add%20to-Obtainium-1B5E20?style=for-the-badge&logo=f-droid&logoColor=white" alt="Add to Obtainium"></a>
+</p>
+
+1. Tap **Add to Obtainium** above on a device with Obtainium installed, or open Obtainium → **Add App** and paste `https://github.com/Chethan616/ClearPDF`.
+2. Pick the APK suffix for your device from the table above when prompted.
 
 ## Privacy and network use
 
