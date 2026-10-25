@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -55,6 +56,7 @@ import kotlinx.coroutines.launch
 private class WhatsNewItem(val icon: ImageVector, val accent: Color, val title: Int, val desc: Int)
 
 private val WhatsNewItems = listOf(
+    WhatsNewItem(Icons.Rounded.Tune, LiquidGlassColors.Teal, R.string.whats_new_glass_title, R.string.whats_new_glass_desc),
     WhatsNewItem(Icons.Rounded.Lock, LiquidGlassColors.Indigo, R.string.whats_new_encrypt_title, R.string.whats_new_encrypt_desc),
     WhatsNewItem(Icons.Rounded.MenuBook, LiquidGlassColors.Blue, R.string.whats_new_reading_title, R.string.whats_new_reading_desc),
     WhatsNewItem(Icons.Rounded.FileDownload, LiquidGlassColors.Green, R.string.whats_new_copy_title, R.string.whats_new_copy_desc),
