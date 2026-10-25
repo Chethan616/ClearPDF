@@ -26,6 +26,102 @@ Repo: https://github.com/Chethan616/ClearPDF.git
 # recipe submitted to fdroiddata (MR !52093). Each block also builds Tesseract for its ABI only.
 
 Builds:
+  - versionName: 2.2.0
+    versionCode: 71
+    commit: 10b5e54db508dbb71ca7d2b5ecf68645d0e53f68
+    subdir: app
+    gradle:
+      - fdroid
+    srclibs:
+      - tesseract4android@4.9.0
+    prebuild:
+      - sed -i -e '/foojay-resolver/d' ../settings.gradle.kts
+      - sed -i -e 's/jvmToolchain(17)/jvmToolchain(21)/' -e 's/VERSION_17/VERSION_21/'
+        build.gradle.kts ../backdrop/build.gradle.kts
+      - sed -i -e '/jitpack.io/d' -e 's/mavenCentral()/mavenCentral()\n        mavenLocal()/'
+        ../settings.gradle.kts
+      - sed -i -e 's/group = "cz.adaptech.tesseract4android"/group = "cz.adaptech"/'
+        ../gradle/libs.versions.toml
+      - pushd $$tesseract4android$$
+      - sed -i -e "s|//abiFilters .*|abiFilters 'armeabi-v7a'|" tesseract4android/build.gradle
+      - gradle publishToMavenLocal -x test -x lint
+      - popd
+    ndk: r27c
+    gradleprops:
+      - fdroidAbi=armeabi-v7a
+
+  - versionName: 2.2.0
+    versionCode: 72
+    commit: 10b5e54db508dbb71ca7d2b5ecf68645d0e53f68
+    subdir: app
+    gradle:
+      - fdroid
+    srclibs:
+      - tesseract4android@4.9.0
+    prebuild:
+      - sed -i -e '/foojay-resolver/d' ../settings.gradle.kts
+      - sed -i -e 's/jvmToolchain(17)/jvmToolchain(21)/' -e 's/VERSION_17/VERSION_21/'
+        build.gradle.kts ../backdrop/build.gradle.kts
+      - sed -i -e '/jitpack.io/d' -e 's/mavenCentral()/mavenCentral()\n        mavenLocal()/'
+        ../settings.gradle.kts
+      - sed -i -e 's/group = "cz.adaptech.tesseract4android"/group = "cz.adaptech"/'
+        ../gradle/libs.versions.toml
+      - pushd $$tesseract4android$$
+      - sed -i -e "s|//abiFilters .*|abiFilters 'arm64-v8a'|" tesseract4android/build.gradle
+      - gradle publishToMavenLocal -x test -x lint
+      - popd
+    ndk: r27c
+    gradleprops:
+      - fdroidAbi=arm64-v8a
+
+  - versionName: 2.2.0
+    versionCode: 73
+    commit: 10b5e54db508dbb71ca7d2b5ecf68645d0e53f68
+    subdir: app
+    gradle:
+      - fdroid
+    srclibs:
+      - tesseract4android@4.9.0
+    prebuild:
+      - sed -i -e '/foojay-resolver/d' ../settings.gradle.kts
+      - sed -i -e 's/jvmToolchain(17)/jvmToolchain(21)/' -e 's/VERSION_17/VERSION_21/'
+        build.gradle.kts ../backdrop/build.gradle.kts
+      - sed -i -e '/jitpack.io/d' -e 's/mavenCentral()/mavenCentral()\n        mavenLocal()/'
+        ../settings.gradle.kts
+      - sed -i -e 's/group = "cz.adaptech.tesseract4android"/group = "cz.adaptech"/'
+        ../gradle/libs.versions.toml
+      - pushd $$tesseract4android$$
+      - sed -i -e "s|//abiFilters .*|abiFilters 'x86'|" tesseract4android/build.gradle
+      - gradle publishToMavenLocal -x test -x lint
+      - popd
+    ndk: r27c
+    gradleprops:
+      - fdroidAbi=x86
+
+  - versionName: 2.2.0
+    versionCode: 74
+    commit: 10b5e54db508dbb71ca7d2b5ecf68645d0e53f68
+    subdir: app
+    gradle:
+      - fdroid
+    srclibs:
+      - tesseract4android@4.9.0
+    prebuild:
+      - sed -i -e '/foojay-resolver/d' ../settings.gradle.kts
+      - sed -i -e 's/jvmToolchain(17)/jvmToolchain(21)/' -e 's/VERSION_17/VERSION_21/'
+        build.gradle.kts ../backdrop/build.gradle.kts
+      - sed -i -e '/jitpack.io/d' -e 's/mavenCentral()/mavenCentral()\n        mavenLocal()/'
+        ../settings.gradle.kts
+      - sed -i -e 's/group = "cz.adaptech.tesseract4android"/group = "cz.adaptech"/'
+        ../gradle/libs.versions.toml
+      - pushd $$tesseract4android$$
+      - sed -i -e "s|//abiFilters .*|abiFilters 'x86_64'|" tesseract4android/build.gradle
+      - gradle publishToMavenLocal -x test -x lint
+      - popd
+    ndk: r27c
+    gradleprops:
+      - fdroidAbi=x86_64
+
   - versionName: 2.1.1
     versionCode: 61
     commit: e33ef2067354df085a77bac428a0cb240697e59f
@@ -129,5 +225,5 @@ VercodeOperation:
   - 10 * %c + 2
   - 10 * %c + 3
   - 10 * %c + 4
-CurrentVersion: 2.1.1
-CurrentVersionCode: 64
+CurrentVersion: 2.2.0
+CurrentVersionCode: 74
