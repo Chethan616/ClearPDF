@@ -54,6 +54,21 @@ jobs:
           test -n "$CLEARPDF_UPLOAD_KEY_PASSWORD"
           ./gradlew :app:assembleFossRelease --stacktrace -Dorg.gradle.jvmargs="-Xmx4g -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g
 
+      - name: Name FOSS APKs for downloads
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          version="$(grep -m1 'versionName = "' app/build.gradle.kts | cut -d '"' -f 2)"
+          test -n "$version"
+          shopt -s nullglob
+          apks=(app/build/outputs/apk/foss/release/app-foss-*-release.apk)
+          test "${#apks[@]}" -eq 5
+          for apk in "${apks[@]}"; do
+            abi="${apk#app/build/outputs/apk/foss/release/app-foss-}"
+            abi="${abi%-release.apk}"
+            mv "$apk" "app/build/outputs/apk/foss/release/ClearPDF-v${version}-${abi}.apk"
+          done
+
       - name: Upload CI APK artifacts
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
@@ -68,7 +83,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clearpdf-release-apk
-          path: app/build/outputs/apk/foss/release/*.apk
+          path: app/build/outputs/apk/foss/release/ClearPDF-v*.apk
           if-no-files-found: error
 
   publish:
