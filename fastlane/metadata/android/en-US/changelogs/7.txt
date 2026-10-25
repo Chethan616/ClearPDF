@@ -1,0 +1,4 @@
+• Encrypt PDFs with AES-256 and set a separate owner password
+• Read one page at a time in Book mode, or trim wide page margins
+• Save a copy of PDFs opened from other apps; follow PDF links
+• Fixed large-PDF crashes, fast zoom, annotation dragging and Android 9/10 crashes

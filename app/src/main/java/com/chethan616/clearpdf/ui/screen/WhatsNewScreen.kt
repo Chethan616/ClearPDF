@@ -19,15 +19,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BugReport
-import androidx.compose.material.icons.rounded.CheckBox
-import androidx.compose.material.icons.rounded.Layers
-import androidx.compose.material.icons.rounded.ZoomIn
-import androidx.compose.material.icons.rounded.EditNote
-import androidx.compose.material.icons.rounded.TableChart
-import androidx.compose.material.icons.rounded.DarkMode
-import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material.icons.rounded.Print
-import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -60,17 +55,11 @@ import kotlinx.coroutines.launch
 private class WhatsNewItem(val icon: ImageVector, val accent: Color, val title: Int, val desc: Int)
 
 private val WhatsNewItems = listOf(
-    WhatsNewItem(Icons.Rounded.Description, LiquidGlassColors.Blue, R.string.whats_new_word_title, R.string.whats_new_word_desc),
-    WhatsNewItem(Icons.Rounded.DarkMode, LiquidGlassColors.Indigo, R.string.whats_new_night_title, R.string.whats_new_night_desc),
-    WhatsNewItem(Icons.Rounded.TableChart, LiquidGlassColors.Green, R.string.whats_new_xlsx_title, R.string.whats_new_xlsx_desc),
-    WhatsNewItem(Icons.Rounded.Translate, LiquidGlassColors.Orange, R.string.whats_new_lang_title, R.string.whats_new_lang_desc),
-    WhatsNewItem(Icons.Rounded.Print, LiquidGlassColors.Teal, R.string.whats_new_print_title, R.string.whats_new_print_desc),
-    WhatsNewItem(Icons.Rounded.EditNote, LiquidGlassColors.Blue, R.string.whats_new_edit_title, R.string.whats_new_edit_desc),
-    WhatsNewItem(Icons.Rounded.CheckBox, LiquidGlassColors.Indigo, R.string.whats_new_forms_title, R.string.whats_new_forms_desc),
-    WhatsNewItem(Icons.Rounded.ZoomIn, LiquidGlassColors.Teal, R.string.whats_new_zoom_title, R.string.whats_new_zoom_desc),
-    WhatsNewItem(Icons.Rounded.Layers, LiquidGlassColors.Blue, R.string.whats_new_window_title, R.string.whats_new_window_desc),
-    WhatsNewItem(Icons.Rounded.AutoAwesome, LiquidGlassColors.Teal, R.string.whats_new_glass_title, R.string.whats_new_glass_desc),
-    WhatsNewItem(Icons.Rounded.BugReport, LiquidGlassColors.Red, R.string.whats_new_fixes_title, R.string.whats_new_fixes_desc)
+    WhatsNewItem(Icons.Rounded.Lock, LiquidGlassColors.Indigo, R.string.whats_new_encrypt_title, R.string.whats_new_encrypt_desc),
+    WhatsNewItem(Icons.Rounded.MenuBook, LiquidGlassColors.Blue, R.string.whats_new_reading_title, R.string.whats_new_reading_desc),
+    WhatsNewItem(Icons.Rounded.FileDownload, LiquidGlassColors.Green, R.string.whats_new_copy_title, R.string.whats_new_copy_desc),
+    WhatsNewItem(Icons.Rounded.Link, LiquidGlassColors.Orange, R.string.whats_new_links_title, R.string.whats_new_links_desc),
+    WhatsNewItem(Icons.Rounded.BugReport, LiquidGlassColors.Red, R.string.whats_new_reliability_title, R.string.whats_new_reliability_desc)
 )
 
 /**

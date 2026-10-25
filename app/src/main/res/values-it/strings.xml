@@ -973,4 +973,14 @@
     <string name="motion_reset">Ripristina movimento</string>
     <string name="settings_invert_share_morph">Scambia condividi e apri</string>
     <string name="settings_invert_share_morph_desc">Nel visualizzatore, tocca il pulsante rotondo per condividere il documento e tienilo premuto e scorri verso l\'alto per aprire un altro file.</string>
+    <string name="whats_new_encrypt_title">Crittografia PDF AES-256</string>
+    <string name="whats_new_encrypt_desc">Proteggi i PDF con AES-256 e imposta una password proprietario diversa da quella usata per aprire il file.</string>
+    <string name="whats_new_reading_title">Scegli come leggere</string>
+    <string name="whats_new_reading_desc">Attiva la modalità Libro per vedere una pagina alla volta oppure ritaglia i margini ampi in Impostazioni → Aspetto.</string>
+    <string name="whats_new_copy_title">Salva una copia</string>
+    <string name="whats_new_copy_desc">Salva il PDF in una cartella a tua scelta, senza modificare il file originale.</string>
+    <string name="whats_new_links_title">Apri i link nei PDF</string>
+    <string name="whats_new_links_desc">Tocca un link per aprire la pagina collegata, un sito web o un indirizzo email.</string>
+    <string name="whats_new_reliability_title">Un lettore PDF più affidabile</string>
+    <string name="whats_new_reliability_desc">I PDF grandi usano meno memoria. Zoom con due dita, spostamento delle annotazioni e organizzazione delle pagine sono più affidabili; risolti i crash su Android 9 e 10.</string>
 </resources>
