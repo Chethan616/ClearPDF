@@ -978,9 +978,9 @@
     <string name="whats_new_reading_title">Scegli come leggere</string>
     <string name="whats_new_reading_desc">Attiva la modalità Libro per vedere una pagina alla volta oppure ritaglia i margini ampi in Impostazioni → Aspetto.</string>
     <string name="whats_new_copy_title">Salva una copia</string>
-    <string name="whats_new_copy_desc">Salva in una cartella a tua scelta una copia del PDF aperto da un'altra app, senza modificare l'originale.</string>
+    <string name="whats_new_copy_desc">Salva il PDF in una cartella a tua scelta, senza modificare il file originale.</string>
     <string name="whats_new_links_title">Apri i link nei PDF</string>
-    <string name="whats_new_links_desc">Tocca un link per passare a un'altra pagina o aprire un sito web o un indirizzo email.</string>
+    <string name="whats_new_links_desc">Tocca un link per aprire la pagina collegata, un sito web o un indirizzo email.</string>
     <string name="whats_new_reliability_title">Un lettore PDF più affidabile</string>
-    <string name="whats_new_reliability_desc">I PDF grandi usano meno memoria. Lo zoom con due dita, lo spostamento delle annotazioni e l'organizzazione delle pagine sono più affidabili; corretti gli arresti anomali su Android 9 e 10.</string>
+    <string name="whats_new_reliability_desc">I PDF grandi usano meno memoria. Zoom con due dita, spostamento delle annotazioni e organizzazione delle pagine sono più affidabili; risolti i crash su Android 9 e 10.</string>
 </resources>
