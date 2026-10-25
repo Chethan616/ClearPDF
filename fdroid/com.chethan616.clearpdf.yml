@@ -28,7 +28,7 @@ Repo: https://github.com/Chethan616/ClearPDF.git
 Builds:
   - versionName: 2.2.0
     versionCode: 71
-    commit: 10b5e54db508dbb71ca7d2b5ecf68645d0e53f68
+    commit: bc68f5147e193d0c05d94156ffddb7afc25a52dc
     subdir: app
     gradle:
       - fdroid
@@ -52,7 +52,7 @@ Builds:
 
   - versionName: 2.2.0
     versionCode: 72
-    commit: 10b5e54db508dbb71ca7d2b5ecf68645d0e53f68
+    commit: bc68f5147e193d0c05d94156ffddb7afc25a52dc
     subdir: app
     gradle:
       - fdroid
@@ -76,7 +76,7 @@ Builds:
 
   - versionName: 2.2.0
     versionCode: 73
-    commit: 10b5e54db508dbb71ca7d2b5ecf68645d0e53f68
+    commit: bc68f5147e193d0c05d94156ffddb7afc25a52dc
     subdir: app
     gradle:
       - fdroid
@@ -100,7 +100,7 @@ Builds:
 
   - versionName: 2.2.0
     versionCode: 74
-    commit: 10b5e54db508dbb71ca7d2b5ecf68645d0e53f68
+    commit: bc68f5147e193d0c05d94156ffddb7afc25a52dc
     subdir: app
     gradle:
       - fdroid
