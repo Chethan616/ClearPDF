@@ -966,4 +966,14 @@
     <string name="motion_reset">Repor movimento</string>
     <string name="settings_invert_share_morph">Trocar partilhar e abrir</string>
     <string name="settings_invert_share_morph_desc">No visualizador, toque no botão redondo para partilhar o documento e mantenha premido e deslize para cima para abrir outro ficheiro.</string>
+    <string name="whats_new_encrypt_title">Encriptação PDF AES-256</string>
+    <string name="whats_new_encrypt_desc">Proteja PDFs com AES-256 e defina uma palavra-passe de proprietário diferente da usada para abrir o ficheiro.</string>
+    <string name="whats_new_reading_title">Escolha como ler</string>
+    <string name="whats_new_reading_desc">Ative o modo Livro para ver uma página de cada vez ou corte as margens largas em Definições → Aparência.</string>
+    <string name="whats_new_copy_title">Guardar uma cópia</string>
+    <string name="whats_new_copy_desc">Guarde numa pasta à sua escolha uma cópia do PDF aberto noutra aplicação, sem alterar o original.</string>
+    <string name="whats_new_links_title">Abra ligações em PDFs</string>
+    <string name="whats_new_links_desc">Toque numa ligação para ir para outra página ou abrir um site ou endereço de email.</string>
+    <string name="whats_new_reliability_title">Um leitor de PDF mais fiável</string>
+    <string name="whats_new_reliability_desc">Os PDFs grandes usam menos memória. O zoom com dois dedos, o arrasto de anotações e a organização de páginas são mais fiáveis; as falhas no Android 9 e 10 foram corrigidas.</string>
 </resources>

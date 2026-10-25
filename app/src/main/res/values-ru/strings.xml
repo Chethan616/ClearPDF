@@ -973,4 +973,14 @@
     <string name="motion_reset">Сбросить движение</string>
     <string name="settings_invert_share_morph">Поменять «Поделиться» и «Открыть»</string>
     <string name="settings_invert_share_morph_desc">В просмотрщике нажмите круглую кнопку, чтобы поделиться документом, а нажмите, удерживайте и проведите вверх, чтобы открыть другой файл.</string>
+    <string name="whats_new_encrypt_title">Шифрование PDF AES-256</string>
+    <string name="whats_new_encrypt_desc">Защитите PDF с помощью AES-256 и задайте отдельный пароль владельца, отличный от пароля для открытия файла.</string>
+    <string name="whats_new_reading_title">Выберите способ чтения</string>
+    <string name="whats_new_reading_desc">Включите режим книги, чтобы видеть по одной странице, или обрежьте широкие поля в разделе «Настройки → Внешний вид».</string>
+    <string name="whats_new_copy_title">Сохранить копию</string>
+    <string name="whats_new_copy_desc">Сохраните копию PDF, открытого из другого приложения, в выбранную папку без изменения оригинала.</string>
+    <string name="whats_new_links_title">Переходите по ссылкам в PDF</string>
+    <string name="whats_new_links_desc">Нажмите ссылку, чтобы перейти на другую страницу, открыть сайт или ссылку электронной почты.</string>
+    <string name="whats_new_reliability_title">Более надёжный просмотрщик PDF</string>
+    <string name="whats_new_reliability_desc">Большие PDF занимают меньше памяти. Масштабирование двумя пальцами, перемещение пометок и организация страниц стали надёжнее; сбои на Android 9 и 10 исправлены.</string>
 </resources>

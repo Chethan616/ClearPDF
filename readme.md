@@ -100,7 +100,7 @@ ClearPDF annotates PDFs and edits form fields, signatures, and pages, but it doe
 
 ## Download
 
-The current stable release is **V5.1 (app version 2.1.1)**.
+The current stable release is **V5.2 (app version 2.2.0)**.
 
 <p>
   <a href="https://github.com/Chethan616/ClearPDF/releases/latest"><img src="https://img.shields.io/badge/Go%20to-Latest%20Release-0A84FF?style=for-the-badge&logo=github&logoColor=white" alt="Go to the latest release page"></a>

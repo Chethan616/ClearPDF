@@ -943,4 +943,14 @@
     <string name="motion_reset">إعادة ضبط الحركة</string>
     <string name="settings_invert_share_morph">تبديل المشاركة والفتح</string>
     <string name="settings_invert_share_morph_desc">في العارض، انقر الزر الدائري لمشاركة المستند، واضغط مطولًا ثم اسحب لأعلى لفتح ملف آخر.</string>
+    <string name="whats_new_encrypt_title">تشفير PDF بمعيار AES-256</string>
+    <string name="whats_new_encrypt_desc">احمِ ملفات PDF باستخدام AES-256، وحدد كلمة مرور للمالك بشكل منفصل عن كلمة مرور فتح الملف.</string>
+    <string name="whats_new_reading_title">اختر طريقة القراءة</string>
+    <string name="whats_new_reading_desc">فعّل وضع الكتاب لعرض صفحة واحدة في كل مرة، أو قص الهوامش العريضة من الإعدادات ← المظهر.</string>
+    <string name="whats_new_copy_title">حفظ نسخة</string>
+    <string name="whats_new_copy_desc">احتفظ بملف PDF المفتوح من تطبيق آخر بحفظ نسخة في مجلد تختاره، دون تعديل الملف الأصلي.</string>
+    <string name="whats_new_links_title">افتح روابط PDF</string>
+    <string name="whats_new_links_desc">انقر على رابط للانتقال إلى صفحة أخرى أو لفتح موقع ويب أو رابط بريد إلكتروني.</string>
+    <string name="whats_new_reliability_title">قارئ PDF أكثر موثوقية</string>
+    <string name="whats_new_reliability_desc">تستهلك ملفات PDF الكبيرة ذاكرة أقل. أصبح التكبير بالأصابع وسحب التعليقات وتنظيم الصفحات أكثر موثوقية، مع إصلاح الأعطال على Android 9 و10.</string>
 </resources>

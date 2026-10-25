@@ -3,6 +3,7 @@ name: Android build
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
 
 permissions:
@@ -22,14 +23,79 @@ jobs:
           cache: gradle
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Build release variant
+      - name: Build release variants for CI
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         # Three flavors (play, foss, fdroid) compile in one Kotlin daemon; its default 2 GB heap ran
         # out (GC overhead limit). The runner has 16 GB, so give Gradle and Kotlin 4 GB each.
         run: ./gradlew assembleRelease --stacktrace -Dorg.gradle.jvmargs="-Xmx4g -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g
-      - name: Upload release APK
+
+      - name: Prepare the official upload key
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          KEYSTORE_BASE64: ${{ secrets.CLEARPDF_UPLOAD_STORE_FILE_BASE64 }}
+          CLEARPDF_UPLOAD_STORE_FILE: ${{ runner.temp }}/clearpdf-upload-key.jks
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$CLEARPDF_UPLOAD_STORE_FILE"
+          test -s "$CLEARPDF_UPLOAD_STORE_FILE"
+          chmod 600 "$CLEARPDF_UPLOAD_STORE_FILE"
+
+      - name: Build signed FOSS APKs
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          CLEARPDF_UPLOAD_STORE_FILE: ${{ runner.temp }}/clearpdf-upload-key.jks
+          CLEARPDF_UPLOAD_STORE_PASSWORD: ${{ secrets.CLEARPDF_UPLOAD_STORE_PASSWORD }}
+          CLEARPDF_UPLOAD_KEY_ALIAS: ${{ secrets.CLEARPDF_UPLOAD_KEY_ALIAS }}
+          CLEARPDF_UPLOAD_KEY_PASSWORD: ${{ secrets.CLEARPDF_UPLOAD_KEY_PASSWORD }}
+        run: |
+          test -s "$CLEARPDF_UPLOAD_STORE_FILE"
+          test -n "$CLEARPDF_UPLOAD_STORE_PASSWORD"
+          test -n "$CLEARPDF_UPLOAD_KEY_ALIAS"
+          test -n "$CLEARPDF_UPLOAD_KEY_PASSWORD"
+          ./gradlew :app:assembleFossRelease --stacktrace -Dorg.gradle.jvmargs="-Xmx4g -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g
+
+      - name: Upload CI APK artifacts
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
           name: clearpdf-release-apk
-          # Product flavors (foss / play) put APKs under apk/<flavor>/release/.
+          # Branch builds include all flavors under apk/<flavor>/release/.
           path: app/build/outputs/apk/*/release/*.apk
           if-no-files-found: error
+
+      - name: Upload signed FOSS APK artifacts
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: clearpdf-release-apk
+          path: app/build/outputs/apk/foss/release/*.apk
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v4
+      - name: Download signed APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: clearpdf-release-apk
+          path: release-apks
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          notes="release-notes/${GITHUB_REF_NAME}.md"
+          test -f "$notes"
+          title="$(sed -n '1s/^# //p' "$notes")"
+          test -n "$title"
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --title "$title" \
+            --notes-file "$notes" \
+            release-apks/*.apk

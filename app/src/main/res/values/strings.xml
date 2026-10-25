@@ -867,6 +867,16 @@
     <string name="whats_new_lang_desc">ClearPDF now speaks Arabic, and Arabic text copies and searches in the right order.</string>
     <string name="whats_new_print_title">Print and pick up where you left off</string>
     <string name="whats_new_print_desc">Print Word documents in their real layout, and reopen them at the page you were reading.</string>
+    <string name="whats_new_encrypt_title">AES-256 PDF encryption</string>
+    <string name="whats_new_encrypt_desc">Protect PDFs with AES-256 and set an owner password separately from the password used to open the file.</string>
+    <string name="whats_new_reading_title">Choose how you read</string>
+    <string name="whats_new_reading_desc">Turn on Book mode for one page at a time, or trim wide page margins in Settings → Appearance.</string>
+    <string name="whats_new_copy_title">Save a copy</string>
+    <string name="whats_new_copy_desc">Keep a PDF opened from another app by saving a copy to a folder you choose, without editing the original.</string>
+    <string name="whats_new_links_title">Follow PDF links</string>
+    <string name="whats_new_links_desc">Tap a link to jump to another page, or open a website or email link.</string>
+    <string name="whats_new_reliability_title">A more reliable PDF reader</string>
+    <string name="whats_new_reliability_desc">Large PDFs use less memory. Pinch zoom, annotation dragging, and page organization are more reliable, with crashes fixed on Android 9 and 10.</string>
     <string name="tour_edit_text_title">Edit the PDF\'s own text</string>
     <string name="tour_edit_text_message">Tap the edit icon and pick Text, then tap any line to rewrite it in its own font. Or long-press a word and tap Edit text.</string>
     <string name="tour_recents_menu_title">Quick actions</string>
