@@ -98,6 +98,10 @@ android {
     productFlavors {
         create("play") {
             dimension = "distribution"
+            // Play Console's automatic app protection (Play Integrity tamper detection) needs
+            // minSdk 24+; the app itself works fine down to 23, so this is scoped to the Play
+            // flavor only — GitHub/F-Droid users on Android 6.0 keep working.
+            minSdk = 24
             // The optional Office engine's prebuilt LibreOffice binaries only cover arm64-v8a and
             // armeabi-v7a (see office_engine/build.gradle.kts's engineBundles — the upstream
             // LibreOffice-Lite project ships no x86/x86_64 build). Google Play Bundles require

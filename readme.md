@@ -90,7 +90,7 @@ Create a PDF from images, text, or local HTML. The FOSS build can also convert a
 
 ## Supported Android versions and formats
 
-- **Android:** API 23 (Android 6.0) or newer.
+- **Android:** API 23 (Android 6.0) or newer on GitHub/F-Droid; API 24 (Android 7.0) or newer on Google Play, which requires 24+ for its automatic app protection.
 - **Document formats:** PDF; DOC/DOCX; XLS/XLSX; PPT/PPTX; ODT/ODS/ODP; RTF; CSV; TXT.
 - **Images:** PNG, JPEG, WebP, BMP, and HEIC are supported by the image/document flows. Feature availability can vary by device and Android version.
 
@@ -216,7 +216,7 @@ ClearPDF can annotate PDFs, fill forms, add signatures, and manage pages, but it
 <details>
 <summary><strong>What Android version do I need?</strong></summary>
 
-Android 6.0 (API 23) or newer. Features provided by Google Play services may not be available on every device.
+Android 6.0 (API 23) or newer on GitHub/F-Droid; Android 7.0 (API 24) or newer on Google Play. Features provided by Google Play services may not be available on every device.
 </details>
 
 ## Credits
