@@ -98,6 +98,14 @@ android {
     productFlavors {
         create("play") {
             dimension = "distribution"
+            // The optional Office engine's prebuilt LibreOffice binaries only cover arm64-v8a and
+            // armeabi-v7a (see office_engine/build.gradle.kts's engineBundles — the upstream
+            // LibreOffice-Lite project ships no x86/x86_64 build). Google Play Bundles require
+            // every feature module with native code to support the exact same ABI set as the base,
+            // so the base app's ABI set is narrowed to match here. This only affects the Play
+            // flavor, which is distributed solely as a bundle anyway; foss/fdroid APKs are
+            // unaffected and keep all 4 ABIs.
+            ndk { abiFilters += setOf("arm64-v8a", "armeabi-v7a") }
         }
         create("foss") {
             dimension = "distribution"
@@ -134,7 +142,13 @@ android {
     splits {
         abi {
             // F-Droid builds and signs one APK per version itself, so its builds skip the split.
-            isEnable = gradle.startParameter.taskNames.none { it.contains("fdroid", ignoreCase = true) }
+            // Bundle tasks need no split either — see the comment above — and leaving it enabled
+            // there corrupted :office_engine's resource-linking variant lookup for bundlePlayRelease
+            // ("Cannot find PROCESSED_RES output"), since AGP's dynamic-feature resource linker
+            // expects the base app's split config to match what it actually produces for a bundle.
+            isEnable = gradle.startParameter.taskNames.none {
+                it.contains("fdroid", ignoreCase = true) || it.contains("bundle", ignoreCase = true)
+            }
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
             isUniversalApk = true
