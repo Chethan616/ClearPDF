@@ -215,6 +215,7 @@
     <string name="settings_made_by">Made by Chethan616 with &#10084;</string>
     <string name="settings_star_github">Star on GitHub</string>
     <string name="settings_open_source">ClearPDF is open source</string>
+    <string name="settings_terms_of_service">Terms of Service</string>
     <string name="settings_licenses">Open Source Licenses</string>
 
     <!-- PDF Viewer -->
