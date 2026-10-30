@@ -40,7 +40,9 @@ android {
 
     flavorDimensions += "distribution"
     productFlavors {
-        create("play") { dimension = "distribution" }
+        // Bundletool requires a feature module's minSdk to be >= the base module's. The :app
+        // play flavor is 24 (Play's automatic app protection requirement); match it here.
+        create("play") { dimension = "distribution"; minSdk = 24 }
         create("foss") { dimension = "distribution" }
     }
 }
