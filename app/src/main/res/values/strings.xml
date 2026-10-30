@@ -46,7 +46,7 @@
     <string name="home_workspace_label">PDF WORKSPACE</string>
     <string name="home_tagline">PDF work, simply elegant.</string>
     <string name="home_subtitle">Open, scan, and organize your files &#8212; privately on your device.</string>
-    <string name="home_open_pdf">Open PDF</string>
+    <string name="home_open_pdf">Open file</string>
     <string name="home_scan">Scan</string>
     <string name="home_recents">Recents</string>
     <string name="home_see_all">See all</string>
