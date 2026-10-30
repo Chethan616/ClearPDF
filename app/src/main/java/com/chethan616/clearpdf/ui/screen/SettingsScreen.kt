@@ -158,6 +158,8 @@ fun SettingsScreen(
     val uiSensor = rememberUISensor()
     val settingsScope = rememberCoroutineScope()
     val openRepo = remember(context) { { openExternalLink(context, GitHubStarPromptManager.REPO_URL) } }
+    val openPrivacyPolicy = remember(context) { { openExternalLink(context, "${GitHubStarPromptManager.REPO_URL}/blob/main/PRIVACY.md") } }
+    val openTerms = remember(context) { { openExternalLink(context, "${GitHubStarPromptManager.REPO_URL}/blob/main/TERMS.md") } }
 
     var autoCompress by remember { mutableStateOf(AppSettingsManager.getAutoCompress(context)) }
     var keepOriginal by remember { mutableStateOf(AppSettingsManager.getKeepOriginal(context)) }
@@ -591,6 +593,18 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     BasicText(stringResource(R.string.settings_open_source), style = TextStyle(sub.copy(0.7f), 11.sp, textAlign = TextAlign.Center))
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        BasicText(
+                            stringResource(R.string.settings_privacy_policy),
+                            modifier = Modifier.clickable(onClick = openPrivacyPolicy),
+                            style = TextStyle(LiquidGlassColors.Blue, 12.sp, fontWeight = FontWeight.Medium)
+                        )
+                        BasicText(
+                            stringResource(R.string.settings_terms_of_service),
+                            modifier = Modifier.clickable(onClick = openTerms),
+                            style = TextStyle(LiquidGlassColors.Blue, 12.sp, fontWeight = FontWeight.Medium)
+                        )
+                    }
                 }
 
                 if (p == PageLicenses) SettingsSection(backdrop, uiSensor, Modifier) {
