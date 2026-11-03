@@ -1,0 +1,8 @@
+* Traducciones al alemán, francés, italiano, portugués de Brasil y árabe
+* Un motor PDF más reciente (0.14.0)
+* Ratón: la rueda desplaza y amplía, arrastrar selecciona texto
+* Leer en voz alta empieza en la palabra tocada o la selección
+* Un escaneo conserva sus fotos cuando Android cierra la app tras la cámara
+* Una firma colocada toma el color que eliges
+* Cerrar un PDF abierto desde otra app vuelve a esa app
+* PdfCraft ya no guarda una copia de cada PDF que abre

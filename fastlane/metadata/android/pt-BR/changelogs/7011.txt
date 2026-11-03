@@ -1,0 +1,8 @@
+* Traduções para alemão, francês, italiano, português do Brasil e árabe
+* Um mecanismo de PDF mais recente (0.14.0)
+* Mouse: a roda rola e amplia, arrastar seleciona texto
+* A leitura em voz alta começa na palavra tocada ou na seleção
+* Um escaneamento mantém as fotos quando o Android fecha o app atrás da câmera
+* Uma assinatura colocada assume a cor escolhida
+* Fechar um PDF aberto por outro app volta para esse app
+* O PdfCraft não guarda mais uma cópia de cada PDF que abre

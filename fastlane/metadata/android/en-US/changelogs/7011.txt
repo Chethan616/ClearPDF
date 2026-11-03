@@ -1,0 +1,8 @@
+* German, French, Italian, Brazilian Portuguese and Arabic translations
+* A newer PDF engine (0.14.0)
+* Mouse support: the wheel scrolls and zooms, a drag selects text
+* Read aloud starts from a tapped word or the selection
+* A scan keeps its photos when Android closes the app behind the camera
+* A placed signature takes the colour you pick
+* Closing a PDF another app opened goes back to that app
+* PdfCraft no longer keeps a copy of every PDF it opens

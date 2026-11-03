@@ -1,0 +1,8 @@
+* Traductions en allemand, français, italien, portugais du Brésil et arabe
+* Un moteur PDF plus récent (0.14.0)
+* Souris : la molette fait défiler et zoome, un glisser sélectionne le texte
+* La lecture à voix haute part du mot touché ou de la sélection
+* Un scan garde ses photos quand Android ferme l'app derrière l'appareil photo
+* Une signature placée prend la couleur choisie
+* Fermer un PDF ouvert depuis une autre app ramène à cette app
+* PdfCraft ne garde plus une copie de chaque PDF ouvert
