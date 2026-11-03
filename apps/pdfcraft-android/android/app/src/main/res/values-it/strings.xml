@@ -224,6 +224,12 @@
     <string name="home_section_keyboard">Tastiera</string>
     <string name="home_keyboard_shortcuts">Scorciatoie da tastiera</string>
     <string name="home_keyboard_shortcuts_body">Con una tastiera collegata: N o PagGiù per la pagina successiva, P o PagSu per quella precedente, i tasti freccia per scorrere, Ctrl+P per stampare, Ctrl e + o − per modificare lo zoom.</string>
+    <string name="home_section_extra">Funzioni extra</string>
+    <string name="home_extra_body">Modifiche facoltative all\'aspetto e al funzionamento di PdfCraft.</string>
+    <string name="home_status_bar_in_documents">Mostra la barra di stato nei documenti</string>
+    <string name="home_status_bar_in_documents_body">La barra di stato appare insieme alle barre degli strumenti. Quando tocchi per nasconderle, la pagina usa tutto lo schermo, anche intorno alla fotocamera.</string>
+    <string name="home_search_count">Mostra il numero dei risultati di ricerca</string>
+    <string name="home_search_count_body">La ricerca in un documento mostra a quale risultato sei e quanti ce ne sono, ad esempio 3 di 12.</string>
 
     <!-- Informazioni su PdfCraft -->
 
@@ -436,6 +442,10 @@
     <string name="viewer_add_comment">Aggiungi commento</string>
     <string name="viewer_strikethrough">Barrato</string>
     <string name="viewer_edit_text">Modifica testo</string>
+    <string name="viewer_zoom_in">Ingrandisci</string>
+    <string name="viewer_zoom_out">Riduci</string>
+    <string name="viewer_search_count">%1$d di %2$d</string>
+    <string name="viewer_read_from_here">Leggi da qui</string>
     <string name="viewer_copy_text">Copia testo</string>
     <string name="viewer_selection_start">Inizio selezione</string>
     <string name="viewer_selection_end">Fine selezione</string>

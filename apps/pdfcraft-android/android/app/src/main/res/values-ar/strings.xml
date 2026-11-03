@@ -182,6 +182,8 @@
     <string name="home_extra_body">خيارات إضافية لتخصيص مظهر PdfCraft وطريقة عمله.</string>
     <string name="home_status_bar_in_documents">إظهار شريط الحالة داخل المستندات</string>
     <string name="home_status_bar_in_documents_body">يظهر شريط الحالة مع أشرطة الأدوات. عند الضغط لإخفائها، يستخدم المستند الشاشة كاملة، بما فيها المساحة حول الكاميرا.</string>
+    <string name="home_search_count">إظهار عدد نتائج البحث</string>
+    <string name="home_search_count_body">يعرض البحث في المستند رقم النتيجة الحالية وعدد النتائج كلها، مثل 3 من 12.</string>
     <string name="home_section_about">حول التطبيق</string>
     <string name="home_version">الإصدار %1$s (المحرك %2$s)</string>
     <string name="home_version_copied">تم نسخ الإصدار</string>
@@ -314,6 +316,10 @@
     <string name="viewer_add_comment">إضافة تعليق</string>
     <string name="viewer_strikethrough">شطب</string>
     <string name="viewer_edit_text">تحرير النص</string>
+    <string name="viewer_zoom_in">تكبير</string>
+    <string name="viewer_zoom_out">تصغير</string>
+    <string name="viewer_search_count">%1$d من %2$d</string>
+    <string name="viewer_read_from_here">القراءة من هنا</string>
     <string name="viewer_copy_text">نسخ النص</string>
     <string name="viewer_selection_start">بداية التحديد</string>
     <string name="viewer_selection_end">نهاية التحديد</string>
