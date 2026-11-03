@@ -1,0 +1,5 @@
+* Aucune permission de stockage : « Sur cet appareil » liste désormais les dossiers choisis avec le sélecteur de dossier du système
+* Les très gros PDF s'ouvrent en quelques secondes (un manuel de 350 Mo et 4 000 pages plantait auparavant)
+* Les barres d'outils s'adaptent et défilent sur les petits écrans
+* Les raccourcis clavier changent, et des liens vers le dépôt de l'application
+* Nouvelle barre inférieure avec des raccourcis

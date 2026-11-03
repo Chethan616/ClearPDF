@@ -1,0 +1,4 @@
+* Signature avec une identité numérique (fichier .p12 / .pfx, ou créée dans l'application), vérification des signatures d'un document et confiance accordée aux signataires
+* Un APK pour les téléphones ARM 32 bits
+* Les modifications d'un fichier qui ne peut pas être réécrit (comme un fichier choisi dans les Récents du sélecteur de fichiers) sont proposées sous forme de copie à la fermeture au lieu d'être perdues
+* Les textes de l'application sont prêts à être traduits

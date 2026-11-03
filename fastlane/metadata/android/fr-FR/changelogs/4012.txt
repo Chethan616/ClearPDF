@@ -1,0 +1,4 @@
+* Les libellés de la barre d'outils s'adaptent aux grandes tailles de police du système
+* Les fichiers ouverts depuis une autre application se rouvrent depuis Récents au lieu d'afficher une erreur
+* Dézoomer au-delà de la largeur de page pour voir des pages entières (merci Ivan Malinovski)
+* Numérisation : les pages portrait restent en portrait, les bords de la page sont détectés plus fiablement, et chaque page peut être rognée et le fichier nommé avant l'enregistrement

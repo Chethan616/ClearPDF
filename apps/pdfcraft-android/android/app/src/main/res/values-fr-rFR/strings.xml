@@ -1,0 +1,1048 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Textes de PdfCraft, en français (France).
+-->
+<resources>
+    <string name="app_name" translatable="false">PdfCraft</string>
+    <string name="open_with">Ouvrir dans PdfCraft</string>
+
+    <!-- Shared: buttons and words used on many screens -->
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Annuler</string>
+    <string name="common_done">Terminé</string>
+    <string name="common_save">Enregistrer</string>
+    <string name="common_save_copy">Enregistrer une copie</string>
+    <string name="common_delete">Supprimer</string>
+    <string name="common_back">Retour</string>
+    <string name="common_share">Partager</string>
+    <string name="common_open">Ouvrir</string>
+    <string name="common_create">Créer</string>
+    <string name="common_clear">Effacer</string>
+    <string name="common_rename">Renommer</string>
+    <string name="common_undo">Annuler</string>
+    <string name="common_redo">Rétablir</string>
+    <string name="common_play">Lire</string>
+    <string name="common_pause">Pause</string>
+    <string name="common_sign">Signer</string>
+    <string name="common_post">Publier</string>
+    <string name="common_more_options">Plus d\'options</string>
+    <string name="common_password">Mot de passe</string>
+    <string name="common_your_name">Votre nom</string>
+    <string name="common_file_name">Nom du fichier</string>
+    <string name="common_today">Aujourd\'hui</string>
+    <string name="common_yesterday">Hier</string>
+
+    <!-- Shared: tool names -->
+    <string name="common_tool_edit_pdf">Modifier le PDF</string>
+    <string name="common_tool_read_aloud">Lecture à voix haute</string>
+    <string name="common_tool_combine">Fusionner des fichiers</string>
+    <string name="common_tool_set_password">Définir un mot de passe</string>
+    <string name="common_tool_organize">Organiser les pages</string>
+    <string name="common_tool_create_pdf">Créer un PDF</string>
+    <string name="common_tool_compress">Compresser le PDF</string>
+    <string name="common_tool_export">Exporter le PDF</string>
+    <string name="common_tool_crop">Rogner les pages</string>
+    <string name="common_tool_fill_sign">Remplir et signer</string>
+    <string name="common_tool_scan">Numériser</string>
+    <string name="common_tool_more_tools">Plus d\'outils</string>
+    <string name="common_tool_recognize_text">Reconnaître le texte</string>
+    <string name="common_tool_comment">Commenter</string>
+    <string name="common_tool_highlight">Surligner</string>
+    <string name="common_tool_underline">Souligner</string>
+    <string name="common_tool_draw">Dessiner</string>
+    <string name="common_tool_sign_digital_id">Signer avec une identité numérique</string>
+
+    <!-- Shared: messages -->
+    <string name="common_file_unreadable">Impossible de lire le fichier.</string>
+    <string name="common_wrong_password">Le mot de passe est incorrect.</string>
+
+    <!-- ================================================================== -->
+    <!-- Home, Files, Tools and Search, the tool screens, settings and shared dialogs -->
+    <!-- ================================================================== -->
+    <!-- Home: the bottom bar's tabs (also the Files and Tools screens' titles) -->
+    <string name="home_tab_home">Accueil</string>
+    <string name="home_tab_files">Fichiers</string>
+    <string name="home_tab_tools">Outils</string>
+    <string name="home_tab_search">Recherche</string>
+
+    <!-- Home: header, welcome and the file lists -->
+    <string name="home_settings">Réglages</string>
+    <string name="home_welcome">Bienvenue</string>
+    <string name="home_welcome_back">Content de vous revoir</string>
+    <string name="home_start_with_tool">Commencer avec un outil</string>
+    <!-- Tabs over Home's file list -->
+    <string name="home_list_recent">Récents</string>
+    <string name="home_list_starred">Favoris</string>
+    <string name="home_list_on_device">Sur l\'appareil</string>
+    <string name="home_list_view">Affichage en liste</string>
+    <string name="home_grid_view">Affichage en grille</string>
+    <string name="home_clear_recent">Vider les récents</string>
+    <string name="home_sort_by_name">Trier par nom</string>
+    <string name="home_sort_by_date">Trier par date</string>
+    <string name="home_other_files">Autres fichiers sur ce téléphone</string>
+    <string name="home_open_file">Ouvrir un fichier</string>
+    <string name="home_new_scan">Nouvelle numérisation</string>
+
+    <!-- Home: empty lists -->
+    <string name="home_no_recent_title">Aucun fichier récent</string>
+    <string name="home_no_recent_body">Les fichiers que vous ouvrez apparaîtront ici.</string>
+    <string name="home_no_starred_title">Aucun fichier favori</string>
+    <string name="home_no_starred_body">Ajoutez un fichier aux favoris depuis son menu pour le retrouver rapidement.</string>
+    <string name="home_device_files_title">Fichiers sur votre appareil</string>
+    <string name="home_device_files_body">Choisissez les dossiers où chercher des PDF, comme Documents ou un dossier dans Téléchargements. Les fichiers ouverts depuis n\'importe où restent dans Récents.</string>
+    <!-- On this device, before any folder is added: the longer explanation -->
+    <string name="home_device_files_body_long">Choisissez les dossiers où chercher des PDF, comme Documents ou un dossier dans Téléchargements (Android ne permet pas aux applications de lister tout le dossier Téléchargements). PdfCraft ne voit que les dossiers que vous choisissez, et les fichiers ouverts depuis n\'importe où restent dans Récents.</string>
+    <string name="home_no_pdfs_title">Aucun PDF dans vos dossiers</string>
+    <string name="home_no_pdfs_body">Les PDF des dossiers ajoutés apparaîtront ici.</string>
+    <string name="home_add_folder">Ajouter un dossier</string>
+
+    <!-- Home: a file's row, and when it was last opened -->
+    <string name="home_just_now">À l\'instant</string>
+    <!-- Accessibility label of the star icon on a starred file -->
+    <string name="home_starred_description">Favori</string>
+    <!-- Accessibility label of the location icon; %1$s is the folder the file is in -->
+    <string name="home_stored_on">Stocké dans %1$s</string>
+    <!-- Accessibility label of a file's menu button; %1$s is the file name -->
+    <string name="home_more_options_for">Plus d\'options pour %1$s</string>
+
+    <!-- Home: ticked files -->
+    <string name="home_clear_selection">Effacer la sélection</string>
+    <plurals name="home_files_selected">
+        <item quantity="one">%d fichier sélectionné</item>
+        <item quantity="other">%d fichiers sélectionnés</item>
+    </plurals>
+    <string name="home_remove_from_recent">Retirer des récents</string>
+    <plurals name="home_delete_files_title">
+        <item quantity="one">Supprimer %d fichier ?</item>
+        <item quantity="other">Supprimer %d fichiers ?</item>
+    </plurals>
+    <string name="home_delete_files_body">Ils sont supprimés de ce téléphone.</string>
+    <string name="home_clear_recent_title">Vider les fichiers récents ?</string>
+    <string name="home_clear_recent_body">La liste des fichiers récents est vidée. Les fichiers eux-mêmes ne bougent pas.</string>
+
+    <!-- A file's menu sheet -->
+    <!-- Opens Export PDF for this file; the three dots mean more choices follow -->
+    <string name="home_export_as">Exporter en...</string>
+    <string name="home_print">Imprimer</string>
+    <string name="home_open_with">Ouvrir avec</string>
+    <!-- Verb: add the file to Starred -->
+    <string name="home_star">Ajouter aux favoris</string>
+    <!-- Verb: take the file off Starred -->
+    <string name="home_unstar">Retirer des favoris</string>
+    <!-- Verb: make a copy of the file next to it -->
+    <string name="home_duplicate">Dupliquer</string>
+    <string name="home_enter_name">Saisir un nom</string>
+    <string name="home_delete_file_title">Supprimer le fichier ?</string>
+    <!-- %1$s is the file name -->
+    <string name="home_delete_file_body">Voulez-vous vraiment supprimer définitivement « %1$s » ?</string>
+
+    <!-- Files tab -->
+    <string name="home_on_this_device">Sur cet appareil</string>
+    <string name="home_photos">Photos</string>
+    <string name="home_look_in_other_folders">Chercher dans d\'autres dossiers</string>
+    <!-- Verb: look for PDFs again -->
+    <string name="home_refresh">Actualiser</string>
+    <!-- %1$s is the name of a folder the user added -->
+    <string name="home_stop_listing">Ne plus lister %1$s</string>
+    <string name="home_looking_for_pdfs">Recherche de PDF…</string>
+    <!-- Heading over files at the top of the phone's storage, in capitals like the folder headings -->
+    <string name="home_internal_storage">STOCKAGE INTERNE</string>
+
+    <!-- Tools tab: categories -->
+    <string name="home_category_all">Tous</string>
+    <!-- Category of tools for reading PDFs -->
+    <string name="home_category_read">Lire</string>
+    <!-- Category of tools that make new PDFs -->
+    <string name="home_category_create">Créer</string>
+    <!-- Category of tools that change PDFs -->
+    <string name="home_category_edit">Modifier</string>
+    <!-- Category of tools that turn PDFs into other files -->
+    <string name="home_category_convert">Convertir</string>
+
+    <!-- Tools tab: tool names and one line about each -->
+    <string name="home_tool_add_comment">Ajouter un commentaire</string>
+    <string name="home_about_fill_sign">Remplir des formulaires et les signer</string>
+    <string name="home_about_comment">Commenter, surligner et dessiner</string>
+    <string name="home_about_read_aloud">Écouter un PDF</string>
+    <string name="home_about_create">Transformer des images et du texte en PDF</string>
+    <string name="home_about_scan">Numériser du papier avec l\'appareil photo</string>
+    <string name="home_about_combine">Réunir plusieurs fichiers en un seul PDF</string>
+    <string name="home_about_organize">Réordonner, pivoter, supprimer et insérer des pages</string>
+    <string name="home_about_crop">Rogner les marges ou changer la taille de page</string>
+    <string name="home_about_edit">Modifier le texte et les images</string>
+    <string name="home_about_compress">Alléger un PDF</string>
+    <string name="home_about_export">Enregistrer un PDF en document, tableur, diaporama ou images</string>
+    <string name="home_about_protect">Protéger un PDF par mot de passe</string>
+
+    <!-- Search tab -->
+    <string name="home_search_your_files">Rechercher dans vos fichiers</string>
+    <string name="home_search_empty_body">Trouvez des PDF sur ce téléphone par leur nom.</string>
+    <string name="home_recent_searches">Recherches récentes</string>
+    <!-- Accessibility label; %1$s is a past search -->
+    <string name="home_remove_search">Retirer %1$s</string>
+    <plurals name="home_search_results">
+        <item quantity="one">%d résultat sur cet appareil</item>
+        <item quantity="other">%d résultats sur cet appareil</item>
+    </plurals>
+    <!-- Search result order -->
+    <string name="home_sort_relevant">Plus pertinents</string>
+    <string name="home_sort_name_az">Nom A→Z</string>
+    <string name="home_sort_name_za">Nom Z→A</string>
+    <string name="home_sort_oldest">Modifiés il y a le plus longtemps</string>
+    <string name="home_sort_newest">Modifiés le plus récemment</string>
+    <string name="home_no_results">Aucun résultat</string>
+    <string name="home_no_results_body">Vérifiez l\'orthographe ou essayez un nom plus court.</string>
+
+    <!-- Settings -->
+    <string name="home_about_app">À propos de PdfCraft</string>
+    <string name="home_preferences">Préférences</string>
+    <string name="home_help_support">Aide et assistance</string>
+    <string name="home_help">Aide</string>
+    <string name="home_report_problem">Signaler un problème ou demander une fonctionnalité</string>
+    <string name="home_leaving_title">Quitter PdfCraft</string>
+    <string name="home_continue">Continuer</string>
+    <string name="home_leaving_body">Une page web va s\'ouvrir dans votre navigateur.</string>
+
+    <!-- Settings: Preferences -->
+    <string name="home_section_notifications">Notifications</string>
+    <string name="home_no_notifications">PdfCraft n\'envoie pas de notifications.</string>
+    <string name="home_section_suggestions">Suggestions automatiques</string>
+    <string name="home_offer_suggestions">Proposer les mots déjà utilisés pour remplir les formulaires</string>
+    <string name="home_clear_suggestions">Effacer les suggestions</string>
+    <!-- Section heading and dialog title (also asked the first time a comment is made) -->
+    <string name="home_author_title">Votre nom sur les commentaires</string>
+    <string name="home_author_hint">Touchez pour saisir votre nom, affiché sur vos commentaires</string>
+    <string name="home_section_screen">Réglage de l\'écran</string>
+    <string name="home_keep_screen_on">Garder l\'écran allumé</string>
+    <string name="home_keep_screen_on_body">Garde l\'écran allumé pendant la lecture, jusqu\'à 30 minutes sans toucher l\'écran.</string>
+    <string name="home_section_keyboard">Clavier</string>
+    <string name="home_keyboard_shortcuts">Raccourcis clavier</string>
+    <!-- N, P, Page Down, Page Up, Ctrl+P, Ctrl, + and − are keys on the keyboard -->
+    <string name="home_keyboard_shortcuts_body">Avec un clavier connecté : N ou Page suivante pour la page suivante, P ou Page précédente pour la page précédente, les flèches pour faire défiler, Ctrl+P pour imprimer, Ctrl et + ou − pour zoomer.</string>
+    <string name="home_section_extra">Fonctionnalités supplémentaires</string>
+    <string name="home_extra_body">Modifications facultatives de l\'apparence et du fonctionnement de PdfCraft.</string>
+    <string name="home_status_bar_in_documents">Afficher la barre d\'état dans les documents</string>
+    <string name="home_status_bar_in_documents_body">La barre d\'état s\'affiche avec les barres d\'outils. Quand vous touchez l\'écran pour les masquer, la page occupe tout l\'écran, y compris autour de la caméra.</string>
+    <string name="home_search_count">Afficher le nombre de résultats de recherche</string>
+    <string name="home_search_count_body">La recherche dans un document indique à quel résultat vous êtes et combien il y en a, par exemple 3 sur 12.</string>
+
+    <!-- Settings: About PdfCraft -->
+    <string name="home_section_about">À propos</string>
+    <!-- %1$s is the app's version, %2$s the engine's version -->
+    <string name="home_version">Version %1$s (moteur %2$s)</string>
+    <string name="home_version_copied">Version copiée</string>
+    <string name="home_section_legal">Mentions légales</string>
+    <!-- Also the title of the licences screen -->
+    <string name="home_licences">Licences open source</string>
+    <string name="home_source_code">Code source</string>
+    <string name="home_engine">Moteur PdfCraft</string>
+    <!-- Keep the licence names (MIT, Apache-2.0) and the trademark notice -->
+    <string name="home_legal_notice">PdfCraft pour Android repose sur le moteur Rust de PdfCraft. MIT OR Apache-2.0. PdfCraft n\'est pas affilié à Adobe ; Acrobat est une marque d\'Adobe Inc.</string>
+
+    <!-- Tool screens: Compress PDF -->
+    <string name="tools_compress_action">Compresser</string>
+    <string name="tools_compression_level">Niveau de compression :</string>
+    <string name="tools_compress_high">Compression élevée</string>
+    <string name="tools_compress_high_desc">Fichier le plus petit, images plus floues</string>
+    <string name="tools_compress_medium">Compression moyenne</string>
+    <string name="tools_compress_medium_desc">Équilibre entre taille et qualité</string>
+    <string name="tools_compress_low">Compression faible</string>
+    <string name="tools_compress_low_desc">Fichier plus gros, images les plus nettes</string>
+
+    <!-- Tool screens: Set password -->
+    <string name="tools_about_passwords">À propos des mots de passe</string>
+    <string name="tools_protect_intro">Une copie protégée de ce fichier est enregistrée.</string>
+    <!-- The * marks a field that must be filled in -->
+    <string name="tools_new_password">Nouveau mot de passe *</string>
+    <!-- The * marks a field that must be filled in -->
+    <string name="tools_repeat_password">Répétez le mot de passe *</string>
+    <string name="tools_password_rule">Utilisez de 6 à 128 caractères : lettres, chiffres et symboles, sans espaces.</string>
+    <string name="tools_password_mismatch">Les mots de passe ne correspondent pas.</string>
+    <!-- "Remove password" is the name of a command in the viewer -->
+    <string name="tools_about_passwords_body">La copie est chiffrée en AES-256. Conservez bien le mot de passe : il est impossible de le récupérer. Pour supprimer le mot de passe plus tard, ouvrez la copie avec celui-ci et choisissez Supprimer le mot de passe.</string>
+
+    <!-- Tool screens: Export PDF -->
+    <string name="tools_export_action">Exporter</string>
+    <!-- Tab: export as an office document -->
+    <string name="tools_export_document">Document</string>
+    <!-- Tab: export each page as a picture -->
+    <string name="tools_export_image">Image</string>
+    <string name="tools_export_not_allowed">Les paramètres de sécurité de ce document n\'autorisent pas l\'export de son texte. Exportez plutôt des images de ses pages.</string>
+    <!-- File formats: product and format names, usually left as they are -->
+    <string name="tools_format_word">Word (docx)</string>
+    <string name="tools_format_rtf">Rich Text Format (rtf)</string>
+    <string name="tools_format_excel">Excel (xlsx)</string>
+    <string name="tools_format_powerpoint">PowerPoint (pptx)</string>
+    <string name="tools_format_jpeg">JPEG (jpeg)</string>
+    <string name="tools_format_png">PNG (png)</string>
+
+    <!-- Tool screens: Create PDF -->
+    <string name="tools_create_title">Choisissez des fichiers pour créer un PDF</string>
+    <string name="tools_browse_files">Parcourir les fichiers</string>
+    <string name="tools_or_make_new">Ou en créer un nouveau</string>
+    <string name="tools_scan_document">Numériser un document</string>
+
+    <!-- Tool screens: Combine files -->
+    <!-- Title once two or more files are chosen -->
+    <plurals name="tools_file_count">
+        <item quantity="one">%d fichier</item>
+        <item quantity="other">%d fichiers</item>
+    </plurals>
+    <string name="tools_add_files">Ajouter des fichiers</string>
+    <string name="tools_combine_too_many">Retirez des fichiers : 12 au maximum peuvent être fusionnés.</string>
+    <string name="tools_drag_to_reorder">Faites glisser pour réordonner</string>
+    <!-- Accessibility label; %1$s is the file name -->
+    <string name="tools_remove_file">Retirer %1$s</string>
+    <string name="tools_file_removed">Fichier retiré</string>
+    <string name="tools_combine_as_pdf">Fusionner en PDF</string>
+    <string name="tools_combine_name_title">Nommer le fichier fusionné</string>
+
+    <!-- Tool screens: Crop pages and the scan's crop -->
+    <string name="tools_all_pages">Toutes les pages</string>
+    <string name="tools_current_page">Page actuelle</string>
+    <string name="tools_previous_page">Page précédente</string>
+    <string name="tools_next_page">Page suivante</string>
+    <!-- %1$d is the page number -->
+    <string name="tools_page_number">Page %1$d</string>
+    <!-- Verb: put the crop back to the whole page -->
+    <string name="tools_reset">Réinitialiser</string>
+    <!-- Verb (button) and the title of the scan's crop screen -->
+    <string name="tools_crop">Rogner</string>
+    <string name="tools_auto_detect">Détection automatique</string>
+    <string name="tools_no_crop">Pas de rognage</string>
+
+    <!-- Tool screens: Scan -->
+    <!-- %1$d is the page shown, %2$d the number of pages -->
+    <string name="tools_page_of">Page %1$d sur %2$d</string>
+    <string name="tools_save_pdf">Enregistrer le PDF</string>
+    <!-- Accessibility label of the new file's name; %1$s is the name -->
+    <string name="tools_scan_name_description">Nom du fichier : %1$s. Modifier</string>
+    <string name="tools_scan_empty">Prenez une photo de chaque page</string>
+    <string name="tools_add_page">Ajouter une page</string>
+    <!-- Verb: take this page's photo again -->
+    <string name="tools_retake">Reprendre</string>
+    <!-- Looks a scanned page can have -->
+    <string name="tools_filter_original">Original</string>
+    <string name="tools_filter_auto_colour">Couleur auto</string>
+    <string name="tools_filter_grayscale">Niveaux de gris</string>
+    <string name="tools_filter_whiteboard">Tableau blanc</string>
+    <string name="tools_filter_light_text">Texte clair</string>
+
+    <!-- App dialogs: the first comment's name prompt -->
+    <!-- Verb: go on without entering a name -->
+    <string name="root_skip">Passer</string>
+    <string name="root_author_prompt_body">Ajoutez un nom pour indiquer qui a fait chaque commentaire. Vous pourrez le modifier plus tard dans les Préférences.</string>
+
+    <!-- App dialogs: a file that can't be written back -->
+    <string name="root_read_only_title">Fichier en lecture seule</string>
+    <!-- Verb: throw the changes away -->
+    <string name="root_discard">Abandonner</string>
+    <!-- %1$s is the file name -->
+    <string name="root_read_only_body">Vos modifications de %1$s ne peuvent pas être enregistrées à son emplacement. Enregistrez une copie pour les conserver.</string>
+
+    <!-- App dialogs: a link in a document -->
+    <string name="root_open_link_title">Ouvrir la page web</string>
+    <!-- %1$s is the web site's address -->
+    <string name="root_open_link_body">Voulez-vous ouvrir la page %1$s ?</string>
+
+    <!-- App dialogs: bookmarks and Reading Mode -->
+    <string name="root_delete_bookmarks_title">Supprimer tous les signets ?</string>
+    <string name="root_delete_all">Tout supprimer</string>
+    <string name="root_delete_bookmarks_body">Tous les signets de ce document sont supprimés.</string>
+    <string name="root_reading_mode_title">Mode lecture</string>
+    <!-- "Continuous", "Single page" and "View settings" are names shown in the viewer -->
+    <string name="root_reading_mode_body">Les outils agissent sur la page elle-même. Choisissez Continu ou Page unique dans Réglages d\'affichage pour les utiliser.</string>
+
+    <!-- App dialogs: a password-protected file -->
+    <string name="root_enter_password">Saisir le mot de passe</string>
+    <!-- %1$s is the file name (shown in italics) -->
+    <string name="root_password_body">%1$s est protégé. Saisissez le mot de passe pour ouvrir le document.</string>
+
+    <!-- Open-source licences: the parts that are not names -->
+    <string name="root_licence_pdfcraft">PdfCraft (moteur et application)</string>
+    <string name="root_licence_pdfcraft_terms">MIT OR Apache-2.0, par storytold et ses contributeurs</string>
+    <string name="root_licence_lucide">Icônes Lucide</string>
+    <string name="root_licence_inter">Police Inter</string>
+    <string name="root_licence_dancing_script">Police Dancing Script (signatures saisies)</string>
+    <string name="root_licence_foxit">Polices Foxit (pour les PDF qui n\'intègrent pas leurs polices standard)</string>
+    <string name="root_licence_cmaps">Ressources CMap d\'Adobe (pour lire les PDF en chinois, japonais et coréen)</string>
+    <string name="root_licence_ocrs">Modèles de reconnaissance de texte (ocrs)</string>
+    <string name="root_licence_ocrs_terms">CC-BY-SA-4.0, Robert Knight ; entraînés sur HierText</string>
+    <string name="root_licence_rust">hayro, lopdf, boa et les autres dépendances Rust du moteur</string>
+    <string name="root_licence_rust_terms">MIT, Apache-2.0 et licences compatibles ; voir NOTICE dans le code source</string>
+
+    <!-- Shared controls -->
+    <!-- Accessibility label of the area behind a bottom sheet -->
+    <string name="ui_close_sheet">Fermer le panneau</string>
+    <string name="ui_show_password">Afficher le mot de passe</string>
+    <string name="ui_hide_password">Masquer le mot de passe</string>
+
+    <!-- ================================================================== -->
+    <!-- The viewer: bars, page overlays, Read aloud, voice comments, Organize pages -->
+    <!-- ================================================================== -->
+    <!-- Viewer: the bottom quick toolbar's shortcut chips -->
+    <string name="viewer_star_file">Ajouter ce fichier aux favoris</string>
+    <string name="viewer_unstar_file">Retirer ce fichier des favoris</string>
+
+    <!-- Viewer: the top bar and its Undo menu -->
+    <string name="viewer_undo_drawing">Dessin</string>
+    <string name="viewer_undo_or_redo">Annuler ou rétablir</string>
+    <string name="viewer_undo_named">Annuler %1$s</string>
+    <string name="viewer_redo_named">Rétablir %1$s</string>
+    <string name="viewer_find_in_document">Rechercher dans le document</string>
+
+    <!-- Viewer: Find in the top bar -->
+    <string name="viewer_collapse">Réduire</string>
+    <string name="viewer_find_previous">Précédent</string>
+    <string name="viewer_find_next">Suivant</string>
+
+    <!-- Viewer: the quick toolbar's handle and the tool sub-toolbars -->
+    <string name="viewer_show_shortcuts">Afficher les raccourcis</string>
+    <string name="viewer_hide_shortcuts">Masquer les raccourcis</string>
+    <string name="viewer_colour">Couleur</string>
+
+    <!-- Viewer: the hint a tool shows when it starts -->
+    <string name="viewer_hint_highlight">Faites glisser sur le texte pour le surligner</string>
+    <string name="viewer_hint_underline">Faites glisser sur le texte pour le souligner</string>
+    <string name="viewer_hint_strikethrough">Faites glisser sur le texte pour le barrer</string>
+    <string name="viewer_hint_draw">Dessinez avec un doigt, faites défiler avec deux</string>
+    <string name="viewer_hint_comment">Touchez là où le commentaire doit aller</string>
+    <string name="viewer_hint_text">Touchez pour ajouter du texte</string>
+    <string name="viewer_hint_fill_sign">Touchez là où vous voulez saisir du texte</string>
+
+    <!-- Viewer: Add image sheet -->
+    <string name="viewer_add_image">Ajouter une image</string>
+    <string name="viewer_image_from_photos">Depuis les photos</string>
+    <string name="viewer_image_from_camera">Depuis l\'appareil photo</string>
+
+    <!-- Viewer: the green banner a finished job leaves -->
+    <string name="viewer_close">Fermer</string>
+
+    <!-- Viewer: the scrubber and Go to page -->
+    <string name="viewer_page_of">Page %1$d sur %2$d</string>
+    <string name="viewer_go_to_page">Aller à la page</string>
+    <string name="viewer_go_to_page_range">1 - %1$d</string>
+    <string name="viewer_enter_page_number">Saisir le numéro de page</string>
+    <string name="viewer_back_to_page">Retour à la page %1$d</string>
+
+    <!-- Viewer: the menu by selected text -->
+    <string name="viewer_add_comment">Ajouter un commentaire</string>
+    <string name="viewer_strikethrough">Barré</string>
+    <string name="viewer_edit_text">Modifier le texte</string>
+    <string name="viewer_zoom_in">Zoom avant</string>
+    <string name="viewer_zoom_out">Zoom arrière</string>
+    <string name="viewer_search_count">%1$d sur %2$d</string>
+    <string name="viewer_read_from_here">Lire à partir d\'ici</string>
+    <string name="viewer_copy_text">Copier le texte</string>
+    <string name="viewer_selection_start">Début de la sélection</string>
+    <string name="viewer_selection_end">Fin de la sélection</string>
+
+    <!-- Viewer: typing a note, a reply or free text -->
+    <string name="viewer_write_note">Écrire une note</string>
+    <string name="viewer_write_reply">Écrire une réponse</string>
+    <string name="viewer_add_text">Ajouter du texte</string>
+
+    <!-- Viewer: Reading Mode -->
+    <string name="viewer_reading_hint">Pincez ou touchez deux fois pour agrandir le texte.</string>
+    <string name="viewer_reading_no_text">Aucun texte à réorganiser sur cette page.</string>
+
+    <!-- Read Aloud: the player -->
+    <string name="read_aloud_no_voice">La lecture à voix haute nécessite une voix de synthèse vocale sur ce téléphone.</string>
+    <string name="read_aloud_open_player">Ouvrir le lecteur</string>
+    <string name="read_aloud_close_player">Fermer le lecteur</string>
+    <string name="read_aloud_read_again">Relire</string>
+    <string name="read_aloud_back_15">Reculer de 15 secondes</string>
+    <string name="read_aloud_forward_15">Avancer de 15 secondes</string>
+    <string name="read_aloud_voice">Voix</string>
+    <string name="read_aloud_choose_language">Choisir la langue</string>
+    <string name="read_aloud_voice_settings">Réglages de la voix</string>
+
+    <!-- Voice comments: recording -->
+    <string name="voice_record_comment">Enregistrer un commentaire vocal</string>
+    <string name="voice_mic_failed">Impossible de démarrer le microphone. Une autre application l\'utilise peut-être.</string>
+    <string name="voice_nothing_recorded">Rien n\'a été enregistré.</string>
+    <string name="voice_limit_warning">L\'enregistrement s\'arrête à 30 minutes.</string>
+    <string name="voice_recording">Enregistrement…</string>
+    <string name="voice_playing">Lecture…</string>
+    <string name="voice_listen_first">Écoutez votre enregistrement avant de le publier</string>
+    <string name="voice_stop_recording">Arrêter l\'enregistrement</string>
+    <string name="voice_record_again">Réenregistrer</string>
+
+    <!-- Voice comments: playing one back in its panel -->
+    <string name="voice_cannot_play">Impossible de lire cet enregistrement.</string>
+    <string name="voice_play_audio">Lire l\'audio</string>
+    <string name="voice_comment_kind">Commentaire vocal</string>
+
+    <!-- Voice comments: the microphone was refused before -->
+    <string name="voice_mic_title">Utiliser le microphone ?</string>
+    <string name="voice_mic_rationale">PdfCraft a besoin du microphone pour enregistrer des commentaires vocaux. Vous pouvez l\'autoriser dans les réglages de l\'application.</string>
+    <string name="voice_open_settings">Ouvrir les réglages</string>
+    <string name="voice_not_now">Pas maintenant</string>
+
+    <!-- Pages: the grid of pages and organizing -->
+    <string name="pages_title">Pages</string>
+    <string name="pages_select">Sélectionner des pages</string>
+    <plurals name="pages_selected_count">
+        <item quantity="one">%1$d sélectionnée</item>
+        <item quantity="other">%1$d sélectionnées</item>
+    </plurals>
+    <string name="pages_page">Page %1$d</string>
+    <string name="pages_insert_page">Insérer une page</string>
+    <string name="pages_extract">Extraire</string>
+    <string name="pages_rotate_left">Gauche</string>
+    <string name="pages_rotate_right">Droite</string>
+
+    <!-- Pages: Insert sheet (where the new pages go, and what they are) -->
+    <string name="pages_insert">Insérer</string>
+    <string name="pages_at_start">Au début</string>
+    <string name="pages_at_end">À la fin</string>
+    <string name="pages_after_page">Après la page %1$d</string>
+    <string name="pages_before_page">Avant la page %1$d</string>
+    <string name="pages_blank_page">Page vierge</string>
+    <string name="pages_from_file">Depuis un autre fichier</string>
+    <string name="pages_from_scan">Depuis une numérisation</string>
+
+    <!-- ================================================================== -->
+    <!-- The viewer's sheets: More, comments, lists, page menu, digital signatures -->
+    <!-- ================================================================== -->
+    <!-- Digital signatures: placing the signature box on a page -->
+    <string name="sign_place_hint">Faites glisser un cadre là où la signature doit aller</string>
+
+    <!-- Digital signatures: the Sign with a digital ID screen -->
+    <string name="sign_section_id">Identité numérique</string>
+    <!-- Translator note: .p12 and .pfx are file extensions; keep them as they are -->
+    <string name="sign_no_id">Vous n\'avez pas encore d\'identité numérique. Ajoutez le fichier .p12 ou .pfx qui vous a été remis, ou créez-en une pour vous.</string>
+    <string name="sign_add_id_file">Ajouter un fichier d\'identité numérique</string>
+    <string name="sign_create_id">Créer une identité numérique</string>
+    <string name="sign_section_appearance">Apparence</string>
+    <string name="sign_look_name">Nom seul</string>
+    <string name="sign_look_typed">Nom saisi</string>
+    <string name="sign_look_drawn">Ma signature</string>
+    <string name="sign_look_name_about">Votre nom et la date dans le cadre.</string>
+    <string name="sign_look_typed_about">Votre nom en écriture manuscrite, avec votre nom et la date à côté.</string>
+    <string name="sign_look_drawn_about">Votre signature Remplir et signer enregistrée, avec votre nom et la date à côté.</string>
+    <string name="sign_look_drawn_missing">Créez d\'abord une signature dans Remplir et signer.</string>
+    <string name="sign_section_reason">Motif (facultatif)</string>
+    <string name="sign_reason_hint">Par exemple : J\'approuve ce document</string>
+    <string name="sign_section_location">Lieu (facultatif)</string>
+    <string name="sign_location_hint">Ville ou endroit</string>
+    <string name="sign_section_password">Mot de passe de %1$s</string>
+    <string name="sign_id_password">Mot de passe de l\'identité numérique</string>
+    <string name="sign_saves_note">La signature enregistre le document. Toute personne qui l\'ouvre peut vérifier qu\'il n\'a pas changé depuis ; les modifications faites après la signature sont listées avec la signature.</string>
+
+    <!-- Digital signatures: a digital ID in the list -->
+    <string name="sign_id_expired">Cette identité numérique a expiré le %1$s.</string>
+    <string name="sign_id_not_yet_valid">Cette identité numérique n\'est valide qu\'à partir du %1$s.</string>
+    <string name="sign_id_self_signed">Auto-signée</string>
+    <string name="sign_id_issued_by">Émise par %1$s</string>
+    <string name="sign_id_valid_until">Valide jusqu\'au %1$s</string>
+    <string name="sign_remove_id_description">Supprimer l\'identité numérique de %1$s</string>
+    <string name="sign_remove_id_title">Supprimer l\'identité numérique ?</string>
+    <string name="sign_remove">Supprimer</string>
+    <string name="sign_remove_id_message">L\'identité numérique de %1$s est supprimée de PdfCraft. Les documents déjà signés avec elle conservent leurs signatures.</string>
+
+    <!-- Digital signatures: the password of a digital ID file being added -->
+    <string name="sign_add">Ajouter</string>
+    <string name="sign_id_password_prompt">Saisissez le mot de passe qui protège %1$s.</string>
+
+    <!-- Digital signatures: the Create a digital ID screen -->
+    <string name="sign_create_about">Une identité numérique créée ici est auto-signée : un document signé avec elle montre toute modification faite après la signature, mais personne d\'autre ne garantit que c\'est bien vous. Pour cela, utilisez le fichier d\'identité fourni par une organisation ou une autorité de certification.</string>
+    <string name="sign_section_name">Nom</string>
+    <string name="sign_section_email">E-mail (facultatif)</string>
+    <string name="sign_email_hint">nom@exemple.fr</string>
+    <string name="sign_section_organisation">Organisation (facultatif)</string>
+    <string name="sign_organisation_hint">Entreprise ou organisation</string>
+    <string name="sign_password_hint">Au moins 8 caractères</string>
+    <string name="sign_password_again">Répétez le mot de passe</string>
+    <string name="sign_password_short">Le mot de passe doit comporter au moins 8 caractères.</string>
+    <string name="sign_password_mismatch">Les mots de passe ne correspondent pas.</string>
+    <string name="sign_password_note">PdfCraft ne conserve pas le mot de passe et ne peut pas le récupérer : vous le saisissez à chaque signature.</string>
+
+    <!-- Digital signatures: tapping an empty signature field -->
+    <string name="sign_add_your_signature">Ajouter votre signature</string>
+
+    <!-- Digital signatures: the Signatures sheet -->
+    <string name="sign_signatures">Signatures</string>
+    <string name="sign_none">Ce document n\'a aucune signature.</string>
+    <string name="sign_unknown_signer">Signataire inconnu</string>
+    <string name="sign_empty_field">Champ de signature vide</string>
+    <string name="sign_certified">Certifié</string>
+    <string name="sign_add_signature">Ajouter une signature numérique</string>
+    <string name="sign_status_unsigned">Pas encore signé</string>
+    <string name="sign_status_valid">Valide</string>
+    <string name="sign_status_invalid">Invalide</string>
+    <string name="sign_status_unknown">Signataire non vérifié</string>
+
+    <!-- Digital signatures: a signature's details -->
+    <string name="sign_detail_reason">Motif : %1$s</string>
+    <string name="sign_detail_location">Lieu : %1$s</string>
+    <string name="sign_detail_cert_self_signed">Certificat : auto-signé</string>
+    <string name="sign_detail_cert_issued_by">Certificat : émis par %1$s</string>
+    <string name="sign_detail_valid_until">Valide jusqu\'au : %1$s</string>
+    <string name="sign_detail_certified_no_changes">Certifié : aucune modification autorisée</string>
+    <string name="sign_detail_certified_forms">Certifié : remplissage de formulaires autorisé</string>
+    <string name="sign_detail_certified_comments">Certifié : remplissage de formulaires et commentaires autorisés</string>
+    <string name="sign_detail_changes_none">Modifications depuis la signature : aucune</string>
+    <string name="sign_detail_changes_allowed">Modifications depuis la signature : autorisées</string>
+    <string name="sign_detail_changes_allowed_list">Modifications depuis la signature : autorisées (%1$s)</string>
+    <string name="sign_detail_changes_disallowed">Modifications depuis la signature : certaines non autorisées</string>
+    <string name="sign_detail_changes_disallowed_list">Modifications depuis la signature : certaines non autorisées (%1$s)</string>
+    <string name="sign_field_unsigned">Personne n\'a encore signé ce champ.</string>
+    <string name="sign_go_to">Y aller</string>
+    <string name="sign_stop_trusting">Ne plus faire confiance</string>
+    <string name="sign_trust">Faire confiance à ce signataire</string>
+
+    <!-- Viewer sheets: More -->
+    <string name="sheet_stored_on_device">Stocké sur cet appareil</string>
+    <string name="sheet_read_only">Lecture seule</string>
+    <string name="sheet_print">Imprimer</string>
+    <string name="sheet_add_star">Ajouter aux favoris</string>
+    <string name="sheet_remove_star">Retirer des favoris</string>
+    <string name="sheet_view_settings">Réglages d\'affichage</string>
+    <string name="sheet_pages">Pages</string>
+    <string name="sheet_attachments">Pièces jointes</string>
+    <string name="sheet_bookmarks_contents">Signets et table des matières</string>
+    <string name="sheet_comment_list">Liste des commentaires</string>
+    <string name="sheet_add_bookmark">Ajouter un signet</string>
+    <string name="sheet_remove_bookmark">Supprimer le signet</string>
+    <string name="sheet_export_as">Exporter en...</string>
+    <string name="sheet_undo_action">Annuler %1$s</string>
+    <string name="sheet_redo_action">Rétablir %1$s</string>
+
+    <!-- Viewer sheets: View settings -->
+    <string name="sheet_continuous">Continu</string>
+    <string name="sheet_single_page">Page unique</string>
+    <string name="sheet_reading_mode">Mode lecture</string>
+    <string name="sheet_night_mode">Mode nuit</string>
+
+    <!-- Viewer sheets: Bookmarks & Table of Contents -->
+    <string name="sheet_tab_contents">Sommaire</string>
+    <string name="sheet_tab_bookmarks">Signets</string>
+    <string name="sheet_no_contents">Ce document n\'a pas de table des matières.</string>
+    <string name="sheet_up_level">Niveau supérieur</string>
+    <string name="sheet_expand_entry">Développer %1$s</string>
+    <string name="sheet_bookmarks_empty">Vos signets apparaissent ici.</string>
+    <string name="sheet_add_a_bookmark">Ajouter un signet</string>
+    <string name="sheet_bookmark_name_invalid">Ce nom ne peut pas être utilisé.</string>
+    <string name="sheet_bookmark_removed">Signet %1$s supprimé</string>
+    <string name="sheet_delete_all">Tout supprimer</string>
+    <string name="sheet_page">Page %1$d</string>
+
+    <!-- Viewer sheets: More tools -->
+    <string name="sheet_customize_toolbar">Personnaliser la barre d\'outils</string>
+
+    <!-- Viewer sheets: file sizes -->
+    <plurals name="sheet_size_bytes">
+        <item quantity="one">%1$d octet</item>
+        <item quantity="other">%1$d octets</item>
+    </plurals>
+    <!-- Translator note: %1$.1f is a number with one decimal; KB is kilobytes -->
+    <string name="sheet_size_kb">%1$.1f Ko</string>
+    <!-- Translator note: %1$.1f is a number with one decimal; MB is megabytes -->
+    <string name="sheet_size_mb">%1$.1f Mo</string>
+
+    <!-- Comment List -->
+    <string name="comments_title">Commentaires</string>
+    <string name="comments_none">Aucun commentaire</string>
+    <plurals name="comments_threads">
+        <item quantity="one">%1$d fil de commentaires</item>
+        <item quantity="other">%1$d fils de commentaires</item>
+    </plurals>
+    <string name="comments_expand">Développer</string>
+    <string name="comments_collapse">Réduire</string>
+    <string name="comments_copy_text">Copier le texte</string>
+    <string name="comments_edit">Modifier le commentaire</string>
+    <string name="comments_add">Ajouter un commentaire</string>
+    <string name="comments_guest">Invité</string>
+    <string name="comments_options">Options du commentaire</string>
+    <string name="comments_reply">Répondre</string>
+    <string name="comments_reply_hint">Répondre</string>
+    <string name="comments_avatar">Avatar</string>
+    <string name="comments_empty_title">Pour commencer</string>
+    <string name="comments_empty_body">Les commentaires ajoutés avec les outils de commentaire apparaissent ici.</string>
+
+    <!-- Comment List: what a comment did, in italics under its author -->
+    <string name="comments_action_highlighted">A surligné</string>
+    <string name="comments_action_underlined">A souligné</string>
+    <string name="comments_action_struck_out">A barré du texte</string>
+    <string name="comments_action_freehand">A dessiné à main levée</string>
+    <string name="comments_action_arrow">A dessiné une flèche</string>
+    <string name="comments_action_line">A dessiné une ligne</string>
+    <string name="comments_action_rectangle">A dessiné un rectangle</string>
+    <string name="comments_action_oval">A dessiné un ovale</string>
+    <string name="comments_action_cloud">A dessiné un nuage</string>
+    <string name="comments_action_polygon">A dessiné un polygone</string>
+    <string name="comments_action_joined_lines">A dessiné des lignes jointes</string>
+    <string name="comments_action_stamp">A tamponné la page</string>
+    <string name="comments_action_note">A ajouté une note</string>
+    <string name="comments_action_callout">A ajouté une bulle</string>
+    <string name="comments_action_text_box">A ajouté une zone de texte</string>
+    <string name="comments_action_replacement">A suggéré un remplacement</string>
+    <string name="comments_action_insertion">A suggéré une insertion</string>
+    <string name="comments_action_voice">A enregistré une note vocale</string>
+    <string name="comments_action_other">A commenté</string>
+
+    <!-- Comment panel -->
+    <string name="comments_previous">Commentaire précédent</string>
+    <string name="comments_next">Commentaire suivant</string>
+    <string name="comments_position">%1$d sur %2$d</string>
+    <string name="comments_opacity">Opacité</string>
+    <string name="comments_line_thickness">Épaisseur du trait</string>
+
+    <!-- Comment panel: moving a selected comment (accessibility labels) -->
+    <string name="comments_move">Déplacer le commentaire</string>
+    <string name="comments_resize">Redimensionner le commentaire</string>
+
+    <!-- Edit PDF: list styles -->
+    <string name="lists_none">Aucune</string>
+
+    <!-- Page menu (long press on a page) -->
+    <string name="page_menu_add_comment">Ajouter un commentaire</string>
+    <string name="page_menu_add_text">Ajouter du texte</string>
+    <string name="page_menu_add_image">Ajouter une image</string>
+
+    <!-- ================================================================== -->
+    <!-- Editing tools: Edit PDF, Fill &amp; Sign, comment tools, the quick toolbar, forms -->
+    <!-- ================================================================== -->
+    <!-- Bottom toolbar: short tool names under the icons (keep them short; two lines at most) -->
+    <string name="toolbar_label_password">Mot de passe</string>
+    <string name="toolbar_label_combine">Fusionner</string>
+    <string name="toolbar_label_compress">Compresser</string>
+    <string name="toolbar_label_organize">Organiser</string>
+    <string name="toolbar_label_crop">Rogner</string>
+    <string name="toolbar_label_recognize">Reconnaître</string>
+    <string name="toolbar_label_add_text">Ajouter du texte</string>
+    <string name="toolbar_tool_text">Texte</string>
+
+    <!-- Customize toolbar: moving tools between the bottom toolbar and More tools -->
+    <string name="toolbar_customize">Personnaliser la barre d\'outils</string>
+    <string name="toolbar_save">Enregistrer la barre d\'outils</string>
+    <plurals name="toolbar_customize_hint">
+        <item quantity="one">Faites glisser les outils entre la barre d\'outils et Plus d\'outils. La barre d\'outils en contient %1$d.</item>
+        <item quantity="other">Faites glisser les outils entre la barre d\'outils et Plus d\'outils. La barre d\'outils en contient %1$d.</item>
+    </plurals>
+    <string name="toolbar_section_toolbar">Barre d\'outils</string>
+    <string name="toolbar_tool_on_bar">%1$s, dans la barre d\'outils</string>
+    <string name="toolbar_tool_in_more_tools">%1$s, dans Plus d\'outils</string>
+
+    <!-- Highlight tool: marking text -->
+    <string name="toolbar_strikethrough">Barré</string>
+    <string name="toolbar_no_text_to_mark">Cette page n\'a pas de texte à marquer. Reconnaissez d\'abord le texte (Plus d\'outils ▸ Reconnaître le texte).</string>
+
+    <!-- Draw tool -->
+    <string name="toolbar_draw_freeform">Dessin à main levée</string>
+    <string name="toolbar_line_thickness">Épaisseur du trait</string>
+    <string name="toolbar_snap_to_shape">Magnétisme des formes</string>
+    <string name="toolbar_snap_on">Magnétisme des formes activé</string>
+    <string name="toolbar_snap_off">Magnétisme des formes désactivé</string>
+    <string name="toolbar_stroke_width">Épaisseur du trait %1$d</string>
+
+    <!-- Comment tool -->
+    <string name="toolbar_text_comment">Commentaire texte</string>
+    <string name="toolbar_voice_comment">Commentaire vocal</string>
+
+    <!-- Text tool -->
+    <string name="toolbar_text_size">Taille du texte</string>
+    <string name="toolbar_text_size_pt">%1$d pt</string>
+
+    <!-- Colour picker of the comment tools -->
+    <string name="toolbar_color_highlight">Couleur du surlignage</string>
+    <string name="toolbar_color_underline">Couleur du soulignement</string>
+    <string name="toolbar_color_strikethrough">Couleur du barré</string>
+    <string name="toolbar_color_drawing">Couleur du dessin</string>
+    <string name="toolbar_color_text">Couleur du texte</string>
+    <string name="toolbar_color_comment">Couleur du commentaire</string>
+    <string name="toolbar_opacity">Opacité</string>
+    <string name="toolbar_opacity_percent">Opacité %1$d %%</string>
+
+    <!-- Colour names, spoken for the colour swatches -->
+    <string name="prefs_color_blue">Bleu</string>
+    <string name="prefs_color_green">Vert</string>
+    <string name="prefs_color_yellow">Jaune</string>
+    <string name="prefs_color_orange">Orange</string>
+    <string name="prefs_color_red">Rouge</string>
+    <string name="prefs_color_purple">Violet</string>
+    <string name="prefs_color_light_blue">Bleu clair</string>
+    <string name="prefs_color_light_green">Vert clair</string>
+    <string name="prefs_color_light_yellow">Jaune clair</string>
+    <string name="prefs_color_light_orange">Orange clair</string>
+    <string name="prefs_color_pink">Rose</string>
+    <string name="prefs_color_light_purple">Violet clair</string>
+    <string name="prefs_color_white">Blanc</string>
+    <string name="prefs_color_pale_grey">Gris très clair</string>
+    <string name="prefs_color_light_grey">Gris clair</string>
+    <string name="prefs_color_medium_grey">Gris moyen</string>
+    <string name="prefs_color_dark_grey">Gris foncé</string>
+    <string name="prefs_color_black">Noir</string>
+    <string name="prefs_color_cyan">Cyan</string>
+
+    <!-- Edit PDF: the bottom bar with nothing selected -->
+    <string name="edit_add_text">Ajouter du texte</string>
+    <string name="edit_add_image">Ajouter une image</string>
+    <string name="edit_tap_for_text">Touchez la page là où le texte doit aller</string>
+    <string name="edit_tap_for_image">Touchez la page là où l\'image doit aller</string>
+
+    <!-- Edit PDF: formatting a paragraph -->
+    <string name="edit_bold">Gras</string>
+    <string name="edit_italic">Italique</string>
+    <string name="edit_underline">Souligné</string>
+    <string name="edit_text_size">Taille du texte</string>
+    <string name="edit_text_size_pt">Taille du texte : %1$d pt</string>
+    <string name="edit_font">Police</string>
+    <string name="edit_colour">Couleur</string>
+    <string name="edit_align_text">Aligner le texte</string>
+    <string name="edit_list">Liste</string>
+
+    <!-- Edit PDF: fonts (generic kinds of typeface, not font names) -->
+    <string name="edit_font_original">Police d\'origine</string>
+    <string name="edit_font_sans">Sans empattement</string>
+    <string name="edit_font_serif">Avec empattement</string>
+    <string name="edit_font_mono">Chasse fixe</string>
+
+    <!-- Edit PDF: list styles -->
+    <string name="edit_list_desc_none">Liste : aucune</string>
+    <string name="edit_list_desc_bullet">Liste à puces</string>
+    <string name="edit_list_desc_dash">Liste à tirets</string>
+    <string name="edit_list_desc_number">Liste numérotée</string>
+    <string name="edit_list_desc_lower">Liste en minuscules</string>
+    <string name="edit_list_desc_upper">Liste en majuscules</string>
+    <string name="edit_list_desc_roman">Liste en chiffres romains</string>
+
+    <!-- Edit PDF: text alignment -->
+    <string name="edit_align_left">Aligner à gauche</string>
+    <string name="edit_align_right">Aligner à droite</string>
+    <string name="edit_align_center">Centrer</string>
+    <string name="edit_align_justify">Justifier</string>
+
+    <!-- Edit PDF: the menu over a selected paragraph or picture -->
+    <string name="edit_edit_text">Modifier le texte</string>
+    <string name="edit_select_all">Tout sélectionner</string>
+    <string name="edit_paragraph_text">Texte du paragraphe</string>
+    <string name="edit_turn_left">Pivoter à gauche</string>
+    <string name="edit_turn_right">Pivoter à droite</string>
+
+    <!-- Fill & Sign: what a tap places -->
+    <string name="fill_element_text">Texte</string>
+    <string name="fill_element_cross">Croix</string>
+    <string name="fill_element_check">Coche</string>
+    <string name="fill_element_dot">Point</string>
+    <string name="fill_element_box">Cadre arrondi</string>
+    <string name="fill_element_line">Ligne</string>
+    <string name="fill_element_signature">Signature</string>
+    <string name="fill_element_initials">Initiales</string>
+
+    <!-- Fill & Sign: the toolbar -->
+    <string name="fill_add_text">Ajouter du texte</string>
+    <string name="fill_add_cross">Ajouter une croix</string>
+    <string name="fill_add_check">Ajouter une coche</string>
+    <string name="fill_add_dot">Ajouter un point</string>
+    <string name="fill_add_box">Ajouter un cadre arrondi</string>
+    <string name="fill_add_line">Ajouter une ligne</string>
+    <string name="fill_sign_or_initials">Signer ou ajouter des initiales</string>
+
+    <!-- Fill & Sign: the Sign panel -->
+    <string name="fill_add_signature">Ajouter une signature</string>
+    <string name="fill_add_initials">Ajouter des initiales</string>
+    <string name="fill_your_signature">Votre signature</string>
+    <string name="fill_your_initials">Vos initiales</string>
+    <string name="fill_clear_signature">Effacer la signature enregistrée</string>
+    <string name="fill_clear_initials">Effacer les initiales enregistrées</string>
+    <string name="fill_tap_place_signature">Touchez là où vous voulez placer votre signature</string>
+    <string name="fill_tap_place_initials">Touchez là où vous voulez placer vos initiales</string>
+
+    <!-- Fill & Sign: making a signature or initials -->
+    <string name="fill_create_signature">Créer une signature</string>
+    <string name="fill_create_initials">Créer des initiales</string>
+    <string name="fill_draw_signature_first">Dessinez d\'abord votre signature</string>
+    <string name="fill_draw_initials_first">Dessinez d\'abord vos initiales</string>
+    <string name="fill_tab_draw">Dessiner</string>
+    <string name="fill_tab_image">Image</string>
+    <string name="fill_draw_signature_here">Dessinez votre signature ici</string>
+    <string name="fill_draw_initials_here">Dessinez vos initiales ici</string>
+    <string name="fill_save_to_device">Enregistrer sur l\'appareil</string>
+
+    <!-- Fill & Sign: the menu over a placed element -->
+    <string name="fill_smaller">Plus petit</string>
+    <string name="fill_bigger">Plus grand</string>
+    <string name="fill_colour">Couleur</string>
+
+    <!-- Form fields: the top bar while a field is filled in -->
+    <string name="forms_reset">Réinitialiser</string>
+    <string name="forms_previous_field">Champ précédent</string>
+    <string name="forms_next_field">Champ suivant</string>
+
+    <!-- ================================================================== -->
+    <!-- Messages: notices at the bottom of the screen, progress, errors -->
+    <!-- ================================================================== -->
+    <!-- Messages: opening documents -->
+    <string name="msg_engine_not_started">PdfCraft n\'a pas pu démarrer.</string>
+    <string name="msg_file_moved">Ce fichier a été déplacé ou supprimé.</string>
+    <string name="msg_opened_own_copy">Copie de PdfCraft ouverte. Pour modifier l\'original, rouvrez-le depuis l\'application où il se trouve.</string>
+    <string name="msg_file_access_lost">PdfCraft ne peut plus ouvrir ce fichier. Rouvrez-le depuis l\'application où il se trouve, ou avec Ouvrir un fichier.</string>
+
+    <!-- Messages: undo and redo. %1$s is the name of the edit, as the engine gives it (for example "Add comment"). -->
+    <string name="msg_undone">%1$s annulé</string>
+    <string name="msg_redone">%1$s rétabli</string>
+
+    <!-- Messages: viewer tools -->
+    <string name="msg_tool_blocked_security">Cet outil n\'est pas disponible en raison des paramètres de sécurité du document.</string>
+    <string name="msg_snap_to_shape_on">Magnétisme des formes activé</string>
+
+    <!-- Messages: Find. %1$s is the text that was searched for. -->
+    <string name="msg_search_image_only">Les mots de ce fichier sont des images, ils ne peuvent donc pas encore être recherchés.</string>
+    <string name="msg_search_no_matches">Aucun résultat pour « %1$s »</string>
+
+    <!-- Messages: share and print -->
+    <string name="msg_share_subject">Envoi de %1$s par e-mail</string>
+    <string name="msg_print_disabled">Impression indisponible : l\'auteur a désactivé l\'impression de ce document.</string>
+
+    <!-- Messages: saving. %1$s is a file name; %2$s is its size (for example "1.2 MB"). -->
+    <string name="msg_saved_copy">Copie enregistrée</string>
+    <string name="msg_saved_downloads">Enregistré sous %1$s dans Téléchargements</string>
+    <string name="msg_saved_downloads_size">Enregistré sous %1$s dans Téléchargements (%2$s)</string>
+
+    <!-- Messages: Read aloud -->
+    <string name="msg_read_aloud_encrypted">La lecture à voix haute n\'est pas disponible pour les documents protégés par mot de passe.</string>
+    <string name="msg_read_aloud_resumed">Reprise de la lecture là où vous vous étiez arrêté</string>
+    <string name="msg_read_aloud_start_over">Recommencer</string>
+
+    <!-- Messages: bookmarks. %1$s is the bookmark's name (for example "Page 3"). -->
+    <string name="msg_bookmark_added">Signet %1$s ajouté</string>
+    <string name="msg_bookmark_removed">Signet %1$s supprimé</string>
+    <string name="msg_bookmarks_cleared">Signets supprimés</string>
+
+    <!-- Messages: voice comments -->
+    <string name="msg_voice_no_storage">Pas assez d\'espace de stockage pour enregistrer. Libérez de l\'espace et réessayez.</string>
+    <string name="msg_voice_no_mic">Les commentaires vocaux nécessitent l\'accès au microphone.</string>
+
+    <!-- Messages: copying text -->
+    <string name="msg_clip_comment">Commentaire</string>
+    <string name="msg_clip_pdf_text">Texte du PDF</string>
+    <string name="msg_copied">Copié</string>
+    <string name="msg_copy_not_allowed">Ce document n\'autorise pas la copie de son texte.</string>
+
+    <!-- Messages: Recognize text (OCR) -->
+    <string name="msg_busy_preparing_ocr">Préparation de la reconnaissance de texte…</string>
+    <string name="msg_ocr_not_installed">La reconnaissance de texte n\'est pas installée dans cette version.</string>
+    <string name="msg_busy_recognizing">Reconnaissance du texte…</string>
+    <string name="msg_ocr_done">Texte reconnu (anglais). Il peut maintenant être sélectionné, copié, recherché et surligné.</string>
+    <string name="msg_ocr_nothing">Aucune page ne nécessitait de reconnaissance</string>
+
+    <!-- Messages: Fill & Sign -->
+    <string name="msg_place_signature">Touchez là où vous voulez placer votre signature</string>
+    <string name="msg_place_initials">Touchez là où vous voulez placer vos initiales</string>
+    <string name="msg_image_unreadable">Impossible de lire cette image.</string>
+
+    <!-- Messages: digital IDs and signing -->
+    <string name="msg_sign_read_only">Ce document ne peut pas être modifié, il ne peut donc pas être signé.</string>
+    <string name="msg_id_cannot_sign">Cette identité numérique ne peut pas signer de documents. %1$s</string>
+    <string name="msg_id_added">Identité numérique de %1$s ajoutée</string>
+    <string name="msg_id_unusable">PdfCraft ne peut pas utiliser ce fichier comme identité numérique : %1$s</string>
+    <string name="msg_busy_creating_id">Création de votre identité numérique…</string>
+    <string name="msg_id_created">Identité numérique créée</string>
+    <string name="msg_busy_signing">Signature…</string>
+    <string name="msg_signed_saved">Signé et enregistré</string>
+    <string name="msg_signed_not_saved">Signé, mais %1$s ne peut pas être modifié à son emplacement. Enregistrez une copie pour conserver le fichier signé.</string>
+
+    <!-- Messages: a document's signatures, on opening it. %1$s is the signer's name. -->
+    <string name="msg_sig_invalid">La signature de ce document est invalide.</string>
+    <string name="msg_sig_some_invalid">Au moins une signature de ce document est invalide.</string>
+    <string name="msg_sig_valid">Signé par %1$s. La signature est valide.</string>
+    <string name="msg_sig_valid_unknown">Signé par un signataire inconnu. La signature est valide.</string>
+    <!-- Shown only when the document has two or more signatures. -->
+    <plurals name="msg_sig_all_valid">
+        <item quantity="one">%1$d signature est valide.</item>
+        <item quantity="other">Les %1$d signatures sont valides.</item>
+    </plurals>
+    <string name="msg_sig_unverified">Signé par %1$s. Le document n\'a pas changé depuis, mais le signataire n\'est pas vérifié.</string>
+    <string name="msg_sig_unverified_unknown">Signé par un signataire inconnu. Le document n\'a pas changé depuis, mais le signataire n\'est pas vérifié.</string>
+    <string name="msg_sig_some_unverified">Signé. Certains signataires ne sont pas vérifiés.</string>
+    <string name="msg_sig_details">Détails</string>
+    <string name="msg_signer_trusted">%1$s est approuvé sur cet appareil</string>
+    <string name="msg_signer_trusted_unknown">Ce signataire est approuvé sur cet appareil</string>
+
+    <!-- Messages: Edit PDF, adding a picture -->
+    <string name="msg_picture_unreadable">Impossible de lire l\'image.</string>
+    <string name="msg_gif_not_supported">Les images GIF ne peuvent pas être ajoutées.</string>
+
+    <!-- Messages: forms -->
+    <string name="msg_form_cleared">Formulaire effacé</string>
+    <string name="msg_button_submit">Ce bouton envoie le formulaire en ligne, ce que PdfCraft ne fait pas.</string>
+    <string name="msg_suggestions_cleared">Suggestions effacées</string>
+
+    <!-- Messages: picked files. %1$s is a file name. -->
+    <string name="msg_that_file_unreadable">Impossible de lire ce fichier.</string>
+    <string name="msg_named_file_unreadable">Impossible de lire %1$s.</string>
+    <string name="msg_files_unreadable">Impossible de lire les fichiers.</string>
+
+    <!-- Messages: tool jobs (progress texts and results) -->
+    <string name="msg_busy_compressing">Compression…</string>
+    <string name="msg_compress_no_gain">Ce fichier est déjà aussi petit que possible.</string>
+    <string name="msg_busy_combining">Fusion…</string>
+    <string name="msg_busy_setting_password">Définition du mot de passe…</string>
+    <string name="msg_crop_all">Toutes les pages sont rognées.</string>
+    <string name="msg_crop_page">La page est rognée.</string>
+    <string name="msg_busy_exporting_to">Export en %1$s…</string>
+    <string name="msg_busy_exporting_images">Export des images…</string>
+    <string name="msg_busy_exporting_page">Export de la page %1$d sur %2$d…</string>
+    <!-- Pictures/PdfCraft is a folder on the phone: keep it as it is. -->
+    <plurals name="msg_images_saved">
+        <item quantity="one">%1$d image enregistrée dans Pictures/PdfCraft</item>
+        <item quantity="other">%1$d images enregistrées dans Pictures/PdfCraft</item>
+    </plurals>
+    <string name="msg_busy_creating_pdf">Création du PDF…</string>
+    <!-- Create PDF takes at most this many files at once. -->
+    <plurals name="msg_create_first_files">
+        <item quantity="one">Seul le premier fichier a été utilisé.</item>
+        <item quantity="other">Seuls les %1$d premiers fichiers ont été utilisés.</item>
+    </plurals>
+    <string name="msg_busy_extracting">Extraction…</string>
+
+    <!-- Messages: Scan. %1$d is the page being cleaned up, %2$d how many pages there are. -->
+    <string name="msg_busy_saving_scan">Enregistrement de la numérisation…</string>
+    <string name="msg_busy_cleaning_page">Nettoyage de la page %1$d sur %2$d…</string>
+
+    <!-- Messages: Home and files. %1$s is a file name. -->
+    <string name="msg_rename_exists">Un fichier nommé %1$s existe déjà.</string>
+    <string name="msg_rename_failed">Impossible de renommer le fichier.</string>
+    <string name="msg_rename_not_here">Ce fichier ne peut pas être renommé ici.</string>
+    <string name="msg_duplicated">Dupliqué sous %1$s dans Téléchargements</string>
+    <string name="msg_delete_failed">Impossible de supprimer le fichier.</string>
+    <string name="msg_file_deleted">%1$s supprimé</string>
+
+    <!-- ================================================================== -->
+    <!-- Files, notifications and errors from the system -->
+    <!-- ================================================================== -->
+    <!-- Files: engine and file failures shown to the reader -->
+    <string name="files_error_needs_password">Ce document est protégé par un mot de passe.</string>
+    <string name="files_error_generic">Une erreur s\'est produite.</string>
+    <string name="files_error_no_path">Le fichier n\'a pas de chemin.</string>
+    <string name="files_error_write">Impossible d\'écrire le fichier.</string>
+    <string name="files_error_share">Impossible de partager le fichier.</string>
+    <string name="files_error_share_no_space">Pas assez d\'espace de stockage pour partager. Libérez de l\'espace et réessayez.</string>
+    <string name="files_error_save_downloads">Impossible d\'enregistrer le fichier dans Téléchargements.</string>
+    <string name="files_error_save_image">Impossible d\'enregistrer l\'image.</string>
+
+    <!-- Files: where a document is, as the file details show it -->
+    <string name="files_location_internal_storage">Stockage interne</string>
+    <string name="files_location_this_device">Cet appareil</string>
+    <string name="files_location_downloads">Téléchargements</string>
+    <string name="files_location_media">Médias</string>
+    <string name="files_location_another_app">Une autre application</string>
+
+    <!-- Files: names the app gives -->
+    <string name="files_folder_unnamed">Dossier</string>
+    <string name="files_bookmark_page">Page %1$d</string>
+
+    <!-- Main: messages when Android can't do what was asked -->
+    <string name="main_error_no_app">Aucune application sur ce téléphone ne peut faire cela.</string>
+    <string name="main_error_not_allowed">Android ne l\'a pas autorisé.</string>
+    <string name="main_error_print_not_allowed">L\'impression n\'est pas autorisée pour ce document.</string>
+
+    <!-- Service: the Read aloud notification -->
+    <string name="service_notification_reading">Lecture à voix haute</string>
+    <string name="service_notification_paused">En pause</string>
+    <string name="service_action_back">Reculer de 15 secondes</string>
+    <string name="service_action_forward">Avancer de 15 secondes</string>
+    <string name="service_action_stop">Arrêter</string>
+</resources>

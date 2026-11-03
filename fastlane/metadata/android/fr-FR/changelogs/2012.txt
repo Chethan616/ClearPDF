@@ -1,0 +1,5 @@
+* Modifier le PDF : listes, correcteur orthographique, images depuis l'appareil photo
+* Commentaires : les déplacer et les redimensionner, régler leur opacité et leur épaisseur ; annuler et rétablir pendant le dessin
+* Lecture à voix haute : choix de la langue, écoute en arrière-plan, reprise là où vous vous étiez arrêté
+* Sélection de plusieurs fichiers sur l'accueil ; les fichiers se rouvrent au même endroit et au même zoom
+* Menu de page par appui long ; choix des pages à exporter en images

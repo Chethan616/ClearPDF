@@ -1,0 +1,6 @@
+* Traduction en espagnol
+* Le JavaScript des formulaires fonctionne : calculs, vérifications de champs et boutons qui exécutent des scripts
+* Le texte turc, polonais, grec et cyrillique ne s'affiche plus en ? dans le texte ajouté, Remplir et signer et les formulaires
+* Préférences ▸ Fonctionnalités supplémentaires : afficher la barre d'état dans les documents
+* Le partage sur un téléphone plein l'indique au lieu de fermer l'application
+* Un moteur PDF plus récent avec de nombreuses corrections ; les mots de passe d'identité numérique doivent faire 8 caractères
