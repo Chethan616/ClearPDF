@@ -217,7 +217,7 @@ PdfCraft for Android is in beta.
 | Recognize text | ✅ (the Latin alphabet without accents) |
 | A customizable quick toolbar, upright and sideways layouts, light and dark themes | ✅ |
 | Extra Features in Preferences, off until you turn them on: the status bar in documents | ✅ |
-| Translations: all of the app's text is ready to translate ([how](#translating)) | ✅ · Spanish ✅ · other languages ⬜ |
+| Translations: all of the app's text is ready to translate ([how](#translating)) | ✅ · Spanish, German, French, Italian, Brazilian Portuguese and Arabic ✅ · other languages ⬜ |
 | AI assistant, cloud storage, sharing for review | 🚫 PdfCraft is a local app |
 
 <sub>✅ works today · 🚧 in progress · ⬜ not started · 🚫 not planned</sub>
