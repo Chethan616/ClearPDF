@@ -171,7 +171,17 @@ fun SignPanel(vm: AppViewModel, doc: OpenDocument, onDismiss: () -> Unit) {
             ) {
                 if (file.isFile) {
                     val bmp = remember(file.lastModified(), version) { BitmapFactory.decodeFile(file.absolutePath) }
-                    if (bmp != null) Image(bmp.asImageBitmap(), stringResource(if (initials) R.string.fill_your_initials else R.string.fill_your_signature), modifier = Modifier.weight(1f).height(44.dp).padding(start = 12.dp), alignment = Alignment.CenterStart)
+                    // on white, as on paper: dark ink would be lost on the dark theme's sheet (#46)
+                    if (bmp != null) {
+                        Box(Modifier.weight(1f).padding(start = 8.dp), contentAlignment = Alignment.CenterStart) {
+                            Image(
+                                bmp.asImageBitmap(), stringResource(if (initials) R.string.fill_your_initials else R.string.fill_your_signature),
+                                modifier = Modifier.height(48.dp).background(Color.White, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                        }
+                    } else {
+                        Spacer(Modifier.weight(1f))
+                    }
                     BarIcon(LucideIcons.Trash2, stringResource(if (initials) R.string.fill_clear_initials else R.string.fill_clear_signature), { file.delete(); vm.signaturesChanged++ }, size = 40.dp)
                 } else {
                     Text(stringResource(if (initials) R.string.fill_add_initials else R.string.fill_add_signature), color = pdfColors.text, fontSize = 16.sp, modifier = Modifier.weight(1f).padding(start = 22.dp))
