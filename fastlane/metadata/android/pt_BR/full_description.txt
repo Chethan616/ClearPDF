@@ -1,0 +1,28 @@
+Um leitor e editor de PDF nativo para Android, de código aberto e desenvolvido em Rust.
+
+O PdfCraft é um leitor e editor de PDF para Android, construído com base no motor PdfCraft. Ele segue o layout e as ferramentas do Acrobat Reader para dispositivos móveis, e tudo permanece no seu aparelho: sem necessidade de conta, sem uso de nuvem.
+
+Leitura
+* Visualização contínua ou por página, Modo de Leitura (texto ajustado à tela), Modo Noturno
+* Busca, seleção de texto, links, marcadores, sumário e anexos
+* Leitura em voz alta utilizando o sistema de voz do aparelho, com destaque para as palavras à medida que são lidas
+
+Comentários
+* Notas e comentários por voz, realces, sublinhado, tachado, desenhos (com ajuste automático a formas geométricas) e inserção de texto
+* Lista de comentários, discussões e respostas
+
+Preenchimento e assinatura
+* Preenchimento de campos de formulário ou uso da função "Preencher e Assinar": inserção de texto, marcações e assinaturas (desenhadas ou importadas)
+
+Edição
+* Edição de texto, adição de textos e imagens, movimentação, redimensionamento e rotação de imagens
+* Organização de páginas: mover, girar, inserir, extrair, excluir e recortar (ajustar margens)
+
+Criação de novos arquivos
+* Compressão, combinação de arquivos, definição de senha, criação de PDFs a partir de imagens, textos ou documentos de escritório, e digitalização (escaneamento)
+* Exportação para Word, RTF, Excel, PowerPoint, JPEG ou PNG
+* Reconhecimento de texto (OCR) em páginas digitalizadas
+
+As alterações são salvas diretamente no arquivo que você abriu. O aplicativo funciona tanto na orientação vertical quanto na horizontal, e oferece suporte aos temas claro e escuro. O PdfCraft encontra-se em fase beta.
+
+O PdfCraft não é afiliado nem endossado pela Adobe. Acrobat é uma marca registrada da Adobe Inc.

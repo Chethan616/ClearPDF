@@ -1,0 +1,5 @@
+* Sem necessidade de permissão de armazenamento: a opção "Neste dispositivo" agora exibe pastas selecionadas por meio do seletor de pastas do próprio sistema
+* PDFs muito grandes abrem em segundos (antes, um livro didático de 350 MB e 4.000 páginas causava travamentos)
+* Barras de ferramentas se ajustam e permitem rolagem em telas estreitas
+* Atalhos de teclado e links para o repositório do aplicativo
+* Nova barra inferior com botões de atalho

@@ -1,0 +1,5 @@
+* Editar PDF: listas, verificação ortográfica, imagens da câmera
+* Comentários: mova e redimensione, ajuste a opacidade e a espessura; desfaça e refaça ações durante o desenho
+* Leitura em voz alta: escolha o idioma, continue ouvindo em segundo plano, retome de onde parou
+* Selecione vários arquivos na tela inicial; os arquivos são reabertos exatamente no mesmo ponto e nível de zoom
+* Menu de páginas ao manter pressionado; selecione quais páginas exportar como imagens

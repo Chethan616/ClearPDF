@@ -1,0 +1,4 @@
+* Assine usando uma identidade digital (um arquivo .p12/.pfx ou uma criada no próprio aplicativo), verifique as assinaturas de um documento e defina a confiabilidade dos signatários
+* Um APK para dispositivos com arquitetura ARM de 32 bits
+* Alterações feitas em um arquivo que não pode ser salvo de volta na origem (como um arquivo selecionado a partir da lista de itens recentes) são oferecidas como uma cópia ao fechar o documento, evitando a perda dos dados
+* O texto do aplicativo está pronto para ser traduzido

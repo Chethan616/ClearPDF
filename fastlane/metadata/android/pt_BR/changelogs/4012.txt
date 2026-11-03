@@ -1,0 +1,4 @@
+* Os rótulos da barra de ferramentas ajustam-se a tamanhos de fonte maiores do sistema
+* Arquivos abertos a partir de outro aplicativo são reabertos a partir da lista de "Recentes", em vez de exibirem um erro
+* É possível reduzir o zoom além do ajuste à largura para visualizar páginas inteiras (agradecimentos a Ivan Malinovski)
+* Digitalização: páginas em orientação retrato permanecem assim, as bordas da página são detectadas com maior precisão, e cada página pode ser recortada, além de permitir definir o nome do arquivo antes de salvá-lo

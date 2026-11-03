@@ -1,0 +1,6 @@
+* Tradução para o espanhol
+* O JavaScript em formulários funciona: cálculos, verificações de campos e botões que executam scripts
+* Textos em turco, polonês, grego e com caracteres cirílicos não aparecem mais como "?" em textos adicionados, no recurso "Preencher e Assinar" (Fill & Sign) e em formulários
+* Preferências ▸ Recursos Extras: exibição da barra de status em documentos
+* Ao compartilhar conteúdo em um dispositivo móvel, o aplicativo exibe uma notificação em vez de ser encerrado
+* Mecanismo de PDF atualizado com diversas correções; senhas para identidades digitais agora exigem 8 caracteres
