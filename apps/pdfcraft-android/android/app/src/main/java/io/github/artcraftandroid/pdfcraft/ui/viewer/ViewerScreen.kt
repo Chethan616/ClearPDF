@@ -23,6 +23,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -108,6 +111,12 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
             if (window != null) WindowCompat.getInsetsController(window, view).show(WindowInsetsCompat.Type.systemBars())
         }
     }
+
+    // laid out full width with the status bar in documents (#45): what isn't the page keeps clear
+    // of a camera at the side
+    val cutoutSides = if (statusBar) Modifier.windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)) else Modifier
+    // the bars on their own colour there
+    val barSides = if (statusBar) Modifier.background(c.surface).then(cutoutSides) else Modifier
 
     // The page area starts under the top bar while it shows, and leaves room for the bottom bar.
     val statusPx = maxOf(WindowInsets.statusBars.getTop(density), WindowInsets.displayCutout.getTop(density)).toFloat()
@@ -265,35 +274,37 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         if (ctl.tool == ViewerTool.FillSign) vm.selectedFill?.let { FillElementMenu(vm, doc, it) }
 
         // Scrubber and page pill (continuous, three pages or more).
-        if (vm.readingMode) {
-            Unit
-        } else if (doc.pageCount >= 3 && doc.viewer.mode == PageMode.SinglePage) {
-            HorizontalScrubber(
-                doc = doc,
-                visible = indicatorVisible && !ctl.searching,
-                bottom = with(density) { doc.viewer.padBottom.toDp() },
-                onDrag = { ctl.lastMoved = SystemClock.uptimeMillis() },
-                onTap = { ctl.goToPage = true },
-            )
-        } else if (doc.pageCount >= 3) {
-            Scrubber(
-                doc = doc,
-                visible = indicatorVisible && !ctl.searching,
-                top = with(density) { (doc.viewer.padTop).toDp() },
-                bottom = with(density) { (doc.viewer.padBottom).toDp() },
-                onDrag = { ctl.lastMoved = SystemClock.uptimeMillis() },
-                onTap = { ctl.goToPage = true },
+        Box(Modifier.fillMaxSize().then(cutoutSides)) {
+            if (vm.readingMode) {
+                Unit
+            } else if (doc.pageCount >= 3 && doc.viewer.mode == PageMode.SinglePage) {
+                HorizontalScrubber(
+                    doc = doc,
+                    visible = indicatorVisible && !ctl.searching,
+                    bottom = with(density) { doc.viewer.padBottom.toDp() },
+                    onDrag = { ctl.lastMoved = SystemClock.uptimeMillis() },
+                    onTap = { ctl.goToPage = true },
+                )
+            } else if (doc.pageCount >= 3) {
+                Scrubber(
+                    doc = doc,
+                    visible = indicatorVisible && !ctl.searching,
+                    top = with(density) { (doc.viewer.padTop).toDp() },
+                    bottom = with(density) { (doc.viewer.padBottom).toDp() },
+                    onDrag = { ctl.lastMoved = SystemClock.uptimeMillis() },
+                    onTap = { ctl.goToPage = true },
+                )
+            }
+
+            if (desktop && !vm.readingMode) ZoomButtons(
+                doc.viewer,
+                visible = ctl.tool == ViewerTool.None && !ctl.searching && (ctl.barsVisible || zoomButtons.showing),
+                // above the bottom bar when it shows
+                bottom = maxOf(122.dp, with(density) { doc.viewer.padBottom.toDp() } + 12.dp),
+                onHover = { if (!ctl.barsVisible) zoomButtons.poke() },
+                modifier = Modifier.align(Alignment.BottomEnd),
             )
         }
-
-        if (desktop && !vm.readingMode) ZoomButtons(
-            doc.viewer,
-            visible = ctl.tool == ViewerTool.None && !ctl.searching && (ctl.barsVisible || zoomButtons.showing),
-            // above the bottom bar when it shows
-            bottom = maxOf(122.dp, with(density) { doc.viewer.padBottom.toDp() } + 12.dp),
-            onHover = { if (!ctl.barsVisible) zoomButtons.poke() },
-            modifier = Modifier.align(Alignment.BottomEnd),
-        )
 
         HintToast(hint)
 
@@ -334,55 +345,57 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                 enter = slideInVertically(tween(PdfMotion.BARS_MS)) { -it } + fadeIn(tween(PdfMotion.BARS_MS)),
                 exit = slideOutVertically(tween(PdfMotion.BARS_MS)) { -it } + fadeOut(tween(PdfMotion.BARS_MS)),
             ) {
-                if (ctl.searching) {
-                    var query by remember { mutableStateOf(search.query) }
-                    SearchBar(
-                        query = query,
-                        onQuery = {
-                            query = it
-                            if (it.isEmpty()) search.clear()
-                        },
-                        canStep = search.hits.size > 1,
-                        onSubmit = { runSearch(vm, doc, query.trim()) },
-                        onClear = {
-                            query = ""
-                            search.clear()
-                        },
-                        onClose = { closeSearch(doc) },
-                        onPrev = { search.step(false)?.let { showHit(doc, it) } },
-                        onNext = { search.step(true)?.let { showHit(doc, it) } },
-                        // Extra Features: which result is on screen, of how many (still growing while
-                        // the rest of a long document is searched)
-                        count = if (vm.searchCount && search.hits.isNotEmpty()) {
-                            stringResource(R.string.viewer_search_count, (search.current + 1).coerceAtLeast(1), search.hits.size)
-                        } else null,
-                    )
-                } else {
-                    val fa = vm.fieldActions
-                    if (fa != null) FieldTopBar(fa) else ViewerTopBar(
-                        toolActive = ctl.tool != ViewerTool.None,
-                        doneIsCheck = ctl.tool != ViewerTool.Comment,
-                        // while drawing, the strokes not yet added have their own undo and redo
-                        canUndo = doc.localUndo?.canUndo?.invoke() ?: (doc.info.undo != null),
-                        canRedo = doc.localUndo?.canRedo?.invoke() ?: (doc.info.redo != null),
-                        onBack = { if (ctl.tool != ViewerTool.None) vm.leaveTool(doc) else vm.closeDocument() },
-                        onUndo = { vm.undo(doc) },
-                        onRedo = { vm.redo(doc) },
-                        readingAloud = vm.readAloud != null,
-                        onReadAloud = { vm.readAloud?.stop() ?: vm.startReadAloud(doc) },
-                        // Reading Mode has no search, as the reference's bar shows
-                        onSearch = if (vm.readingMode) null else ({
-                            selection.clear()
-                            ctl.searching = true
-                            ctl.sheet = ViewerSheet.None
-                        }),
-                        onShare = { vm.share(doc) },
-                        onMore = { ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More },
-                        moreOpen = ctl.sheet == ViewerSheet.More,
-                        title = if (ctl.tool == ViewerTool.Edit) stringResource(R.string.common_tool_edit_pdf) else null,
-                        undoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.undo,
-                        redoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.redo,
-                    )
+                Box(barSides) {
+                    if (ctl.searching) {
+                        var query by remember { mutableStateOf(search.query) }
+                        SearchBar(
+                            query = query,
+                            onQuery = {
+                                query = it
+                                if (it.isEmpty()) search.clear()
+                            },
+                            canStep = search.hits.size > 1,
+                            onSubmit = { runSearch(vm, doc, query.trim()) },
+                            onClear = {
+                                query = ""
+                                search.clear()
+                            },
+                            onClose = { closeSearch(doc) },
+                            onPrev = { search.step(false)?.let { showHit(doc, it) } },
+                            onNext = { search.step(true)?.let { showHit(doc, it) } },
+                            // Extra Features: which result is on screen, of how many (still growing while
+                            // the rest of a long document is searched)
+                            count = if (vm.searchCount && search.hits.isNotEmpty()) {
+                                stringResource(R.string.viewer_search_count, (search.current + 1).coerceAtLeast(1), search.hits.size)
+                            } else null,
+                        )
+                    } else {
+                        val fa = vm.fieldActions
+                        if (fa != null) FieldTopBar(fa) else ViewerTopBar(
+                            toolActive = ctl.tool != ViewerTool.None,
+                            doneIsCheck = ctl.tool != ViewerTool.Comment,
+                            // while drawing, the strokes not yet added have their own undo and redo
+                            canUndo = doc.localUndo?.canUndo?.invoke() ?: (doc.info.undo != null),
+                            canRedo = doc.localUndo?.canRedo?.invoke() ?: (doc.info.redo != null),
+                            onBack = { if (ctl.tool != ViewerTool.None) vm.leaveTool(doc) else vm.closeDocument() },
+                            onUndo = { vm.undo(doc) },
+                            onRedo = { vm.redo(doc) },
+                            readingAloud = vm.readAloud != null,
+                            onReadAloud = { vm.readAloud?.stop() ?: vm.startReadAloud(doc) },
+                            // Reading Mode has no search, as the reference's bar shows
+                            onSearch = if (vm.readingMode) null else ({
+                                selection.clear()
+                                ctl.searching = true
+                                ctl.sheet = ViewerSheet.None
+                            }),
+                            onShare = { vm.share(doc) },
+                            onMore = { ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More },
+                            moreOpen = ctl.sheet == ViewerSheet.More,
+                            title = if (ctl.tool == ViewerTool.Edit) stringResource(R.string.common_tool_edit_pdf) else null,
+                            undoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.undo,
+                            redoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.redo,
+                        )
+                }
                 }
             }
         }
@@ -395,7 +408,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                 enter = slideInVertically(tween(PdfMotion.BARS_MS)) { it } + fadeIn(tween(PdfMotion.BARS_MS)),
                 exit = slideOutVertically(tween(PdfMotion.BARS_MS)) { it } + fadeOut(tween(PdfMotion.BARS_MS)),
             ) {
-                Column {
+                Column(barSides) {
                     if (ctl.tool == ViewerTool.None) {
                         QuickToolbar(
                             tools = vm.quickToolbar.bar,

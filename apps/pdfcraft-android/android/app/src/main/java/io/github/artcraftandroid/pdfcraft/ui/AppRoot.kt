@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -96,79 +97,88 @@ fun AppRoot(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () -> 
     // Back in the viewer closes the document (saving it) and returns to Home
     androidx.activity.compose.BackHandler(enabled = doc != null && vm.toolScreen == null) { vm.closeDocument() }
     // sideways, the camera cutout and the navigation bar sit at the sides: content stays between
-    // them, on black, as the reference's does
-    Box(
-        Modifier.fillMaxSize().background(Color.Black)
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
-            .background(c.surface),
-    ) {
-        when {
-            doc != null -> ViewerScreen(vm, doc)
-            else -> HomeRoot(vm, onBrowse)
+    // them, on black, as the reference's does. With Extra Features' status bar in documents the
+    // page goes under the camera too, as it does upright (#45): the viewer is laid out full width
+    // and keeps its bars clear of the camera itself.
+    val fullWidthViewer = doc != null && vm.statusBarInDocuments
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        if (fullWidthViewer && doc != null) {
+            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))) { ViewerScreen(vm, doc) }
         }
-        // here rather than in the file's row: a sheet inside a scrolling list has no height to fill
-        if (doc == null) vm.fileSheet?.let { (r, recent) -> io.github.artcraftandroid.pdfcraft.ui.home.FileSheet(vm, r, recent) { vm.fileSheet = null } }
-        vm.toolScreen?.let { ToolScreenHost(vm, it) }
-        vm.signaturePad?.let { SignaturePadScreen(vm, it, onPickSignatureImage) }
-        vm.certSign?.let { CertSignScreen(vm, it) }
-        if (vm.idCreate) CreateIdScreen(vm)
-        if (vm.settingsOpen) SettingsScreen(vm)
-        if (vm.showLicences) LicencesScreen(vm)
+        Box(
+            Modifier.fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+                .then(if (fullWidthViewer) Modifier else Modifier.background(c.surface)),
+        ) {
+            when {
+                fullWidthViewer -> Unit
+                doc != null -> ViewerScreen(vm, doc)
+                else -> HomeRoot(vm, onBrowse)
+            }
+            // here rather than in the file's row: a sheet inside a scrolling list has no height to fill
+            if (doc == null) vm.fileSheet?.let { (r, recent) -> io.github.artcraftandroid.pdfcraft.ui.home.FileSheet(vm, r, recent) { vm.fileSheet = null } }
+            vm.toolScreen?.let { ToolScreenHost(vm, it) }
+            vm.signaturePad?.let { SignaturePadScreen(vm, it, onPickSignatureImage) }
+            vm.certSign?.let { CertSignScreen(vm, it) }
+            if (vm.idCreate) CreateIdScreen(vm)
+            if (vm.settingsOpen) SettingsScreen(vm)
+            if (vm.showLicences) LicencesScreen(vm)
 
-        if (vm.opening) CircularProgressIndicator(Modifier.align(Alignment.Center), color = c.accent)
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 72.dp, start = 8.dp, end = 8.dp))
+            if (vm.opening) CircularProgressIndicator(Modifier.align(Alignment.Center), color = c.accent)
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 72.dp, start = 8.dp, end = 8.dp))
 
-        vm.passwordRequest?.let { PasswordDialog(vm, it) }
-        vm.idImport?.let { IdPasswordDialog(vm, it) }
-        vm.signFieldChoice?.let { (d, w) -> SignFieldChoiceDialog(vm, d, w) }
-        if (vm.authorPrompt) {
-            var name by remember { mutableStateOf("") }
-            PdfDialog(
-                onDismiss = { vm.authorPrompt = false }, title = stringResource(R.string.home_author_title),
-                confirm = stringResource(R.string.common_save), onConfirm = { vm.toolPrefs.author = name.trim(); vm.authorPrompt = false; vm.prefsChanged++ },
-                dismiss = stringResource(R.string.root_skip),
-            ) {
-                Text(stringResource(R.string.root_author_prompt_body), color = c.text, fontSize = 14.sp)
-                Spacer(Modifier.height(14.dp))
-                PdfField(name, { name = it }, stringResource(R.string.common_your_name))
+            vm.passwordRequest?.let { PasswordDialog(vm, it) }
+            vm.idImport?.let { IdPasswordDialog(vm, it) }
+            vm.signFieldChoice?.let { (d, w) -> SignFieldChoiceDialog(vm, d, w) }
+            if (vm.authorPrompt) {
+                var name by remember { mutableStateOf("") }
+                PdfDialog(
+                    onDismiss = { vm.authorPrompt = false }, title = stringResource(R.string.home_author_title),
+                    confirm = stringResource(R.string.common_save), onConfirm = { vm.toolPrefs.author = name.trim(); vm.authorPrompt = false; vm.prefsChanged++ },
+                    dismiss = stringResource(R.string.root_skip),
+                ) {
+                    Text(stringResource(R.string.root_author_prompt_body), color = c.text, fontSize = 14.sp)
+                    Spacer(Modifier.height(14.dp))
+                    PdfField(name, { name = it }, stringResource(R.string.common_your_name))
+                }
             }
-        }
-        vm.readOnlyPrompt?.let { d ->
-            PdfDialog(
-                onDismiss = { vm.answerReadOnly(null) }, title = stringResource(R.string.root_read_only_title),
-                confirm = stringResource(R.string.common_save_copy), onConfirm = { vm.answerReadOnly(true) },
-                dismiss = stringResource(R.string.root_discard), onDismissButton = { vm.answerReadOnly(false) },
-            ) { Text(stringResource(R.string.root_read_only_body, d.name), color = c.text, fontSize = 14.sp) }
-        }
-        vm.linkPrompt?.let { url ->
-            val shown = runCatching { android.net.Uri.parse(url).let { u -> "${u.scheme}://${u.host}${if (u.port > 0) ":${u.port}" else ""}" } }.getOrDefault(url)
-            PdfDialog(onDismiss = { vm.answerLink(false) }, title = stringResource(R.string.root_open_link_title), confirm = stringResource(R.string.common_open), onConfirm = { vm.answerLink(true) }) {
-                Text(stringResource(R.string.root_open_link_body, shown), color = c.text, fontSize = 14.sp)
+            vm.readOnlyPrompt?.let { d ->
+                PdfDialog(
+                    onDismiss = { vm.answerReadOnly(null) }, title = stringResource(R.string.root_read_only_title),
+                    confirm = stringResource(R.string.common_save_copy), onConfirm = { vm.answerReadOnly(true) },
+                    dismiss = stringResource(R.string.root_discard), onDismissButton = { vm.answerReadOnly(false) },
+                ) { Text(stringResource(R.string.root_read_only_body, d.name), color = c.text, fontSize = 14.sp) }
             }
-        }
-        // a form script's alert, as the form words it
-        vm.scriptAlerts.firstOrNull()?.let { message ->
-            PdfDialog(onDismiss = vm::dismissScriptAlert, title = null, confirm = stringResource(R.string.common_ok), onConfirm = vm::dismissScriptAlert, dismiss = null) {
-                Text(message, color = c.text, fontSize = 14.sp)
+            vm.linkPrompt?.let { url ->
+                val shown = runCatching { android.net.Uri.parse(url).let { u -> "${u.scheme}://${u.host}${if (u.port > 0) ":${u.port}" else ""}" } }.getOrDefault(url)
+                PdfDialog(onDismiss = { vm.answerLink(false) }, title = stringResource(R.string.root_open_link_title), confirm = stringResource(R.string.common_open), onConfirm = { vm.answerLink(true) }) {
+                    Text(stringResource(R.string.root_open_link_body, shown), color = c.text, fontSize = 14.sp)
+                }
             }
-        }
-        vm.confirmDeleteAllBookmarks?.let { d ->
-            PdfDialog(
-                onDismiss = { vm.confirmDeleteAllBookmarks = null }, title = stringResource(R.string.root_delete_bookmarks_title),
-                confirm = stringResource(R.string.root_delete_all), onConfirm = { vm.confirmDeleteAllBookmarks = null; vm.deleteAllBookmarks(d) }, destructive = true,
-            ) { Text(stringResource(R.string.root_delete_bookmarks_body), color = c.text, fontSize = 14.sp) }
-        }
-        vm.readingModeBlocked?.let {
-            PdfDialog(onDismiss = { vm.readingModeBlocked = null }, title = stringResource(R.string.root_reading_mode_title), confirm = stringResource(R.string.common_ok), onConfirm = { vm.readingModeBlocked = null }, dismiss = null) {
-                Text(stringResource(R.string.root_reading_mode_body), color = c.text, fontSize = 14.sp)
+            // a form script's alert, as the form words it
+            vm.scriptAlerts.firstOrNull()?.let { message ->
+                PdfDialog(onDismiss = vm::dismissScriptAlert, title = null, confirm = stringResource(R.string.common_ok), onConfirm = vm::dismissScriptAlert, dismiss = null) {
+                    Text(message, color = c.text, fontSize = 14.sp)
+                }
             }
-        }
-        vm.busy?.let { message ->
-            PdfDialog(onDismiss = {}, title = null, confirm = null, dismiss = null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.size(28.dp), color = c.accent, strokeWidth = 3.dp)
-                    Spacer(Modifier.width(20.dp))
-                    Text(message, color = c.text)
+            vm.confirmDeleteAllBookmarks?.let { d ->
+                PdfDialog(
+                    onDismiss = { vm.confirmDeleteAllBookmarks = null }, title = stringResource(R.string.root_delete_bookmarks_title),
+                    confirm = stringResource(R.string.root_delete_all), onConfirm = { vm.confirmDeleteAllBookmarks = null; vm.deleteAllBookmarks(d) }, destructive = true,
+                ) { Text(stringResource(R.string.root_delete_bookmarks_body), color = c.text, fontSize = 14.sp) }
+            }
+            vm.readingModeBlocked?.let {
+                PdfDialog(onDismiss = { vm.readingModeBlocked = null }, title = stringResource(R.string.root_reading_mode_title), confirm = stringResource(R.string.common_ok), onConfirm = { vm.readingModeBlocked = null }, dismiss = null) {
+                    Text(stringResource(R.string.root_reading_mode_body), color = c.text, fontSize = 14.sp)
+                }
+            }
+            vm.busy?.let { message ->
+                PdfDialog(onDismiss = {}, title = null, confirm = null, dismiss = null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.size(28.dp), color = c.accent, strokeWidth = 3.dp)
+                        Spacer(Modifier.width(20.dp))
+                        Text(message, color = c.text)
+                    }
                 }
             }
         }
