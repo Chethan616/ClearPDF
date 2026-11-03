@@ -3350,6 +3350,44 @@ fn flattening_fill_and_sign_keeps_other_comments_fields_and_undoes() {
     assert_eq!(again.get(id2).unwrap().form.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["email"]);
 }
 
+/// The colour of a Fill & Sign image signature's picture, read back from the document: each
+/// pixel's red, green, blue and alpha.
+fn signature_pixels(s: &Session, id: DocId) -> Vec<u8> {
+    let cos = &s.get(id).unwrap().editor.as_ref().unwrap().cos;
+    let picture = pdfcraft_annot::signature_image(cos, 0, 0).unwrap().unwrap();
+    let (_, bytes) = pdfcraft_create::image_file(cos, picture).unwrap();
+    SignatureImage::from_bytes(&bytes).unwrap().rgba().to_vec()
+}
+
+/// A saved signature placed with Fill & Sign is a picture of the ink, so a new colour has to
+/// redraw the picture: the ink keeps its shape (its alpha) in the new colour, and Undo brings the
+/// old colour back.
+#[test]
+fn an_image_signature_takes_a_new_colour() {
+    let (mut s, id) = session_with(1);
+    let mut png = Vec::new();
+    {
+        let mut enc = png::Encoder::new(&mut png, 2, 1);
+        enc.set_color(png::ColorType::Rgba);
+        // dark ink and its soft edge
+        enc.write_header().unwrap().write_image_data(&[20, 20, 20, 255, 20, 20, 20, 128]).unwrap();
+    }
+    let image = SignatureImage::from_bytes(&png).unwrap();
+    let info = s.get(id).unwrap().info.pages[0].clone();
+    s.apply(id, image.edit(0, &info, [20.0, 120.0], false, "Ada").unwrap()).unwrap();
+    assert_eq!(signature_pixels(&s, id), [20, 20, 20, 255, 20, 20, 20, 128]);
+
+    s.apply(id, Edit::StyleAnnotation { page: 0, index: 0, color: Some([0.0, 0.0, 1.0]), opacity: None, width: None, endings: None }).unwrap();
+    assert_eq!(signature_pixels(&s, id), [0, 0, 255, 255, 0, 0, 255, 128]);
+    let saved = s.save_bytes(id).unwrap();
+    let mut again = Session::new();
+    let id2 = again.open("saved.pdf", None, saved, None).unwrap();
+    assert_eq!(signature_pixels(&again, id2), [0, 0, 255, 255, 0, 0, 255, 128], "the new colour is saved");
+
+    s.undo(id).unwrap();
+    assert_eq!(signature_pixels(&s, id), [20, 20, 20, 255, 20, 20, 20, 128]);
+}
+
 #[test]
 fn flattening_fill_and_sign_does_nothing_when_there_are_none() {
     let (mut s, id) = session_with(1);

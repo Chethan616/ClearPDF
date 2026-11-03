@@ -2649,6 +2649,9 @@ fn run_edit(doc: &mut pdfcraft_cos::Document, edit: &Edit, cx: &mut EditCtx) -> 
         Edit::ResizeAnnotation { page, index, rect } => pdfcraft_annot::set_rect(doc, *page, *index, *rect, &cx.meta())?,
         Edit::StyleAnnotation { page, index, color, opacity, width, endings } => {
             pdfcraft_annot::set_style(doc, *page, *index, *color, *opacity, *width, endings.as_deref(), &cx.meta())?;
+            if let Some(c) = color {
+                recolor_signature_picture(doc, *page, *index, *c)?;
+            }
         }
         Edit::FillAnnotation { page, index, fill } => pdfcraft_annot::set_fill(doc, *page, *index, *fill, &cx.meta())?,
         Edit::FontSizeAnnotation { page, index, size } => pdfcraft_annot::set_font_size(doc, *page, *index, *size, &cx.meta())?,
@@ -5451,6 +5454,28 @@ fn fit_picture(rect: [f64; 4], w: f64, h: f64) -> [f64; 4] {
 }
 
 /// Bring a mark's picture into `doc`: a PDF page as a form XObject, or an image.
+/// A Fill & Sign image signature or initials (0-based target) drawn in `color`. Its appearance
+/// shows a picture of the ink, which `/C` doesn't change, so the picture is redrawn: the ink keeps
+/// its shape (the picture's alpha) in the new colour. A picture with no transparency (a photo)
+/// is left as it is, as are all other comments, whose appearance already draws `/C`.
+fn recolor_signature_picture(doc: &mut pdfcraft_cos::Document, page: usize, index: usize, color: pdfcraft_annot::Rgb) -> Result<(), EditError> {
+    let Some(picture) = pdfcraft_annot::signature_image(doc, page, index)? else { return Ok(()) };
+    let (_, bytes) = pdfcraft_create::image_file(doc, picture).map_err(EditError::Source)?;
+    let image = SignatureImage::from_bytes(&bytes).map_err(|e| EditError::Source(e.to_string()))?;
+    if !image.has_transparency() {
+        return Ok(());
+    }
+    // finite: set_style refuses any other colour
+    let rgb = color.map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
+    let inked = image.in_color(rgb).map_err(|e| EditError::Source(e.to_string()))?;
+    // the new picture takes the old one's place, so the appearance and /PCPicture still find it
+    let (fresh, _) = pdfcraft_create::image_xobject(doc, "signature.png", inked.bytes())?;
+    let obj = doc.get(fresh);
+    doc.set(picture, obj.as_ref().clone());
+    doc.free(fresh);
+    Ok(())
+}
+
 fn mark_source(doc: &mut pdfcraft_cos::Document, f: &MarkFile) -> Result<pdfcraft_edit::MarkSource, EditError> {
     let head = &f.bytes[..f.bytes.len().min(1024)];
     if head.windows(5).any(|w| w == b"%PDF-") {

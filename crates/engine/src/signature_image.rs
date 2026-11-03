@@ -195,6 +195,24 @@ impl SignatureImage {
         pdfcraft_sign::Graphic::Image { width: side(self.size[0]), height: side(self.size[1]), rgba: self.rgba.clone() }
     }
 
+    /// Whether some of the image is see-through: ink on a transparent background, not a photo.
+    pub fn has_transparency(&self) -> bool {
+        self.rgba.as_chunks::<4>().0.iter().any(|[.., a]| *a < u8::MAX)
+    }
+
+    /// The ink drawn in `rgb`: every pixel takes that colour and keeps its own alpha.
+    pub fn in_color(&self, rgb: [u8; 3]) -> Result<Self, SignatureImageError> {
+        let [w, h] = self.size;
+        let mut rgba = self.rgba.as_ref().clone();
+        for [r, g, b, _] in rgba.as_chunks_mut::<4>().0 {
+            [*r, *g, *b] = rgb;
+        }
+        let image = image::RgbaImage::from_raw(w as u32, h as u32, rgba).ok_or(SignatureImageError::Size)?;
+        let mut png = Cursor::new(Vec::new());
+        DynamicImage::ImageRgba8(image).write_to(&mut png, ImageFormat::Png)?;
+        Self::from_bytes(&png.into_inner())
+    }
+
     /// Make near-white paper transparent, keeping darker ink.
     pub fn remove_white_background(&self, cutoff: u8, feather: u8) -> Result<Self, SignatureImageError> {
         let [w, h] = self.size;
