@@ -16,7 +16,9 @@ const val ICON_STROKE = 1.6f
 
 /** A Lucide icon from its SVG path strings (see `LucideIconsTask` in app/build.gradle.kts). */
 internal fun lucide(name: String, vararg paths: String): ImageVector {
-    val b = ImageVector.Builder(name = name, defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f)
+    // Navigation follows layout direction; physical-direction tools (rotation, alignment, drawing) do not.
+    val mirrorInRtl = name in setOf("arrow-left", "arrow-right", "chevron-left", "chevron-right")
+    val b = ImageVector.Builder(name = name, defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f, autoMirror = mirrorInRtl)
     for (d in paths) {
         b.addPath(
             pathData = PathParser().parsePathString(d).toNodes(),
