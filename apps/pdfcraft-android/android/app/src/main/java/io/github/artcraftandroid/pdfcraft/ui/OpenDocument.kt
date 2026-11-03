@@ -46,6 +46,9 @@ class OpenDocument(
     /** A link's area flashing after it was tapped. */
     var linkFlash by mutableStateOf<LinkFlash?>(null)
 
+    /** Opened by another app (a file manager's Open with, a share): closing it goes back there. */
+    var fromOtherApp = false
+
     /** Whether saving can write back to [source] (else changes need Save a copy). */
     var writable by mutableStateOf(true)
 

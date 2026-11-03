@@ -76,6 +76,8 @@ class MainActivity : ComponentActivity() {
     /** The view model's requests that need the activity: other apps, pickers, the camera, printing. */
     private fun collectRequests() {
         lifecycleScope.launch { for (i in vm.intents) launchSafely { startActivity(i) } }
+        // a document another app opened was closed: back to that app, not Home (#47)
+        lifecycleScope.launch { for (u in vm.leave) finish() }
         lifecycleScope.launch { for ((file, name) in vm.prints) print(file, name) }
         lifecycleScope.launch { for (name in vm.saveCopyRequests) launchSafely { saveCopy.launch(name) } }
         lifecycleScope.launch {
@@ -164,7 +166,7 @@ class MainActivity : ComponentActivity() {
             Intent.ACTION_SEND_MULTIPLE -> IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.firstOrNull()
             else -> null
         }
-        uri?.let(vm::open)
+        uri?.let { vm.open(it, fromOtherApp = true) }
     }
 
     /** Hand [file] to Android's print framework. */

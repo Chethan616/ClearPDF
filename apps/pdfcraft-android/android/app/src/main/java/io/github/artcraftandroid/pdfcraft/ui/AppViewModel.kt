@@ -131,8 +131,19 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         }
     }
 
-    /** Open the PDF at [uri] (picked, shared, or from Recent), asking for its password if it has one. */
-    fun open(uri: Uri, password: String? = null) {
+    /** The document another app is opening in PdfCraft, until it opens. */
+    private var otherAppUri: Uri? = null
+
+    /** Fires when a document another app opened is closed: the activity finishes, back to that app. */
+    val leave = Channel<Unit>(Channel.CONFLATED)
+
+    /**
+     * Open the PDF at [uri] (picked, shared, or from Recent), asking for its password if it has one.
+     * [fromOtherApp]: another app opened it, so closing it goes back to that app rather than Home,
+     * as the reference does (#47).
+     */
+    fun open(uri: Uri, password: String? = null, fromOtherApp: Boolean = false) {
+        otherAppUri = uri.takeIf { fromOtherApp }
         // a file opened from another app comes to the front, not under Settings
         settingsOpen = false
         showLicences = false
@@ -206,6 +217,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             val images = PageImages(eng, info.id, viewModelScope, imageBudget)
             val source = uri.takeIf { it.scheme == "content" || it.scheme == "file" }
             val doc = OpenDocument(info.id, info, source, file, images, password, eng, viewModelScope)
+            doc.fromOtherApp = otherAppUri == uri
             val (recent, writable) = withContext(Dispatchers.IO) {
                 recents.list().firstOrNull { it.uri == uri.toString() } to (source == null || files.canWrite(source))
             }
@@ -264,6 +276,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             saveAndClose(eng, doc)
             readingMode = false
             refreshRecents()
+            if (doc.fromOtherApp) leave.trySend(Unit)
         }
     }
 
@@ -279,6 +292,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
                 viewModelScope.launch {
                     closeQuietly(eng, doc)
                     refreshRecents()
+                    if (doc.fromOtherApp) leave.trySend(Unit)
                 }
             })
             false -> {
@@ -286,6 +300,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
                 viewModelScope.launch {
                     closeQuietly(eng, doc)
                     refreshRecents()
+                    if (doc.fromOtherApp) leave.trySend(Unit)
                 }
             }
         }
