@@ -9,7 +9,6 @@
   mantenuti compatibili con le risorse Android.
 -->
 <resources>
-    <string name="app_name" translatable="false">PdfCraft</string>
     <string name="open_with">Apri in PdfCraft</string>
 
     <!-- ================================================================ -->
@@ -1057,7 +1056,6 @@
 
     <string name="msg_form_cleared">Modulo cancellato</string>
     <string name="msg_button_submit">Questo pulsante invia il modulo online, operazione non supportata da PdfCraft.</string>
-    <string name="msg_button_script">Questo pulsante esegue uno script, operazione non supportata da PdfCraft.</string>
     <string name="msg_suggestions_cleared">Suggerimenti cancellati</string>
 
     <!-- File selezionati -->

@@ -730,7 +730,6 @@
     <string name="msg_gif_not_supported">لا يمكن إضافة صور GIF.</string>
     <string name="msg_form_cleared">تم مسح النموذج</string>
     <string name="msg_button_submit">يرسل هذا الزر النموذج عبر الإنترنت، ولا يدعم PdfCraft ذلك.</string>
-    <string name="msg_button_script">يشغّل هذا الزر برنامجًا نصيًا، ولا يدعم PdfCraft تشغيل البرامج النصية.</string>
     <string name="msg_suggestions_cleared">تم مسح الاقتراحات</string>
     <string name="msg_that_file_unreadable">تعذّرت قراءة ذلك الملف.</string>
     <string name="msg_named_file_unreadable">تعذّرت قراءة %1$s.</string>

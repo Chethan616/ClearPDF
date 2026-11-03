@@ -1,13 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  PdfCraft's text, in US English.
-
-  To translate PdfCraft: copy this file to res/values-<language>/strings.xml (values-es for
-  Spanish, values-pt-rBR for Brazilian Portuguese, values-zh-rCN for simplified Chinese) and
-  translate the text between the tags. Keep each name, every placeholder (%1$s, %2$d: the
-  number says which value goes there, so a translation may move them), escapes such as \' and
-  \n, and the "one" and "other" items of plurals (add the items your language needs: zero, two,
-  few, many). A string left out shows in English.
+  PdfCraft's text, in German. The English original is values/strings.xml.
 -->
 <resources>
     <string name="open_with">In PdfCraft öffnen</string>
@@ -726,7 +719,7 @@
     <string name="comments_reply_hint">Antworten</string>
     <!-- Translator note: accessibility label of the commenter's picture -->
     <string name="comments_avatar">Profilbild</string>
-    <string name="comments_empty_title">Los geht's</string>
+    <string name="comments_empty_title">Los geht\'s</string>
     <string name="comments_empty_body">Kommentare, die du mit den Kommentarfunktionen hinzufügst, werden hier angezeigt.</string>
 
     <!-- Comment List: what a comment did, in italics under its author -->
