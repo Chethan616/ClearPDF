@@ -63,6 +63,32 @@ class DocumentFiles(private val context: Context) {
             ?: column(MediaStore.MediaColumns.DATE_MODIFIED)?.takeIf { it > 0 }?.times(1000)
     }
 
+    /**
+     * Throw away the working copy of [uri], its document closed, when the app keeps access to
+     * [uri]: it is copied in again the next time it opens. A file another app lent for one visit
+     * keeps its copy, which is what Recent opens once Android takes that access back.
+     */
+    fun dropCopyIfReachable(uri: Uri) {
+        if (uri.scheme != ContentResolver.SCHEME_CONTENT) return
+        if (resolver.persistedUriPermissions.none { it.uri == uri && it.isReadPermission }) return
+        File(workDir, sha(uri.toString())).deleteRecursively()
+    }
+
+    /**
+     * Remove the working copies no longer needed: those of documents that left [recent], and of
+     * those in it whose original the app can read again. The [open] document's copy stays, and so
+     * does one written in the last few minutes (a document being opened right now).
+     */
+    fun pruneCopies(recent: Collection<String>, open: String?) {
+        val readable = resolver.persistedUriPermissions.filter { it.isReadPermission }.mapTo(HashSet()) { it.uri.toString() }
+        val wanted = recent.filter { it !in readable }.mapTo(HashSet()) { sha(it) }
+        open?.let { wanted += sha(it) }
+        val settled = System.currentTimeMillis() - 10 * 60 * 1000L
+        workDir.listFiles()?.forEach { dir ->
+            if (dir.name !in wanted && dir.lastModified() < settled) dir.deleteRecursively()
+        }
+    }
+
     /** The working copy made earlier for [uri], if there is one (for thumbnails). */
     fun existingCopy(uri: Uri): File? =
         File(workDir, sha(uri.toString())).listFiles()?.firstOrNull { it.isFile && !it.name.startsWith(".") }
