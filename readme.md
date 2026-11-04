@@ -12,7 +12,7 @@ Read and annotate PDFs, sign forms, work with Office documents, edit spreadsheet
 
 <p>
   <a href="https://github.com/Chethan616/ClearPDF/releases/latest"><img src="https://img.shields.io/badge/Download-ClearPDF-0A84FF?style=for-the-badge&logo=android&logoColor=white" alt="Download the latest ClearPDF"></a>
-  <a href="#install-via-obtainium"><img src="https://img.shields.io/badge/Add%20to-Obtainium-1B5E20?style=for-the-badge&logo=f-droid&logoColor=white" alt="Add to Obtainium"></a>
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/Chethan616/ClearPDF"><img src="https://img.shields.io/badge/Add%20to-Obtainium-1B5E20?style=for-the-badge&logo=f-droid&logoColor=white" alt="Add to Obtainium"></a>
   <a href="https://github.com/Chethan616/ClearPDF/issues/new/choose"><img src="https://img.shields.io/badge/Report-an%20issue-FF375F?style=for-the-badge&logo=github&logoColor=white" alt="Report a problem or request a feature"></a>
 </p>
 
@@ -121,11 +121,17 @@ The GitHub APKs are the FOSS distribution. The optional Office engine is downloa
 
 [Obtainium](https://github.com/ImranR98/Obtainium) tracks this repository's releases and installs/updates the APK for you, no manual downloads.
 
+<p>
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/Chethan616/ClearPDF"><img src="https://img.shields.io/badge/Add%20to-Obtainium-1B5E20?style=for-the-badge&logo=f-droid&logoColor=white" alt="Add to Obtainium"></a>
+</p>
+
+Tap the badge above on your phone with Obtainium installed — it opens the add-app screen pre-filled. GitHub strips raw `obtainium://` links from README buttons, so the badge goes through Obtainium's own redirect page (`apps.obtainium.imranr.dev`) instead of linking directly.
+
+If the badge doesn't open the app, add it manually:
+
 1. Open Obtainium → **Add App**.
 2. Paste `https://github.com/Chethan616/ClearPDF`.
 3. Pick the APK suffix for your device from the table above when prompted.
-
-GitHub strips app-scheme links (`obtainium://…`) from README buttons, so there's no working one-tap link here — copy the URL above into the app instead.
 
 ## Privacy and network use
 
