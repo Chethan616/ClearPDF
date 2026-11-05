@@ -35,7 +35,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -139,6 +142,9 @@ fun BoxScope.CreateDock(vm: AppViewModel, desk: DeskState, onBrowse: () -> Unit)
     val c = clear
     BackHandler(enabled = desk.fanOpen) { desk.fanOpen = false }
     BackHandler(enabled = desk.recorder != null) { desk.finish(vm, keep = false) }
+    // leaving the desk or the app ends a recording, kept: the microphone never runs unseen
+    DisposableEffect(Unit) { onDispose { desk.fanOpen = false; desk.finish(vm, keep = true) } }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { desk.finish(vm, keep = true) }
     val scrim by animateFloatAsState(if (desk.fanOpen) 1f else 0f, GlassMotion.settle(), label = "fan scrim")
     if (scrim > 0.01f) {
         Box(

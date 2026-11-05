@@ -403,6 +403,43 @@ fun BoxScope.PageFill(vm: AppViewModel, path: String?) {
     }
 }
 
+/**
+ * The documents read lately, as the mock's stacked card: the newest three first pages fanned on a
+ * sky card (the newest in front, opening it), "Recent" and when, and "+N" / PDFs chips for the rest.
+ */
+@Composable
+fun RecentCard(vm: AppViewModel, rows: List<FileRow>, onAll: () -> Unit, modifier: Modifier = Modifier) {
+    val tone = clear.tone(Tone.Sky)
+    val top = rows.first()
+    Box(modifier.height(226.dp).pressable(top.open, { vm.fileSheet = top to true }, pressedScale = 0.95f)) {
+        // a blush card peeking out behind, turned
+        Box(Modifier.fillMaxSize().padding(vertical = 8.dp).graphicsLayer { rotationZ = 5f; translationX = 8.dp.toPx() }.clip(CardShape).background(Brush.verticalGradient(listOf(clear.tone(Tone.Blush).top, clear.tone(Tone.Blush).bottom))))
+        Box(Modifier.fillMaxSize().cardPaint(tone, Offset(0.9f, 0.0f))) {
+            Column(Modifier.padding(start = 16.dp, top = 14.dp, end = 16.dp)) {
+                Text(stringResource(R.string.desk_recent), style = ClearType.Title.copy(fontSize = 17.sp), color = tone.ink, maxLines = 1)
+                Text(whenLabel(top.date), style = ClearType.Caption.copy(fontSize = 10.5.sp), color = tone.ink.copy(alpha = 0.6f), maxLines = 1)
+            }
+            // up to three first pages, fanned; the newest on top
+            val shown = rows.take(3)
+            Box(Modifier.align(Alignment.Center).padding(top = 18.dp).size(140.dp, 132.dp)) {
+                shown.indices.reversed().forEach { i ->
+                    val r = shown[i]
+                    val tilt = listOf(-4f, 7f, -12f)[i]
+                    val dx = listOf(0, 26, -22)[i]
+                    PaperThumb(
+                        vm, r.thumbPath, 84.dp, 110.dp, tilt = tilt, corner = 7.dp,
+                        modifier = Modifier.align(Alignment.Center).offset(x = dx.dp, y = (i * 4).dp),
+                    )
+                }
+            }
+            Row(Modifier.align(Alignment.BottomStart).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (rows.size > 1) PhotoChip("+${rows.size - 1}", onClick = onAll)
+                PhotoChip(stringResource(R.string.desk_chip_pdfs), LucideIcons.FileText, onClick = onAll)
+            }
+        }
+    }
+}
+
 // ---- A single document ---------------------------------------------------------------------------
 
 /** One PDF on the desk: its first page tilted on a tinted card, its name under it. */

@@ -220,19 +220,7 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
                     }
                     DeskItem.Files -> CollectionCard(stringResource(R.string.desk_word_files), clear.tone(Tone.Butter), { vm.filesShowLocal = true; vm.homeTab = HomeTab.Files }, m)
                     is DeskItem.Pdfs -> CollectionCard(stringResource(R.string.desk_word_pdf), clear.tone(Tone.Orchid), { vm.homeTab = HomeTab.Files }, m, height = 136.dp)
-                    is DeskItem.Recent -> {
-                        val top = item.rows.first()
-                        StackCard(
-                            stringResource(R.string.desk_recent), whenLabel(top.date), listOf(clear.tone(Tone.Blush), clear.tone(Tone.Sky)), top.open, m,
-                            onLong = { vm.fileSheet = top to true },
-                            chips = {
-                                Row(Modifier.align(Alignment.BottomStart).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    if (item.rows.size > 1) PhotoChip("+${item.rows.size - 1}") { vm.homeTab = HomeTab.Files }
-                                    PhotoChip(stringResource(R.string.desk_chip_pdfs), LucideIcons.FileText) { vm.homeTab = HomeTab.Files }
-                                }
-                            },
-                        ) { PageFill(vm, top.thumbPath) }
-                    }
+                    is DeskItem.Recent -> RecentCard(vm, item.rows, { vm.homeTab = HomeTab.Files }, m)
                     is DeskItem.Doc -> DocCard(
                         vm, item.row, clear.tone(listOf(Tone.Sky, Tone.Peach, Tone.Sage, Tone.Butter)[i % 4]), listOf(-3f, 4f, -2f, 3f)[i % 4],
                         { vm.fileSheet = item.row to true }, m,
