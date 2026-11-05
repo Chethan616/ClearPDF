@@ -32,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -51,12 +53,13 @@ import kotlinx.coroutines.isActive
  * (a tap hides them). Pinch or double tap changes the text size.
  */
 @Composable
-fun ReadingModeContent(vm: AppViewModel, doc: OpenDocument, top: Dp, bottom: Dp, onTap: () -> Unit) {
+fun ReadingModeContent(vm: AppViewModel, doc: OpenDocument, top: Dp, bottom: Dp, onTap: () -> Unit, onScroll: (dy: Float, atTop: Boolean) -> Unit = { _, _ -> }) {
     val c = pdfColors
     val night = doc.controller.nightMode
     val paper = if (night) Color(0xFF1E1E1E) else Color.White
     val ink = if (night) Color(0xFFE6E6E6) else Color(0xFF1B1B1B)
     // a file reopened in Reading Mode has its page pending (the page canvas never lays out here)
+    val onScrollState = androidx.compose.runtime.rememberUpdatedState(onScroll)
     val list = rememberLazyListState(initialFirstVisibleItemIndex = (vm.pendingPage ?: doc.viewer.currentPage).coerceIn(0, (doc.pageCount - 1).coerceAtLeast(0)))
     var size by remember { mutableFloatStateOf(17f) }
     var hint by remember { mutableStateOf<String?>(null) }
@@ -86,7 +89,16 @@ fun ReadingModeContent(vm: AppViewModel, doc: OpenDocument, top: Dp, bottom: Dp,
             doc.viewer.goToPage(it)
         }
     }
-    Box(Modifier.fillMaxSize()) {
+    // what the list scrolled by under the reader's finger, for the bars to follow
+    val scrollWatch = remember(list) {
+        object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+            override fun onPostScroll(consumed: Offset, available: Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): Offset {
+                if (consumed.y != 0f) onScrollState.value(consumed.y, list.firstVisibleItemIndex == 0 && list.firstVisibleItemScrollOffset < 24)
+                return Offset.Zero
+            }
+        }
+    }
+    Box(Modifier.fillMaxSize().nestedScroll(scrollWatch)) {
         LazyColumn(
             state = list,
             modifier = Modifier.fillMaxSize().background(c.desk)

@@ -2,13 +2,14 @@ package com.chethan616.clearpdf.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -16,34 +17,35 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.displayCutout
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.ui.composed
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,49 +55,66 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.border
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
+import com.chethan616.clearpdf.ui.glass.GlassCard
+import com.chethan616.clearpdf.ui.glass.GlassCircle
+import com.chethan616.clearpdf.ui.glass.GlassDialog
+import com.chethan616.clearpdf.ui.glass.GlassIcon
+import com.chethan616.clearpdf.ui.glass.GlassOverlay
+import com.chethan616.clearpdf.ui.glass.GlassToggle
+import com.chethan616.clearpdf.ui.glass.glass
+import com.chethan616.clearpdf.ui.glass.pressable
+import com.chethan616.clearpdf.ui.theme.Candy
+import com.chethan616.clearpdf.ui.theme.ClearType
+import com.chethan616.clearpdf.ui.theme.clear
+import com.kyant.shapes.Capsule
+import com.kyant.shapes.RoundedRectangle
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
-/** Motion for sheets: in rising from below, out dropping away. */
+/** Motion for sheets and bars. */
 object PdfMotion {
     const val SHEET_IN_MS = 250
     const val SHEET_OUT_MS = 200
     const val BARS_MS = 300
 }
 
-/** An icon button of the bars: a 46 dp target with a 24 dp icon, a pressed background when [selected]. */
+/**
+ * The candy an icon wears in rows and menus: chosen from the icon itself, so one action keeps one
+ * colour everywhere it appears. (Lemon and lime are left out: too pale behind a glyph.)
+ */
+fun iconAccent(icon: ImageVector): Color {
+    val palette = listOf(Candy.Tomato, Candy.Tangerine, Candy.Mint, Candy.Sky, Candy.Grape, Candy.Bubblegum)
+    return palette[(icon.name.hashCode() and 0x7fffffff) % palette.size]
+}
+
+/** An icon button: a jelly press, and a soft candy disc behind it when [selected]. */
 @Composable
 fun BarIcon(
     icon: ImageVector,
@@ -111,20 +130,20 @@ fun BarIcon(
     Box(
         modifier
             .size(size)
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (selected) pdfColors.pressed else Color.Transparent)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .pressable(onClick, enabled = enabled)
+            .clip(CircleShape)
+            .background(if (selected) Candy.Sky.copy(alpha = 0.18f) else Color.Transparent)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = if (enabled) tint else tint.copy(alpha = 0.38f), modifier = Modifier.size(iconSize))
+        Icon(icon, contentDescription = null, tint = if (!enabled) tint.copy(alpha = 0.32f) else if (selected) Candy.Sky else tint, modifier = Modifier.size(iconSize))
     }
 }
 
-/** The thin vertical line between groups of a bar. */
+/** A thin upright line between groups of a bar. */
 @Composable
 fun BarDivider(height: Dp = 26.dp) {
-    Box(Modifier.width(1.dp).height(height).background(pdfColors.divider))
+    Box(Modifier.width(1.dp).height(height).background(clear.line))
 }
 
 /** Whether the sheet being shown is coming in or going ([SheetHost] sets it). */
@@ -149,9 +168,9 @@ fun <T : Any> SheetHost(key: T?, content: @Composable (T) -> Unit) {
 }
 
 /**
- * A bottom sheet as the reference's viewer uses them: the page stays undimmed behind it (a tap
- * there closes it, as does Back), a drag handle at the top, and it can be pulled down to close.
- * [maxHeightFraction] caps its height as a fraction of the screen.
+ * A sheet: a frosted glass card floating along the bottom, rising on a spring. It lives in the app's
+ * overlay portal, so it refracts whatever is really behind it, wherever it's opened from. A tap
+ * outside or Back closes it, as does pulling its handle down. [maxHeightFraction] caps its height.
  */
 @Composable
 fun PdfSheet(
@@ -159,94 +178,88 @@ fun PdfSheet(
     modifier: Modifier = Modifier,
     dim: Boolean = false,
     maxHeightFraction: Float = 0.9f,
-    /** Room kept free above the sheet however tall it grows (the viewer's top bar). */
+    /** Room kept free above the sheet however tall it grows. */
     topReserve: Dp = 0.dp,
-    /** Whether the sheet paints the band behind the navigation buttons (not when it sits on a bar). */
+    /** False when the sheet sits on a bar of its own (it then keeps clear of nothing below). */
     bottomBand: Boolean = true,
-    /** The sheet's colour, when not the usual surface (the comment panel's). */
+    /** A wash of its own instead of the usual frost. */
     background: Color? = null,
-    /** The strip holding the drag handle (the comment panel's is shorter). */
     handleHeight: Dp = 24.dp,
-    /** Whether the sheet is [maxHeightFraction] of the screen tall above the navigation buttons' band. */
     aboveNavBar: Boolean = false,
-    /** Whether the sheet always takes its full height (its band then stays at the bottom). */
+    /** Whether the sheet always takes its full height. */
     fill: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val own = remember { MutableTransitionState(false) }
     LaunchedEffect(own) { own.targetState = true }
     val visible = LocalSheetVisible.current ?: own
-    BackHandler(enabled = visible.targetState, onBack = onDismiss)
-    val scope = rememberCoroutineScope()
-    var drag by remember { mutableFloatStateOf(0f) }
-    var height by remember { mutableIntStateOf(0) }
-    val closeLabel = stringResource(R.string.ui_close_sheet)
-    Box(Modifier.fillMaxSize()) {
-        AnimatedVisibility(visible, enter = fadeIn(tween(PdfMotion.SHEET_IN_MS)), exit = fadeOut(tween(PdfMotion.SHEET_OUT_MS))) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(if (dim) pdfColors.scrim else Color.Transparent)
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
-                    .semantics { contentDescription = closeLabel },
-            )
-        }
-        val density = LocalDensity.current
-        val divider = pdfColors.divider
-        val navBand = pdfColors.navBand
-        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
-            val navBar = with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }
-            val maxH = minOf(if (aboveNavBar) maxHeight * maxHeightFraction + navBar else maxHeight * maxHeightFraction, maxHeight - topReserve)
-            AnimatedVisibility(
-                visible,
-                modifier = Modifier.align(Alignment.BottomCenter),
-                enter = slideInVertically(tween(PdfMotion.SHEET_IN_MS, easing = LinearOutSlowInEasing)) { it },
-                exit = slideOutVertically(tween(PdfMotion.SHEET_OUT_MS, easing = FastOutLinearInEasing)) { it },
-            ) {
-                Column(
-                    modifier
-                        .fillMaxWidth()
-                        .heightIn(max = maxH)
-                        .offset { IntOffset(0, drag.roundToInt()) }
-                        .onSizeChanged { height = it.height }
-                        .background(background ?: pdfColors.surface)
-                        .drawBehind { drawRect(divider, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx())) }
-                        .pointerInput(Unit) { detectTapGestures() },
+    GlassOverlay {
+        val c = clear
+        BackHandler(enabled = visible.targetState, onBack = onDismiss)
+        val scope = rememberCoroutineScope()
+        var drag by remember { mutableFloatStateOf(0f) }
+        var height by remember { mutableIntStateOf(0) }
+        val closeLabel = stringResource(R.string.ui_close_sheet)
+        Box(Modifier.fillMaxSize()) {
+            AnimatedVisibility(visible, enter = fadeIn(tween(PdfMotion.SHEET_IN_MS)), exit = fadeOut(tween(PdfMotion.SHEET_OUT_MS))) {
+                Box(
+                    Modifier.fillMaxSize()
+                        .background(if (dim) Color.Black.copy(alpha = if (c.dark) 0.42f else 0.22f) else Color.Transparent)
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
+                        .semantics { contentDescription = closeLabel },
+                )
+            }
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val maxH = minOf(maxHeight * maxHeightFraction, maxHeight - topReserve)
+                AnimatedVisibility(
+                    visible,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    enter = slideInVertically(spring(dampingRatio = 0.82f, stiffness = 420f)) { it } + fadeIn(tween(160)),
+                    exit = slideOutVertically(tween(PdfMotion.SHEET_OUT_MS)) { it } + fadeOut(tween(PdfMotion.SHEET_OUT_MS)),
                 ) {
-                    // the handle: drag it (or the sheet's top) down to close
-                    Box(
-                        Modifier
+                    GlassCard(
+                        modifier
+                            .then(if (bottomBand) Modifier.navigationBarsPadding() else Modifier)
+                            .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+                            .widthIn(max = 620.dp)
                             .fillMaxWidth()
-                            .height(handleHeight)
-                            .pointerInput(Unit) {
+                            .heightIn(max = maxH)
+                            .offset { IntOffset(0, drag.roundToInt()) }
+                            .onSizeChanged { height = it.height }
+                            .pointerInput(Unit) { detectTapGestures() },
+                        shape = RoundedRectangle(32.dp),
+                        wash = background?.copy(alpha = 0.9f) ?: c.frost,
+                        blur = 16.dp,
+                    ) {
+                        Box(
+                            Modifier.fillMaxWidth().height(handleHeight).pointerInput(Unit) {
                                 detectVerticalDragGestures(
                                     onDragEnd = {
                                         scope.launch {
-                                            if (drag > height / 4f) {
-                                                onDismiss()
-                                            }
-                                            animate(drag, 0f, animationSpec = tween(150)) { v, _ -> drag = v }
+                                            if (drag > height / 4f) onDismiss()
+                                            animate(drag, 0f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 500f)) { v, _ -> drag = v }
                                         }
                                     },
                                     onVerticalDrag = { _, dy -> drag = (drag + dy).coerceAtLeast(0f) },
                                 )
                             },
-                        contentAlignment = if (handleHeight < 24.dp) Alignment.TopCenter else Alignment.Center,
-                    ) {
-                        // 8 dp down in a short strip, as the comment panel has it
-                        Box(Modifier.padding(top = if (handleHeight < 24.dp) 8.dp else 0.dp).width(42.dp).height(4.dp).clip(CircleShape).background(pdfColors.handle))
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(Modifier.size(36.dp, 5.dp).clip(Capsule).background(c.inkFaint.copy(alpha = 0.35f)))
+                        }
+                        Column(Modifier.weight(1f, fill = fill)) { content() }
+                        Spacer(Modifier.height(8.dp))
                     }
-                    Column(Modifier.weight(1f, fill = fill)) { content() }
-                    // the band behind the navigation buttons, in the viewer's colour
-                    if (bottomBand) Box(Modifier.fillMaxWidth().windowInsetsBottomHeight(WindowInsets.navigationBars).background(navBand))
                 }
             }
-            with(density) { Unit }
         }
     }
 }
 
-/** A row of a sheet: icon, label, then [trailing] (a chevron for drill-in rows). 48 dp tall. */
+/**
+ * A row of a sheet: its icon on a soft candy blob (the icon's own colour), the label, then
+ * [trailing] (a chevron for drill-in rows, a tick when [checked]).
+ */
 @Composable
 fun SheetRow(
     icon: ImageVector?,
@@ -259,112 +272,88 @@ fun SheetRow(
     tint: Color? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
 ) {
-    val c = pdfColors
-    val color = tint ?: if (checked) c.accent else c.text
+    val c = clear
+    val danger = tint != null && tint == pdfColors.red
+    val accent = when {
+        danger -> Candy.Tomato
+        tint != null -> tint
+        checked -> Candy.Sky
+        icon != null -> iconAccent(icon)
+        else -> Candy.Sky
+    }
     Row(
-        modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 16.dp),
+        modifier.fillMaxWidth().heightIn(min = 52.dp).pressable(onClick, enabled = enabled).padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
-            Icon(icon, null, tint = if (enabled) (tint ?: if (checked) c.accent else c.icon) else c.icon.copy(alpha = 0.38f), modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(9.dp))
+            Box(
+                Modifier.size(34.dp).clip(RoundedRectangle(11.dp)).background(accent.copy(alpha = if (c.dark) 0.26f else 0.15f)),
+                contentAlignment = Alignment.Center,
+            ) { Icon(icon, null, tint = if (enabled) accent else accent.copy(alpha = 0.4f), modifier = Modifier.size(19.dp)) }
+            Spacer(Modifier.width(14.dp))
         }
+        val ink = if (danger) Candy.Tomato else if (checked) Candy.Sky else c.ink
         Text(
-            label,
-            color = if (enabled) color else color.copy(alpha = 0.38f),
-            // the reference sets these at 17 sp in a narrower face; 16 sp of Inter matches their width
-            fontSize = 16.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f).padding(vertical = 12.5.dp),
+            label, style = ClearType.BodyStrong, color = if (enabled) ink else ink.copy(alpha = 0.38f),
+            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(vertical = 8.dp),
         )
         if (trailing != null) trailing()
-        if (checked) Icon(LucideIcons.Check, null, tint = c.accent, modifier = Modifier.size(24.dp))
-        if (chevron) Icon(LucideIcons.ChevronRight, null, tint = c.icon, modifier = Modifier.size(24.dp))
+        if (checked) Icon(LucideIcons.Check, null, tint = Candy.Sky, modifier = Modifier.size(22.dp))
+        if (chevron) Icon(LucideIcons.ChevronRight, null, tint = c.inkFaint, modifier = Modifier.size(20.dp))
     }
 }
 
-/** A sub-sheet's header: a back chevron and a bold title. */
+/** A sub-sheet's header: a round glass back button and the title. */
 @Composable
 fun SheetBackHeader(title: String, onBack: () -> Unit, trailing: (@Composable RowScope.() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().height(56.dp).padding(start = 4.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        BarIcon(LucideIcons.ChevronLeft, stringResource(R.string.common_back), onBack)
-        Spacer(Modifier.width(6.dp))
-        Text(title, color = pdfColors.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 10.dp, top = 2.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        GlassCircle(onClick = onBack, size = 40.dp, label = stringResource(R.string.common_back)) { GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(20.dp)) }
+        Spacer(Modifier.width(12.dp))
+        Text(title, style = ClearType.Title, color = clear.ink, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (trailing != null) trailing()
     }
 }
 
-/** A sheet's title line. */
+/** A sheet's title, in the headline face. */
 @Composable
 fun SheetTitle(title: String) {
-    Text(title, color = pdfColors.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, top = 4.dp, bottom = 12.dp))
+    Text(title, style = ClearType.Headline, color = clear.ink, modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 12.dp))
 }
 
-/** A full-width divider line. */
+/** A hairline between groups of rows. */
 @Composable
 fun SheetDivider(inset: Dp = 16.dp, vertical: Dp = 0.dp) {
-    Box(Modifier.padding(horizontal = inset, vertical = vertical).fillMaxWidth().height(1.dp).background(pdfColors.divider))
+    Box(Modifier.padding(horizontal = inset + 4.dp, vertical = vertical + 4.dp).fillMaxWidth().height(1.dp).background(clear.line))
 }
 
-/** A divider between groups of rows: the reference leaves 4 dp more either side than a row's own padding. */
+/** A divider between groups of rows. */
 @Composable
 fun GroupDivider() = SheetDivider(vertical = 4.dp)
 
-/** The hint the reference shows over the page when a tool starts ("Drag across the text to highlight it"). */
+/** A hint over the page ("Drag across the text to highlight it"): a frosted glass capsule that pops in. */
 @Composable
-fun BoxScope.HintToast(text: String?, modifier: Modifier = Modifier, alignment: Alignment = Alignment.Center, corner: androidx.compose.ui.unit.Dp = 4.dp) {
-    androidx.compose.animation.AnimatedVisibility(
+fun BoxScope.HintToast(text: String?, modifier: Modifier = Modifier, alignment: Alignment = Alignment.Center, corner: Dp = 4.dp) {
+    AnimatedVisibility(
         visible = text != null,
         modifier = modifier.align(alignment),
-        enter = fadeIn(tween(150)),
-        exit = fadeOut(tween(250)),
+        enter = fadeIn(tween(150)) + scaleIn(spring(dampingRatio = 0.6f, stiffness = 500f), initialScale = 0.85f),
+        exit = fadeOut(tween(220)) + scaleOut(tween(220), targetScale = 0.92f),
     ) {
         val last = remember { Last<String>() }
         if (text != null) last.value = text
         Text(
             last.value ?: "",
-            color = pdfColors.onToast,
-            fontSize = 15.sp,
-            lineHeight = 20.sp,
-            // the reference's box: 32 dp tall, 11 dp either side of the text
-            modifier = Modifier.clip(RoundedCornerShape(corner)).background(pdfColors.toast).padding(horizontal = 11.dp, vertical = 6.dp),
+            style = ClearType.Label,
+            color = clear.ink,
+            modifier = Modifier.padding(horizontal = 24.dp).glass(Capsule, clear.frost, blur = 12.dp).padding(horizontal = 18.dp, vertical = 11.dp),
         )
     }
 }
 
-/** A switch drawn as the reference's: a pill track with a round thumb. */
+/** A switch: the glass toggle. */
 @Composable
 fun PdfSwitch(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
-    val c = pdfColors
-    val track = if (checked) c.accent else if (c.dark) Color(0xFF959595) else Color(0xFFB0B0B0)
-    Box(
-        modifier
-            .size(width = 36.dp, height = 18.dp)
-            .clip(CircleShape)
-            .background(if (checked) track else Color.Transparent)
-            .then(if (checked) Modifier else Modifier.background(Color.Transparent))
-            .clickable(role = Role.Switch) { onChange(!checked) },
-    ) {
-        if (!checked) {
-            Box(Modifier.fillMaxSize().clip(CircleShape).background(track.copy(alpha = 0.0f)))
-            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                drawRoundRect(track, cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2), style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
-            }
-        }
-        Box(
-            Modifier
-                .align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
-                .padding(horizontal = 4.dp)
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(if (checked) c.surface else track),
-        )
-    }
+    GlassToggle(checked, onChange, modifier, accent = Candy.Sky)
 }
 
 /**
@@ -375,11 +364,7 @@ fun Modifier.safeTopPadding(): Modifier = composed {
     windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Top))
 }
 
-/**
- * A dialog as the reference draws them: a card 51 dp in from the sides with a bold title, the
- * content, then an outlined pill (Cancel) and a filled blue pill (OK) at the right. The screen
- * behind is veiled (lighter in dark mode, darker in light mode).
- */
+/** A dialog: the glass dialog, with the candy confirm (tomato when [destructive]). */
 @Composable
 fun PdfDialog(
     onDismiss: () -> Unit,
@@ -390,55 +375,25 @@ fun PdfDialog(
     dismiss: String? = stringResource(R.string.common_cancel),
     onDismissButton: () -> Unit = onDismiss,
     destructive: Boolean = false,
-    /** A choice list's card: lighter grey, narrower, no padding of its own. */
+    /** A list of choices: no buttons of its own, usually. */
     list: Boolean = false,
     content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
-    val c = pdfColors
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+    GlassDialog(
+        onDismiss = onDismiss,
+        title = title,
+        confirm = confirm,
+        onConfirm = onConfirm,
+        dismiss = dismiss,
+        onDismissButton = onDismissButton,
+        confirmEnabled = confirmEnabled,
+        destructive = destructive,
     ) {
-        // the screen behind is shaded 60 % black, as the reference's dialogs leave it
-        val window = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
-        androidx.compose.runtime.SideEffect { window?.setDimAmount(0.6f) }
-        Box(Modifier.fillMaxWidth().padding(horizontal = if (list) 68.dp else 51.dp), contentAlignment = Alignment.Center) {
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(if (list) (if (c.dark) Color(0xFF424242) else Color.White) else c.surface)
-                    .padding(if (list) PaddingValues(vertical = 8.dp) else PaddingValues(24.dp)),
-            ) {
-                if (title != null) {
-                    Text(title, color = c.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(10.dp))
-                }
-                content?.invoke(this)
-                if (confirm != null || dismiss != null) {
-                    Spacer(Modifier.height(20.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.End)) {
-                        if (dismiss != null) DialogPill(dismiss, filled = false, enabled = true, onClick = onDismissButton)
-                        if (confirm != null) DialogPill(confirm, filled = true, enabled = confirmEnabled, red = destructive, onClick = onConfirm)
-                    }
-                }
-            }
-        }
+        content?.invoke(this)
     }
 }
 
-@Composable
-private fun DialogPill(label: String, filled: Boolean, enabled: Boolean, red: Boolean = false, onClick: () -> Unit) {
-    val c = pdfColors
-    val fill = if (red) c.red else Color(0xFF1473E6)
-    Box(
-        Modifier.heightIn(min = 42.dp).widthIn(min = 88.dp).clip(RoundedCornerShape(21.dp))
-            .then(if (filled) Modifier.background(if (enabled) fill else c.pressed) else Modifier.border(2.dp, c.textSecondary, RoundedCornerShape(21.dp)))
-            .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 18.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = if (filled) (if (enabled) Color.White else c.textSecondary) else c.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-    }
-}
-
-/** A dialog's text field: 48 dp tall, outlined (2 dp blue while focused, red when wrong), its hint in italics. */
+/** A dialog's text field: a soft frosted well, tomato when wrong, with an eye for passwords. */
 @Composable
 fun PdfField(
     value: String,
@@ -447,41 +402,44 @@ fun PdfField(
     modifier: Modifier = Modifier,
     error: Boolean = false,
     password: Boolean = false,
-    keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
-    keyboardActions: androidx.compose.foundation.text.KeyboardActions = androidx.compose.foundation.text.KeyboardActions.Default,
-    focus: androidx.compose.ui.focus.FocusRequester? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    focus: FocusRequester? = null,
 ) {
-    val c = pdfColors
-    var focused by remember { mutableStateOf(false) }
+    val c = clear
     var visible by remember { mutableStateOf(false) }
     Row(
-        modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(4.dp))
-            .border(if (focused || error) 2.dp else 1.dp, if (error) c.red else if (focused) Color(0xFF378EF0) else c.textSecondary, RoundedCornerShape(4.dp))
-            .padding(start = 12.dp),
+        modifier.fillMaxWidth().heightIn(min = 50.dp).clip(RoundedRectangle(16.dp))
+            .background(if (error) Candy.Tomato.copy(alpha = 0.14f) else if (c.dark) Color.White.copy(alpha = 0.07f) else c.ink.copy(alpha = 0.05f))
+            .padding(start = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            if (value.isEmpty()) Text(placeholder, color = c.textSecondary, fontSize = 16.sp, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
-            androidx.compose.foundation.text.BasicTextField(
+        Box(Modifier.weight(1f).padding(vertical = 13.dp), contentAlignment = Alignment.CenterStart) {
+            if (value.isEmpty()) Text(placeholder, style = ClearType.Body, color = if (error) Candy.Tomato else c.inkFaint)
+            BasicTextField(
                 value = value, onValueChange = onValue, singleLine = true,
-                textStyle = androidx.compose.ui.text.TextStyle(color = c.text, fontSize = 16.sp),
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(Color(0xFF378EF0)),
-                visualTransformation = if (password && !visible) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+                textStyle = ClearType.Body.copy(color = c.ink),
+                cursorBrush = SolidColor(Candy.Sky),
+                visualTransformation = if (password && !visible) PasswordVisualTransformation() else VisualTransformation.None,
                 keyboardOptions = keyboardOptions, keyboardActions = keyboardActions,
-                modifier = Modifier.fillMaxWidth().then(if (focus != null) Modifier.focusRequester(focus) else Modifier)
-                    .onFocusChanged { focused = it.isFocused }.semantics { contentDescription = placeholder },
+                modifier = Modifier.fillMaxWidth().then(if (focus != null) Modifier.focusRequester(focus) else Modifier).semantics { contentDescription = placeholder },
             )
         }
-        if (password) BarIcon(if (visible) LucideIcons.Eye else LucideIcons.EyeOff, stringResource(if (visible) R.string.ui_hide_password else R.string.ui_show_password), { visible = !visible }, size = 48.dp)
-        else Spacer(Modifier.width(12.dp))
+        if (password) {
+            BarIcon(
+                if (visible) LucideIcons.Eye else LucideIcons.EyeOff, stringResource(if (visible) R.string.ui_hide_password else R.string.ui_show_password),
+                { visible = !visible }, size = 46.dp, iconSize = 20.dp, tint = c.inkSoft,
+            )
+        } else {
+            Spacer(Modifier.width(14.dp))
+        }
     }
 }
 
 /**
  * A short label under an icon (toolbars, tool tiles), centred, on up to [maxLines] lines that
  * break only between words. A word too wide for the room (a large font size setting) makes the
- * whole label a little smaller, down to [minSize], rather than being split: "Organize pages"
- * read "Organi / ze pa…" at the largest setting.
+ * whole label a little smaller, down to [minSize], rather than being split.
  */
 @Composable
 fun WordWrapLabel(
@@ -501,12 +459,11 @@ fun WordWrapLabel(
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         ),
     )
-    androidx.compose.foundation.layout.BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
+    BoxWithConstraints(modifier, contentAlignment = Alignment.TopCenter) {
         val room = constraints.maxWidth
         val scale = remember(text, style, room) {
             val widest = text.split(' ').filter { it.isNotBlank() }
                 .maxOfOrNull { measurer.measure(it, style, softWrap = false, maxLines = 1).size.width } ?: 0
-            // a little under the exact ratio, so the narrowed word doesn't land a pixel too wide
             if (room == androidx.compose.ui.unit.Constraints.Infinity || widest <= room || widest == 0) 1f
             else (room.toFloat() / widest * 0.97f).coerceAtLeast(minSize.value / size.value)
         }

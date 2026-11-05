@@ -1301,6 +1301,10 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     }
 
     fun signFieldWithId(doc: OpenDocument, w: com.chethan616.clearpdf.core.WidgetInfo) {
+        if (!doc.info.readOnlyReason.isNullOrEmpty()) {
+            tell(text(R.string.sign_read_only_document))
+            return
+        }
         openCertSign(com.chethan616.clearpdf.ui.viewer.CertTarget(doc, w.field, w.page.toInt(), null))
     }
 
@@ -1506,6 +1510,9 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     private suspend fun applyTrust(eng: Engine) {
         val paths = withContext(Dispatchers.IO) { trustedCerts.files().map { it.absolutePath } }
         eng.tool("sign_trust", mapOf("clear" to true, "paths" to paths))
+        // The engine redraws trusted signature appearances under a new generation; refresh the
+        // document so Compose/page caches request the new pixels and signature state.
+        document?.let { refresh(it) }
     }
 
     // ---- Edit PDF ----------------------------------------------------------------------------
@@ -1828,7 +1835,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             "checkbox" -> fillField(doc, w.field, !w.on)
             "radio" -> w.export?.let { fillField(doc, w.field, it) }
             "text", "combo", "list" -> fieldEdit = com.chethan616.clearpdf.ui.viewer.FieldEdit(doc, w)
-            // a signed field shows its signature's details; an empty one, a drawn or a digital signature
+            // a signed field shows its signature's details; an empty one offers a drawn or a digital signature
             "signature" -> if (doc.signatures.any { it.field == w.field && it.signed }) {
                 doc.controller.sheet = com.chethan616.clearpdf.ui.viewer.ViewerSheet.Signatures
             } else {

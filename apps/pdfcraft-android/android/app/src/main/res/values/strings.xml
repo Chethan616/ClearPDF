@@ -615,6 +615,7 @@
     <string name="sign_certified">Certified</string>
     <string name="sign_add_signature">Add a digital signature</string>
     <string name="sign_status_unsigned">Not signed yet</string>
+    <string name="sign_read_only_document">This document can\'t be changed, so it can\'t be signed.</string>
     <string name="sign_status_valid">Valid</string>
     <string name="sign_status_invalid">Invalid</string>
     <!-- Translator note: the signature is intact, but the signer isn't among the trusted ones -->

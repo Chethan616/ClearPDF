@@ -82,6 +82,27 @@ class ViewerController {
 
     fun toggleBars() {
         if (!barsLocked) barsVisible = !barsVisible
+        scrollTravel = 0f
+    }
+
+    /** Scroll travel (dp, signed, finger direction) since the last change of direction. */
+    private var scrollTravel = 0f
+
+    /**
+     * The reader scrolled by [dy] dp (finger direction: negative moves the text up). The bars slip
+     * away on a steady scroll down and come back on a scroll up, and stay while the page is at its top.
+     */
+    fun onUserScroll(dy: Float, atTop: Boolean) {
+        if (barsLocked) return
+        if (atTop) {
+            barsVisible = true
+            scrollTravel = 0f
+            return
+        }
+        // a change of direction starts the count again
+        if (dy * scrollTravel < 0f) scrollTravel = 0f
+        scrollTravel += dy
+        if (scrollTravel < -HIDE_TRAVEL_DP) barsVisible = false else if (scrollTravel > SHOW_TRAVEL_DP) barsVisible = true
     }
 
     /** Switch to [t]; tapping the active tool again goes back to plain viewing. */
@@ -104,6 +125,9 @@ class ViewerController {
     companion object {
         /** How long the scrubber and page pill stay after the last scroll or zoom. */
         const val INDICATOR_MS = 2000L
+        /** How far a steady scroll goes before the bars hide (down) or return (up), in dp. */
+        const val HIDE_TRAVEL_DP = 36f
+        const val SHOW_TRAVEL_DP = 18f
         const val PREVIOUS_PAGE_MS = 30L * 60 * 1000
     }
 }

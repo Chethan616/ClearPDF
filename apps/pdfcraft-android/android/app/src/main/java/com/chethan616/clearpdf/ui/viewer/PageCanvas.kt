@@ -39,12 +39,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -66,7 +68,8 @@ private const val WHEEL_TURN_MS = 800L
 
 /**
  * The document view: pages laid out by [state], pinch to zoom, drag and fling to scroll, double
- * tap to zoom in or back out (and [onDoubleTap]), tap for [onTap] (bars), long press for [onLongPress]. [overlay]
+ * tap to zoom in or back out, double tap and drag to adjust zoom (and [onDoubleTap]), tap for [onTap]
+ * (bars), long press for [onLongPress]. [overlay]
  * draws over the pages in screen space (selection, search hits, comments being made). When
  * [gesturesEnabled] is false a tool above takes the touches itself. A mouse wheel scrolls (zooms
  * with Ctrl, then [onWheelZoom]), a mouse drag goes to [onMouseSelect] when there is one, and a
@@ -92,9 +95,12 @@ fun PageCanvas(
     onMouseHover: (Offset) -> Unit = {},
     /** Ctrl and the wheel zoomed. */
     onWheelZoom: () -> Unit = {},
+    /** The reader scrolled the pages by this many pixels vertically (a finger drag or a fling; a pinch is not). */
+    onScroll: (Float) -> Unit = {},
     overlay: DrawScope.() -> Unit = {},
 ) {
     val density = LocalDensity.current
+    val doubleTapSlop = android.view.ViewConfiguration.get(LocalContext.current).scaledDoubleTapSlop
     val scope = rememberCoroutineScope()
     state.gap = with(density) { gap.toPx() }
     state.margin = with(density) { margin.toPx() }
@@ -170,8 +176,14 @@ fun PageCanvas(
             .pointerInput(state, gesturesEnabled) {
                 if (!gesturesEnabled) return@pointerInput
                 val touchSlop = viewConfiguration.touchSlop
+                var lastTapTime = -1L
+                var lastTapPosition = Offset.Zero
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
+                    val doubleTapDrag = lastTapTime >= 0 &&
+                        down.uptimeMillis - lastTapTime <= viewConfiguration.doubleTapTimeoutMillis &&
+                        (down.position - lastTapPosition).getDistance() <= doubleTapSlop
+                    lastTapTime = -1L
                     flinger[0]?.cancel()
                     // a drag with the mouse's main button selects text instead of moving the page; the
                     // right and middle buttons still move it
@@ -199,6 +211,7 @@ fun PageCanvas(
                     var started = false
                     var pinched = false
                     var centroid = down.position
+                    var zoomDrag = false
                     var lastChange: PointerInputChange = down
                     while (true) {
                         val event = awaitPointerEvent()
@@ -212,22 +225,39 @@ fun PageCanvas(
                             if (moved.getDistance() > touchSlop || abs(1f - zoomed) * size.width / 2f > touchSlop) {
                                 started = true
                                 onGestureStart()
+                                if (doubleTapDrag && pressed.size == 1) {
+                                    zoomDrag = true
+                                    onDoubleTap()
+                                }
                             }
                         }
                         if (started) {
-                            if (pressed.size > 1) {
+                            if (zoomDrag && pressed.size == 1) {
+                                state.zoomBy(exp(pan.y * 5f / size.height), down.position)
+                            } else if (pressed.size > 1) {
                                 pinched = true
                                 val c = event.calculateCentroid()
                                 centroid = c
                                 if (zoomChange != 1f) state.zoomBy(zoomChange, c)
                             }
-                            if (pan != Offset.Zero) state.scrollBy(pan.x, pan.y)
+                            if (!zoomDrag && pan != Offset.Zero) {
+                                val left = state.scrollBy(pan.x, pan.y)
+                                // only what the page really moved: a drag against its end isn't a scroll
+                                if (pressed.size == 1) onScroll(pan.y - left.y)
+                            }
                             event.changes.forEach { if (it.positionChanged()) it.consume() }
                         }
                         lastChange = pressed.first()
                         tracker.addPosition(lastChange.uptimeMillis, lastChange.position)
                     }
-                    if (!started) return@awaitEachGesture
+                    if (!started) {
+                        if (lastChange.uptimeMillis - down.uptimeMillis < viewConfiguration.longPressTimeoutMillis) {
+                            lastTapTime = down.uptimeMillis
+                            lastTapPosition = down.position
+                        }
+                        return@awaitEachGesture
+                    }
+                    if (zoomDrag) return@awaitEachGesture
                     val v = tracker.calculateVelocity()
                     val velocity = if (pinched) Offset.Zero else Offset(v.x, v.y)
                     val rest = if (pinched) state.pinchRest() else null
@@ -236,7 +266,7 @@ fun PageCanvas(
                             val anim = Animatable(state.zoom)
                             anim.animateTo(rest, tween(DOUBLE_TAP_MS)) { state.zoomTo(value, centroid) }
                         } else {
-                            settle(state, velocity, density.density)
+                            settle(state, velocity, density.density, onScroll)
                         }
                     }
                 }
@@ -253,7 +283,7 @@ fun PageCanvas(
 }
 
 /** After a gesture: fling (with decay), or in single-page mode come to rest on a page. */
-private suspend fun settle(state: ViewerState, velocity: Offset, density: Float) {
+private suspend fun settle(state: ViewerState, velocity: Offset, density: Float, onScroll: (Float) -> Unit) {
     if (state.mode == PageMode.SinglePage && state.zoom <= 1.01f) {
         val target = state.snapTarget(velocity.x)
         val anim = Animatable(state.scrollX)
@@ -267,6 +297,7 @@ private suspend fun settle(state: ViewerState, velocity: Offset, density: Float)
         val d = value - last
         last = value
         val left = state.scrollBy(d.x, d.y)
+        onScroll(d.y - left.y)
         // stop at the ends instead of decaying against them
         if (abs(left.x) > 0.5f && abs(left.y) > 0.5f) throw CancellationException("at the edge")
     }

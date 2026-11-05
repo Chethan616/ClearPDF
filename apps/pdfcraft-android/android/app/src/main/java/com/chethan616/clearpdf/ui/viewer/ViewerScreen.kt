@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -81,6 +82,7 @@ import kotlinx.coroutines.launch
  * hides and shows them, with the system bars), the scrubber and its page pill, Find, text
  * selection, the active tool's layer and sub-toolbar, and the sheets.
  */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
     val c = pdfColors
@@ -118,19 +120,20 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
     // the bars on their own colour there
     val barSides = if (statusBar) Modifier.background(c.surface).then(cutoutSides) else Modifier
 
-    // The page area starts under the top bar while it shows, and leaves room for the bottom bar.
+    // The page area starts under the top bar and leaves room for the bottom bar. The room is the same
+    // whether the bars show or not (they hide as the reader scrolls: the pages must not jump), and
+    // the navigation bar's too, which hides with them.
     val statusPx = maxOf(WindowInsets.statusBars.getTop(density), WindowInsets.displayCutout.getTop(density)).toFloat()
-    val navPx = WindowInsets.navigationBars.getBottom(density).toFloat()
+    val navPx = WindowInsets.navigationBarsIgnoringVisibility.getBottom(density).toFloat()
     val topPx = with(density) { TopBarHeight.toPx() }
     // the quick toolbar grows with a large font setting: the page area leaves room for that too
     var quickExtraPx by remember { mutableIntStateOf(0) }
     val bottomPx = with(density) { if (ctl.tool == ViewerTool.None) QuickBarHeight.toPx() + quickExtraPx else BottomBarHeight.toPx() }
     // keyed on the document too: one opened over another (Create, Combine) has a fresh page view
-    LaunchedEffect(doc, ctl.barsVisible, statusPx, navPx, ctl.searching, ctl.tool, vm.readingMode, bottomPx, statusBar) {
-        val bottomShown = ctl.barsVisible && !ctl.searching && !vm.readingMode
+    LaunchedEffect(doc, statusPx, navPx, ctl.searching, ctl.tool, vm.readingMode, bottomPx) {
+        val bottomShown = !ctl.searching && !vm.readingMode
         doc.viewer.setPadding(
-            // with the status bar in documents, the page goes up to the top edge once the bars hide
-            top = if (ctl.barsVisible) statusPx + topPx else if (statusBar) 0f else statusPx,
+            top = statusPx + topPx,
             bottom = if (bottomShown) bottomPx + navPx else navPx,
         )
     }
@@ -206,6 +209,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
             top = with(density) { (statusPx + topPx).toDp() },
             bottom = with(density) { doc.viewer.padBottom.toDp() },
             onTap = { ctl.toggleBars() },
+            onScroll = { dy, atTop -> ctl.onUserScroll(dy / density.density, atTop) },
         ) else PageCanvas(
             state = doc.viewer,
             images = doc.images,
@@ -213,6 +217,8 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
             look = canvasLook,
             gap = with(density) { (if (c.dark) 3f else 4f).toDp() },
             gesturesEnabled = gesturesForTool,
+            // the bars slip away as the reader scrolls on, and return as they scroll back (or reach the top)
+            onScroll = { dy -> ctl.onUserScroll(dy / density.density, doc.viewer.scrollY <= 8f) },
             onTap = { p, at ->
                 when {
                     selection.selection != null -> selection.clear()
@@ -372,6 +378,9 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                     } else {
                         val fa = vm.fieldActions
                         if (fa != null) FieldTopBar(fa) else ViewerTopBar(
+                            title = doc.title,
+                            subtitle = stringResource(R.string.desk_page_of, (doc.viewer.currentPage + 1).coerceAtMost(doc.pageCount), doc.pageCount),
+                            toolTitle = if (ctl.tool == ViewerTool.Edit) stringResource(R.string.common_tool_edit_pdf) else null,
                             toolActive = ctl.tool != ViewerTool.None,
                             doneIsCheck = ctl.tool != ViewerTool.Comment,
                             // while drawing, the strokes not yet added have their own undo and redo
@@ -380,8 +389,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                             onBack = { if (ctl.tool != ViewerTool.None) vm.leaveTool(doc) else vm.closeDocument() },
                             onUndo = { vm.undo(doc) },
                             onRedo = { vm.redo(doc) },
-                            readingAloud = vm.readAloud != null,
-                            onReadAloud = { vm.readAloud?.stop() ?: vm.startReadAloud(doc) },
+                            onTitle = { ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More },
                             // Reading Mode has no search, as the reference's bar shows
                             onSearch = if (vm.readingMode) null else ({
                                 selection.clear()
@@ -390,8 +398,6 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                             }),
                             onShare = { vm.share(doc) },
                             onMore = { ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More },
-                            moreOpen = ctl.sheet == ViewerSheet.More,
-                            title = if (ctl.tool == ViewerTool.Edit) stringResource(R.string.common_tool_edit_pdf) else null,
                             undoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.undo,
                             redoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.redo,
                         )
@@ -415,13 +421,6 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                             onTool = { vm.runQuickTool(doc, it) },
                             onMoreTools = { ctl.sheet = if (ctl.sheet == ViewerSheet.MoreTools) ViewerSheet.None else ViewerSheet.MoreTools },
                             moreToolsOpen = ctl.sheet == ViewerSheet.MoreTools,
-                            chips = listOf(
-                                QuickChip(stringResource(if (vm.isStarred(doc)) R.string.viewer_unstar_file else R.string.viewer_star_file), LucideIcons.Star, ToolHues.combine) { vm.toggleStar(doc) },
-                                QuickChip(stringResource(R.string.common_tool_read_aloud), LucideIcons.Headphones, ToolHues.read) { vm.startReadAloud(doc) },
-                                QuickChip(stringResource(R.string.common_tool_create_pdf), QuickTool.Create.icon, ToolHues.create) { vm.runQuickTool(doc, QuickTool.Create) },
-                                QuickChip(stringResource(R.string.common_tool_organize), QuickTool.Organize.icon, ToolHues.organize) { vm.runQuickTool(doc, QuickTool.Organize) },
-                            ),
-                            onExtraHeight = { quickExtraPx = it },
                         )
                     } else {
                         ToolSubToolbar(vm, doc)

@@ -152,6 +152,48 @@ val pdfColors: PdfColors @Composable get() = LocalPdfColors.current
 /** How the app chooses light or dark (Preferences ▸ Theme). */
 enum class ThemeChoice { System, Light, Dark }
 
+/**
+ * The viewer's and tool screens' roles in ClearPDF's palette: warm paper surfaces, the theme's ink,
+ * candy accents. (Inside [com.chethan616.clearpdf.ui.theme.ClearTheme], so it follows the same theme.)
+ */
+private fun pdfColorsFrom(cc: com.chethan616.clearpdf.ui.theme.ClearColors): PdfColors {
+    val candy = com.chethan616.clearpdf.ui.theme.Candy
+    val dark = cc.dark
+    val surface = if (dark) Color(0xFF17151E) else Color(0xFFFBF8F4)
+    val raised = if (dark) Color(0xFF221F2B) else Color(0xFFF1ECE5)
+    return PdfColors(
+        dark = dark,
+        surface = surface,
+        surfaceRaised = raised,
+        pressed = if (dark) Color(0xFF2C2836) else Color(0xFFE8E2DA),
+        desk = cc.desk,
+        pageEdge = if (dark) Color.Transparent else Color(0x1F000000),
+        text = cc.ink,
+        textSecondary = cc.inkSoft,
+        textTertiary = cc.inkFaint,
+        icon = cc.ink,
+        divider = cc.line,
+        handle = cc.inkFaint,
+        accent = candy.Sky,
+        onAccent = Color.White,
+        button = candy.Sky,
+        red = candy.Tomato,
+        scrim = if (dark) Color(0x99000000) else Color(0x55000000),
+        toast = if (dark) Color(0xFF2C2836) else Color(0xFF2A2634),
+        onToast = Color.White,
+        label = cc.ink,
+        toolAccent = candy.Sky,
+        navBand = surface,
+        menu = surface,
+        pageCard = raised,
+        home = cc.canvas,
+        navigatorText = cc.ink,
+        replyBorder = cc.inkSoft,
+        switchOff = raised,
+        switchOn = candy.Mint,
+    )
+}
+
 @Composable
 fun PdfcraftTheme(choice: ThemeChoice = ThemeChoice.System, content: @Composable () -> Unit) {
     val dark = when (choice) {
@@ -159,7 +201,7 @@ fun PdfcraftTheme(choice: ThemeChoice = ThemeChoice.System, content: @Composable
         ThemeChoice.Light -> false
         ThemeChoice.Dark -> true
     }
-    val c = if (dark) DarkPdfColors else LightPdfColors
+    val c = pdfColorsFrom(com.chethan616.clearpdf.ui.theme.LocalClearColors.current)
     val scheme: ColorScheme = if (dark) {
         darkColorScheme(primary = c.accent, onPrimary = c.onAccent, surface = c.surface, onSurface = c.text, background = c.surface, onBackground = c.text,
             surfaceVariant = c.surfaceRaised, onSurfaceVariant = c.textSecondary, outline = c.divider, error = c.red, surfaceContainer = c.surfaceRaised,

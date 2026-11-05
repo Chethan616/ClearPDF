@@ -1,84 +1,105 @@
 package com.chethan616.clearpdf.ui.viewer
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.layout.onPlaced
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
-import com.chethan616.clearpdf.ui.BarDivider
-import com.chethan616.clearpdf.ui.BarIcon
-import com.chethan616.clearpdf.ui.Inter
 import com.chethan616.clearpdf.ui.LucideIcons
-import com.chethan616.clearpdf.ui.pdfColors
+import com.chethan616.clearpdf.ui.glass.GlassCircle
+import com.chethan616.clearpdf.ui.glass.GlassIcon
+import com.chethan616.clearpdf.ui.glass.GlassMenu
+import com.chethan616.clearpdf.ui.glass.GlassMenuItem
+import com.chethan616.clearpdf.ui.glass.GlassMotion
+import com.chethan616.clearpdf.ui.glass.GlassPill
+import com.chethan616.clearpdf.ui.glass.glass
+import com.chethan616.clearpdf.ui.glass.pressable
+import com.chethan616.clearpdf.ui.iconAccent
+import com.chethan616.clearpdf.ui.theme.Candy
+import com.chethan616.clearpdf.ui.theme.ClearType
+import com.chethan616.clearpdf.ui.theme.clear
+import com.kyant.shapes.Capsule
 import kotlinx.coroutines.flow.first
 
-/** The viewer's top bar height (the reference's: 56 dp). */
-val TopBarHeight = 57.dp
+/** The room the floating top row takes: a 48 dp capsule and its margins. */
+val TopBarHeight = 64.dp
 
-/** The bottom quick toolbar's height (the reference's: 70 dp). */
-val BottomBarHeight = 70.dp
+/** The room the floating bottom dock takes: a 60 dp capsule and its margins. */
+val BottomBarHeight = 76.dp
+
+/** The dock has no handle strip of its own. */
+val QuickHandleHeight = 0.dp
+
+/** The dock's room. */
+val QuickBarHeight = BottomBarHeight
 
 /**
- * The top bar in plain viewing: back, a divider and the Read aloud switch, then Find, Share and
- * More. With a tool active the back arrow becomes a check mark (Done), the switch goes, and Undo
- * and Redo appear once there is something to undo.
+ * The viewer's floating top row: a round back button, a wide glass capsule with the document's
+ * name, the page it's on and Find, then Share and More. With a tool out: a candy Done, the tool's
+ * name, and Undo / Redo.
  */
 @Composable
 fun ViewerTopBar(
+    title: String,
+    subtitle: String?,
+    toolTitle: String?,
     toolActive: Boolean,
     doneIsCheck: Boolean,
     canUndo: Boolean,
@@ -86,124 +107,75 @@ fun ViewerTopBar(
     onBack: () -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
-    readingAloud: Boolean,
-    onReadAloud: () -> Unit,
+    onTitle: () -> Unit,
     onSearch: (() -> Unit)?,
     onShare: () -> Unit,
     onMore: () -> Unit,
-    moreOpen: Boolean,
-    /** A tool with its own title (Edit PDF): Done, the title and Undo only. */
-    title: String? = null,
-    /** What Undo and Redo would take back or bring back, for their menu. */
     undoLabel: String? = null,
     redoLabel: String? = null,
 ) {
-    val c = pdfColors
+    val c = clear
     Row(
-        Modifier.fillMaxWidth().height(TopBarHeight).background(c.surface).drawBehind {
-            val line = 1.dp.toPx()
-            drawRect(c.divider, Offset(0f, size.height - line), androidx.compose.ui.geometry.Size(size.width, line))
-        }.padding(bottom = 1.dp),
+        Modifier.fillMaxWidth().height(TopBarHeight).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) {
-            if (toolActive && doneIsCheck) {
-                BarIcon(LucideIcons.Check, stringResource(R.string.common_done), onBack, tint = c.toolAccent)
-            } else {
-                BarIcon(LucideIcons.ArrowLeft, stringResource(R.string.common_back), onBack, iconSize = 27.dp)
+        if (toolActive && doneIsCheck) {
+            GlassCircle(onClick = onBack, tint = Candy.Sky, label = stringResource(R.string.common_done)) { GlassIcon(LucideIcons.Check, null, Modifier.size(22.dp)) }
+        } else {
+            GlassCircle(onClick = onBack, label = stringResource(R.string.common_back)) { GlassIcon(LucideIcons.ArrowLeft, null, Modifier.size(21.dp)) }
+        }
+        GlassPill(onClick = onTitle, modifier = Modifier.weight(1f), height = 48.dp, horizontalPadding = 16.dp) {
+            if (toolTitle != null) Box(Modifier.size(9.dp).clip(CircleShape).background(Candy.Sky))
+            Column(Modifier.weight(1f)) {
+                Text(toolTitle ?: title, style = ClearType.Title.copy(fontSize = 16.sp, lineHeight = 19.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (subtitle != null && toolTitle == null) Text(subtitle, style = ClearType.Caption, color = c.inkSoft, maxLines = 1)
             }
-        }
-        if (title != null) {
-            Spacer(Modifier.width(6.dp))
-            Text(title, color = c.label, fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            UndoMenuButton(canUndo, canRedo, onUndo, onRedo, undoLabel, redoLabel)
-            Spacer(Modifier.width(10.dp))
-            return@Row
-        }
-        if (!toolActive) {
-            BarDivider(height = 24.dp)
-            Spacer(Modifier.width(14.dp))
-            // with something to undo the reference shrinks the switch to a plain speaker button
-            if (canUndo && !readingAloud) BarIcon(LucideIcons.Volume2, stringResource(R.string.common_tool_read_aloud), onReadAloud) else ReadAloudSwitch(readingAloud, onReadAloud)
-        }
-        Spacer(Modifier.weight(1f))
-        // while reading aloud the bar holds only back and the switch, as the reference's
-        if (readingAloud && !toolActive) {
-            Spacer(Modifier.width(10.dp))
-            return@Row
+            if (onSearch != null && !toolActive) {
+                Box(Modifier.size(36.dp).pressable(onSearch).semantics { contentDescription = "" }, contentAlignment = Alignment.Center) {
+                    Icon(LucideIcons.Search, stringResource(R.string.viewer_find_in_document), tint = c.ink, modifier = Modifier.size(20.dp))
+                }
+            }
         }
         if (toolActive) {
             if (canUndo || canRedo) {
-                BarIcon(LucideIcons.Undo2, stringResource(R.string.common_undo), onUndo, enabled = canUndo)
-                BarIcon(LucideIcons.Redo2, stringResource(R.string.common_redo), onRedo, enabled = canRedo)
+                GlassCircle(onClick = { if (canUndo) onUndo() }, label = stringResource(R.string.common_undo)) {
+                    GlassIcon(LucideIcons.Undo2, null, Modifier.size(20.dp), tint = if (canUndo) Color.Unspecified else c.inkFaint)
+                }
+                GlassCircle(onClick = { if (canRedo) onRedo() }, label = stringResource(R.string.common_redo)) {
+                    GlassIcon(LucideIcons.Redo2, null, Modifier.size(20.dp), tint = if (canRedo) Color.Unspecified else c.inkFaint)
+                }
             }
-        } else if (canUndo) {
-            UndoMenuButton(canUndo, canRedo, onUndo, onRedo, undoLabel, redoLabel)
+        } else {
+            if (canUndo) UndoMenuButton(canUndo, canRedo, onUndo, onRedo, undoLabel, redoLabel)
+            GlassCircle(onClick = onShare, label = stringResource(R.string.common_share)) { GlassIcon(LucideIcons.Share2, null, Modifier.size(20.dp)) }
+            GlassCircle(onClick = onMore, label = stringResource(R.string.common_more_options)) { GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(21.dp)) }
         }
-        if (onSearch != null) BarIcon(LucideIcons.Search, stringResource(R.string.viewer_find_in_document), onSearch)
-        BarIcon(LucideIcons.Share2, stringResource(R.string.common_share), onShare)
-        BarIcon(LucideIcons.EllipsisVertical, stringResource(R.string.common_more_options), onMore, selected = moreOpen)
-        Spacer(Modifier.width(10.dp))
     }
 }
 
-/** Undo with a corner mark: a tap opens Undo and Redo. */
+/** Undo as a glass circle: a tap opens a menu naming what Undo and Redo would do. */
 @Composable
 fun UndoMenuButton(canUndo: Boolean, canRedo: Boolean, onUndo: () -> Unit, onRedo: () -> Unit, undoLabel: String? = null, redoLabel: String? = null) {
-    val c = pdfColors
-    var open by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-    val undoOrRedo = stringResource(R.string.viewer_undo_or_redo)
-    Box {
-        Box(
-            Modifier.size(46.dp).clickable(enabled = canUndo || canRedo, role = Role.Button) { open = true }.semantics { contentDescription = undoOrRedo },
-            contentAlignment = Alignment.Center,
-        ) {
-            val tint = if (canUndo || canRedo) c.icon else c.icon.copy(alpha = 0.38f)
-            Icon(LucideIcons.Undo2, null, tint = tint, modifier = Modifier.size(24.dp))
-            Box(Modifier.size(6.dp).offset(x = 12.dp, y = 10.dp).drawBehind {
-                val p = Path().apply { moveTo(size.width, 0f); lineTo(size.width, size.height); lineTo(0f, size.height); close() }
-                drawPath(p, tint)
-            })
+    var open by remember { mutableStateOf(false) }
+    var anchor by remember { mutableStateOf(Rect.Zero) }
+    GlassCircle(
+        onClick = { if (canUndo || canRedo) open = true },
+        modifier = Modifier.onGloballyPositioned { anchor = it.boundsInWindow() },
+        label = stringResource(R.string.viewer_undo_or_redo),
+    ) { GlassIcon(LucideIcons.Undo2, null, Modifier.size(20.dp)) }
+    if (open) {
+        val items = buildList {
+            if (canUndo) add(GlassMenuItem(undoLabel?.let { stringResource(R.string.viewer_undo_named, it) } ?: stringResource(R.string.common_undo), LucideIcons.Undo2, onClick = onUndo))
+            if (canRedo) add(GlassMenuItem(redoLabel?.let { stringResource(R.string.viewer_redo_named, it) } ?: stringResource(R.string.common_redo), LucideIcons.Redo2, onClick = onRedo))
         }
-        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = c.menu) {
-            androidx.compose.material3.DropdownMenuItem(
-                text = { Text(undoLabel?.let { stringResource(R.string.viewer_undo_named, it) } ?: stringResource(R.string.common_undo), color = c.text) }, enabled = canUndo,
-                leadingIcon = { Icon(LucideIcons.Undo2, null, tint = c.icon) }, onClick = { open = false; onUndo() },
-            )
-            androidx.compose.material3.DropdownMenuItem(
-                text = { Text(redoLabel?.let { stringResource(R.string.viewer_redo_named, it) } ?: stringResource(R.string.common_redo), color = c.text) }, enabled = canRedo,
-                leadingIcon = { Icon(LucideIcons.Redo2, null, tint = c.icon) }, onClick = { open = false; onRedo() },
-            )
-        }
-    }
-}
-
-/** Read aloud as the reference shows it: a switch whose knob carries a speaker (crossed out while off). */
-@Composable
-private fun ReadAloudSwitch(on: Boolean, onToggle: () -> Unit) {
-    val c = pdfColors
-    val knob by androidx.compose.animation.core.animateDpAsState(if (on) 22.dp else 2.dp, label = "knob")
-    val track by androidx.compose.animation.animateColorAsState(if (on) c.switchOn else c.switchOff, label = "track")
-    val readAloud = stringResource(R.string.common_tool_read_aloud)
-    Box(
-        Modifier.size(width = 56.dp, height = 40.dp).clickable(role = Role.Switch, onClick = onToggle).semantics { contentDescription = readAloud },
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Box(Modifier.size(width = 56.dp, height = 28.dp).background(track, androidx.compose.foundation.shape.RoundedCornerShape(14.dp))) {
-            Box(
-                Modifier.offset(x = knob, y = 2.dp).size(width = 32.dp, height = 24.dp).background(Color.White, androidx.compose.foundation.shape.RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(if (on) LucideIcons.Volume2 else LucideIcons.VolumeOff, null, tint = Color(0xFF222222), modifier = Modifier.size(16.dp))
-            }
-        }
+        GlassMenu(anchor, { open = false }, items)
     }
 }
 
 /**
- * Find in the top bar: collapse, the query field (searched on submit), then clear, Previous and
- * Next, greyed until they can be used. Like the reference, it shows no hit counter, unless Extra
- * Features asks for one: [count], "3 of 12", between the field and the buttons.
+ * Find, floating where the top row was: a round close button, then a glass capsule holding the
+ * field, the "3 of 12" count (Extra Features), clear, Previous and Next.
  */
 @Composable
 fun SearchBar(
@@ -217,105 +189,68 @@ fun SearchBar(
     onNext: () -> Unit,
     count: String? = null,
 ) {
-    val c = pdfColors
+    val c = clear
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val findLabel = stringResource(R.string.viewer_find_in_document)
     LaunchedEffect(Unit) { focus.requestFocus() }
     Row(
-        Modifier.fillMaxWidth().height(TopBarHeight).background(c.surface).drawBehind {
-            val line = 1.dp.toPx()
-            drawRect(c.divider, Offset(0f, size.height - line), androidx.compose.ui.geometry.Size(size.width, line))
-        }.padding(bottom = 1.dp),
+        Modifier.fillMaxWidth().height(TopBarHeight).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, stringResource(R.string.viewer_collapse), onClose, iconSize = 27.dp) }
-        Box(
-            Modifier.weight(1f).padding(horizontal = 8.dp).height(40.dp).drawBehind {
-                drawLine(c.textSecondary, Offset(0f, size.height - 1f), Offset(size.width, size.height - 1f), 1.5f)
-            },
-            contentAlignment = Alignment.CenterStart,
+        GlassCircle(onClick = onClose, label = stringResource(R.string.viewer_collapse)) { GlassIcon(LucideIcons.ArrowLeft, null, Modifier.size(21.dp)) }
+        Row(
+            Modifier.weight(1f).height(48.dp).glass(Capsule, blur = 6.dp).padding(start = 16.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            Icon(LucideIcons.Search, null, tint = c.inkSoft, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
             BasicTextField(
                 value = query,
                 onValueChange = onQuery,
                 singleLine = true,
-                textStyle = TextStyle(fontFamily = Inter, fontSize = 17.sp, color = c.text),
-                cursorBrush = SolidColor(c.accent),
+                textStyle = ClearType.Body.copy(color = c.ink),
+                cursorBrush = SolidColor(Candy.Tomato),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = {
                     keyboard?.hide()
                     onSubmit()
                 }),
-                modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = findLabel },
+                modifier = Modifier.weight(1f).focusRequester(focus).semantics { contentDescription = findLabel },
                 decorationBox = { inner ->
                     Box(contentAlignment = Alignment.CenterStart) {
-                        if (query.isEmpty()) Text(findLabel, color = c.textSecondary, fontSize = 17.sp, fontStyle = FontStyle.Italic)
+                        if (query.isEmpty()) Text(findLabel, style = ClearType.Body, color = c.inkFaint, maxLines = 1)
                         inner()
                     }
                 },
             )
+            if (count != null) Text(count, style = ClearType.Label, color = c.inkSoft, maxLines = 1, modifier = Modifier.padding(horizontal = 4.dp))
+            if (query.isNotEmpty()) StepButton(LucideIcons.X, stringResource(R.string.common_clear), true, onClear)
+            StepButton(LucideIcons.ChevronUp, stringResource(R.string.viewer_find_previous), canStep, onPrev)
+            StepButton(LucideIcons.ChevronDown, stringResource(R.string.viewer_find_next), canStep, onNext)
         }
-        if (count != null) Text(count, color = c.textSecondary, fontSize = 15.sp, maxLines = 1, modifier = Modifier.padding(horizontal = 4.dp))
-        BarIcon(LucideIcons.X, stringResource(R.string.common_clear), onClear, size = 40.dp, enabled = query.isNotEmpty())
-        BarIcon(LucideIcons.ChevronLeft, stringResource(R.string.viewer_find_previous), onPrev, enabled = canStep, size = 40.dp)
-        BarIcon(LucideIcons.ChevronRight, stringResource(R.string.viewer_find_next), onNext, enabled = canStep, size = 40.dp)
-        Spacer(Modifier.width(6.dp))
     }
 }
 
-/**
- * An item of the bottom quick toolbar, laid out as the reference does: 5 dp down, the icon in a
- * 44 dp box (shaded while its tool is open), the label straight under it, and a corner mark when
- * the tool has sub-tools. As the reference's, the label follows the phone's font size setting: the
- * item grows taller to hold it, and a long label wraps onto a second line (in a fixed height, a
- * large font setting cut the labels off at the bottom).
- */
 @Composable
-private fun QuickItem(icon: ImageVector, label: String, onClick: () -> Unit, subTools: Boolean = false, selected: Boolean = false, width: Dp) {
-    val c = pdfColors
-    Column(
-        Modifier.width(width).heightIn(min = BottomBarHeight).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = label }
-            .padding(horizontal = 2.dp, vertical = 5.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            Modifier.size(44.dp).offset(y = 2.5.dp).background(if (selected) c.divider else Color.Transparent, androidx.compose.foundation.shape.RoundedCornerShape(4.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, null, tint = c.icon, modifier = Modifier.size(24.dp))
-            if (subTools) {
-                // the small corner triangle: this tool has a row of sub-tools
-                val tint = c.cornerMark
-                Box(Modifier.size(6.dp).offset(x = 16.dp, y = 13.dp).drawBehind {
-                    val p = Path().apply { moveTo(size.width, 0f); lineTo(size.width, size.height); lineTo(0f, size.height); close() }
-                    drawPath(p, tint)
-                })
-            }
-        }
-        // the reference's 11 sp face is narrower than Inter: a half point less gives its height, and
-        // tighter letters its width; lines close together, so a wrapped label stays one block, and
-        // a word too wide for its slot (a very large font setting) shrinks rather than splits
-        com.chethan616.clearpdf.ui.WordWrapLabel(
-            label, c.label, size = 10.5.sp, lineHeight = 13.sp, letterSpacing = (-0.5).sp,
-            modifier = Modifier.padding(top = 2.5.dp),
-        )
+private fun StepButton(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
+    val c = clear
+    Box(Modifier.size(38.dp).pressable(onClick, enabled = enabled).semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
+        Icon(icon, null, tint = if (enabled) c.ink else c.inkFaint, modifier = Modifier.size(19.dp))
     }
 }
 
-/** The strip above the quick toolbar's tools that holds its handle. */
-val QuickHandleHeight = 22.dp
-
-/** The quick toolbar's height with its handle, the shortcuts folded away. */
-val QuickBarHeight = BottomBarHeight + QuickHandleHeight
-
-/** A shortcut in the row the quick toolbar's handle pulls up. */
-class QuickChip(val label: String, val icon: ImageVector, val tint: Color, val onClick: () -> Unit)
+/** How many tools fit in the dock at a screen [widthDp] wide (More tools takes its own bubble). */
+private fun dockSlots(widthDp: Int): Int = when {
+    widthDp >= 768 -> 8
+    widthDp >= 460 -> 6
+    else -> 5
+}
 
 /**
- * The quick toolbar: a handle, then the tools the user keeps there (the reference's six at first)
- * and More tools. Pulling the handle up (or tapping it) shows a row of [chips] above the tools,
- * scrolling sideways; pulling it down folds them away. No line along its top, as the reference.
+ * The floating dock: the tools the reader keeps there, each glyph in its own candy, on a glass
+ * capsule, and More tools as a grape bubble beside it.
  */
 @Composable
 fun QuickToolbar(
@@ -323,191 +258,153 @@ fun QuickToolbar(
     onTool: (QuickTool) -> Unit,
     onMoreTools: () -> Unit,
     moreToolsOpen: Boolean,
-    chips: List<QuickChip> = emptyList(),
-    /** How much taller than usual the tools' row is (a large font setting), in pixels. */
-    onExtraHeight: (Int) -> Unit = {},
 ) {
-    val c = pdfColors
-    var open by remember { androidx.compose.runtime.mutableStateOf(false) }
-    val handleLabel = stringResource(if (open) R.string.viewer_hide_shortcuts else R.string.viewer_show_shortcuts)
-    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().background(c.surface)) {
-        val slots = toolbarSlots(androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp)
-        val shown = tools.take(slots)
-        val itemW = minOf(72.dp, (maxWidth - 16.dp) / maxOf(7, shown.size + 1))
-        Column(
-            Modifier.fillMaxWidth().pointerInput(chips.isNotEmpty()) {
-                if (chips.isEmpty()) return@pointerInput
-                var pulled = 0f
-                detectVerticalDragGestures(
-                    onDragStart = { pulled = 0f },
-                    onDragEnd = { if (pulled < -8f) open = true else if (pulled > 8f) open = false },
-                ) { _, dy -> pulled += dy }
-            },
-        ) {
-            Box(
-                Modifier.fillMaxWidth().height(QuickHandleHeight)
-                    .clickable(enabled = chips.isNotEmpty(), role = Role.Button) { open = !open }
-                    .semantics { contentDescription = handleLabel },
-                contentAlignment = Alignment.TopCenter,
-            ) {
-                // measured on the dark bar; the light bar's grey is our own match
-                val handle = if (c.dark) Color(0xFF6A6A6A) else Color(0xFFC4C4C4)
-                Box(Modifier.padding(top = 15.dp).size(40.dp, 4.dp).background(handle, androidx.compose.foundation.shape.RoundedCornerShape(2.dp)))
-            }
-            androidx.compose.animation.AnimatedVisibility(open && chips.isNotEmpty()) {
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState())
-                        .padding(start = 18.dp, end = 18.dp, top = 5.dp, bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(11.dp),
-                ) { for (chip in chips) QuickChipView(chip) }
-            }
-            val usual = with(androidx.compose.ui.platform.LocalDensity.current) { BottomBarHeight.roundToPx() }
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = BottomBarHeight)
-                    .onSizeChanged { onExtraHeight((it.height - usual).coerceAtLeast(0)) },
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                for (t in shown) QuickItem(t.icon, stringResource(t.label), { onTool(t) }, subTools = t.subTools, width = itemW)
-                QuickItem(LucideIcons.LayoutGrid, stringResource(R.string.common_tool_more_tools), onMoreTools, selected = moreToolsOpen, width = itemW)
-            }
+    val slots = dockSlots(LocalConfiguration.current.screenWidthDp)
+    val shown = tools.take(slots)
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (moreToolsOpen) 45f else 0f, GlassMotion.morph(), label = "more")
+    Row(
+        Modifier.fillMaxWidth().height(BottomBarHeight).padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(Modifier.weight(1f).fillMaxHeight().glass(Capsule, blur = 6.dp).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            for (t in shown) DockItem(t.icon, stringResource(t.label), iconAccent(t.icon)) { onTool(t) }
+        }
+        GlassCircle(onClick = onMoreTools, size = 60.dp, tint = Candy.Grape, label = stringResource(R.string.common_tool_more_tools)) {
+            GlassIcon(LucideIcons.LayoutGrid, null, Modifier.size(24.dp).androidxRotate(turn))
         }
     }
 }
 
-/** One shortcut: its coloured icon and name on a dark rounded box, 37 dp tall. */
+private fun Modifier.androidxRotate(degrees: Float) = this.graphicsLayer { rotationZ = degrees }
+
 @Composable
-private fun QuickChipView(chip: QuickChip) {
-    val c = pdfColors
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp)
-    Row(
-        Modifier.heightIn(min = 37.dp).clip(shape).background(if (c.dark) Color(0xFF080808) else Color(0xFFEDEDED))
-            .clickable(role = Role.Button, onClick = chip.onClick).padding(start = 7.dp, end = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun androidx.compose.foundation.layout.RowScope.DockItem(icon: ImageVector, label: String, accent: Color, onClick: () -> Unit) {
+    val c = clear
+    Column(
+        Modifier.weight(1f).fillMaxHeight().pressable(onClick, pressedScale = 0.88f).semantics { contentDescription = label },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-        // sized against the reference: its icon draws about 18 dp, its name 14 sp in a narrower face
-        Icon(chip.icon, null, tint = chip.tint, modifier = Modifier.size(21.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(chip.label, color = c.text, fontSize = 14.sp, letterSpacing = (-0.65).sp, maxLines = 1)
+        Icon(icon, null, tint = accent, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.height(3.dp))
+        Text(label, style = ClearType.Caption.copy(fontSize = 10.5.sp, lineHeight = 12.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
-/** The 1 dp line the reference draws along the top of its bottom bars, just above them. */
-@Composable
-fun Modifier.barTopLine(): Modifier {
-    val color = pdfColors.divider
-    return drawBehind {
-        val line = 1.dp.toPx()
-        drawRect(color, Offset(0f, -line), androidx.compose.ui.geometry.Size(size.width, line))
-    }
-}
+/** No line along bars any more: glass floats. Kept so the tools' own bars can call it. */
+fun Modifier.barTopLine(): Modifier = this
 
 /**
- * A tool's sub-toolbar: its buttons centred on the bar, groups split by thin lines. As the reference:
- * the buttons keep their size, and when they don't all fit (a narrow screen, a large display size)
- * the bar scrolls sideways, sliding to a tool when it's chosen. (Squeezing the buttons together to
- * fit was tried and left out; see docs/parity-mobile.md, "Tool bars on narrow screens".)
+ * A tool's sub-toolbar: its buttons on a floating glass capsule, centred, sliding sideways when they
+ * don't all fit (to a tool when it's chosen).
  */
 @Composable
 fun SubToolbar(content: @Composable () -> Unit) {
-    val scroll = androidx.compose.foundation.rememberScrollState()
-    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().height(BottomBarHeight).barTopLine().background(pdfColors.surface)) {
+    val scroll = rememberScrollState()
+    BoxWithConstraints(Modifier.fillMaxWidth().height(BottomBarHeight).padding(horizontal = 12.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
         Row(
-            Modifier.fillMaxHeight().horizontalScroll(scroll).widthIn(min = maxWidth),
+            Modifier.widthIn(max = maxWidth).fillMaxHeight().glass(Capsule, blur = 6.dp).horizontalScroll(scroll).padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-        ) { androidx.compose.runtime.CompositionLocalProvider(LocalSubToolbarScroll provides scroll) { content() } }
+        ) { CompositionLocalProvider(LocalSubToolbarScroll provides scroll) { content() } }
     }
 }
 
 /** The scrolling bar a sub-toolbar tool sits in (none outside one). */
-private val LocalSubToolbarScroll = androidx.compose.runtime.staticCompositionLocalOf<androidx.compose.foundation.ScrollState?> { null }
+private val LocalSubToolbarScroll = staticCompositionLocalOf<androidx.compose.foundation.ScrollState?> { null }
 
 /** When the tool becomes the chosen one, the bar scrolls to bring it to the start (as far as it goes). */
 @Composable
 private fun Modifier.slideToWhenChosen(selected: Boolean): Modifier {
     val scroll = LocalSubToolbarScroll.current ?: return this
-    var x by remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
+    var x by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(selected) {
         if (!selected) return@LaunchedEffect
-        // once the tool has been placed on the bar
-        val at = androidx.compose.runtime.snapshotFlow { x }.first { it != null } ?: return@LaunchedEffect
+        val at = snapshotFlow { x }.first { it != null } ?: return@LaunchedEffect
         scroll.animateScrollTo(at)
     }
     return onPlaced { x = it.positionInParent().x.toInt() }
 }
 
-/** A sub-toolbar tool: 62 dp apart, as the reference spaces them. */
+/** A sub-toolbar tool; the chosen one sits on a candy disc. */
 @Composable
 fun SubTool(icon: ImageVector, description: String, selected: Boolean, onClick: () -> Unit, enabled: Boolean = true) {
-    SubButton(icon, description, selected, onClick, enabled, width = 62.dp)
+    SubButton(icon, description, selected, onClick, enabled, width = 54.dp)
 }
 
 /** Fill & Sign's text tool: an "A" in a dashed box (a field to type in). */
 @Composable
 fun SubTextField(description: String, selected: Boolean, onClick: () -> Unit) {
-    val tint = if (selected) pdfColors.toolAccent else pdfColors.icon
-    Box(
-        Modifier.width(62.dp).height(54.dp).slideToWhenChosen(selected).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description },
-        contentAlignment = Alignment.Center,
-    ) {
+    SubFace(description, selected, onClick, 54.dp) { tint ->
         Box(
             Modifier.size(22.dp).drawBehind {
-                val w = 1.5.dp.toPx()
+                val w = 1.6.dp.toPx()
                 drawRect(
                     tint, topLeft = Offset(w / 2, w / 2), size = androidx.compose.ui.geometry.Size(size.width - w, size.height - w),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(w, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(2.5.dp.toPx(), 2.dp.toPx()))),
+                    style = Stroke(w, pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.5.dp.toPx(), 2.dp.toPx()))),
                 )
             },
             contentAlignment = Alignment.Center,
-        ) { Text("A", color = tint, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) }
+        ) { Text("A", color = tint, fontSize = 13.sp, style = ClearType.Tile.copy(fontSize = 13.sp)) }
     }
 }
 
 /** A sub-toolbar tool drawn as a filled dot (Fill & Sign's dot mark). */
 @Composable
 fun SubDot(description: String, selected: Boolean, onClick: () -> Unit) {
-    val tint = if (selected) pdfColors.toolAccent else pdfColors.icon
-    Box(
-        Modifier.width(62.dp).height(54.dp).slideToWhenChosen(selected).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description },
-        contentAlignment = Alignment.Center,
-    ) { Box(Modifier.size(8.dp).background(tint, androidx.compose.foundation.shape.CircleShape)) }
+    SubFace(description, selected, onClick, 54.dp) { tint -> Box(Modifier.size(9.dp).background(tint, CircleShape)) }
 }
 
-/** A sub-toolbar property (line thickness, text size): narrower than a tool, beside its colour; shaded while its picker is open. */
+/** A sub-toolbar property (line thickness, text size): narrower, a soft disc while its picker is open. */
 @Composable
 fun SubProperty(icon: ImageVector, description: String, selected: Boolean, onClick: () -> Unit) {
-    SubButton(icon, description, selected, onClick, true, width = 36.dp, shaded = true)
+    SubButton(icon, description, selected, onClick, true, width = 46.dp, shaded = true)
 }
 
 @Composable
 private fun SubButton(icon: ImageVector, description: String, selected: Boolean, onClick: () -> Unit, enabled: Boolean, width: Dp, shaded: Boolean = false) {
-    val c = pdfColors
-    val tint = if (selected && !shaded) c.toolAccent else c.icon
+    SubFace(description, selected, onClick, width, enabled, shaded) { tint -> Icon(icon, null, tint = tint, modifier = Modifier.size(22.dp)) }
+}
+
+/** The face every sub-toolbar button shares: a jelly press and, chosen, a candy disc with white ink. */
+@Composable
+private fun SubFace(description: String, selected: Boolean, onClick: () -> Unit, width: Dp, enabled: Boolean = true, shaded: Boolean = false, glyph: @Composable (Color) -> Unit) {
+    val c = clear
+    val vivid = selected && !shaded
+    val disc by animateColorAsState(
+        when {
+            vivid -> Candy.Sky
+            selected -> c.ink.copy(alpha = 0.10f)
+            else -> Color.Transparent
+        },
+        GlassMotion.settle(), label = "sub",
+    )
     Box(
-        Modifier.width(width).height(54.dp).slideToWhenChosen(selected && !shaded).clickable(enabled = enabled, role = Role.Button, onClick = onClick).semantics { contentDescription = description },
+        Modifier.width(width).fillMaxHeight().slideToWhenChosen(vivid).pressable(onClick, enabled = enabled, pressedScale = 0.86f).semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        if (shaded && selected) Box(Modifier.requiredSize(40.dp).background(c.pressed, androidx.compose.foundation.shape.RoundedCornerShape(5.dp)))
-        Icon(icon, null, tint = if (enabled) tint else tint.copy(alpha = 0.38f), modifier = Modifier.size(24.dp))
+        Box(Modifier.size(42.dp).clip(CircleShape).background(disc))
+        glyph(if (!enabled) c.inkFaint else if (vivid) Color.White else c.ink)
     }
 }
 
-/** A sub-toolbar divider with the reference's spacing. */
+/** A sub-toolbar divider. */
 @Composable
 fun SubDivider() {
-    Box(Modifier.padding(horizontal = 4.dp)) { BarDivider(height = 30.dp) }
+    Box(Modifier.padding(horizontal = 6.dp).width(1.dp).height(28.dp).background(clear.line))
 }
 
-/** The colour button of a sub-toolbar: a filled dot of the tool's colour. */
+/** The colour button of a sub-toolbar: a bead of the tool's colour, ringed while its picker is open. */
 @Composable
-fun ColorDot(color: androidx.compose.ui.graphics.Color, selected: Boolean, onClick: () -> Unit) {
-    val c = pdfColors
+fun ColorDot(color: Color, selected: Boolean, onClick: () -> Unit) {
+    val c = clear
     val colourLabel = stringResource(R.string.viewer_colour)
     Box(
-        Modifier.width(36.dp).height(54.dp).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = colourLabel },
+        Modifier.width(46.dp).fillMaxHeight().pressable(onClick, pressedScale = 0.86f).semantics { contentDescription = colourLabel },
         contentAlignment = Alignment.Center,
     ) {
-        if (selected) Box(Modifier.requiredSize(40.dp).background(c.pressed, androidx.compose.foundation.shape.RoundedCornerShape(5.dp)))
-        Box(Modifier.size(20.dp).background(color, androidx.compose.foundation.shape.CircleShape))
+        if (selected) Box(Modifier.size(38.dp).border(2.dp, c.ink.copy(alpha = 0.5f), CircleShape))
+        Box(Modifier.size(26.dp).clip(CircleShape).background(color).border(2.dp, Color.White.copy(alpha = 0.85f), CircleShape))
     }
 }
