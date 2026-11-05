@@ -12,7 +12,7 @@
          granting it makes Android refuse IMAGE_CAPTURE. -->
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
-    <!-- Read aloud keeps reading with PdfCraft in the background (a media notification) -->
+    <!-- Read aloud keeps reading with ClearPDF in the background (a media notification) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
@@ -23,9 +23,9 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:requestLegacyExternalStorage="true"
-        android:roundIcon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.PdfCraft">
+        android:theme="@style/Theme.ClearPDF">
 
         <activity
             android:name=".MainActivity"
@@ -37,7 +37,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- PDFs other apps open with PdfCraft -->
+            <!-- PDFs other apps open with ClearPDF -->
             <intent-filter android:label="@string/open_with">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -46,7 +46,7 @@
                 <data android:scheme="file" />
                 <data android:mimeType="application/pdf" />
             </intent-filter>
-            <!-- PDFs shared to PdfCraft -->
+            <!-- PDFs shared to ClearPDF -->
             <intent-filter android:label="@string/open_with">
                 <action android:name="android.intent.action.SEND" />
                 <action android:name="android.intent.action.SEND_MULTIPLE" />
@@ -60,7 +60,7 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
-        <!-- Files of PdfCraft's handed to other apps (share, print, open in) -->
+        <!-- Files of ClearPDF's handed to other apps (share, print, open in) -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

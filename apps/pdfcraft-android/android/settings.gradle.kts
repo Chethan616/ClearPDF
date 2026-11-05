@@ -21,5 +21,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PdfCraft"
+rootProject.name = "ClearPDF"
 include(":app")
+include(":backdrop")

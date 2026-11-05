@@ -1,3 +1,27 @@
+ClearPDF
+Copyright (c) 2026 Chethan616
+
+ClearPDF is a modified version of PdfCraft for Android
+(https://github.com/artcraft-android/pdfcraft-android) by the ArtCraft Team, which is built on the
+engine of PdfCraft (https://github.com/storytold/pdfcraft) by storytold and the PdfCraft
+contributors. ClearPDF changed the Android app (apps/pdfcraft-android/android): its package, name,
+icon, signing and release workflow, and its user interface, rewritten on ClearPDF's liquid glass
+design system. The engine crates (crates/, vendor/, apps/pdfcraft-android/src) come from PdfCraft.
+ClearPDF's changes are under the same terms: MIT OR Apache-2.0, at your option.
+
+Liquid glass: the backdrop library from AndroidLiquidGlass by Kyant0
+(https://github.com/Kyant0/AndroidLiquidGlass), Apache-2.0, adapted. The velocity squash-and-stretch
+of glass thumbs follows LiquidTracker from AndroidLiquidGlassView by Donny Yale
+(https://github.com/QmDeve/AndroidLiquidGlassView), MIT, re-implemented for Compose.
+
+Display type: Bricolage Grotesque, Copyright 2022 The Bricolage Grotesque Project Authors
+(https://github.com/ateliertriay/bricolage), SIL Open Font License 1.1
+(app/src/main/assets/licences/OFL-BricolageGrotesque.txt).
+
+The original notice of PdfCraft for Android follows.
+
+----------------------------------------------------------------------------------------------------
+
 PdfCraft for Android
 Copyright (c) 2026 ArtCraft Team and the PdfCraft contributors.
 

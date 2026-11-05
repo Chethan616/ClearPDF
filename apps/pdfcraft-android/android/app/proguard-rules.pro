@@ -2,5 +2,5 @@
 # functions and structures by reflection: keep both.
 -keep class com.sun.jna.** { *; }
 -keep class * implements com.sun.jna.** { *; }
--keep class io.github.artcraftandroid.pdfcraft.core.** { *; }
+-keep class com.chethan616.clearpdf.core.** { *; }
 -dontwarn java.awt.**

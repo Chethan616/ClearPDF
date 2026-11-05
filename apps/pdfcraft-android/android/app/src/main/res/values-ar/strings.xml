@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  PdfCraft's Arabic translation. The English original is values/strings.xml.
+  ClearPDF's Arabic translation. The English original is values/strings.xml.
   Resource names and format arguments follow the upstream English catalog.
   Arabic plurals include zero, one, two, few, many and other.
 -->
 <resources>
-    <string name="open_with">فتح باستخدام PdfCraft</string>
+    <string name="open_with">فتح باستخدام ClearPDF</string>
     <string name="common_ok">موافق</string>
     <string name="common_cancel">إلغاء</string>
     <string name="common_done">تم</string>
@@ -75,7 +75,7 @@
     <string name="home_no_starred_body">ميّز ملفًا من قائمته لتجده هنا بسرعة.</string>
     <string name="home_device_files_title">الملفات على جهازك</string>
     <string name="home_device_files_body">اختر مجلدات لعرض ملفات PDF منها، مثل المستندات أو مجلد داخل التنزيلات. ستبقى الملفات التي تفتحها من أي مكان في قائمة الأخيرة.</string>
-    <string name="home_device_files_body_long">اختر مجلدات لعرض ملفات PDF منها، مثل المستندات أو مجلد داخل التنزيلات. لا يسمح Android للتطبيقات بعرض مجلد التنزيلات كاملًا. لا يصل PdfCraft إلا إلى المجلدات التي تختارها، وتبقى الملفات التي تفتحها من أي مكان في قائمة الأخيرة.</string>
+    <string name="home_device_files_body_long">اختر مجلدات لعرض ملفات PDF منها، مثل المستندات أو مجلد داخل التنزيلات. لا يسمح Android للتطبيقات بعرض مجلد التنزيلات كاملًا. لا يصل ClearPDF إلا إلى المجلدات التي تختارها، وتبقى الملفات التي تفتحها من أي مكان في قائمة الأخيرة.</string>
     <string name="home_no_pdfs_title">لا توجد ملفات PDF في مجلداتك</string>
     <string name="home_no_pdfs_body">ستظهر هنا ملفات PDF الموجودة في المجلدات التي أضفتها.</string>
     <string name="home_add_folder">إضافة مجلد</string>
@@ -157,16 +157,16 @@
     <string name="home_sort_newest">الأحدث تعديلًا</string>
     <string name="home_no_results">لا توجد نتائج</string>
     <string name="home_no_results_body">تحقق من الكتابة أو جرّب اسمًا أقصر.</string>
-    <string name="home_about_app">حول PdfCraft</string>
+    <string name="home_about_app">حول ClearPDF</string>
     <string name="home_preferences">التفضيلات</string>
     <string name="home_help_support">المساعدة والدعم</string>
     <string name="home_help">المساعدة</string>
     <string name="home_report_problem">الإبلاغ عن مشكلة أو طلب ميزة</string>
-    <string name="home_leaving_title">مغادرة PdfCraft</string>
+    <string name="home_leaving_title">مغادرة ClearPDF</string>
     <string name="home_continue">متابعة</string>
     <string name="home_leaving_body">سيُفتح موقع في متصفحك.</string>
     <string name="home_section_notifications">الإشعارات</string>
-    <string name="home_no_notifications">لا يرسل PdfCraft إشعارات.</string>
+    <string name="home_no_notifications">لا يرسل ClearPDF إشعارات.</string>
     <string name="home_section_suggestions">الاقتراحات التلقائية</string>
     <string name="home_offer_suggestions">اقتراح كلمات استخدمتها سابقًا عند تعبئة النماذج</string>
     <string name="home_clear_suggestions">مسح الاقتراحات</string>
@@ -179,7 +179,7 @@
     <string name="home_keyboard_shortcuts">اختصارات لوحة المفاتيح</string>
     <string name="home_keyboard_shortcuts_body">عند توصيل لوحة مفاتيح: N أو Page Down للصفحة التالية، وP أو Page Up للسابقة، والأسهم للتمرير، وCtrl+P للطباعة، وCtrl مع + أو − للتكبير والتصغير.</string>
     <string name="home_section_extra">ميزات إضافية</string>
-    <string name="home_extra_body">خيارات إضافية لتخصيص مظهر PdfCraft وطريقة عمله.</string>
+    <string name="home_extra_body">خيارات إضافية لتخصيص مظهر ClearPDF وطريقة عمله.</string>
     <string name="home_status_bar_in_documents">إظهار شريط الحالة داخل المستندات</string>
     <string name="home_status_bar_in_documents_body">يظهر شريط الحالة مع أشرطة الأدوات. عند الضغط لإخفائها، يستخدم المستند الشاشة كاملة، بما فيها المساحة حول الكاميرا.</string>
     <string name="home_search_count">إظهار عدد نتائج البحث</string>
@@ -191,7 +191,6 @@
     <string name="home_licences">تراخيص المصادر المفتوحة</string>
     <string name="home_source_code">الشيفرة المصدرية</string>
     <string name="home_engine">محرك PdfCraft</string>
-    <string name="home_legal_notice">يعتمد PdfCraft لنظام Android على محرك PdfCraft المكتوب بلغة Rust، بترخيص MIT أو Apache-2.0. لا يتبع PdfCraft شركة Adobe؛ وAcrobat علامة تجارية لشركة Adobe Inc.</string>
     <string name="tools_compress_action">ضغط</string>
     <string name="tools_compression_level">مستوى الضغط:</string>
     <string name="tools_compress_high">ضغط عالٍ</string>
@@ -350,7 +349,7 @@
     <string name="voice_play_audio">تشغيل الصوت</string>
     <string name="voice_comment_kind">تعليق صوتي</string>
     <string name="voice_mic_title">السماح باستخدام الميكروفون؟</string>
-    <string name="voice_mic_rationale">يحتاج PdfCraft إلى الميكروفون لتسجيل التعليقات الصوتية. يمكنك السماح بذلك من إعدادات التطبيق.</string>
+    <string name="voice_mic_rationale">يحتاج ClearPDF إلى الميكروفون لتسجيل التعليقات الصوتية. يمكنك السماح بذلك من إعدادات التطبيق.</string>
     <string name="voice_open_settings">فتح الإعدادات</string>
     <string name="voice_not_now">ليس الآن</string>
     <string name="pages_title">الصفحات</string>
@@ -404,7 +403,7 @@
     <string name="sign_remove_id_description">إزالة الهوية الرقمية لـ %1$s</string>
     <string name="sign_remove_id_title">إزالة الهوية الرقمية؟</string>
     <string name="sign_remove">إزالة</string>
-    <string name="sign_remove_id_message">ستُزال الهوية الرقمية لـ %1$s من PdfCraft. تحتفظ المستندات الموقّعة مسبقًا بتوقيعاتها.</string>
+    <string name="sign_remove_id_message">ستُزال الهوية الرقمية لـ %1$s من ClearPDF. تحتفظ المستندات الموقّعة مسبقًا بتوقيعاتها.</string>
     <string name="sign_add">إضافة</string>
     <string name="sign_id_password_prompt">أدخل كلمة المرور التي تحمي %1$s.</string>
     <string name="sign_create_about">الهوية الرقمية المنشأة هنا موقّعة ذاتيًا: يكشف المستند الموقّع بها أي تغيير بعد التوقيع، لكن لا توجد جهة مستقلة تثبت هويتك. لإثبات الهوية، استخدم ملف هوية تصدره مؤسسة أو جهة تصديق.</string>
@@ -417,7 +416,7 @@
     <string name="sign_password_again">أعد كتابة كلمة المرور</string>
     <string name="sign_password_short">تحتاج كلمة المرور إلى 8 أحرف على الأقل.</string>
     <string name="sign_password_mismatch">كلمتا المرور غير متطابقتين.</string>
-    <string name="sign_password_note">لا يحتفظ PdfCraft بكلمة المرور ولا يمكنه استعادتها؛ أدخلها عند كل توقيع.</string>
+    <string name="sign_password_note">لا يحتفظ ClearPDF بكلمة المرور ولا يمكنه استعادتها؛ أدخلها عند كل توقيع.</string>
     <string name="sign_add_your_signature">إضافة توقيعك</string>
     <string name="sign_signatures">التوقيعات</string>
     <string name="sign_none">لا توجد توقيعات في هذا المستند.</string>
@@ -670,10 +669,10 @@
     <string name="forms_reset">إعادة ضبط</string>
     <string name="forms_previous_field">الحقل السابق</string>
     <string name="forms_next_field">الحقل التالي</string>
-    <string name="msg_engine_not_started">تعذّر بدء PdfCraft.</string>
+    <string name="msg_engine_not_started">تعذّر بدء ClearPDF.</string>
     <string name="msg_file_moved">نُقل هذا الملف أو حُذف.</string>
-    <string name="msg_opened_own_copy">تم فتح نسخة PdfCraft. لتعديل الأصل، افتحه مجددًا من التطبيق الموجود فيه.</string>
-    <string name="msg_file_access_lost">تعذّر على PdfCraft فتح هذا الملف. افتحه مجددًا من التطبيق الموجود فيه أو باستخدام «فتح ملف».</string>
+    <string name="msg_opened_own_copy">تم فتح نسخة ClearPDF. لتعديل الأصل، افتحه مجددًا من التطبيق الموجود فيه.</string>
+    <string name="msg_file_access_lost">تعذّر على ClearPDF فتح هذا الملف. افتحه مجددًا من التطبيق الموجود فيه أو باستخدام «فتح ملف».</string>
     <string name="msg_undone">تم التراجع عن %1$s</string>
     <string name="msg_redone">تمت إعادة %1$s</string>
     <string name="msg_tool_blocked_security">هذه الأداة غير متاحة بسبب إعدادات أمان المستند.</string>
@@ -708,7 +707,7 @@
     <string name="msg_sign_read_only">لا يمكن تعديل هذا المستند، لذلك لا يمكن توقيعه.</string>
     <string name="msg_id_cannot_sign">لا يمكن لهذه الهوية الرقمية توقيع المستندات. %1$s</string>
     <string name="msg_id_added">أُضيفت الهوية الرقمية الخاصة بـ %1$s</string>
-    <string name="msg_id_unusable">لا يستطيع PdfCraft استخدام هذا الملف كهوية رقمية: %1$s</string>
+    <string name="msg_id_unusable">لا يستطيع ClearPDF استخدام هذا الملف كهوية رقمية: %1$s</string>
     <string name="msg_busy_creating_id">جارٍ إنشاء هويتك الرقمية…</string>
     <string name="msg_id_created">أُنشئت الهوية الرقمية</string>
     <string name="msg_busy_signing">جارٍ التوقيع…</string>
@@ -735,7 +734,7 @@
     <string name="msg_picture_unreadable">تعذّرت قراءة الصورة.</string>
     <string name="msg_gif_not_supported">لا يمكن إضافة صور GIF.</string>
     <string name="msg_form_cleared">تم مسح النموذج</string>
-    <string name="msg_button_submit">يرسل هذا الزر النموذج عبر الإنترنت، ولا يدعم PdfCraft ذلك.</string>
+    <string name="msg_button_submit">يرسل هذا الزر النموذج عبر الإنترنت، ولا يدعم ClearPDF ذلك.</string>
     <string name="msg_suggestions_cleared">تم مسح الاقتراحات</string>
     <string name="msg_that_file_unreadable">تعذّرت قراءة ذلك الملف.</string>
     <string name="msg_named_file_unreadable">تعذّرت قراءة %1$s.</string>
@@ -751,11 +750,11 @@
     <string name="msg_busy_exporting_page">جارٍ تصدير الصفحة %1$d من %2$d…</string>
     <plurals name="msg_images_saved">
         <item quantity="zero">لم تُحفظ أي صورة</item>
-        <item quantity="one">حُفظت صورة واحدة في Pictures/PdfCraft</item>
-        <item quantity="two">حُفظت صورتان في Pictures/PdfCraft</item>
-        <item quantity="few">حُفظت %1$d صور في Pictures/PdfCraft</item>
-        <item quantity="many">حُفظت %1$d صورة في Pictures/PdfCraft</item>
-        <item quantity="other">حُفظت %1$d صورة في Pictures/PdfCraft</item>
+        <item quantity="one">حُفظت صورة واحدة في Pictures/ClearPDF</item>
+        <item quantity="two">حُفظت صورتان في Pictures/ClearPDF</item>
+        <item quantity="few">حُفظت %1$d صور في Pictures/ClearPDF</item>
+        <item quantity="many">حُفظت %1$d صورة في Pictures/ClearPDF</item>
+        <item quantity="other">حُفظت %1$d صورة في Pictures/ClearPDF</item>
     </plurals>
     <string name="msg_busy_creating_pdf">جارٍ إنشاء PDF…</string>
     <plurals name="msg_create_first_files">

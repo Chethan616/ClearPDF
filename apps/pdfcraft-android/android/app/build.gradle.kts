@@ -1,3 +1,4 @@
+import java.util.Properties
 import javax.inject.Inject
 import org.gradle.process.ExecOperations
 
@@ -10,29 +11,29 @@ plugins {
 // crate (apps/pdfcraft-android), which sits in the PdfCraft cargo workspace two folders up.
 val cargoWorkspaceDir: File = rootDir.parentFile.parentFile.parentFile
 val rustAbis: List<String> =
-    providers.gradleProperty("pdfcraft.abis").getOrElse("arm64-v8a,x86_64").split(',').map { it.trim() }.filter { it.isNotEmpty() }
+    providers.gradleProperty("clearpdf.abis").getOrElse("arm64-v8a,x86_64").split(',').map { it.trim() }.filter { it.isNotEmpty() }
 val minApi = 29
 
-// The app's version: gradle.properties' pdfcraft.version, or the version tag's when the release
+// The app's version: gradle.properties' clearpdf.version, or the version tag's when the release
 // workflow builds a release. The version code follows from it (0.0.1-beta → 101, 0.0.1-beta.2 →
 // 102, 0.0.1 → 199, 0.1.0-beta → 10001), so a pre-release comes before its release and every
 // release before the next version's pre-releases; times ten plus the ABI of a one-ABI build
 // (armeabi-v7a 1, arm64-v8a 2, x86_64 3; 0 for several), so each APK of a release has its own code
-// (F-Droid needs that).
-val appVersion: String = providers.gradleProperty("pdfcraft.version").get()
+// (F-Droid needs that). ClearPDF 2.x shipped codes up to 95, so 3.x codes always sort above them.
+val appVersion: String = providers.gradleProperty("clearpdf.version").get()
 val appVersionCode: Int = run {
     val m = requireNotNull(Regex("""(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z-]+?(\.(\d+))?)?""").matchEntire(appVersion)) {
-        "pdfcraft.version $appVersion is not a version like 1.2.3, 1.2.3-beta or 1.2.3-beta.4"
+        "clearpdf.version $appVersion is not a version like 1.2.3, 1.2.3-beta or 1.2.3-beta.4"
     }
     val (major, minor, patch) = m.groupValues.subList(1, 4).map { it.toInt() }
     val pre = if (m.groupValues[4].isEmpty()) null else m.groupValues[6].toIntOrNull() ?: 1
     require(minor < 100 && patch < 100 && (pre ?: 1) in 1..98) {
-        "pdfcraft.version $appVersion: minor and patch must be under 100, and a pre-release's number 1 to 98"
+        "clearpdf.version $appVersion: minor and patch must be under 100, and a pre-release's number 1 to 98"
     }
     val base = ((major * 100 + minor) * 100 + patch) * 100 + (pre ?: 99)
-    providers.gradleProperty("pdfcraft.versionCode").orNull?.let { listed ->
+    providers.gradleProperty("clearpdf.versionCode").orNull?.let { listed ->
         require(listed.trim().toIntOrNull() == base) {
-            "gradle.properties: pdfcraft.versionCode=$listed, but version $appVersion's is $base (set both before tagging)"
+            "gradle.properties: clearpdf.versionCode=$listed, but version $appVersion's is $base (set both before tagging)"
         }
     }
     val abi = when (rustAbis.singleOrNull()) {
@@ -44,12 +45,19 @@ val appVersionCode: Int = run {
     base * 10 + abi
 }
 
-// The release key, when the build is given one (the release workflow passes it from the repository's
-// secrets). Without one a release build is signed with the debug key: it installs, but it can't
-// update a published release; or, with -Ppdfcraft.unsigned=true (F-Droid's build), not signed at
-// all, so the published APK's signature can be checked against it.
-val releaseKeystore: String? = providers.environmentVariable("PDFCRAFT_KEYSTORE").orNull
-val unsignedRelease: Boolean = providers.gradleProperty("pdfcraft.unsigned").orNull == "true"
+// ClearPDF's release key: the CLEARPDF_UPLOAD_* variables (CI, from the repository's secrets), else
+// key.properties at the repository root (a local Play build). Each channel keeps the key its
+// installs were signed with, or they can't update. Without either a release build is signed with
+// the debug key; with -Pclearpdf.unsigned=true (F-Droid's build) it isn't signed at all.
+val keyProperties = Properties().apply {
+    val f = File(cargoWorkspaceDir, "key.properties")
+    if (f.isFile) f.inputStream().use(::load)
+}
+fun signingValue(property: String, env: String): String? =
+    providers.environmentVariable(env).orNull?.takeIf { it.isNotBlank() } ?: keyProperties.getProperty(property)?.takeIf { it.isNotBlank() }
+val releaseKeystore: File? = signingValue("storeFile", "CLEARPDF_UPLOAD_STORE_FILE")
+    ?.let { File(it).takeIf(File::isAbsolute) ?: File(cargoWorkspaceDir, it) }
+val unsignedRelease: Boolean = providers.gradleProperty("clearpdf.unsigned").orNull == "true"
 
 /** rustup's `cargo` (Android Studio may not see rustup's PATH), else `cargo` from PATH; `CARGO` overrides. */
 val cargoExecutable: String = run {
@@ -154,13 +162,13 @@ abstract class LucideIconsTask : DefaultTask() {
     fun generate() {
         val out = outputDir.get().asFile
         out.deleteRecursively()
-        val pkg = File(out, "io/github/artcraftandroid/pdfcraft/ui").apply { mkdirs() }
+        val pkg = File(out, "com/chethan616/clearpdf/ui").apply { mkdirs() }
         val attr = Regex("""([\w-]+)="([^"]*)"""")
         val element = Regex("""<(path|circle|ellipse|rect|line|polyline|polygon)\b([^>]*)/?>""")
         fun n(v: Double) = if (v == Math.floor(v)) v.toLong().toString() else v.toString()
         val sb = StringBuilder()
         sb.appendLine("// Generated by app/build.gradle.kts (LucideIconsTask) from assets/icons: do not edit.")
-        sb.appendLine("package io.github.artcraftandroid.pdfcraft.ui\n")
+        sb.appendLine("package com.chethan616.clearpdf.ui\n")
         sb.appendLine("import androidx.compose.ui.graphics.vector.ImageVector\n")
         sb.appendLine("/** Lucide icons (ISC, Lucide Contributors; assets/icons/LICENSE-lucide.txt). */")
         sb.appendLine("object LucideIcons {")
@@ -231,12 +239,12 @@ abstract class OcrModels : DefaultTask() {
 }
 
 android {
-    namespace = "io.github.artcraftandroid.pdfcraft"
+    namespace = "com.chethan616.clearpdf"
     compileSdk = 37
     ndkVersion = "29.0.14206865"
 
     defaultConfig {
-        applicationId = "io.github.artcraftandroid.pdfcraft"
+        applicationId = "com.chethan616.clearpdf"
         minSdk = minApi
         targetSdk = 36
         versionCode = appVersionCode
@@ -247,10 +255,10 @@ android {
     signingConfigs {
         if (releaseKeystore != null) {
             create("release") {
-                storeFile = file(releaseKeystore)
-                storePassword = providers.environmentVariable("PDFCRAFT_KEYSTORE_PASSWORD").orNull
-                keyAlias = providers.environmentVariable("PDFCRAFT_KEY_ALIAS").orNull
-                keyPassword = providers.environmentVariable("PDFCRAFT_KEY_PASSWORD").orNull
+                storeFile = releaseKeystore
+                storePassword = signingValue("storePassword", "CLEARPDF_UPLOAD_STORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "CLEARPDF_UPLOAD_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "CLEARPDF_UPLOAD_KEY_PASSWORD")
             }
         }
     }
@@ -313,7 +321,6 @@ androidComponents {
         val assetsDir = File(cargoWorkspaceDir, "assets")
         val res = tasks.register<PdfcraftAssets>("pdfcraftResources$name") {
             val map = mapOf(
-                "app-icon/hicolor/512x512/apps/ai.storyteller.pdfcraft.png" to "drawable-nodpi/ic_launcher_tile.png",
                 "fonts/Inter-Regular.ttf" to "font/inter_regular.ttf",
                 "fonts/Inter-Medium.ttf" to "font/inter_medium.ttf",
                 "fonts/Inter-SemiBold.ttf" to "font/inter_semibold.ttf",
@@ -363,6 +370,9 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.foundation)
+    implementation(project(":backdrop"))
+    implementation(libs.kyant.shapes)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.exifinterface)
     implementation(libs.jna) { artifact { type = "aar" } }

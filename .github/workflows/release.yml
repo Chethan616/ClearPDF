@@ -35,7 +35,7 @@ jobs:
       - id: v
         name: Resolve version
         run: |
-          listed="$(sed -n 's/^pdfcraft\.version=//p' apps/pdfcraft-android/android/gradle.properties)"
+          listed="$(sed -n 's/^clearpdf\.version=//p' apps/pdfcraft-android/android/gradle.properties)"
           if [ "$GITHUB_REF_TYPE" = tag ]; then v="${GITHUB_REF_NAME#v}"; else v="$listed"; fi
           if ! printf '%s' "$v" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'; then
             echo "::error::'$v' is not a version like 1.2.3 or 1.2.3-beta"
@@ -43,7 +43,7 @@ jobs:
           fi
           # the tag must be the version gradle.properties names (F-Droid builds from that file)
           if [ "$v" != "$listed" ]; then
-            echo "::error::the tag is v$v but gradle.properties says pdfcraft.version=$listed: set it (and pdfcraft.versionCode) before tagging"
+            echo "::error::the tag is v$v but gradle.properties says clearpdf.version=$listed: set it (and clearpdf.versionCode) before tagging"
             exit 1
           fi
           echo "version=$v" >>"$GITHUB_OUTPUT"
@@ -69,11 +69,11 @@ jobs:
 
       - name: Release key
         env:
-          KEYSTORE_BASE64: ${{ secrets.PDFCRAFT_KEYSTORE_BASE64 }}
+          KEYSTORE_BASE64: ${{ secrets.CLEARPDF_UPLOAD_STORE_FILE_BASE64 }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
-            printf '%s' "$KEYSTORE_BASE64" | base64 -d >"$RUNNER_TEMP/release.p12"
-            echo "PDFCRAFT_KEYSTORE=$RUNNER_TEMP/release.p12" >>"$GITHUB_ENV"
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d >"$RUNNER_TEMP/clearpdf-upload-key.jks"
+            echo "CLEARPDF_UPLOAD_STORE_FILE=$RUNNER_TEMP/clearpdf-upload-key.jks" >>"$GITHUB_ENV"
           elif [ "$GITHUB_REF_TYPE" = tag ]; then
             echo "::error::No release key: a release is never signed with the debug key"
             exit 1
@@ -82,21 +82,21 @@ jobs:
           fi
 
       # one APK per ABI (each about half the size of one holding both): 64-bit ARM for most
-      # phones (pdfcraft-android-<version>.apk), 32-bit ARM for older and low-end ones
-      # (pdfcraft-android-<version>-armeabi-v7a.apk)
+      # phones (ClearPDF-v<version>.apk), 32-bit ARM for older and low-end ones
+      # (ClearPDF-v<version>-armeabi-v7a.apk)
       - name: Build
         working-directory: apps/pdfcraft-android/android
         env:
           VERSION: ${{ steps.v.outputs.version }}
-          PDFCRAFT_KEYSTORE_PASSWORD: ${{ secrets.PDFCRAFT_KEYSTORE_PASSWORD }}
-          PDFCRAFT_KEY_ALIAS: ${{ secrets.PDFCRAFT_KEY_ALIAS }}
-          PDFCRAFT_KEY_PASSWORD: ${{ secrets.PDFCRAFT_KEY_PASSWORD }}
+          CLEARPDF_UPLOAD_STORE_PASSWORD: ${{ secrets.CLEARPDF_UPLOAD_STORE_PASSWORD }}
+          CLEARPDF_UPLOAD_KEY_ALIAS: ${{ secrets.CLEARPDF_UPLOAD_KEY_ALIAS }}
+          CLEARPDF_UPLOAD_KEY_PASSWORD: ${{ secrets.CLEARPDF_UPLOAD_KEY_PASSWORD }}
         run: |
           mkdir -p "$GITHUB_WORKSPACE/dist"
           for abi in arm64-v8a armeabi-v7a; do
-            ./gradlew assembleRelease "-Ppdfcraft.abis=$abi" "-Ppdfcraft.version=$VERSION" --no-daemon
+            ./gradlew assembleRelease "-Pclearpdf.abis=$abi" "-Pclearpdf.version=$VERSION" --no-daemon
             suffix=""; [ "$abi" = arm64-v8a ] || suffix="-$abi"
-            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/dist/pdfcraft-android-$VERSION$suffix.apk"
+            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/dist/ClearPDF-v$VERSION$suffix.apk"
           done
 
       - name: APK
@@ -123,7 +123,7 @@ jobs:
 
       - name: Remove the release key
         if: always()
-        run: rm -f "$RUNNER_TEMP/release.p12"
+        run: rm -f "$RUNNER_TEMP/clearpdf-upload-key.jks"
 
   release:
     name: GitHub Release

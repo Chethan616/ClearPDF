@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  PdfCraft's text, in US English.
+  ClearPDF's text, in US English.
 
-  To translate PdfCraft: copy this file to res/values-<language>/strings.xml (values-es for
+  To translate ClearPDF: copy this file to res/values-<language>/strings.xml (values-es for
   Spanish, values-pt-rBR for Brazilian Portuguese, values-zh-rCN for simplified Chinese) and
   translate the text between the tags. Keep each name, every placeholder (%1$s, %2$d: the
   number says which value goes there, so a translation may move them), escapes such as \' and
@@ -10,8 +10,8 @@
   few, many). A string left out shows in English.
 -->
 <resources>
-    <string name="app_name" translatable="false">PdfCraft</string>
-    <string name="open_with">Open in PdfCraft</string>
+    <string name="app_name" translatable="false">ClearPDF</string>
+    <string name="open_with">Open in ClearPDF</string>
 
     <!-- Shared: buttons and words used on many screens -->
     <string name="common_ok">OK</string>
@@ -98,7 +98,7 @@
     <string name="home_device_files_title">Files on your device</string>
     <string name="home_device_files_body">Choose folders to list PDFs from, such as Documents or a folder inside Download. Files you open from anywhere stay in Recent.</string>
     <!-- On this device, before any folder is added: the longer explanation -->
-    <string name="home_device_files_body_long">Choose folders to list PDFs from, such as Documents or a folder inside Download (Android doesn\'t let apps list the whole Download folder). PdfCraft sees only the folders you choose, and files you open from anywhere stay in Recent.</string>
+    <string name="home_device_files_body_long">Choose folders to list PDFs from, such as Documents or a folder inside Download (Android doesn\'t let apps list the whole Download folder). ClearPDF sees only the folders you choose, and files you open from anywhere stay in Recent.</string>
     <string name="home_no_pdfs_title">No PDFs in your folders</string>
     <string name="home_no_pdfs_body">PDFs in the folders you added will appear here.</string>
     <string name="home_add_folder">Add a folder</string>
@@ -201,18 +201,18 @@
     <string name="home_no_results_body">Check the spelling, or try a shorter name.</string>
 
     <!-- Settings -->
-    <string name="home_about_app">About PdfCraft</string>
+    <string name="home_about_app">About ClearPDF</string>
     <string name="home_preferences">Preferences</string>
     <string name="home_help_support">Help &amp; Support</string>
     <string name="home_help">Help</string>
     <string name="home_report_problem">Report a problem or request a feature</string>
-    <string name="home_leaving_title">Leaving PdfCraft</string>
+    <string name="home_leaving_title">Leaving ClearPDF</string>
     <string name="home_continue">Continue</string>
     <string name="home_leaving_body">This opens a web page in your browser.</string>
 
     <!-- Settings: Preferences -->
     <string name="home_section_notifications">Notifications</string>
-    <string name="home_no_notifications">PdfCraft doesn\'t send notifications.</string>
+    <string name="home_no_notifications">ClearPDF doesn\'t send notifications.</string>
     <string name="home_section_suggestions">Auto-suggestions</string>
     <string name="home_offer_suggestions">Offer words you used before when filling in forms</string>
     <string name="home_clear_suggestions">Clear suggestions</string>
@@ -227,13 +227,13 @@
     <!-- N, P, Page Down, Page Up, Ctrl+P, Ctrl, + and − are keys on the keyboard -->
     <string name="home_keyboard_shortcuts_body">With a keyboard connected: N or Page Down for the next page, P or Page Up for the previous one, the arrow keys to scroll, Ctrl+P to print, Ctrl and + or − to zoom.</string>
     <string name="home_section_extra">Extra Features</string>
-    <string name="home_extra_body">Optional changes to how PdfCraft looks and works.</string>
+    <string name="home_extra_body">Optional changes to how ClearPDF looks and works.</string>
     <string name="home_status_bar_in_documents">Show the status bar in documents</string>
     <string name="home_status_bar_in_documents_body">The status bar shows with the toolbars. When you tap to hide them, the page uses the whole screen, around the camera too.</string>
     <string name="home_search_count">Show the number of search results</string>
     <string name="home_search_count_body">Find in a document shows which result you\'re on and how many there are, such as 3 of 12.</string>
 
-    <!-- Settings: About PdfCraft -->
+    <!-- Settings: About ClearPDF -->
     <string name="home_section_about">About</string>
     <!-- %1$s is the app's version, %2$s the engine's version -->
     <string name="home_version">Version %1$s (engine %2$s)</string>
@@ -244,7 +244,7 @@
     <string name="home_source_code">Source code</string>
     <string name="home_engine">PdfCraft engine</string>
     <!-- Keep the licence names (MIT, Apache-2.0) and the trademark notice -->
-    <string name="home_legal_notice">PdfCraft for Android is built on PdfCraft\'s Rust engine. MIT OR Apache-2.0. PdfCraft is not affiliated with Adobe; Acrobat is a trademark of Adobe Inc.</string>
+    <string name="home_legal_notice">ClearPDF is built on the Rust engine of PdfCraft by storytold, and on PdfCraft for Android by the ArtCraft Team. MIT OR Apache-2.0. ClearPDF is not affiliated with Adobe; Acrobat is a trademark of Adobe Inc.</string>
 
     <!-- Tool screens: Compress PDF -->
     <string name="tools_compress_action">Compress</string>
@@ -367,7 +367,7 @@
 
     <!-- Open-source licences: the parts that are not names -->
     <string name="root_licence_pdfcraft">PdfCraft (engine and app)</string>
-    <string name="root_licence_pdfcraft_terms">MIT OR Apache-2.0, by storytold and contributors</string>
+    <string name="root_licence_pdfcraft_terms">MIT OR Apache-2.0, by storytold, the ArtCraft Team and contributors</string>
     <string name="root_licence_lucide">Lucide icons</string>
     <string name="root_licence_inter">Inter typeface</string>
     <string name="root_licence_dancing_script">Dancing Script typeface (typed signatures)</string>
@@ -498,7 +498,7 @@
 
     <!-- Voice comments: the microphone was refused before -->
     <string name="voice_mic_title">Use the microphone?</string>
-    <string name="voice_mic_rationale">PdfCraft needs the microphone to record voice comments. You can allow it in the app\'s settings.</string>
+    <string name="voice_mic_rationale">ClearPDF needs the microphone to record voice comments. You can allow it in the app\'s settings.</string>
     <string name="voice_open_settings">Open settings</string>
     <string name="voice_not_now">Not now</string>
 
@@ -582,7 +582,7 @@
     <string name="sign_remove_id_title">Remove digital ID?</string>
     <string name="sign_remove">Remove</string>
     <!-- Translator note: %1$s is the person's name on the digital ID -->
-    <string name="sign_remove_id_message">%1$s\'s digital ID is removed from PdfCraft. Documents already signed with it keep their signatures.</string>
+    <string name="sign_remove_id_message">%1$s\'s digital ID is removed from ClearPDF. Documents already signed with it keep their signatures.</string>
 
     <!-- Digital signatures: the password of a digital ID file being added -->
     <string name="sign_add">Add</string>
@@ -601,7 +601,7 @@
     <string name="sign_password_again">The password again</string>
     <string name="sign_password_short">The password needs at least 8 characters.</string>
     <string name="sign_password_mismatch">The passwords don\'t match.</string>
-    <string name="sign_password_note">PdfCraft doesn\'t keep the password and can\'t recover it: you type it each time you sign.</string>
+    <string name="sign_password_note">ClearPDF doesn\'t keep the password and can\'t recover it: you type it each time you sign.</string>
 
     <!-- Digital signatures: tapping an empty signature field -->
     <string name="sign_add_your_signature">Add your signature</string>
@@ -975,11 +975,11 @@
     <!-- Messages: notices at the bottom of the screen, progress, errors -->
     <!-- ================================================================== -->
     <!-- Messages: opening documents -->
-    <string name="msg_engine_not_started">PdfCraft couldn\'t start.</string>
+    <string name="msg_engine_not_started">ClearPDF couldn\'t start.</string>
     <string name="msg_file_moved">This file has been moved or deleted.</string>
-    <string name="msg_opened_own_copy">Opened PdfCraft\'s copy. To change the original, open it again from the app it\'s in.</string>
+    <string name="msg_opened_own_copy">Opened ClearPDF\'s copy. To change the original, open it again from the app it\'s in.</string>
     <!-- "Open file" is the name of the button on Home that picks a file. -->
-    <string name="msg_file_access_lost">PdfCraft can\'t open this file any more. Open it again from the app it\'s in, or with Open file.</string>
+    <string name="msg_file_access_lost">ClearPDF can\'t open this file any more. Open it again from the app it\'s in, or with Open file.</string>
 
     <!-- Messages: undo and redo. %1$s is the name of the edit, as the engine gives it (for example "Add comment"). -->
     <string name="msg_undone">%1$s undone</string>
@@ -1046,7 +1046,7 @@
     <!-- %1$s is the name of the person the digital ID belongs to. -->
     <string name="msg_id_added">Added %1$s\'s digital ID</string>
     <!-- %1$s is the reason the file was refused. -->
-    <string name="msg_id_unusable">PdfCraft can\'t use this file as a digital ID: %1$s</string>
+    <string name="msg_id_unusable">ClearPDF can\'t use this file as a digital ID: %1$s</string>
     <string name="msg_busy_creating_id">Creating your digital ID…</string>
     <string name="msg_id_created">Digital ID created</string>
     <string name="msg_busy_signing">Signing…</string>
@@ -1078,7 +1078,7 @@
 
     <!-- Messages: forms -->
     <string name="msg_form_cleared">Form cleared</string>
-    <string name="msg_button_submit">This button sends the form online, which PdfCraft doesn\'t do.</string>
+    <string name="msg_button_submit">This button sends the form online, which ClearPDF doesn\'t do.</string>
     <!-- Words remembered from form fields, offered while typing. -->
     <string name="msg_suggestions_cleared">Suggestions cleared</string>
 
@@ -1099,10 +1099,10 @@
     <string name="msg_busy_exporting_images">Exporting images…</string>
     <!-- %1$d is the page being exported, %2$d how many pages there are. -->
     <string name="msg_busy_exporting_page">Exporting page %1$d of %2$d…</string>
-    <!-- Pictures/PdfCraft is a folder on the phone: keep it as it is. -->
+    <!-- Pictures/ClearPDF is a folder on the phone: keep it as it is. -->
     <plurals name="msg_images_saved">
-        <item quantity="one">%1$d image saved to Pictures/PdfCraft</item>
-        <item quantity="other">%1$d images saved to Pictures/PdfCraft</item>
+        <item quantity="one">%1$d image saved to Pictures/ClearPDF</item>
+        <item quantity="other">%1$d images saved to Pictures/ClearPDF</item>
     </plurals>
     <string name="msg_busy_creating_pdf">Creating PDF…</string>
     <!-- Create PDF takes at most this many files at once. -->
@@ -1173,4 +1173,62 @@
     <string name="service_action_forward">Forward 15 seconds</string>
     <!-- Translator note: notification button that stops reading aloud -->
     <string name="service_action_stop">Stop</string>
+
+    <!-- ClearPDF's own screens (the desk, files, tools, settings) -->
+    <string name="desk_greeting_morning">Good morning,</string>
+    <string name="desk_greeting_afternoon">Good afternoon,</string>
+    <string name="desk_greeting_evening">Good evening,</string>
+    <string name="desk_greeting_night">Still up?</string>
+    <string name="desk_tagline_reading">pick up where you left off.</string>
+    <string name="desk_tagline_empty">let\'s open something.</string>
+    <string name="desk_continue">Continue</string>
+    <string name="desk_page_of">Page %1$d of %2$d</string>
+    <string name="desk_pages">%1$d pages</string>
+    <string name="desk_make_something">Make something</string>
+    <string name="desk_on_your_desk">On your desk</string>
+    <string name="desk_see_all">See all</string>
+    <string name="desk_empty_title">Your desk is clear</string>
+    <string name="desk_empty_body">Open a PDF and it lands here, ready to pick up later.</string>
+    <string name="desk_all_tools">All tools</string>
+    <string name="desk_photos_to_pdf">Photos to PDF</string>
+    <string name="dock_desk">Desk</string>
+    <string name="dock_files">Files</string>
+    <string name="dock_tools">Tools</string>
+    <string name="dock_create">Create</string>
+    <string name="create_title">Start something</string>
+    <string name="create_subtitle">Open, scan or build a PDF.</string>
+    <string name="files_today">Today</string>
+    <string name="files_this_week">This week</string>
+    <string name="files_earlier">Earlier</string>
+    <string name="files_places">More places</string>
+    <string name="files_starred_empty_title">Nothing starred yet</string>
+    <string name="files_starred_empty_body">Star a file from its menu and it waits for you here.</string>
+    <plurals name="files_count">
+        <item quantity="one">%1$d file</item>
+        <item quantity="other">%1$d files</item>
+    </plurals>
+    <string name="tools_subtitle">Every way to bend a PDF, in one place.</string>
+    <string name="tools_featured">Start here</string>
+    <string name="settings_look">Look &amp; feel</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">Auto</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_glass">Glass</string>
+    <string name="settings_glass_clear">Clear</string>
+    <string name="settings_glass_frosted">Frosted</string>
+    <string name="settings_glass_crystal">Crystal</string>
+    <string name="settings_glass_lite">Lite</string>
+    <string name="settings_motion">Motion</string>
+    <string name="settings_motion_calm">Calm</string>
+    <string name="settings_motion_normal">Normal</string>
+    <string name="settings_motion_bouncy">Bouncy</string>
+    <string name="settings_motion_jelly">Jelly</string>
+    <string name="settings_haptics">Haptic feedback</string>
+    <string name="settings_reading">Reading</string>
+    <string name="settings_forms">Forms</string>
+    <string name="settings_about">About</string>
+    <string name="settings_credits_title">Built with friends</string>
+    <string name="settings_credits_body">ClearPDF runs on PdfCraft\'s Rust engine by storytold and PdfCraft for Android by the ArtCraft Team. Its glass is Kyant0\'s backdrop library.</string>
+    <string name="settings_version">Version %1$s</string>
 </resources>

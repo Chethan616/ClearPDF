@@ -24,7 +24,7 @@ words are PdfCraft's own.
 |---|---|
 | `src/lib.rs` | The `pdfcraft-android` crate: [`MobileSession`](src/lib.rs) wraps `pdfcraft_automation::Automation` for UniFFI (Kotlin now, Swift later) |
 | `src/tests.rs` | Host tests of that API (`cargo test -p pdfcraft-android`) |
-| `uniffi.toml` | Bindings config: the Kotlin package `io.github.artcraftandroid.pdfcraft.core` |
+| `uniffi.toml` | Bindings config: the Kotlin package `com.chethan616.clearpdf.core` |
 | `bindgen/` | `uniffi-bindgen`, pinned to the crate's UniFFI release; the Android build runs it |
 | `android/` | The Android Studio project (Gradle, Kotlin, Compose) |
 

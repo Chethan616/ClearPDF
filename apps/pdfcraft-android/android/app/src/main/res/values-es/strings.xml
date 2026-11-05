@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  PdfCraft's text, in Spanish (Spain). The English original is values/strings.xml.
+  ClearPDF's text, in Spanish (Spain). The English original is values/strings.xml.
 
-  To translate PdfCraft: copy this file to res/values-<language>/strings.xml (values-es for
+  To translate ClearPDF: copy this file to res/values-<language>/strings.xml (values-es for
   Spanish, values-pt-rBR for Brazilian Portuguese, values-zh-rCN for simplified Chinese) and
   translate the text between the tags. Keep each name, every placeholder (%1$s, %2$d: the
   number says which value goes there, so a translation may move them), escapes such as \' and
@@ -10,7 +10,7 @@
   few, many). A string left out shows in English.
 -->
 <resources>
-    <string name="open_with">Abrir con PdfCraft</string>
+    <string name="open_with">Abrir con ClearPDF</string>
 
     <!-- Shared: buttons and words used on many screens -->
     <string name="common_ok">Aceptar</string>
@@ -97,7 +97,7 @@
     <string name="home_device_files_title">Archivos de tu dispositivo</string>
     <string name="home_device_files_body">Elige las carpetas de las que listar PDF, como Documentos o una carpeta dentro de Descargas. Los archivos que abras desde cualquier sitio se quedan en Recientes.</string>
     <!-- On this device, before any folder is added: the longer explanation -->
-    <string name="home_device_files_body_long">Elige las carpetas de las que listar PDF, como Documentos o una carpeta dentro de Descargas (Android no permite a las apps listar toda la carpeta Descargas). PdfCraft solo ve las carpetas que elijas, y los archivos que abras desde cualquier sitio se quedan en Recientes.</string>
+    <string name="home_device_files_body_long">Elige las carpetas de las que listar PDF, como Documentos o una carpeta dentro de Descargas (Android no permite a las apps listar toda la carpeta Descargas). ClearPDF solo ve las carpetas que elijas, y los archivos que abras desde cualquier sitio se quedan en Recientes.</string>
     <string name="home_no_pdfs_title">No hay PDF en tus carpetas</string>
     <string name="home_no_pdfs_body">Los PDF de las carpetas que añadiste aparecerán aquí.</string>
     <string name="home_add_folder">Añadir carpeta</string>
@@ -200,18 +200,18 @@
     <string name="home_no_results_body">Revisa la ortografía o prueba con un nombre más corto.</string>
 
     <!-- Settings -->
-    <string name="home_about_app">Acerca de PdfCraft</string>
+    <string name="home_about_app">Acerca de ClearPDF</string>
     <string name="home_preferences">Preferencias</string>
     <string name="home_help_support">Ayuda y soporte</string>
     <string name="home_help">Ayuda</string>
     <string name="home_report_problem">Informar de un problema o pedir una función</string>
-    <string name="home_leaving_title">Sales de PdfCraft</string>
+    <string name="home_leaving_title">Sales de ClearPDF</string>
     <string name="home_continue">Continuar</string>
     <string name="home_leaving_body">Esto abre una página web en tu navegador.</string>
 
     <!-- Settings: Preferences -->
     <string name="home_section_notifications">Notificaciones</string>
-    <string name="home_no_notifications">PdfCraft no envía notificaciones.</string>
+    <string name="home_no_notifications">ClearPDF no envía notificaciones.</string>
     <string name="home_section_suggestions">Sugerencias automáticas</string>
     <string name="home_offer_suggestions">Sugerir palabras que ya usaste al rellenar formularios</string>
     <string name="home_clear_suggestions">Borrar sugerencias</string>
@@ -226,13 +226,13 @@
     <!-- N, P, Page Down, Page Up, Ctrl+P, Ctrl, + and − are keys on the keyboard -->
     <string name="home_keyboard_shortcuts_body">Con un teclado conectado: N o Av Pág para la página siguiente, P o Re Pág para la anterior, las flechas para desplazarte, Ctrl+P para imprimir y Ctrl y + o − para ampliar.</string>
     <string name="home_section_extra">Funciones extra</string>
-    <string name="home_extra_body">Cambios opcionales en el aspecto y el funcionamiento de PdfCraft.</string>
+    <string name="home_extra_body">Cambios opcionales en el aspecto y el funcionamiento de ClearPDF.</string>
     <string name="home_status_bar_in_documents">Mostrar la barra de estado en los documentos</string>
     <string name="home_status_bar_in_documents_body">La barra de estado se muestra con las barras de herramientas. Al tocar para ocultarlas, la página ocupa toda la pantalla, también alrededor de la cámara.</string>
     <string name="home_search_count">Mostrar el número de resultados de búsqueda</string>
     <string name="home_search_count_body">Buscar en un documento muestra en qué resultado estás y cuántos hay, por ejemplo 3 de 12.</string>
 
-    <!-- Settings: About PdfCraft -->
+    <!-- Settings: About ClearPDF -->
     <string name="home_section_about">Acerca de</string>
     <!-- %1$s is the app's version, %2$s the engine's version -->
     <string name="home_version">Versión %1$s (motor %2$s)</string>
@@ -243,7 +243,6 @@
     <string name="home_source_code">Código fuente</string>
     <string name="home_engine">Motor de PdfCraft</string>
     <!-- Keep the licence names (MIT, Apache-2.0) and the trademark notice -->
-    <string name="home_legal_notice">PdfCraft para Android se basa en el motor Rust de PdfCraft. MIT OR Apache-2.0. PdfCraft no está afiliado a Adobe; Acrobat es una marca registrada de Adobe Inc.</string>
 
     <!-- Tool screens: Compress PDF -->
     <string name="tools_compress_action">Comprimir</string>
@@ -497,7 +496,7 @@
 
     <!-- Voice comments: the microphone was refused before -->
     <string name="voice_mic_title">¿Usar el micrófono?</string>
-    <string name="voice_mic_rationale">PdfCraft necesita el micrófono para grabar comentarios de voz. Puedes permitirlo en los ajustes de la app.</string>
+    <string name="voice_mic_rationale">ClearPDF necesita el micrófono para grabar comentarios de voz. Puedes permitirlo en los ajustes de la app.</string>
     <string name="voice_open_settings">Abrir ajustes</string>
     <string name="voice_not_now">Ahora no</string>
 
@@ -581,7 +580,7 @@
     <string name="sign_remove_id_title">¿Quitar el ID digital?</string>
     <string name="sign_remove">Quitar</string>
     <!-- Translator note: %1$s is the person's name on the digital ID -->
-    <string name="sign_remove_id_message">Se quita de PdfCraft el ID digital de %1$s. Los documentos ya firmados con él conservan sus firmas.</string>
+    <string name="sign_remove_id_message">Se quita de ClearPDF el ID digital de %1$s. Los documentos ya firmados con él conservan sus firmas.</string>
 
     <!-- Digital signatures: the password of a digital ID file being added -->
     <string name="sign_add">Añadir</string>
@@ -600,7 +599,7 @@
     <string name="sign_password_again">La contraseña otra vez</string>
     <string name="sign_password_short">La contraseña necesita al menos 8 caracteres.</string>
     <string name="sign_password_mismatch">Las contraseñas no coinciden.</string>
-    <string name="sign_password_note">PdfCraft no guarda la contraseña y no puede recuperarla: la escribes cada vez que firmas.</string>
+    <string name="sign_password_note">ClearPDF no guarda la contraseña y no puede recuperarla: la escribes cada vez que firmas.</string>
 
     <!-- Digital signatures: tapping an empty signature field -->
     <string name="sign_add_your_signature">Añade tu firma</string>
@@ -974,11 +973,11 @@
     <!-- Messages: notices at the bottom of the screen, progress, errors -->
     <!-- ================================================================== -->
     <!-- Messages: opening documents -->
-    <string name="msg_engine_not_started">No se pudo iniciar PdfCraft.</string>
+    <string name="msg_engine_not_started">No se pudo iniciar ClearPDF.</string>
     <string name="msg_file_moved">Este archivo se ha movido o eliminado.</string>
-    <string name="msg_opened_own_copy">Se abrió la copia de PdfCraft. Para cambiar el original, ábrelo de nuevo desde la app donde está.</string>
+    <string name="msg_opened_own_copy">Se abrió la copia de ClearPDF. Para cambiar el original, ábrelo de nuevo desde la app donde está.</string>
     <!-- "Open file" is the name of the button on Home that picks a file. -->
-    <string name="msg_file_access_lost">PdfCraft ya no puede abrir este archivo. Ábrelo de nuevo desde la app donde está o con Abrir archivo.</string>
+    <string name="msg_file_access_lost">ClearPDF ya no puede abrir este archivo. Ábrelo de nuevo desde la app donde está o con Abrir archivo.</string>
 
     <!-- Messages: undo and redo. %1$s is the name of the edit, as the engine gives it (for example "Add comment"). -->
     <string name="msg_undone">%1$s deshecho</string>
@@ -1045,7 +1044,7 @@
     <!-- %1$s is the name of the person the digital ID belongs to. -->
     <string name="msg_id_added">ID digital de %1$s añadido</string>
     <!-- %1$s is the reason the file was refused. -->
-    <string name="msg_id_unusable">PdfCraft no puede usar este archivo como ID digital: %1$s</string>
+    <string name="msg_id_unusable">ClearPDF no puede usar este archivo como ID digital: %1$s</string>
     <string name="msg_busy_creating_id">Creando tu ID digital…</string>
     <string name="msg_id_created">ID digital creado</string>
     <string name="msg_busy_signing">Firmando…</string>
@@ -1077,7 +1076,7 @@
 
     <!-- Messages: forms -->
     <string name="msg_form_cleared">Formulario borrado</string>
-    <string name="msg_button_submit">Este botón envía el formulario por internet, algo que PdfCraft no hace.</string>
+    <string name="msg_button_submit">Este botón envía el formulario por internet, algo que ClearPDF no hace.</string>
     <!-- Words remembered from form fields, offered while typing. -->
     <string name="msg_suggestions_cleared">Sugerencias borradas</string>
 
@@ -1098,10 +1097,10 @@
     <string name="msg_busy_exporting_images">Exportando imágenes…</string>
     <!-- %1$d is the page being exported, %2$d how many pages there are. -->
     <string name="msg_busy_exporting_page">Exportando página %1$d de %2$d…</string>
-    <!-- Pictures/PdfCraft is a folder on the phone: keep it as it is. -->
+    <!-- Pictures/ClearPDF is a folder on the phone: keep it as it is. -->
     <plurals name="msg_images_saved">
-        <item quantity="one">%1$d imagen guardada en Pictures/PdfCraft</item>
-        <item quantity="other">%1$d imágenes guardadas en Pictures/PdfCraft</item>
+        <item quantity="one">%1$d imagen guardada en Pictures/ClearPDF</item>
+        <item quantity="other">%1$d imágenes guardadas en Pictures/ClearPDF</item>
     </plurals>
     <string name="msg_busy_creating_pdf">Creando PDF…</string>
     <!-- Create PDF takes at most this many files at once. -->
