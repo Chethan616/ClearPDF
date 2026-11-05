@@ -1,6 +1,0 @@
-* Traducción al español
-* JavaScript en formularios: cálculos, comprobaciones de campos y botones con scripts
-* El texto en turco, polaco, griego y cirílico ya no aparece como ? en el texto añadido, Rellenar y firmar y los formularios
-* Preferencias ▸ Funciones extra: mostrar la barra de estado en los documentos
-* Compartir con el teléfono lleno lo indica en lugar de cerrar la app
-* Un motor PDF más reciente con muchas correcciones; las contraseñas de ID digital necesitan 8 caracteres

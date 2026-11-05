@@ -56,17 +56,19 @@ bot-avatars) for empty, waiting and error states only.
 - [ ] Viewer chrome to the new look (floating glass top bar, dock), check every tool sheet.
 - [ ] Files / Tools / Settings polish against the mocks; Collection deck (mock 2) for Pdf & notes.
 - [ ] Signature validation badges drawn by the viewer (Acrobat-style tick), never in the file.
-- [ ] Translations: ar, de, es, fr, it, pt-BR complete + **pt** and **ru** (ClearPDF had them).
-- [ ] Folder restructure (see below), README/docs to Artefact, fastlane metadata.
+- [x] Translations: ar, de, es, fr, it, pt-BR complete + **pt** and **ru**.
+- [x] Folder restructure, README/NOTICE/ATTRIBUTION/fastlane to Artefact (9 store languages).
 - [ ] Release build, `master` branch on GitHub, "Building the version 2" issue + discussion.
 
-## Folder layout (target)
+## Folder layout
 
 ```
-android/          Gradle project (app, backdrop)       ← apps/pdfcraft-android/android
-engine/           Rust workspace crates                ← crates/, apps/pdfcraft-android/src
-docs/             design notes, plan, handoff
-fastlane/         store listings
+android/          Gradle project (app, backdrop)
+engine/           Rust workspace: crates/ (PDF engine), mobile/ (libartefact.so bridge),
+                  assets/ (fonts, icons, OCR models), vendor/ (patched crates)
+docs/             design notes and README pictures (docs/media)
+fastlane/         store listings (9 languages)
+tools/            i18n helper
 ```
 
 ## Later: one engine for every document

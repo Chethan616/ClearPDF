@@ -1,0 +1,7 @@
+Artefact, the next ClearPDF
+* A new look: liquid glass and expressive motion, a sky wallpaper, pastel cards
+* The desk: PDFs, notes, to-do lists, photos and voice notes as cards
+* Quick Preview: PDFs from other apps open in a floating card over them
+* Notes with photos, to-do lists, voice notes
+* A faster Rust PDF engine with live signature validation
+* Russian and European Portuguese, and every language complete

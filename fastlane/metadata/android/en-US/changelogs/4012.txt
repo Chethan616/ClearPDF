@@ -1,4 +1,0 @@
-* Tool bar labels fit at large system font sizes
-* Files opened from another app reopen from Recent instead of showing an error
-* Zoom out past fit-width to see whole pages (thanks Ivan Malinovski)
-* Scan: portrait pages stay portrait, the page's edges are found more reliably, and each page can be cropped and the file named before saving

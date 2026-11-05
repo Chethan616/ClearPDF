@@ -35,7 +35,7 @@ jobs:
       - id: v
         name: Resolve version
         run: |
-          listed="$(sed -n 's/^clearpdf\.version=//p' apps/pdfcraft-android/android/gradle.properties)"
+          listed="$(sed -n 's/^artefact\.version=//p' android/gradle.properties)"
           if [ "$GITHUB_REF_TYPE" = tag ]; then v="${GITHUB_REF_NAME#v}"; else v="$listed"; fi
           if ! printf '%s' "$v" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'; then
             echo "::error::'$v' is not a version like 1.2.3 or 1.2.3-beta"
@@ -43,7 +43,7 @@ jobs:
           fi
           # the tag must be the version gradle.properties names (F-Droid builds from that file)
           if [ "$v" != "$listed" ]; then
-            echo "::error::the tag is v$v but gradle.properties says clearpdf.version=$listed: set it (and clearpdf.versionCode) before tagging"
+            echo "::error::the tag is v$v but gradle.properties says artefact.version=$listed: set it (and artefact.versionCode) before tagging"
             exit 1
           fi
           echo "version=$v" >>"$GITHUB_OUTPUT"
@@ -56,11 +56,13 @@ jobs:
 
       # the Rust release and targets rust-toolchain.toml names
       - name: Install Rust
+        working-directory: engine
         run: rustup toolchain install
 
       - uses: Swatinem/rust-cache@v2
         with:
           key: release-android
+          workspaces: engine -> target
 
       - name: Install cargo-ndk and the Android NDK
         run: |
@@ -82,10 +84,10 @@ jobs:
           fi
 
       # one APK per ABI (each about half the size of one holding both): 64-bit ARM for most
-      # phones (ClearPDF-v<version>.apk), 32-bit ARM for older and low-end ones
-      # (ClearPDF-v<version>-armeabi-v7a.apk)
+      # phones (Artefact-v<version>.apk), 32-bit ARM for older and low-end ones
+      # (Artefact-v<version>-armeabi-v7a.apk)
       - name: Build
-        working-directory: apps/pdfcraft-android/android
+        working-directory: android
         env:
           VERSION: ${{ steps.v.outputs.version }}
           CLEARPDF_UPLOAD_STORE_PASSWORD: ${{ secrets.CLEARPDF_UPLOAD_STORE_PASSWORD }}
@@ -94,9 +96,9 @@ jobs:
         run: |
           mkdir -p "$GITHUB_WORKSPACE/dist"
           for abi in arm64-v8a armeabi-v7a; do
-            ./gradlew assembleRelease "-Pclearpdf.abis=$abi" "-Pclearpdf.version=$VERSION" --no-daemon
+            ./gradlew assembleRelease "-Partefact.abis=$abi" "-Partefact.version=$VERSION" --no-daemon
             suffix=""; [ "$abi" = arm64-v8a ] || suffix="-$abi"
-            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/dist/ClearPDF-v$VERSION$suffix.apk"
+            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/dist/Artefact-v$VERSION$suffix.apk"
           done
 
       - name: APK

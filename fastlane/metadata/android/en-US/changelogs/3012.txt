@@ -1,5 +1,0 @@
-* No storage permission: "On this device" now lists folders you pick with the system folder picker
-* Very large PDFs open in seconds (a 350 MB, 4,000-page textbook used to crash)
-* Tool bars fit and scroll on narrow screens
-* Keyboard shortcuts switch, and links to the app's repository
-* New bottom bar with shortcut chips

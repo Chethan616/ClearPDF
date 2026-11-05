@@ -1,5 +1,0 @@
-# UniFFI bindings of the `pdfcraft_android` library.
-
-[bindings.kotlin]
-package_name = "com.chethan616.clearpdf.core"
-cdylib_name = "pdfcraft_android"

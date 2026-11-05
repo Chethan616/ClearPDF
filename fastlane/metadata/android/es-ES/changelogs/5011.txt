@@ -1,4 +1,0 @@
-* Firma con un ID digital (un archivo .p12 / .pfx, o uno creado en la app), comprueba las firmas de un documento y confía en firmantes
-* Un APK para teléfonos ARM de 32 bits
-* Los cambios en un archivo que no se puede reescribir (como uno elegido de Recientes del selector de archivos) se ofrecen como copia al cerrarlo en lugar de perderse
-* El texto de la app está listo para traducirse

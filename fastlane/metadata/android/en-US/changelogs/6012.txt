@@ -1,6 +1,0 @@
-* Spanish translation
-* JavaScript in forms works: calculations, field checks, and buttons that run scripts
-* Turkish, Polish, Greek and Cyrillic text no longer shows as ? in added text, Fill & Sign and forms
-* Preferences ▸ Extra Features: show the status bar in documents
-* Sharing on a full phone says so instead of closing the app
-* A newer PDF engine with many fixes; digital ID passwords need 8 characters

@@ -1,22 +1,26 @@
-ClearPDF
+Artefact (formerly ClearPDF)
 Copyright (c) 2026 Chethan616
 
-ClearPDF is a modified version of PdfCraft for Android
+Artefact is a modified version of PdfCraft for Android
 (https://github.com/artcraft-android/pdfcraft-android) by the ArtCraft Team, which is built on the
 engine of PdfCraft (https://github.com/storytold/pdfcraft) by storytold and the PdfCraft
-contributors. ClearPDF changed the Android app (apps/pdfcraft-android/android): its package, name,
-icon, signing and release workflow, and its user interface, rewritten on ClearPDF's liquid glass
-design system. The engine crates (crates/, vendor/, apps/pdfcraft-android/src) come from PdfCraft.
-ClearPDF's changes are under the same terms: MIT OR Apache-2.0, at your option.
+contributors. Artefact changed the Android app (android/): its name, icon, signing and release
+workflow, and its user interface, rewritten on Artefact's liquid glass design system, and added the
+desk, notes, voice notes and Quick Preview. The engine crates (engine/crates, engine/vendor,
+engine/mobile) come from PdfCraft, laid out under engine/. Artefact's changes are under the same
+terms: MIT OR Apache-2.0, at your option.
 
 Liquid glass: the backdrop library from AndroidLiquidGlass by Kyant0
 (https://github.com/Kyant0/AndroidLiquidGlass), Apache-2.0, adapted. The velocity squash-and-stretch
 of glass thumbs follows LiquidTracker from AndroidLiquidGlassView by Donny Yale
 (https://github.com/QmDeve/AndroidLiquidGlassView), MIT, re-implemented for Compose.
 
-Display type: Bricolage Grotesque, Copyright 2022 The Bricolage Grotesque Project Authors
-(https://github.com/ateliertriay/bricolage), SIL Open Font License 1.1
-(app/src/main/assets/licences/OFL-BricolageGrotesque.txt).
+Mascots: body outlines from bot-avatars by Jakub Antalik (Libraries.dev), MIT, drawn with an
+expressive face rig in Compose (android/app/src/main/java/com/chethan616/clearpdf/ui/mascot).
+
+Type: Plus Jakarta Sans (Copyright 2020 The Plus Jakarta Sans Project Authors), Doto (Copyright
+2024 The Doto Project Authors) and DM Serif Display (Copyright 2014 Colophon Foundry), each under
+the SIL Open Font License 1.1 (android/app/src/main/assets/licences/OFL-*.txt).
 
 The original notice of PdfCraft for Android follows.
 
@@ -35,15 +39,11 @@ Third-party material
 This product bundles third-party material under its own licenses, listed below. The per-file
 list (author, source, license) is in ATTRIBUTION.md.
 
-- Lucide icons (assets/icons/*.svg) — ISC License. See assets/icons/LICENSE-lucide.txt. The Android
-  app turns them into Compose path data at build time.
-  The Windows PDF file icon (assets/app-icon/pdfcraft-document.svg and .ico) adapts Lucide's
-  file-text outline and combines it with contributor-original artwork. See
-  assets/app-icon/LICENSE-document.txt (ISC AND (MIT OR Apache-2.0)), packaged as
-  LICENSE-document.txt beside the Windows executables.
-- Inter typeface (assets/fonts/Inter-*.ttf) — SIL Open Font License 1.1. See assets/fonts/OFL-Inter.txt.
-- JetBrains Mono typeface (assets/fonts/JetBrainsMono-*.ttf) — SIL Open Font License 1.1. See assets/fonts/OFL-JetBrainsMono.txt.
-- Dancing Script typeface (assets/fonts/DancingScript.ttf), Copyright 2016 The Dancing Script Project Authors — SIL Open Font License 1.1 (Reserved Font Name "Dancing Script"). See assets/fonts/OFL-DancingScript.txt.
+- Lucide icons (engine/assets/icons/*.svg) — ISC License. See engine/assets/icons/LICENSE-lucide.txt.
+  The Android app turns them into Compose path data at build time.
+- Inter typeface (engine/assets/fonts/Inter-*.ttf) — SIL Open Font License 1.1. See engine/assets/fonts/OFL-Inter.txt.
+- JetBrains Mono typeface (engine/assets/fonts/JetBrainsMono-*.ttf) — SIL Open Font License 1.1. See engine/assets/fonts/OFL-JetBrainsMono.txt.
+- Dancing Script typeface (engine/assets/fonts/DancingScript.ttf), Copyright 2016 The Dancing Script Project Authors — SIL Open Font License 1.1 (Reserved Font Name "Dancing Script"). See engine/assets/fonts/OFL-DancingScript.txt.
 - Fonts from craft-fonts (https://github.com/storytold/craft-fonts), an optional build input
   (CRAFT_FONTS_DIR) that is not part of this repository. Builds made with it, which includes every
   official release, embed the fonts listed in
@@ -66,15 +66,15 @@ Android app (apps/pdfcraft-android):
 - JNA (https://github.com/java-native-access/jna) — Apache-2.0 (dual-licensed with LGPL-2.1; used
   under Apache-2.0).
 - AndroidX, Jetpack Compose, ExifInterface and kotlinx.coroutines — Apache-2.0.
-- Ocrs text-recognition models (assets/models, committed so the build downloads nothing;
+- Ocrs text-recognition models (engine/assets/models, committed so the build downloads nothing;
   apps/pdfcraft-android/fetch-models.sh fetches them again) by Robert Knight — CC-BY-SA-4.0. The app
   ships them unmodified with their licence.
 
 Required notices:
 
-  Foxit standard-14 substitute fonts (vendor/hayro-interpret/assets/*.pfb):
+  Foxit standard-14 substitute fonts (engine/vendor/hayro-interpret/assets/*.pfb):
     Copyright 2014 PDFium Authors. All rights reserved. Original code copyright 2014 Foxit Software Inc.
-    Redistributed under the BSD-3-Clause licence in vendor/hayro-interpret/assets/LICENSE_FOXIT.
+    Redistributed under the BSD-3-Clause licence in engine/vendor/hayro-interpret/assets/LICENSE_FOXIT.
 
   CMap resources (bundled by hayro-cmap; character-mapping data, not visual assets):
     Copyright 1990-2023 Adobe. All rights reserved. Redistributed under the BSD-3-Clause licence

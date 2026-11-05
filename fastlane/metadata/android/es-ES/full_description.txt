@@ -1,28 +1,15 @@
-Un lector y editor de PDF de código abierto, nativo de Android y escrito en Rust.
+Artefact reúne tus PDF, notas, listas de tareas, fotos y notas de voz en un escritorio precioso. Es gratis y de código abierto, sin anuncios ni cuentas, y nada sale de tu teléfono.
 
-PdfCraft es un lector y editor de PDF para Android, construido sobre el motor de PdfCraft. Sigue la distribución y las herramientas de Acrobat Reader para teléfonos, y todo se queda en tu teléfono: sin cuenta, sin nube.
+Un escritorio para todo
+* PDF, notas, listas, fotos y notas de voz uno al lado del otro, como tarjetas
+* Marca tareas en la propia tarjeta y reproduce notas de voz al instante
 
-Leer
-* Continuo o página única, modo lectura (texto reajustado a la pantalla), modo nocturno
-* Buscar, selección de texto, enlaces, marcadores e índice, archivos adjuntos
-* Leer en voz alta con la voz del teléfono, marcando las palabras a medida que se leen
+Herramientas PDF de verdad
+* Lee, resalta, comenta, dibuja, rellena formularios y firma (también con ID digital)
+* Edita texto e imágenes, organiza, recorta, comprime, combina y protege con contraseña
+* Exporta a Word, Excel, PowerPoint o imágenes; escanea papel y reconoce su texto
 
-Comentar
-* Notas y comentarios de voz, resaltado, subrayado, tachado, dibujo (ajustar a formas) y texto
-* La lista de comentarios, hilos y respuestas
+Vista rápida
+* «Abrir con Artefact» desde un chat o un gestor de archivos muestra el PDF en una tarjeta flotante sobre esa app.
 
-Rellenar y firmar
-* Rellena campos de formulario, o usa Rellenar y firmar: texto, marcas y una firma dibujada o importada
-
-Editar
-* Edita texto, añade texto e imágenes, mueve, cambia el tamaño y gira imágenes
-* Organiza páginas: mover, girar, insertar, extraer y eliminar; recorta páginas
-
-Crear archivos nuevos
-* Comprimir, combinar, establecer una contraseña, crear PDF desde imágenes, texto o documentos ofimáticos, escanear
-* Exportar a Word, RTF, Excel, PowerPoint, JPEG o PNG
-* Reconocer texto en páginas escaneadas
-
-Los cambios se guardan en el archivo que abriste. Funciona en vertical y horizontal, con los temas claro y oscuro. PdfCraft está en beta.
-
-PdfCraft no está afiliado a ni respaldado por Adobe. Acrobat es una marca registrada de Adobe Inc.
+Artefact es la nueva versión de ClearPDF. No está afiliado a Adobe; Acrobat es una marca de Adobe Inc.

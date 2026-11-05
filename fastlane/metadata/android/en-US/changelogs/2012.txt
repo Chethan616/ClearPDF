@@ -1,5 +1,0 @@
-* Edit PDF: lists, spell check, images from the camera
-* Comments: move and resize them, set their opacity and width; undo and redo while drawing
-* Read aloud: pick the language, keep listening in the background, resume where you stopped
-* Select several files on Home; files reopen at the same spot and zoom
-* Page menu on a long press; pick which pages to export as images

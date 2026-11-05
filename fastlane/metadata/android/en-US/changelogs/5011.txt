@@ -1,4 +1,0 @@
-* Sign with a digital ID (a .p12 / .pfx file, or one made in the app), check a document's signatures and trust signers
-* An APK for 32-bit ARM phones
-* Changes to a file that can't be written back (like one picked from the file picker's Recent) are offered as a copy when you close it instead of being lost
-* The app's text is ready to be translated

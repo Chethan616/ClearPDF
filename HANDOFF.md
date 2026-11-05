@@ -5,10 +5,11 @@ Read this first after a `/clear`. The roadmap is `PLAN.md`.
 ## Where things are
 
 - Repo: `D:\clearPDF_V2`, branch `clearpdf-v2`; remote `upstream` = artcraft-android/pdfcraft-android.
-- Android project: `apps/pdfcraft-android/android` (to be moved to `android/`).
-- Build (phone is arm64): `cd apps/pdfcraft-android/android; ./gradlew installDebug -Pclearpdf.abis=arm64-v8a`
-  Debug id `com.chethan616.clearpdf.debug`. Release: `assembleRelease -Pclearpdf.abis=arm64-v8a`
-  (signed with the local Play upload key from `key.properties`).
+- Android project: `android/`; Rust workspace: `engine/` (bridge crate `engine/mobile`, package
+  `artefact-mobile`, library `libartefact.so`; engine crates keep their `pdfcraft-*` package names).
+- Build (phone is arm64): `cd android; ./gradlew installDebug -Partefact.abis=arm64-v8a`
+  (emulator: `x86_64`). Debug id `com.chethan616.clearpdf.debug`. Release:
+  `assembleRelease -Partefact.abis=arm64-v8a` (signed with the local Play upload key, `key.properties`).
 - Phone: `adb -s 5bdd59db` (OnePlus CPH2487, Android 16, 1240×2772 @560dpi). In Git Bash set
   `MSYS_NO_PATHCONV=1` before `adb shell …/sdcard…`. `pm clear` is blocked; reset with
   `adb shell "run-as com.chethan616.clearpdf.debug rm -rf shared_prefs files/notes"`.
@@ -43,5 +44,4 @@ Read this first after a `/clear`. The roadmap is `PLAN.md`.
 
 ## Next up
 
-See PLAN.md "Next". Immediate: viewer chrome restyle check, translations (incl. new pt + ru),
-folder restructure, README, release APK, GitHub master branch + issue + discussion.
+See PLAN.md "Next". Immediate: viewer chrome polish, release APK, GitHub master branch + issue + discussion.
