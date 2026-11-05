@@ -12,18 +12,12 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.chethan616.clearpdf.R
 
-/** Inter (OFL, assets/fonts), PdfCraft's UI face, copied in by the build. */
-val Inter = FontFamily(
-    Font(R.font.inter_regular, FontWeight.Normal),
-    Font(R.font.inter_medium, FontWeight.Medium),
-    Font(R.font.inter_semibold, FontWeight.SemiBold),
-)
+/** The app's reading face: Plus Jakarta Sans, the same as the glass screens (the old name stays for the viewer's code). */
+val Inter: FontFamily get() = com.chethan616.clearpdf.ui.theme.Jakarta
 
 /** The colours the screens use beyond Material's roles (measured from the reference app's screens). */
 @Immutable
@@ -80,71 +74,7 @@ data class PdfColors(
     val switchOn: Color,
 )
 
-val LightPdfColors = PdfColors(
-    dark = false,
-    surface = Color(0xFFFFFFFF),
-    surfaceRaised = Color(0xFFF4F4F4),
-    pressed = Color(0xFFE9E9E9),
-    desk = Color(0xFFE1E1E1),
-    pageEdge = Color(0x1F000000),
-    text = Color(0xFF202020),
-    textSecondary = Color(0xFF5E5E5E),
-    textTertiary = Color(0xFF6D6D6D),
-    icon = Color(0xFF222222),
-    divider = Color(0xFFD5D5D5),
-    handle = Color(0xFF909090),
-    accent = Color(0xFF147AF3),
-    onAccent = Color(0xFFFFFFFF),
-    button = Color(0xFF0265DC),
-    red = Color(0xFFD7373F),
-    scrim = Color(0x66000000),
-    toast = Color(0xFF474747),
-    onToast = Color(0xFFFFFFFF),
-    label = Color(0xFF000000),
-    toolAccent = Color(0xFF0265DC),
-    navBand = Color(0xFFFFFFFF),
-    menu = Color(0xFFFFFFFF),
-    pageCard = Color(0xFFE6E6E6),
-    home = Color(0xFFFFFFFF),
-    navigatorText = Color(0xFF2C2C2C),
-    replyBorder = Color(0xFF464646),
-    switchOff = Color(0xFFE9E9E9),
-    switchOn = Color(0xFF3B63FB),
-)
-
-val DarkPdfColors = PdfColors(
-    dark = true,
-    surface = Color(0xFF1D1D1D),
-    surfaceRaised = Color(0xFF2A2A2A),
-    pressed = Color(0xFF303030),
-    desk = Color(0xFF000000),
-    pageEdge = Color(0x00000000),
-    text = Color(0xFFFFFFFF),
-    textSecondary = Color(0xFFB2B2B2),
-    textTertiary = Color(0xFFB0B0B0),
-    icon = Color(0xFFEBEBEB),
-    divider = Color(0xFF4B4B4B),
-    handle = Color(0xFF8D8D8D),
-    accent = Color(0xFF5EAAF7),
-    onAccent = Color(0xFF000000),
-    button = Color(0xFF0265DC),
-    red = Color(0xFFF2545B),
-    scrim = Color(0x99000000),
-    toast = Color(0xFF474747),
-    onToast = Color(0xFFFFFFFF),
-    label = Color(0xFFFFFFFF),
-    toolAccent = Color(0xFF5EAAF7),
-    navBand = Color(0xFF080808),
-    menu = Color(0xFF080808),
-    pageCard = Color(0xFF303030),
-    home = Color(0xFF000000),
-    navigatorText = Color(0xFFEFEFEF),
-    replyBorder = Color(0xFFD1D1D1),
-    switchOff = Color(0xFF505050),
-    switchOn = Color(0xFF4B75FF),
-)
-
-val LocalPdfColors = staticCompositionLocalOf { LightPdfColors }
+val LocalPdfColors = staticCompositionLocalOf<PdfColors> { error("no PdfcraftTheme") }
 
 /** The colours in effect. */
 val pdfColors: PdfColors @Composable get() = LocalPdfColors.current
@@ -153,19 +83,19 @@ val pdfColors: PdfColors @Composable get() = LocalPdfColors.current
 enum class ThemeChoice { System, Light, Dark }
 
 /**
- * The viewer's and tool screens' roles in ClearPDF's palette: warm paper surfaces, the theme's ink,
- * candy accents. (Inside [com.chethan616.clearpdf.ui.theme.ClearTheme], so it follows the same theme.)
+ * The viewer's and tool screens' roles in Artefact's palette: cool grouped surfaces (Apple's),
+ * the theme's ink, the system accents. (Inside [com.chethan616.clearpdf.ui.theme.ClearTheme], so it follows the same theme.)
  */
 private fun pdfColorsFrom(cc: com.chethan616.clearpdf.ui.theme.ClearColors): PdfColors {
     val candy = com.chethan616.clearpdf.ui.theme.Candy
     val dark = cc.dark
-    val surface = if (dark) Color(0xFF17151E) else Color(0xFFFBF8F4)
-    val raised = if (dark) Color(0xFF221F2B) else Color(0xFFF1ECE5)
+    val surface = if (dark) Color(0xFF121B20) else Color(0xFFF5F7FB)
+    val raised = if (dark) Color(0xFF1B262C) else Color(0xFFE9EDF4)
     return PdfColors(
         dark = dark,
         surface = surface,
         surfaceRaised = raised,
-        pressed = if (dark) Color(0xFF2C2836) else Color(0xFFE8E2DA),
+        pressed = if (dark) Color(0xFF24323A) else Color(0xFFDDE3EC),
         desk = cc.desk,
         pageEdge = if (dark) Color.Transparent else Color(0x1F000000),
         text = cc.ink,
@@ -179,7 +109,7 @@ private fun pdfColorsFrom(cc: com.chethan616.clearpdf.ui.theme.ClearColors): Pdf
         button = candy.Sky,
         red = candy.Tomato,
         scrim = if (dark) Color(0x99000000) else Color(0x55000000),
-        toast = if (dark) Color(0xFF2C2836) else Color(0xFF2A2634),
+        toast = if (dark) Color(0xFF24323A) else Color(0xFF26324A),
         onToast = Color.White,
         label = cc.ink,
         toolAccent = candy.Sky,
@@ -190,7 +120,7 @@ private fun pdfColorsFrom(cc: com.chethan616.clearpdf.ui.theme.ClearColors): Pdf
         navigatorText = cc.ink,
         replyBorder = cc.inkSoft,
         switchOff = raised,
-        switchOn = candy.Mint,
+        switchOn = candy.Lime,
     )
 }
 

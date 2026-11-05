@@ -61,6 +61,7 @@ import com.chethan616.clearpdf.ui.home.whenLabel
 import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
+import com.chethan616.clearpdf.ui.theme.glowing
 import com.chethan616.clearpdf.ui.viewer.formatSize
 import com.kyant.shapes.RoundedRectangle
 import kotlinx.coroutines.Dispatchers
@@ -128,19 +129,36 @@ fun PaperThumb(vm: AppViewModel, path: String?, width: Dp, height: Dp, modifier:
     }
 }
 
-/** The big title every tab opens with: a small caps [eyebrow], the [title] in display type, and [trailing] controls. */
+/** Room left under a pushed screen's last row. */
+val DockClearance = 40.dp
+
+/**
+ * The big title a pushed screen opens with: a round glass Back above it (when [onBack]), a small
+ * caps [eyebrow], the [title] large and white on the sky, and [trailing] controls.
+ */
 @Composable
-fun ScreenHeader(eyebrow: String?, title: String, modifier: Modifier = Modifier, trailing: @Composable () -> Unit = {}) {
+fun ScreenHeader(eyebrow: String?, title: String, modifier: Modifier = Modifier, onBack: (() -> Unit)? = null, trailing: @Composable () -> Unit = {}) {
     val c = clear
-    Row(modifier.fillMaxWidth().padding(start = 22.dp, end = 16.dp), verticalAlignment = Alignment.Bottom) {
-        Column(Modifier.weight(1f)) {
-            if (eyebrow != null) {
-                Text(eyebrow.uppercase(), style = ClearType.Eyebrow, color = c.inkSoft)
-                Spacer(Modifier.height(6.dp))
+    Column(modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp)) {
+        if (onBack != null) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                GlassCircle(onClick = onBack, size = 54.dp, surface = c.capsule, label = stringResource(R.string.common_back)) {
+                    GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(24.dp), tint = Color.White)
+                }
+                Spacer(Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { trailing() }
             }
-            Text(title, style = ClearType.Display, color = c.ink)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { trailing() }
+        Row(Modifier.fillMaxWidth().padding(start = 6.dp), verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                if (eyebrow != null) {
+                    Text(eyebrow.uppercase(), style = ClearType.Eyebrow, color = c.hero.copy(alpha = 0.85f))
+                    Spacer(Modifier.height(6.dp))
+                }
+                Text(title, style = ClearType.Display.copy(color = c.hero).glowing(c))
+            }
+            if (onBack == null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { trailing() }
+        }
     }
 }
 

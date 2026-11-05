@@ -12,7 +12,7 @@
          granting it makes Android refuse IMAGE_CAPTURE. -->
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
-    <!-- Read aloud keeps reading with ClearPDF in the background (a media notification) -->
+    <!-- Read aloud keeps reading with Artefact in the background (a media notification) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
@@ -25,7 +25,7 @@
         android:requestLegacyExternalStorage="true"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ClearPDF">
+        android:theme="@style/Theme.Artefact">
 
         <activity
             android:name=".MainActivity"
@@ -37,20 +37,37 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- PDFs other apps open with ClearPDF -->
+            <!-- PDFs shared to Artefact open in the full app. (PDFs other apps *open* with Artefact
+                 go to Quick Preview below; its Expand comes here with an explicit intent.) -->
             <intent-filter android:label="@string/open_with">
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          Quick Preview: "Open with Artefact" from a chat, a mail or a file manager shows the file in
+          a floating card over that app. Translucent and in the caller's task (standard launch mode),
+          so the caller stays drawn behind it and Back or Close lands exactly where the user was.
+          More document types join the filter as the engine learns them.
+        -->
+        <activity
+            android:name=".preview.QuickPreviewActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:launchMode="standard"
+            android:theme="@style/Theme.Artefact.Preview"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter android:label="@string/app_name">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="content" />
                 <data android:scheme="file" />
-                <data android:mimeType="application/pdf" />
-            </intent-filter>
-            <!-- PDFs shared to ClearPDF -->
-            <intent-filter android:label="@string/open_with">
-                <action android:name="android.intent.action.SEND" />
-                <action android:name="android.intent.action.SEND_MULTIPLE" />
-                <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/pdf" />
             </intent-filter>
         </activity>
@@ -60,7 +77,7 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
-        <!-- Files of ClearPDF's handed to other apps (share, print, open in) -->
+        <!-- Files of Artefact's handed to other apps (share, print, open in) -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

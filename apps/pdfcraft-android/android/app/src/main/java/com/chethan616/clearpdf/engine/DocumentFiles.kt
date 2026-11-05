@@ -212,7 +212,7 @@ class DocumentFiles(private val context: Context) {
         val values = android.content.ContentValues().apply {
             put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
             put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime)
-            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/ClearPDF")
+            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/Artefact")
         }
         val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: error(context.getString(R.string.files_error_save_image))
         resolver.openOutputStream(uri).use { out ->

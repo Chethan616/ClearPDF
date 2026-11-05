@@ -66,7 +66,7 @@ import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
 import com.kyant.shapes.RoundedRectangle
 
-/** ClearPDF's repository: help, issues and source. */
+/** Artefact's repository: help, issues and source. */
 const val CLEARPDF_REPO = "https://github.com/Chethan616/ClearPDF"
 
 /** Settings, and its Licences page. */
@@ -89,14 +89,9 @@ private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit) {
     var authorDialog by remember { mutableStateOf(false) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         item { Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars)) }
-        item(key = "back") {
-            Row(Modifier.padding(start = 14.dp, top = 10.dp)) {
-                GlassCircle(onClick = { vm.settingsOpen = false }, label = stringResource(R.string.common_back)) { GlassIcon(LucideIcons.ArrowLeft, null, Modifier.size(21.dp)) }
-            }
-        }
         item(key = "title") {
             Spacer(Modifier.height(14.dp))
-            ScreenHeader(null, stringResource(R.string.home_settings))
+            ScreenHeader(null, stringResource(R.string.home_settings), onBack = { vm.settingsOpen = false })
         }
         item(key = "hero") { AppCard(vm) }
 
@@ -148,12 +143,14 @@ private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit) {
         item(key = "feel") {
             Panel {
                 ToggleRow(LucideIcons.Sparkles, Candy.Bubblegum, stringResource(R.string.settings_haptics), null, GlassSettings.haptics) { GlassSettings.updateHaptics(context, it) }
+                GlassRow(stringResource(R.string.settings_show_welcome), { vm.showWelcomeAgain() }, icon = LucideIcons.Compass, accent = Candy.Sky)
             }
         }
 
         item(key = "reading") { Section(stringResource(R.string.settings_reading)) }
         item(key = "readingpanel") {
             Panel {
+                ToggleRow(LucideIcons.PanelsTopLeft, Candy.Sky, stringResource(R.string.settings_quick_preview), stringResource(R.string.settings_quick_preview_body), vm.quickPreview) { vm.updateQuickPreview(it) }
                 ToggleRow(LucideIcons.Sun, Candy.Lemon, stringResource(R.string.home_keep_screen_on), stringResource(R.string.home_keep_screen_on_body), vm.keepScreenOn) { vm.updateKeepScreenOn(it) }
                 ToggleRow(LucideIcons.Smartphone, Candy.Sky, stringResource(R.string.home_status_bar_in_documents), stringResource(R.string.home_status_bar_in_documents_body), vm.statusBarInDocuments) { vm.updateStatusBarInDocuments(it) }
                 ToggleRow(LucideIcons.Hash, Candy.Mint, stringResource(R.string.home_search_count), stringResource(R.string.home_search_count_body), vm.searchCount) { vm.updateSearchCount(it) }
@@ -224,7 +221,7 @@ private fun AppCard(vm: AppViewModel) {
         shape = RoundedRectangle(30.dp),
     ) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Image(painterResource(R.mipmap.ic_launcher), null, Modifier.size(64.dp).clip(RoundedRectangle(18.dp)))
+            Image(painterResource(R.drawable.artefact_logo), null, Modifier.size(64.dp))
             Spacer(Modifier.width(16.dp))
             Column {
                 Text(stringResource(R.string.app_name), style = ClearType.Headline, color = c.ink)
@@ -282,13 +279,13 @@ private fun ToggleRow(icon: ImageVector, accent: Color, label: String, body: Str
 /** One entry of the Licences page: what it is, and its licence and authors. */
 private class Credit(val name: String, val terms: String)
 
-/** The open-source licences of everything ClearPDF is built from, then their full texts. */
+/** The open-source licences of everything Artefact is built from, then their full texts. */
 @Composable
 private fun LicencesPage(onBack: () -> Unit) {
     val c = clear
     val context = LocalContext.current
     val texts = remember {
-        listOf("LICENSE-lucide.txt", "OFL-Inter.txt", "OFL-BricolageGrotesque.txt", "OFL-DancingScript.txt", "LICENSE-foxit.txt", "LICENSE-adobe-cmaps.txt").mapNotNull { name ->
+        listOf("LICENSE-lucide.txt", "OFL-PlusJakartaSans.txt", "OFL-Doto.txt", "OFL-DMSerifDisplay.txt", "OFL-DancingScript.txt", "LICENSE-foxit.txt", "LICENSE-adobe-cmaps.txt").mapNotNull { name ->
             runCatching { context.assets.open("licences/$name").bufferedReader().readText() }.getOrNull()?.takeIf { it.isNotBlank() }
         }
     }
@@ -300,8 +297,10 @@ private fun LicencesPage(onBack: () -> Unit) {
         Credit("JNA", "Apache-2.0"),
         Credit("AndroidX, Jetpack Compose, Kotlin coroutines", "Apache-2.0"),
         Credit(stringResource(R.string.root_licence_lucide), "ISC, Lucide Contributors"),
-        Credit("Bricolage Grotesque", "SIL Open Font License 1.1, The Bricolage Grotesque Project Authors"),
-        Credit(stringResource(R.string.root_licence_inter), "SIL Open Font License 1.1, The Inter Project Authors"),
+        Credit("Plus Jakarta Sans", "SIL Open Font License 1.1, The Plus Jakarta Sans Project Authors"),
+        Credit("Doto", "SIL Open Font License 1.1, The Doto Project Authors"),
+        Credit("DM Serif Display", "SIL Open Font License 1.1, Colophon Foundry"),
+        Credit("bot-avatars (the mascots)", "MIT, Jakub Antalik"),
         Credit(stringResource(R.string.root_licence_dancing_script), "SIL Open Font License 1.1, The Dancing Script Project Authors"),
         Credit(stringResource(R.string.root_licence_foxit), "BSD-3-Clause, Foxit Software Inc. and the PDFium Authors"),
         Credit(stringResource(R.string.root_licence_cmaps), "BSD-3-Clause, Adobe"),
@@ -311,11 +310,8 @@ private fun LicencesPage(onBack: () -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         item { Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars)) }
         item {
-            Row(Modifier.padding(start = 14.dp, top = 10.dp)) {
-                GlassCircle(onClick = onBack, label = stringResource(R.string.common_back)) { GlassIcon(LucideIcons.ArrowLeft, null, Modifier.size(21.dp)) }
-            }
             Spacer(Modifier.height(14.dp))
-            ScreenHeader(null, stringResource(R.string.home_licences))
+            ScreenHeader(null, stringResource(R.string.home_licences), onBack = onBack)
             Spacer(Modifier.height(16.dp))
         }
         item {

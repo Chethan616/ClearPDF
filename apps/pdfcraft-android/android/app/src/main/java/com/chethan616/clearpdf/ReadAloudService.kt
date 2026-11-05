@@ -37,7 +37,7 @@ class ReadAloudService : Service() {
         super.onCreate()
         val nm = getSystemService(NotificationManager::class.java)
         nm?.createNotificationChannel(NotificationChannel(CHANNEL, getString(R.string.common_tool_read_aloud), NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
-        session = MediaSession(this, "ClearPDF read aloud").apply {
+        session = MediaSession(this, "Artefact read aloud").apply {
             setCallback(object : MediaSession.Callback() {
                 override fun onPlay() { controls?.play() }
                 override fun onPause() { controls?.pause() }

@@ -1013,7 +1013,13 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     fun onMicPermission(granted: Boolean) {
         val p = pendingVoice
         pendingVoice = null
-        if (granted && p != null) voicePrompt = p else if (!granted) tell(text(R.string.msg_voice_no_mic))
+        val m = pendingMic
+        pendingMic = null
+        when {
+            !granted -> tell(text(R.string.msg_voice_no_mic))
+            p != null -> voicePrompt = p
+            m != null -> m()
+        }
     }
 
     fun dismissMicRationale(openSettings: Boolean) {
@@ -1905,7 +1911,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
      */
     private fun scriptOutput(doc: OpenDocument, r: JSONObject) {
         // a script that failed: kept out of sight, as the reference keeps it, but in the log
-        r.optString("error").takeIf { it.isNotEmpty() && it != "null" }?.let { android.util.Log.w("ClearPDF", "form script: $it") }
+        r.optString("error").takeIf { it.isNotEmpty() && it != "null" }?.let { android.util.Log.w("Artefact", "form script: $it") }
         r.optJSONArray("alerts")?.let { a -> for (i in 0 until a.length()) showScriptAlert(a.optString(i)) }
         val requests = r.optJSONArray("requests") ?: return
         for (i in 0 until requests.length()) {
@@ -2359,6 +2365,115 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         } finally {
             runCatching { eng.tool("doc_close", mapOf("doc" to id, "discard_changes" to true)) }
         }
+    }
+
+    // ---- Notes, lists and voice memos ----------------------------------------------------------
+
+    val notes = com.chethan616.clearpdf.notes.Notes(app, viewModelScope)
+
+    /** The note open in the editor. */
+    var openNote by mutableStateOf<String?>(null)
+
+    /** Files other apps open show in Quick Preview's floating card first (else straight in the viewer). */
+    var quickPreview by mutableStateOf(appPrefs.getBoolean("quickPreview", true))
+        private set
+
+    fun updateQuickPreview(on: Boolean) {
+        quickPreview = on
+        appPrefs.edit().putBoolean("quickPreview", on).apply()
+    }
+
+    /** The welcome pages were seen (first run shows them). */
+    var onboarded by mutableStateOf(appPrefs.getBoolean("onboarded", false))
+        private set
+
+    fun finishOnboarding() {
+        onboarded = true
+        appPrefs.edit().putBoolean("onboarded", true).apply()
+        seedNotes()
+    }
+
+    fun showWelcomeAgain() {
+        settingsOpen = false
+        onboarded = false
+    }
+
+    /** A fresh desk gets a welcome note and a small list, so it shows what it's for. */
+    fun seedNotes() {
+        viewModelScope.launch {
+            snapshotFlow { notes.loaded }.first { it }
+            if (!notes.isFresh || notes.all.isNotEmpty()) return@launch
+            // the list last, so it's the newest: it leads the desk, as in the design
+            notes.create(com.chethan616.clearpdf.notes.NoteKind.Text, text(R.string.seed_note_title), text(R.string.seed_note_body))
+            delay(5)
+            notes.create(
+                com.chethan616.clearpdf.notes.NoteKind.List, text(R.string.seed_list_title),
+                items = listOf(
+                    com.chethan616.clearpdf.notes.checkItem(text(R.string.seed_list_1), done = true),
+                    com.chethan616.clearpdf.notes.checkItem(text(R.string.seed_list_2)),
+                    com.chethan616.clearpdf.notes.checkItem(text(R.string.seed_list_3)),
+                ),
+            )
+        }
+    }
+
+    /** A new note (or list) straight into the editor. */
+    fun newNote(kind: com.chethan616.clearpdf.notes.NoteKind) {
+        val items = if (kind == com.chethan616.clearpdf.notes.NoteKind.List) listOf(com.chethan616.clearpdf.notes.checkItem("")) else emptyList()
+        openNote = notes.create(kind, items = items).id
+    }
+
+    fun closeNote() {
+        openNote?.let(notes::prune)
+        openNote = null
+    }
+
+    /** Run [action] once the microphone is allowed (asking for it first if need be). */
+    fun withMic(action: () -> Unit) {
+        val app = getApplication<Application>()
+        if (androidx.core.content.ContextCompat.checkSelfPermission(app, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            action()
+        } else {
+            pendingMic = action
+            micRequests.trySend(Unit)
+        }
+    }
+
+    internal var pendingMic: (() -> Unit)? = null
+
+    /** A picture for the open note: from the photo picker, or the camera. */
+    val notePhotoPicks = Channel<Unit>(Channel.CONFLATED)
+    val noteCameraShots = Channel<File>(Channel.CONFLATED)
+    private var noteShot: File? = null
+
+    fun pickNotePhoto() {
+        notePhotoPicks.trySend(Unit)
+    }
+
+    fun takeNotePhoto() {
+        val f = notes.newMedia("jpg")
+        noteShot = f
+        noteCameraShots.trySend(f)
+    }
+
+    fun onNotePhoto(uri: Uri?) {
+        val id = openNote ?: return
+        uri ?: return
+        viewModelScope.launch {
+            val name = notes.importImage(uri) ?: return@launch tell(text(R.string.common_file_unreadable))
+            notes.get(id)?.let { notes.put(it.copy(images = it.images + name)) }
+        }
+    }
+
+    fun onNoteCamera(ok: Boolean) {
+        val f = noteShot ?: return
+        noteShot = null
+        val id = openNote
+        if (!ok || id == null || !f.isFile || f.length() == 0L) {
+            f.delete()
+            return
+        }
+        notes.get(id)?.let { notes.put(it.copy(images = it.images + f.name)) }
     }
 
     // ---- Home, Files, Search -----------------------------------------------------------------

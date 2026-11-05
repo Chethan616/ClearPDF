@@ -1,6 +1,17 @@
 package com.chethan616.clearpdf.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -25,7 +36,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,7 +68,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.chethan616.clearpdf.R
-import com.chethan616.clearpdf.ui.desk.DeskScreen
 import com.chethan616.clearpdf.ui.desk.FileActionsSheet
 import com.chethan616.clearpdf.ui.desk.FilesScreen
 import com.chethan616.clearpdf.ui.desk.SettingsScreen
@@ -75,13 +84,20 @@ import com.chethan616.clearpdf.ui.glass.GlassOverlayHost
 import com.chethan616.clearpdf.ui.glass.LocalGlassOverlayHost
 import com.chethan616.clearpdf.ui.glass.GlassSheet
 import com.chethan616.clearpdf.ui.glass.GlassStage
+import com.chethan616.clearpdf.ui.glass.GlassLoader
 import com.chethan616.clearpdf.ui.glass.GlassTab
 import com.chethan616.clearpdf.ui.glass.GlassTabs
 import com.chethan616.clearpdf.ui.glass.GlassTextField
 import com.chethan616.clearpdf.ui.glass.GlassToast
 import com.chethan616.clearpdf.ui.glass.ProvideGlassHaptics
 import com.chethan616.clearpdf.ui.glass.pressable
+import com.chethan616.clearpdf.ui.home.CreateDock
+import com.chethan616.clearpdf.ui.home.DeskState
+import com.chethan616.clearpdf.ui.home.HomeScreen
 import com.chethan616.clearpdf.ui.home.HomeTab
+import com.chethan616.clearpdf.ui.home.LocalHomeVm
+import com.chethan616.clearpdf.ui.notes.NoteEditor
+import com.chethan616.clearpdf.ui.onboarding.Onboarding
 import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearTheme
 import com.chethan616.clearpdf.ui.theme.ClearType
@@ -102,7 +118,7 @@ fun ClearApp(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () ->
     ClearTheme(vm.theme) {
         PdfcraftTheme(vm.theme) {
             ProvideGlassHaptics {
-                CompositionLocalProvider(LocalGlassOverlayHost provides overlays) { Shell(vm, onBrowse, onPickSignatureImage) }
+                CompositionLocalProvider(LocalGlassOverlayHost provides overlays, LocalHomeVm provides vm) { Shell(vm, onBrowse, onPickSignatureImage) }
             }
         }
     }
@@ -113,7 +129,7 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
     val c = clear
     val doc = vm.document
     var toast by remember { mutableStateOf<Message?>(null) }
-    var creating by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(vm) {
         for (m in vm.messages) {
             toast = m
@@ -134,12 +150,20 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
         }
     }
     BackHandler(enabled = doc != null && vm.toolScreen == null) { vm.closeDocument() }
-    BackHandler(enabled = doc == null && !vm.settingsOpen && vm.homeTab != HomeTab.Home && vm.toolScreen == null) { vm.homeTab = HomeTab.Home }
+    BackHandler(enabled = doc == null && vm.onboarded && !vm.settingsOpen && vm.openNote == null && vm.homeTab != HomeTab.Home && vm.toolScreen == null) { vm.homeTab = HomeTab.Home }
 
-    val onTabs = doc == null && !vm.settingsOpen
-    val dockVisible = onTabs && vm.toolScreen == null && vm.signaturePad == null && vm.certSign == null && !vm.idCreate && vm.selectedFiles.isEmpty()
+    val route = when {
+        !vm.onboarded -> "welcome"
+        vm.settingsOpen -> "settings"
+        vm.openNote != null -> "note:" + vm.openNote
+        else -> vm.homeTab.name
+    }
+    val onDesk = doc == null && route == HomeTab.Home.name && vm.toolScreen == null && vm.signaturePad == null && vm.certSign == null && !vm.idCreate
+    val desk = remember { DeskState(scope) }
     val mood = when {
+        route == "welcome" -> AuroraMoods.Welcome
         vm.settingsOpen -> AuroraMoods.Settings
+        vm.openNote != null -> AuroraMoods.Note
         vm.homeTab == HomeTab.Files -> AuroraMoods.Files
         vm.homeTab == HomeTab.Tools -> AuroraMoods.Tools
         else -> AuroraMoods.Desk
@@ -149,15 +173,14 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
         wallpaper = { Aurora(mood) },
         screens = {
             Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
-                when {
-                    doc != null -> Viewer(vm, doc)
-                    vm.settingsOpen -> Entrance("settings", fromSide = true) { SettingsScreen(vm) }
-                    else -> Entrance(vm.homeTab) {
-                        when (vm.homeTab) {
-                            HomeTab.Home -> DeskScreen(vm, onBrowse)
-                            HomeTab.Files -> FilesScreen(vm, onBrowse)
-                            HomeTab.Tools -> ToolsScreen(vm)
-                        }
+                AnimatedContent(route, transitionSpec = { push(depth(initialState), depth(targetState)) }, label = "route") { r ->
+                    when {
+                        r == "welcome" -> Onboarding(vm)
+                        r == "settings" -> SettingsScreen(vm)
+                        r.startsWith("note:") -> NoteEditor(vm, r.removePrefix("note:"))
+                        r == HomeTab.Files.name -> FilesScreen(vm, onBrowse)
+                        r == HomeTab.Tools.name -> ToolsScreen(vm)
+                        else -> HomeScreen(vm, desk)
                     }
                 }
                 vm.toolScreen?.let { ToolScreenHost(vm, it) }
@@ -165,19 +188,28 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
                 vm.certSign?.let { CertSignScreen(vm, it) }
                 if (vm.idCreate) CreateIdScreen(vm)
             }
+            // the document opens over the desk, zooming up from it
+            AnimatedVisibility(
+                doc != null,
+                enter = fadeIn(GlassMotion.settle()) + scaleIn(GlassMotion.morph(), initialScale = 0.9f),
+                exit = fadeOut(GlassMotion.fold()) + scaleOut(GlassMotion.fold(), targetScale = 0.94f),
+            ) {
+                val last = remember { arrayOfNulls<OpenDocument>(1) }
+                if (doc != null) last[0] = doc
+                last[0]?.let { Viewer(vm, it) }
+            }
         },
         chrome = {
-            if (dockVisible) Dock(vm, creating) { creating = !creating }
+            if (onDesk) CreateDock(vm, desk, onBrowse)
             toast?.let { m ->
                 Box(
                     Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
-                        .padding(start = 16.dp, end = 16.dp, bottom = if (dockVisible) 96.dp else 20.dp),
+                        .padding(start = 16.dp, end = 16.dp, bottom = if (onDesk) 100.dp else 20.dp),
                 ) { key(m) { GlassToast(m.text, m.actionLabel, { m.action?.invoke(); toast = null }) } }
             }
         },
     )
 
-    if (creating) CreateSheet(vm, onBrowse) { creating = false }
     if (doc == null) vm.fileSheet?.let { (r, recent) -> FileActionsSheet(vm, r, recent) { vm.fileSheet = null } }
     if (vm.opening) Spinner()
     Dialogs(vm)
@@ -196,100 +228,28 @@ private fun Viewer(vm: AppViewModel, doc: OpenDocument) {
     }
 }
 
-/**
- * A screen arriving: it rises a little and fades in on a soft spring ([fromSide]: slides in from
- * the end, for pushed pages). Only the arriving screen is composed.
- */
-@Composable
-private fun Entrance(key: Any, fromSide: Boolean = false, content: @Composable () -> Unit) {
-    key(key) {
-        val p = remember { Animatable(0f) }
-        LaunchedEffect(Unit) { p.animateTo(1f, GlassMotion.rise()) }
-        Box(
-            Modifier.fillMaxSize().graphicsLayer {
-                val v = p.value
-                if (fromSide) translationX = (1f - v) * 48.dp.toPx() else translationY = (1f - v) * 22.dp.toPx()
-                alpha = v.coerceIn(0f, 1f)
-                compositingStrategy = CompositingStrategy.ModulateAlpha
-            },
-        ) { content() }
-    }
-}
-
-/** The floating dock: Desk, Files and Tools on a glass capsule, and the candy + that creates. */
-@Composable
-private fun BoxScope.Dock(vm: AppViewModel, creating: Boolean, onCreate: () -> Unit) {
-    val turn by animateFloatAsState(if (creating) 45f else 0f, GlassMotion.morph(), label = "plus")
-    Row(
-        Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val tabs = listOf(HomeTab.Home, HomeTab.Files, HomeTab.Tools)
-        GlassTabs(
-            tabs = listOf(
-                GlassTab(stringResource(R.string.dock_desk), LucideIcons.House, Candy.Tomato),
-                GlassTab(stringResource(R.string.dock_files), LucideIcons.Folder, Candy.Sky),
-                GlassTab(stringResource(R.string.dock_tools), LucideIcons.LayoutGrid, Candy.Grape),
-            ),
-            selected = tabs.indexOf(vm.homeTab).coerceAtLeast(0),
-            onSelect = { vm.homeTab = tabs[it] },
-            modifier = Modifier.width(252.dp),
-            height = 64.dp,
-        )
-        GlassCircle(onClick = onCreate, size = 64.dp, tint = Candy.Tomato, label = stringResource(R.string.dock_create)) {
-            GlassIcon(LucideIcons.Plus, null, Modifier.size(30.dp).graphicsLayer { rotationZ = turn })
-        }
-    }
-}
-
-/** "Start something": the ways in, as a grid of candy tiles. */
-@Composable
-private fun CreateSheet(vm: AppViewModel, onBrowse: () -> Unit, onDismiss: () -> Unit) {
-    fun go(f: () -> Unit) {
-        onDismiss()
-        f()
-    }
-    GlassSheet(onDismiss, stringResource(R.string.create_title), stringResource(R.string.create_subtitle)) {
-        val items = listOf(
-            Triple(LucideIcons.FolderOpen, stringResource(R.string.home_open_file), Candy.Sky) to onBrowse,
-            Triple(ToolCatalog.Scan.icon, stringResource(ToolCatalog.Scan.label), ToolCatalog.Scan.accent) to { ToolCatalog.Scan.go(vm) },
-            Triple(ToolCatalog.Photos.icon, stringResource(ToolCatalog.Photos.label), ToolCatalog.Photos.accent) to { ToolCatalog.Photos.go(vm) },
-            Triple(ToolCatalog.Combine.icon, stringResource(ToolCatalog.Combine.label), Candy.Grape) to { ToolCatalog.Combine.go(vm) },
-            Triple(ToolCatalog.Create.icon, stringResource(ToolCatalog.Create.label), Candy.Tangerine) to { ToolCatalog.Create.go(vm) },
-            Triple(ToolCatalog.Edit.icon, stringResource(ToolCatalog.Edit.label), ToolCatalog.Edit.accent) to { ToolCatalog.Edit.go(vm) },
-        )
-        Column(Modifier.padding(horizontal = 14.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items.chunked(3).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    row.forEach { (spec, action) ->
-                        val (icon, label, accent) = spec
-                        CreateTile(icon, label, accent, Modifier.weight(1f)) { go(action) }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CreateTile(icon: ImageVector, label: String, accent: Color, modifier: Modifier, onClick: () -> Unit) {
-    Column(
-        modifier.height(112.dp).pressable(onClick, pressedScale = 0.92f).clip(RoundedRectangle(24.dp)).background(accent).padding(14.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp))
-        Text(label, style = ClearType.Label, color = Color.White, maxLines = 2)
-    }
-}
-
-/** A candy spinner over everything while a document opens. */
+/** The wait while a document opens: the expressive loader in its glass circle. */
 @Composable
 private fun Spinner() {
     GlassOverlay {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(Modifier.size(44.dp), color = Candy.Tomato, strokeWidth = 4.dp)
-        }
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { GlassLoader(size = 76.dp) }
     }
+}
+
+/** How deep a route is: deeper ones push in from the end, going back slides the other way. */
+private fun depth(route: String): Int = when {
+    route == "welcome" || route == HomeTab.Home.name -> 0
+    route.startsWith("note:") -> 2
+    route == "settings" -> 2
+    else -> 1
+}
+
+/** A push (or a pop): the new screen slides and grows in on a spring while the old one shrinks back. */
+private fun push(from: Int, to: Int): ContentTransform {
+    val forward = to >= from
+    val dir = if (forward) 1 else -1
+    return (slideInHorizontally(GlassMotion.morph()) { it * dir / 3 } + fadeIn(GlassMotion.settle()) + scaleIn(GlassMotion.morph(), initialScale = if (forward) 0.96f else 1.04f)) togetherWith
+        (slideOutHorizontally(GlassMotion.fold()) { -it * dir / 5 } + fadeOut(GlassMotion.fold()) + scaleOut(GlassMotion.fold(), targetScale = if (forward) 0.94f else 1.04f))
 }
 
 /** Everything the view model can ask: passwords, read-only files, links, form alerts, waits. */
@@ -345,8 +305,8 @@ private fun Dialogs(vm: AppViewModel) {
     vm.busy?.let { message ->
         GlassDialog(onDismiss = {}, title = null, dismissible = false) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(Modifier.size(30.dp), color = Candy.Tomato, strokeWidth = 3.5.dp)
-                Spacer(Modifier.width(18.dp))
+                GlassLoader(size = 48.dp)
+                Spacer(Modifier.width(16.dp))
                 Text(message, style = ClearType.BodyStrong, color = c.ink, textAlign = TextAlign.Start)
             }
         }

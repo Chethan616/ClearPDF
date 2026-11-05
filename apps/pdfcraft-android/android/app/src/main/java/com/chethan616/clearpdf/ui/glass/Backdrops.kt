@@ -63,14 +63,17 @@ fun GlassLayer(
     }
 }
 
-/** A mood of the aurora: where its blobs sit, as fractions of the screen, and how big they are. */
-data class AuroraMood(val blobs: List<Offset>, val radius: Float = 0.75f)
+/** A mood of the wallpaper: where its blooms of light sit, as fractions of the screen, and how big they are. */
+data class AuroraMood(val blobs: List<Offset>, val radius: Float = 0.62f)
 
 object AuroraMoods {
-    val Desk = AuroraMood(listOf(Offset(0.05f, 0.08f), Offset(0.95f, 0.02f), Offset(0.0f, 0.62f), Offset(1.0f, 0.78f), Offset(0.5f, 1.05f)))
-    val Files = AuroraMood(listOf(Offset(0.9f, 0.1f), Offset(0.1f, 0.0f), Offset(1.0f, 0.55f), Offset(0.0f, 0.9f), Offset(0.45f, 0.4f)), 0.7f)
-    val Tools = AuroraMood(listOf(Offset(0.5f, -0.05f), Offset(0.0f, 0.3f), Offset(0.95f, 0.45f), Offset(0.15f, 1.0f), Offset(0.9f, 1.0f)))
-    val Settings = AuroraMood(listOf(Offset(0.0f, 0.0f), Offset(1.0f, 0.15f), Offset(0.2f, 0.75f), Offset(0.85f, 1.0f), Offset(0.6f, 0.45f)), 0.65f)
+    // the blooms, in ClearColors.blooms' order: aqua, lilac, pink, periwinkle, haze
+    val Desk = AuroraMood(listOf(Offset(0.0f, 0.58f), Offset(0.98f, 0.44f), Offset(1.0f, 0.1f), Offset(0.5f, 1.08f), Offset(0.2f, -0.05f)))
+    val Files = AuroraMood(listOf(Offset(0.1f, 0.3f), Offset(0.9f, 0.7f), Offset(0.85f, 0.0f), Offset(0.2f, 1.05f), Offset(0.6f, -0.1f)), 0.58f)
+    val Tools = AuroraMood(listOf(Offset(0.9f, 0.25f), Offset(0.1f, 0.65f), Offset(0.0f, 0.05f), Offset(0.8f, 1.05f), Offset(0.45f, -0.08f)))
+    val Settings = AuroraMood(listOf(Offset(0.15f, 0.15f), Offset(0.95f, 0.85f), Offset(1.0f, 0.3f), Offset(0.1f, 1.0f), Offset(0.6f, 0.0f)), 0.55f)
+    val Note = AuroraMood(listOf(Offset(0.05f, 0.85f), Offset(0.6f, 0.35f), Offset(0.95f, 0.2f), Offset(0.4f, 1.1f), Offset(0.1f, 0.0f)), 0.68f)
+    val Welcome = AuroraMood(listOf(Offset(0.0f, 0.35f), Offset(0.9f, 0.6f), Offset(0.95f, 0.15f), Offset(0.3f, 1.05f), Offset(0.5f, 0.0f)), 0.7f)
 }
 
 private val OffsetPairConverter = TwoWayConverter<Pair<Offset, Offset>, AnimationVector4D>(
@@ -79,8 +82,9 @@ private val OffsetPairConverter = TwoWayConverter<Pair<Offset, Offset>, Animatio
 )
 
 /**
- * The wallpaper: the canvas colour under soft candy blobs. Static while idle (no infinite animation);
- * a new [mood] glides the blobs to new places on one spring, so each tab has its own light.
+ * The wallpaper: the theme's sky (a soft vertical gradient) with blooms of light pooled on it, as
+ * Apple's wallpapers do. Static while idle; a new [mood] glides the blooms to new places on one
+ * spring, so each screen has its own light.
  */
 @Composable
 fun Aurora(mood: AuroraMood, modifier: Modifier = Modifier) {
@@ -94,14 +98,17 @@ fun Aurora(mood: AuroraMood, modifier: Modifier = Modifier) {
     }
     Box(
         modifier.fillMaxSize().drawBehind {
-            drawRect(colors.canvas)
+            drawRect(Brush.verticalGradient(colors.wall))
             val r = size.maxDimension
-            colors.aurora.forEachIndexed { i, (c, strength) ->
+            colors.blooms.forEachIndexed { i, (c, strength) ->
                 val (p, rad) = anims.getOrNull(i)?.value ?: return@forEachIndexed
                 if (!(r * rad.x > 1f)) return@forEachIndexed
                 val center = Offset(p.x * size.width, p.y * size.height)
                 drawCircle(
-                    Brush.radialGradient(listOf(c.copy(alpha = strength), c.copy(alpha = strength * 0.4f), Color.Transparent), center, r * rad.x),
+                    Brush.radialGradient(
+                        listOf(c.copy(alpha = strength), c.copy(alpha = strength * 0.55f), c.copy(alpha = strength * 0.18f), Color.Transparent),
+                        center, r * rad.x,
+                    ),
                     radius = r * rad.x, center = center,
                 )
             }

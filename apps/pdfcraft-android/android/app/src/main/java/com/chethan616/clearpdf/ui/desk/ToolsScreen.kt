@@ -73,7 +73,7 @@ fun ToolsScreen(vm: AppViewModel) {
         item { Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars)) }
         item(key = "header") {
             Spacer(Modifier.height(16.dp))
-            ScreenHeader(stringResource(R.string.tools_subtitle), stringResource(R.string.home_tab_tools)) { SettingsButton(vm) }
+            ScreenHeader(stringResource(R.string.tools_subtitle), stringResource(R.string.home_tab_tools), onBack = { vm.homeTab = com.chethan616.clearpdf.ui.home.HomeTab.Home })
         }
         item(key = "chips") {
             LazyRow(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -319,20 +319,10 @@ androidComponents {
             library.set(cargoBuild.flatMap { it.outputDir.file("${rustAbis.first()}/libpdfcraft_android.so") })
         }
         val assetsDir = File(cargoWorkspaceDir, "assets")
-        val res = tasks.register<PdfcraftAssets>("pdfcraftResources$name") {
-            val map = mapOf(
-                "fonts/Inter-Regular.ttf" to "font/inter_regular.ttf",
-                "fonts/Inter-Medium.ttf" to "font/inter_medium.ttf",
-                "fonts/Inter-SemiBold.ttf" to "font/inter_semibold.ttf",
-            )
-            files.from(map.keys.map { File(assetsDir, it) })
-            targets.set(map.mapKeys { (k, _) -> k.substringAfterLast('/') })
-        }
         val licences = tasks.register<PdfcraftAssets>("pdfcraftLicences$name") {
             // the Licences screen shows each (the Adobe CMaps' notice, from a crates.io crate, is a
             // plain asset: app/src/main/assets/licences)
             val map = mapOf(
-                File(assetsDir, "fonts/OFL-Inter.txt") to "licences/OFL-Inter.txt",
                 File(assetsDir, "icons/LICENSE-lucide.txt") to "licences/LICENSE-lucide.txt",
                 File(assetsDir, "fonts/OFL-DancingScript.txt") to "licences/OFL-DancingScript.txt",
                 File(cargoWorkspaceDir, "vendor/hayro-interpret/assets/LICENSE_FOXIT") to "licences/LICENSE-foxit.txt",
@@ -351,7 +341,6 @@ androidComponents {
         variant.sources.assets?.addGeneratedSourceDirectory(models, OcrModels::outputDir)
         variant.sources.jniLibs?.addGeneratedSourceDirectory(cargoBuild, CargoNdkBuild::outputDir)
         variant.sources.java?.addGeneratedSourceDirectory(bindgen, UniffiBindgen::outputDir)
-        variant.sources.res?.addGeneratedSourceDirectory(res, PdfcraftAssets::outputDir)
         variant.sources.assets?.addGeneratedSourceDirectory(licences, PdfcraftAssets::outputDir)
     }
 }

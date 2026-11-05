@@ -34,6 +34,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        /** Set by Quick Preview's Expand: the document came from another app through the preview. */
+        const val EXTRA_FROM_PREVIEW = "com.chethan616.clearpdf.FROM_PREVIEW"
+    }
+
     private val vm: AppViewModel by viewModels()
 
     /** Browse: any PDF a document provider offers, opened with write access when it allows. */
@@ -50,6 +55,8 @@ class MainActivity : ComponentActivity() {
     private val pickPhotos = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris -> vm.onPhotosPicked(uris) }
     private val pickFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let(vm::addLocalFolder) }
     private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> vm.onMicPermission(granted) }
+    private val pickNotePhoto = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> vm.onNotePhoto(uri) }
+    private val takeNotePhoto = registerForActivityResult(ActivityResultContracts.TakePicture()) { ok -> vm.onNoteCamera(ok) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // transparent system bars with no contrast scrim: every screen paints the bands behind the
@@ -101,6 +108,13 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch { for (d in vm.imagePicks) launchSafely { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } }
         lifecycleScope.launch { for (u in vm.photoPicks) launchSafely { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } }
+        lifecycleScope.launch { for (u in vm.notePhotoPicks) launchSafely { pickNotePhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } }
+        lifecycleScope.launch {
+            for (f in vm.noteCameraShots) {
+                val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.files", f)
+                launchSafely { takeNotePhoto.launch(uri) }
+            }
+        }
         // the folder picker opens at Documents, where PDFs usually are (Download itself can't be chosen)
         val documents = android.provider.DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:Documents")
         lifecycleScope.launch { for (u in vm.accessRequests) launchSafely { pickFolder.launch(documents) } }

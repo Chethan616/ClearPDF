@@ -61,6 +61,7 @@ import com.chethan616.clearpdf.ui.glass.WashPanel
 import com.chethan616.clearpdf.ui.glass.glass
 import com.chethan616.clearpdf.ui.glass.pressable
 import com.chethan616.clearpdf.ui.home.FileRow
+import com.chethan616.clearpdf.ui.home.HomeTab
 import com.chethan616.clearpdf.ui.home.dayBucket
 import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearType
@@ -123,13 +124,12 @@ fun FilesScreen(vm: AppViewModel, onBrowse: () -> Unit) {
             if (vm.selectedFiles.isNotEmpty()) {
                 SelectionHeader(vm, recent = tab == 0) { confirmDelete = true }
             } else {
-                ScreenHeader(pluralStringResource(R.plurals.files_count, rows.size, rows.size), stringResource(R.string.home_tab_files)) {
+                ScreenHeader(pluralStringResource(R.plurals.files_count, rows.size, rows.size), stringResource(R.string.home_tab_files), onBack = { vm.homeTab = HomeTab.Home }) {
                     GlassCircle(
-                        onClick = { menuOpen = true },
+                        onClick = { menuOpen = true }, size = 54.dp, surface = Color.White.copy(alpha = 0.16f),
                         modifier = Modifier.onGloballyPositioned { menuAnchor = it.boundsInWindow() },
                         label = stringResource(R.string.common_more_options),
-                    ) { GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(21.dp)) }
-                    SettingsButton(vm)
+                    ) { GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(22.dp), tint = clear.hero) }
                 }
             }
         }
