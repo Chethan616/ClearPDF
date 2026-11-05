@@ -67,36 +67,25 @@
     <!-- Home, Files, Tools and Search, the tool screens, settings and shared dialogs -->
     <!-- ================================================================== -->
     <!-- Home: the bottom bar's tabs (also the Files and Tools screens' titles) -->
-    <string name="home_tab_home">Home</string>
     <string name="home_tab_files">Files</string>
     <string name="home_tab_tools">Tools</string>
-    <string name="home_tab_search">Search</string>
 
     <!-- Home: header, welcome and the file lists -->
     <string name="home_settings">Settings</string>
-    <string name="home_welcome">Welcome</string>
-    <string name="home_welcome_back">Welcome back</string>
-    <string name="home_start_with_tool">Start with a tool</string>
     <!-- Tabs over Home's file list -->
     <string name="home_list_recent">Recent</string>
     <string name="home_list_starred">Starred</string>
     <string name="home_list_on_device">On device</string>
-    <string name="home_list_view">List view</string>
-    <string name="home_grid_view">Grid view</string>
     <string name="home_clear_recent">Clear recent</string>
     <string name="home_sort_by_name">Sort by name</string>
     <string name="home_sort_by_date">Sort by date</string>
-    <string name="home_other_files">Other files on this phone</string>
     <string name="home_open_file">Open file</string>
     <string name="home_new_scan">New scan</string>
 
     <!-- Home: empty lists -->
     <string name="home_no_recent_title">No recent files</string>
     <string name="home_no_recent_body">Files you open will appear here.</string>
-    <string name="home_no_starred_title">No starred files</string>
-    <string name="home_no_starred_body">Star a file from its menu to find it here quickly.</string>
     <string name="home_device_files_title">Files on your device</string>
-    <string name="home_device_files_body">Choose folders to list PDFs from, such as Documents or a folder inside Download. Files you open from anywhere stay in Recent.</string>
     <!-- On this device, before any folder is added: the longer explanation -->
     <string name="home_device_files_body_long">Choose folders to list PDFs from, such as Documents or a folder inside Download (Android doesn\'t let apps list the whole Download folder). Artefact sees only the folders you choose, and files you open from anywhere stay in Recent.</string>
     <string name="home_no_pdfs_title">No PDFs in your folders</string>
@@ -108,7 +97,6 @@
     <!-- Accessibility label of the star icon on a starred file -->
     <string name="home_starred_description">Starred</string>
     <!-- Accessibility label of the location icon; %1$s is the folder the file is in -->
-    <string name="home_stored_on">Stored on %1$s</string>
     <!-- Accessibility label of a file's menu button; %1$s is the file name -->
     <string name="home_more_options_for">More options for %1$s</string>
 
@@ -183,62 +171,41 @@
 
     <!-- Search tab -->
     <string name="home_search_your_files">Search your files</string>
-    <string name="home_search_empty_body">Find PDFs on this phone by name.</string>
-    <string name="home_recent_searches">Recent searches</string>
     <!-- Accessibility label; %1$s is a past search -->
-    <string name="home_remove_search">Remove %1$s</string>
     <plurals name="home_search_results">
         <item quantity="one">%d result on this device</item>
         <item quantity="other">%d results on this device</item>
     </plurals>
     <!-- Search result order -->
-    <string name="home_sort_relevant">Most relevant</string>
-    <string name="home_sort_name_az">Name A→Z</string>
-    <string name="home_sort_name_za">Name Z→A</string>
-    <string name="home_sort_oldest">Least recently modified</string>
-    <string name="home_sort_newest">Most recently modified</string>
     <string name="home_no_results">No results</string>
     <string name="home_no_results_body">Check the spelling, or try a shorter name.</string>
 
     <!-- Settings -->
-    <string name="home_about_app">About Artefact</string>
-    <string name="home_preferences">Preferences</string>
-    <string name="home_help_support">Help &amp; Support</string>
-    <string name="home_help">Help</string>
     <string name="home_report_problem">Report a problem or request a feature</string>
     <string name="home_leaving_title">Leaving Artefact</string>
     <string name="home_continue">Continue</string>
     <string name="home_leaving_body">This opens a web page in your browser.</string>
 
     <!-- Settings: Preferences -->
-    <string name="home_section_notifications">Notifications</string>
-    <string name="home_no_notifications">Artefact doesn\'t send notifications.</string>
-    <string name="home_section_suggestions">Auto-suggestions</string>
     <string name="home_offer_suggestions">Offer words you used before when filling in forms</string>
     <string name="home_clear_suggestions">Clear suggestions</string>
     <!-- Section heading and dialog title (also asked the first time a comment is made) -->
     <string name="home_author_title">Your name on comments</string>
     <string name="home_author_hint">Tap to enter your name, to show on your comments</string>
-    <string name="home_section_screen">Screen setting</string>
     <string name="home_keep_screen_on">Keep the screen on</string>
     <string name="home_keep_screen_on_body">Keeps the screen on while you read, for up to 30 minutes without a touch.</string>
-    <string name="home_section_keyboard">Keyboard</string>
     <string name="home_keyboard_shortcuts">Keyboard shortcuts</string>
     <!-- N, P, Page Down, Page Up, Ctrl+P, Ctrl, + and − are keys on the keyboard -->
     <string name="home_keyboard_shortcuts_body">With a keyboard connected: N or Page Down for the next page, P or Page Up for the previous one, the arrow keys to scroll, Ctrl+P to print, Ctrl and + or − to zoom.</string>
-    <string name="home_section_extra">Extra Features</string>
-    <string name="home_extra_body">Optional changes to how Artefact looks and works.</string>
     <string name="home_status_bar_in_documents">Show the status bar in documents</string>
     <string name="home_status_bar_in_documents_body">The status bar shows with the toolbars. When you tap to hide them, the page uses the whole screen, around the camera too.</string>
     <string name="home_search_count">Show the number of search results</string>
     <string name="home_search_count_body">Find in a document shows which result you\'re on and how many there are, such as 3 of 12.</string>
 
     <!-- Settings: About Artefact -->
-    <string name="home_section_about">About</string>
     <!-- %1$s is the app's version, %2$s the engine's version -->
     <string name="home_version">Version %1$s (engine %2$s)</string>
     <string name="home_version_copied">Version copied</string>
-    <string name="home_section_legal">Legal</string>
     <!-- Also the title of the licences screen -->
     <string name="home_licences">Open-source licences</string>
     <string name="home_source_code">Source code</string>
@@ -369,7 +336,6 @@
     <string name="root_licence_pdfcraft">PdfCraft (engine and app)</string>
     <string name="root_licence_pdfcraft_terms">MIT OR Apache-2.0, by storytold, the ArtCraft Team and contributors</string>
     <string name="root_licence_lucide">Lucide icons</string>
-    <string name="root_licence_inter">Inter typeface</string>
     <string name="root_licence_dancing_script">Dancing Script typeface (typed signatures)</string>
     <string name="root_licence_foxit">Foxit fonts (for PDFs that don\'t embed their standard fonts)</string>
     <string name="root_licence_cmaps">Adobe CMap resources (for reading Chinese, Japanese and Korean PDFs)</string>
@@ -388,8 +354,6 @@
     <!-- The viewer: bars, page overlays, Read aloud, voice comments, Organize pages -->
     <!-- ================================================================== -->
     <!-- Viewer: the bottom quick toolbar's shortcut chips -->
-    <string name="viewer_star_file">Star this file</string>
-    <string name="viewer_unstar_file">Unstar this file</string>
 
     <!-- Viewer: the top bar and its Undo menu -->
     <!-- Translator note: what Undo and Redo would take back while drawing; shown after "Undo" / "Redo" (viewer_undo_named). -->
@@ -411,8 +375,6 @@
     <string name="viewer_find_next">Next</string>
 
     <!-- Viewer: the quick toolbar's handle and the tool sub-toolbars -->
-    <string name="viewer_show_shortcuts">Show shortcuts</string>
-    <string name="viewer_hide_shortcuts">Hide shortcuts</string>
     <!-- Translator note: accessibility label of the button that picks a tool's colour. -->
     <string name="viewer_colour">Colour</string>
 
@@ -1176,28 +1138,9 @@
     <string name="service_action_stop">Stop</string>
 
     <!-- Artefact's own screens (the desk, files, tools, settings) -->
-    <string name="desk_greeting_morning">Good morning,</string>
-    <string name="desk_greeting_afternoon">Good afternoon,</string>
-    <string name="desk_greeting_evening">Good evening,</string>
-    <string name="desk_greeting_night">Still up?</string>
-    <string name="desk_tagline_reading">pick up where you left off.</string>
-    <string name="desk_tagline_empty">let\'s open something.</string>
-    <string name="desk_continue">Continue</string>
     <string name="desk_page_of">Page %1$d of %2$d</string>
-    <string name="desk_pages">%1$d pages</string>
-    <string name="desk_make_something">Make something</string>
-    <string name="desk_on_your_desk">On your desk</string>
-    <string name="desk_see_all">See all</string>
-    <string name="desk_empty_title">Your desk is clear</string>
-    <string name="desk_empty_body">Open a PDF and it lands here, ready to pick up later.</string>
-    <string name="desk_all_tools">All tools</string>
     <string name="desk_photos_to_pdf">Photos to PDF</string>
-    <string name="dock_desk">Desk</string>
-    <string name="dock_files">Files</string>
-    <string name="dock_tools">Tools</string>
     <string name="dock_create">Create</string>
-    <string name="create_title">Start something</string>
-    <string name="create_subtitle">Open, scan or build a PDF.</string>
     <string name="files_today">Today</string>
     <string name="files_this_week">This week</string>
     <string name="files_earlier">Earlier</string>
@@ -1231,7 +1174,6 @@
     <string name="settings_about">About</string>
     <string name="settings_credits_title">Built with friends</string>
     <string name="settings_credits_body">Artefact runs on PdfCraft\'s Rust engine by storytold and PdfCraft for Android by the ArtCraft Team. Its glass is Kyant0\'s backdrop library.</string>
-    <string name="settings_version">Version %1$s</string>
 
     <!-- The desk (home): chips, titles, cards -->
     <string name="desk_filter_all">All</string>

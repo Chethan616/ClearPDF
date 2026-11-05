@@ -59,36 +59,25 @@
     <!-- Home, Files, Tools and Search, the tool screens, settings and shared dialogs -->
     <!-- ================================================================== -->
     <!-- Home: the bottom bar's tabs (also the Files and Tools screens' titles) -->
-    <string name="home_tab_home">Startseite</string>
     <string name="home_tab_files">Dateien</string>
     <string name="home_tab_tools">Tools</string>
-    <string name="home_tab_search">Suche</string>
 
     <!-- Home: header, welcome and the file lists -->
     <string name="home_settings">Einstellungen</string>
-    <string name="home_welcome">Willkommen</string>
-    <string name="home_welcome_back">Willkommen zurück</string>
-    <string name="home_start_with_tool">Mit einem Tool beginnen</string>
     <!-- Tabs over Home's file list -->
     <string name="home_list_recent">Zuletzt verwendet</string>
     <string name="home_list_starred">Favoriten</string>
     <string name="home_list_on_device">Auf dem Gerät</string>
-    <string name="home_list_view">Listenansicht</string>
-    <string name="home_grid_view">Rasteransicht</string>
     <string name="home_clear_recent">Zuletzt verwendete löschen</string>
     <string name="home_sort_by_name">Nach Namen sortieren</string>
     <string name="home_sort_by_date">Nach Datum sortieren</string>
-    <string name="home_other_files">Weitere Dateien auf diesem Smartphone</string>
     <string name="home_open_file">Datei öffnen</string>
     <string name="home_new_scan">Neuer Scan</string>
 
     <!-- Home: empty lists -->
     <string name="home_no_recent_title">Keine zuletzt verwendeten Dateien</string>
     <string name="home_no_recent_body">Dateien, die du öffnest, werden hier angezeigt.</string>
-    <string name="home_no_starred_title">Keine Favoriten</string>
-    <string name="home_no_starred_body">Füge eine Datei über ihr Menü zu den Favoriten hinzu, damit du sie hier schnell findest.</string>
     <string name="home_device_files_title">Dateien auf deinem Gerät</string>
-    <string name="home_device_files_body">Wähle Ordner aus, deren PDFs angezeigt werden sollen, z. B. „Dokumente“ oder einen Ordner im Ordner „Download“. Dateien, die du von einem beliebigen Ort öffnest, bleiben unter „Zuletzt verwendet“.</string>
     <!-- On this device, before any folder is added: the longer explanation -->
     <string name="home_device_files_body_long">Wähle Ordner aus, deren PDFs angezeigt werden sollen, z. B. „Dokumente“ oder einen Ordner im Ordner „Download“ (Android erlaubt Apps nicht, den gesamten Ordner „Download“ aufzulisten). Artefact sieht nur die Ordner, die du auswählst. Dateien, die du von einem beliebigen Ort öffnest, bleiben unter „Zuletzt verwendet“.</string>
     <string name="home_no_pdfs_title">Keine PDFs in deinen Ordnern</string>
@@ -100,7 +89,6 @@
     <!-- Accessibility label of the star icon on a starred file -->
     <string name="home_starred_description">Zu Favoriten hinzugefügt</string>
     <!-- Accessibility label of the location icon; %1$s is the folder the file is in -->
-    <string name="home_stored_on">Gespeichert unter %1$s</string>
     <!-- Accessibility label of a file's menu button; %1$s is the file name -->
     <string name="home_more_options_for">Weitere Optionen für %1$s</string>
 
@@ -175,62 +163,41 @@
 
     <!-- Search tab -->
     <string name="home_search_your_files">Dateien durchsuchen</string>
-    <string name="home_search_empty_body">PDFs auf diesem Smartphone anhand ihres Namens finden.</string>
-    <string name="home_recent_searches">Letzte Suchanfragen</string>
     <!-- Accessibility label; %1$s is a past search -->
-    <string name="home_remove_search">%1$s entfernen</string>
     <plurals name="home_search_results">
         <item quantity="one">%d Ergebnis auf diesem Gerät</item>
         <item quantity="other">%d Ergebnisse auf diesem Gerät</item>
     </plurals>
     <!-- Search result order -->
-    <string name="home_sort_relevant">Relevanteste</string>
-    <string name="home_sort_name_az">Name A→Z</string>
-    <string name="home_sort_name_za">Name Z→A</string>
-    <string name="home_sort_oldest">Am längsten nicht geändert</string>
-    <string name="home_sort_newest">Zuletzt geändert</string>
     <string name="home_no_results">Keine Ergebnisse</string>
     <string name="home_no_results_body">Überprüfe die Schreibweise oder versuche einen kürzeren Namen.</string>
 
     <!-- Settings -->
-    <string name="home_about_app">Über Artefact</string>
-    <string name="home_preferences">Einstellungen</string>
-    <string name="home_help_support">Hilfe und Support</string>
-    <string name="home_help">Hilfe</string>
     <string name="home_report_problem">Problem melden oder Funktion vorschlagen</string>
     <string name="home_leaving_title">Artefact verlassen</string>
     <string name="home_continue">Weiter</string>
     <string name="home_leaving_body">Dadurch wird eine Webseite in deinem Browser geöffnet.</string>
 
     <!-- Settings: Preferences -->
-    <string name="home_section_notifications">Benachrichtigungen</string>
-    <string name="home_no_notifications">Artefact sendet keine Benachrichtigungen.</string>
-    <string name="home_section_suggestions">Automatische Vorschläge</string>
     <string name="home_offer_suggestions">Beim Ausfüllen von Formularen zuvor verwendete Wörter vorschlagen</string>
     <string name="home_clear_suggestions">Vorschläge löschen</string>
     <!-- Section heading and dialog title (also asked the first time a comment is made) -->
     <string name="home_author_title">Dein Name bei Kommentaren</string>
     <string name="home_author_hint">Tippe hier, um deinen Namen einzugeben, der bei deinen Kommentaren angezeigt wird.</string>
-    <string name="home_section_screen">Bildschirmeinstellung</string>
     <string name="home_keep_screen_on">Bildschirm eingeschaltet lassen</string>
     <string name="home_keep_screen_on_body">Der Bildschirm bleibt beim Lesen bis zu 30 Minuten ohne Berührung eingeschaltet.</string>
-    <string name="home_section_keyboard">Tastatur</string>
     <string name="home_keyboard_shortcuts">Tastenkombinationen</string>
     <!-- N, P, Page Down, Page Up, Ctrl+P, Ctrl, + and − are keys on the keyboard -->
     <string name="home_keyboard_shortcuts_body">Bei angeschlossener Tastatur: N oder Bild-ab für die nächste Seite, P oder Bild-auf für die vorherige Seite, Pfeiltasten zum Scrollen, Strg+P zum Drucken und Strg zusammen mit + oder − zum Zoomen.</string>
-    <string name="home_section_extra">Zusatzfunktionen</string>
-    <string name="home_extra_body">Optionale Änderungen am Aussehen und Verhalten von Artefact.</string>
     <string name="home_status_bar_in_documents">Statusleiste in Dokumenten anzeigen</string>
     <string name="home_status_bar_in_documents_body">Die Statusleiste wird zusammen mit den Symbolleisten angezeigt. Wenn du sie durch Tippen ausblendest, nutzt die Seite den gesamten Bildschirm, auch den Bereich um die Kamera.</string>
     <string name="home_search_count">Anzahl der Suchergebnisse anzeigen</string>
     <string name="home_search_count_body">Bei der Dokumentsuche wird angezeigt, welches Ergebnis du gerade ansiehst und wie viele es insgesamt gibt, z. B. 3 von 12.</string>
 
     <!-- Settings: About Artefact -->
-    <string name="home_section_about">Über</string>
     <!-- %1$s is the app's version, %2$s the engine's version -->
     <string name="home_version">Version %1$s (Engine %2$s)</string>
     <string name="home_version_copied">Versionsnummer kopiert</string>
-    <string name="home_section_legal">Rechtliches</string>
     <!-- Also the title of the licences screen -->
     <string name="home_licences">Open-Source-Lizenzen</string>
     <string name="home_source_code">Quellcode</string>
@@ -360,7 +327,6 @@
     <string name="root_licence_pdfcraft">PdfCraft (Engine und App)</string>
     <string name="root_licence_pdfcraft_terms">MIT OR Apache-2.0, von storytold und Mitwirkenden</string>
     <string name="root_licence_lucide">Lucide-Symbole</string>
-    <string name="root_licence_inter">Schriftart Inter</string>
     <string name="root_licence_dancing_script">Schriftart Dancing Script (getippte Unterschriften)</string>
     <string name="root_licence_foxit">Foxit-Schriftarten (für PDFs, die ihre Standardschriftarten nicht einbetten)</string>
     <string name="root_licence_cmaps">Adobe-CMap-Ressourcen (zum Lesen chinesischer, japanischer und koreanischer PDFs)</string>
@@ -379,8 +345,6 @@
     <!-- The viewer: bars, page overlays, Read aloud, voice comments, Organize pages -->
     <!-- ================================================================== -->
     <!-- Viewer: the bottom quick toolbar's shortcut chips -->
-    <string name="viewer_star_file">Datei zu Favoriten hinzufügen</string>
-    <string name="viewer_unstar_file">Datei aus Favoriten entfernen</string>
 
     <!-- Viewer: the top bar and its Undo menu -->
     <!-- Translator note: what Undo and Redo would take back while drawing; shown after "Undo" / "Redo" (viewer_undo_named). -->
@@ -402,8 +366,6 @@
     <string name="viewer_find_next">Weiter</string>
 
     <!-- Viewer: the quick toolbar's handle and the tool sub-toolbars -->
-    <string name="viewer_show_shortcuts">Kurzbefehle anzeigen</string>
-    <string name="viewer_hide_shortcuts">Kurzbefehle ausblenden</string>
     <!-- Translator note: accessibility label of the button that picks a tool's colour. -->
     <string name="viewer_colour">Farbe</string>
 
@@ -1163,4 +1125,140 @@
     <string name="service_action_forward">15 Sekunden vor</string>
     <!-- Translator note: notification button that stops reading aloud -->
     <string name="service_action_stop">Stopp</string>
+    <string name="home_legal_notice">Artefact basiert auf der Rust-Engine von PdfCraft von storytold und auf PdfCraft für Android vom ArtCraft-Team. MIT OR Apache-2.0. Artefact steht in keiner Verbindung zu Adobe; Acrobat ist eine Marke von Adobe Inc.</string>
+    <string name="sign_read_only_document">Dieses Dokument kann nicht geändert und daher nicht signiert werden.</string>
+    <string name="desk_page_of">Seite %1$d von %2$d</string>
+    <string name="desk_photos_to_pdf">Fotos zu PDF</string>
+    <string name="dock_create">Erstellen</string>
+    <string name="files_today">Heute</string>
+    <string name="files_this_week">Diese Woche</string>
+    <string name="files_earlier">Früher</string>
+    <string name="files_places">Weitere Orte</string>
+    <string name="files_starred_empty_title">Noch nichts markiert</string>
+    <string name="files_starred_empty_body">Markiere eine Datei über ihr Menü mit einem Stern, dann wartet sie hier auf dich.</string>
+    <plurals name="files_count">
+        <item quantity="one">%1$d Datei</item>
+        <item quantity="other">%1$d Dateien</item>
+    </plurals>
+    <string name="tools_subtitle">Alles, was man mit einem PDF machen kann, an einem Ort.</string>
+    <string name="tools_featured">Hier anfangen</string>
+    <string name="settings_look">Aussehen &amp; Gefühl</string>
+    <string name="settings_theme">Design</string>
+    <string name="settings_theme_system">Auto</string>
+    <string name="settings_theme_light">Hell</string>
+    <string name="settings_theme_dark">Dunkel</string>
+    <string name="settings_glass">Glas</string>
+    <string name="settings_glass_clear">Klar</string>
+    <string name="settings_glass_frosted">Milchig</string>
+    <string name="settings_glass_crystal">Kristall</string>
+    <string name="settings_glass_lite">Leicht</string>
+    <string name="settings_motion">Bewegung</string>
+    <string name="settings_motion_calm">Ruhig</string>
+    <string name="settings_motion_normal">Normal</string>
+    <string name="settings_motion_bouncy">Federnd</string>
+    <string name="settings_motion_jelly">Wackelpudding</string>
+    <string name="settings_haptics">Haptisches Feedback</string>
+    <string name="settings_reading">Lesen</string>
+    <string name="settings_forms">Formulare</string>
+    <string name="settings_about">Über</string>
+    <string name="settings_credits_title">Mit Freunden gebaut</string>
+    <string name="settings_credits_body">Artefact läuft auf der Rust-Engine von PdfCraft von storytold und auf PdfCraft für Android vom ArtCraft-Team. Das Glas stammt aus Kyant0s Backdrop-Bibliothek.</string>
+    <string name="desk_filter_all">Alle</string>
+    <string name="desk_filter_notes">Notizen</string>
+    <string name="desk_filter_todo">To-do</string>
+    <string name="desk_filter_pdfs">PDFs</string>
+    <string name="desk_filter_images">Bilder</string>
+    <string name="desk_filter_audio">Audio</string>
+    <string name="desk_title_all">Deine Artefakte</string>
+    <string name="desk_title_notes">Deine Notizen</string>
+    <string name="desk_title_todo">To-do-Listen</string>
+    <string name="desk_title_pdfs">Deine PDFs</string>
+    <string name="desk_title_images">Deine Bilder</string>
+    <string name="desk_title_audio">Sprachnotizen</string>
+    <string name="desk_word_files">Dateien</string>
+    <string name="desk_word_pdf">Pdf</string>
+    <string name="desk_recent">Zuletzt</string>
+    <string name="desk_chip_pdfs">PDFs</string>
+    <string name="empty_notes_title">Ein aufgeräumter Tisch</string>
+    <string name="empty_notes_body">Notiere einen Gedanken, einen Plan, einfach alles.</string>
+    <string name="empty_lists_title">Noch keine Listen</string>
+    <string name="empty_lists_body">Einkaufen, Packen, die Aufgaben für heute: direkt auf der Karte abhaken.</string>
+    <string name="empty_pdfs_title">Noch keine PDFs</string>
+    <string name="empty_pdfs_body">Öffne eines, scanne eine Seite mit der Kamera oder mach aus Fotos ein PDF.</string>
+    <string name="empty_images_title">Noch keine Bilder</string>
+    <string name="empty_images_body">Füge einer Notiz Fotos hinzu, und sie sammeln sich hier.</string>
+    <string name="empty_audio_title">Sag etwas</string>
+    <string name="empty_audio_body">Tippe auf das Mikrofon und sprich. Deine Sprachnotizen bleiben auf diesem Telefon.</string>
+    <string name="create_note">Neue Notiz</string>
+    <string name="create_list">To-do-Liste</string>
+    <string name="create_photo_note">Fotonotiz</string>
+    <string name="create_voice">Sprachnotiz aufnehmen</string>
+    <string name="voice_saved">Sprachnotiz gespeichert</string>
+    <string name="voice_too_short">Zu kurz zum Behalten. Halte etwas länger durch.</string>
+    <string name="notes_untitled_note">Notiz ohne Titel</string>
+    <string name="notes_untitled_list">To-do</string>
+    <string name="notes_list_empty">Noch nichts drauf</string>
+    <plurals name="notes_more_items">
+        <item quantity="one">%1$d weitere</item>
+        <item quantity="other">%1$d weitere</item>
+    </plurals>
+    <string name="notes_pin">Oben anheften</string>
+    <string name="notes_unpin">Lösen</string>
+    <string name="notes_open">Öffnen</string>
+    <string name="notes_title_hint">Titel</string>
+    <string name="notes_list_title_hint">Name der Liste</string>
+    <string name="notes_body_hint">Hier tippen, um weiterzuschreiben…</string>
+    <string name="notes_add_item">Eintrag hinzufügen</string>
+    <string name="notes_clear_done">Erledigte entfernen</string>
+    <string name="notes_bold">Fett</string>
+    <string name="notes_heading">Überschrift</string>
+    <string name="notes_take_photo">Foto aufnehmen</string>
+    <string name="notes_add_photo">Foto hinzufügen</string>
+    <string name="notes_remove_picture">Bild entfernen</string>
+    <string name="seed_list_title">Einkaufsliste</string>
+    <string name="seed_list_1">Gemüse</string>
+    <string name="seed_list_2">Obst</string>
+    <string name="seed_list_3">Lebensmittel</string>
+    <string name="seed_note_title">Gedanke des Tages</string>
+    <string name="seed_note_body">Jeder Tag ist ein Neuanfang. Begegne ihm mit **Hoffnung und Mut**, und lass dich von jedem Moment inspirieren, zu wachsen und **heller** zu strahlen als zuvor.</string>
+    <string name="welcome_skip">Überspringen</string>
+    <string name="welcome_next">Weiter</string>
+    <string name="welcome_start">Los geht\'s</string>
+    <string name="welcome_hello_eyebrow">Willkommen bei</string>
+    <string name="welcome_hello_title">Hallo,</string>
+    <string name="welcome_card_highlights">Highlights</string>
+    <string name="welcome_card_overview">Tagesübersicht</string>
+    <string name="welcome_note_body">Jeder Tag ist ein Neuanfang. Begegne ihm mit Hoffnung und Mut.</string>
+    <string name="welcome_desk_eyebrow">Ein Schreibtisch</string>
+    <string name="welcome_desk_title">Alles, was du machst,</string>
+    <string name="welcome_desk_accent">zusammen.</string>
+    <string name="welcome_desk_body">PDFs, Notizen, To-do-Listen, Fotos und Sprachnotizen liegen nebeneinander, jede auf ihrer eigenen Karte.</string>
+    <string name="welcome_tools_eyebrow">Echte PDF-Werkzeuge</string>
+    <string name="welcome_tools_title">Lesen, signieren und</string>
+    <string name="welcome_tools_accent">ausfüllen.</string>
+    <string name="welcome_tools_body">Markieren, kommentieren, signieren, Text bearbeiten, Formulare ausfüllen, Papier scannen und seinen Text erkennen, alles auf deinem Telefon.</string>
+    <string name="welcome_promise_eyebrow">Unser Versprechen</string>
+    <string name="welcome_promise_title">Deins, und</string>
+    <string name="welcome_promise_accent">nur deins.</string>
+    <string name="welcome_promise_body">Artefact ist kostenlos und quelloffen, für alle.</string>
+    <string name="welcome_promise_1">Niemals Werbung</string>
+    <string name="welcome_promise_2">Kein Konto nötig</string>
+    <string name="welcome_promise_3">Deine Dateien verlassen nie dein Telefon</string>
+    <string name="settings_show_welcome">Willkommen erneut zeigen</string>
+    <string name="preview_title">Schnellansicht</string>
+    <string name="preview_close">Schließen</string>
+    <string name="preview_expand">In Artefact öffnen</string>
+    <string name="preview_open_in_app">In Artefact öffnen</string>
+    <string name="preview_open">Öffnen</string>
+    <string name="preview_save_downloads">In Downloads speichern</string>
+    <string name="preview_saved_downloads">In Downloads gespeichert</string>
+    <string name="preview_locked_body">Dieses PDF ist gesperrt. Gib sein Passwort ein, um hineinzuschauen.</string>
+    <string name="preview_unlock">Entsperren</string>
+    <string name="preview_failed_title">Das lässt sich nicht öffnen</string>
+    <plurals name="preview_pages">
+        <item quantity="one">%1$d Seite</item>
+        <item quantity="other">%1$d Seiten</item>
+    </plurals>
+    <string name="settings_quick_preview">Schnellansicht</string>
+    <string name="settings_quick_preview_body">Dateien, die andere Apps öffnen, erscheinen zuerst in einer schwebenden Karte darüber</string>
 </resources>

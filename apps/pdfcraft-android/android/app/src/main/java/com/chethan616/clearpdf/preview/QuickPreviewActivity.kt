@@ -141,20 +141,22 @@ class QuickPreviewActivity : ComponentActivity() {
 
     private fun unlock(password: String) = load(password)
 
-    /** Hand the document to the full viewer, then step aside. */
+    /**
+     * Hand the document to the full viewer, then step aside. The viewer gets the original address
+     * (so it can save back where the caller allows it) and the copy made here: Android may refuse
+     * to pass the caller's one-visit grant on, and then the copy is what opens.
+     */
     private fun expand() {
         val u = uri ?: return finish()
-        val open = Intent(this, MainActivity::class.java)
+        val base = Intent(this, MainActivity::class.java)
             .setAction(Intent.ACTION_VIEW)
-            .setDataAndType(u, mime ?: "application/pdf")
             .putExtra(MainActivity.EXTRA_FROM_PREVIEW, true)
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        try {
-            startActivity(open)
-        } catch (e: SecurityException) {
-            // the caller's grant can't be passed on: the full viewer opens the copy made here
-            copy?.let { startActivity(open.setData(Uri.fromFile(it))) }
-        }
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        copy?.let { base.putExtra(MainActivity.EXTRA_LOCAL_COPY, it.absolutePath) }
+        val withSource = Intent(base).setDataAndType(u, mime ?: "application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        // the card has already grown to fill the screen: the viewer just fades in over it
+        val fade = android.app.ActivityOptions.makeCustomAnimation(this, android.R.anim.fade_in, android.R.anim.fade_out).toBundle()
+        if (runCatching { startActivity(withSource, fade) }.isFailure) runCatching { startActivity(base, fade) }
         finishQuietly()
     }
 

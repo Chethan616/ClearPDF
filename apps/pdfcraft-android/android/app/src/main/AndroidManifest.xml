@@ -49,8 +49,10 @@
 
         <!--
           Quick Preview: "Open with Artefact" from a chat, a mail or a file manager shows the file in
-          a floating card over that app. Translucent and in the caller's task (standard launch mode),
-          so the caller stays drawn behind it and Back or Close lands exactly where the user was.
+          a floating card over that app. Translucent and in the caller's task (standard launch mode);
+          with no task affinity of its own, a caller that asks for a new task gets a fresh one rather
+          than the app's main task, so either way the caller stays drawn behind it and Back or Close
+          lands exactly where the user was.
           More document types join the filter as the engine learns them.
         -->
         <activity
@@ -60,6 +62,7 @@
             android:exported="true"
             android:label="@string/app_name"
             android:launchMode="standard"
+            android:taskAffinity=""
             android:theme="@style/Theme.Artefact.Preview"
             android:windowSoftInputMode="adjustResize">
             <intent-filter android:label="@string/app_name">

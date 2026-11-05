@@ -219,7 +219,7 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
 @Composable
 private fun Viewer(vm: AppViewModel, doc: OpenDocument) {
     val fullWidth = vm.statusBarInDocuments
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(Modifier.fillMaxSize().background(pdfColors.desk)) {
         Box(
             Modifier.fillMaxSize().windowInsetsPadding(
                 if (fullWidth) WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal) else WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),

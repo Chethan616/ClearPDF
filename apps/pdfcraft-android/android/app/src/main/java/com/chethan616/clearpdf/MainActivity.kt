@@ -37,6 +37,9 @@ class MainActivity : ComponentActivity() {
     companion object {
         /** Set by Quick Preview's Expand: the document came from another app through the preview. */
         const val EXTRA_FROM_PREVIEW = "com.chethan616.clearpdf.FROM_PREVIEW"
+
+        /** With [EXTRA_FROM_PREVIEW]: the copy Quick Preview made, opened when the original can't be read. */
+        const val EXTRA_LOCAL_COPY = "com.chethan616.clearpdf.LOCAL_COPY"
     }
 
     private val vm: AppViewModel by viewModels()
@@ -179,7 +182,12 @@ class MainActivity : ComponentActivity() {
             Intent.ACTION_SEND_MULTIPLE -> IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.firstOrNull()
             else -> null
         }
-        uri?.let { vm.open(it, fromOtherApp = true) }
+        // from Quick Preview: its own copy when Android didn't pass the original on
+        val local = intent?.getStringExtra(EXTRA_LOCAL_COPY)?.let(::File)?.takeIf { it.isFile && it.canonicalPath.startsWith(filesDir.canonicalPath) }
+        when {
+            uri != null -> vm.open(uri, fromOtherApp = true)
+            local != null -> vm.open(Uri.fromFile(local), fromOtherApp = true)
+        }
     }
 
     /** Hand [file] to Android's print framework. */

@@ -344,7 +344,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         Column(Modifier.fillMaxWidth().align(Alignment.TopCenter)) {
             Box(
                 Modifier.fillMaxWidth().height(with(density) { statusPx.toDp() })
-                    .background(if (!statusBar) Color.Black else if (ctl.barsVisible) c.surface else Color.Transparent),
+                    .background(if (!statusBar) c.desk else if (ctl.barsVisible) c.surface else Color.Transparent),
             )
             AnimatedVisibility(
                 ctl.barsVisible,

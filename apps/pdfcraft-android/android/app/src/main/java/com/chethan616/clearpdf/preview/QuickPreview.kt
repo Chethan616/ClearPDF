@@ -169,7 +169,8 @@ private fun Preview(
         if (leaving) return
         leaving = true
         scope.launch {
-            grow.animateTo(1f, GlassMotion.morph())
+            // layout grows, so no bounce (a spring past 1 would make the margins negative)
+            grow.animateTo(1f, GlassMotion.settle())
             onExpand()
         }
     }
@@ -188,26 +189,26 @@ private fun Preview(
         )
         val margin = with(density) { 10.dp.toPx() }
         val cardH = fullH * CardHeight - navPx
+        val g = grow.value.coerceIn(0f, 1f)
         Box(
             Modifier
                 .align(Alignment.BottomCenter)
                 .graphicsLayer {
-                    val g = grow.value
                     val p = appear.value
                     // rising in, following a drag, growing to the whole screen for Expand
-                    translationY = (1f - p) * cardH * 0.9f + drag.coerceAtLeast(0f) * (1f - g) - g * navPx * 0f
+                    translationY = (1f - p) * cardH * 0.9f + drag.coerceAtLeast(0f) * (1f - g)
                     val pull = (-drag).coerceAtLeast(0f) / fullH
                     scaleX = lerp(0.94f, 1f, p.coerceIn(0f, 1.2f)) + pull * 0.06f
                     scaleY = scaleX
                 }
                 .padding(
-                    start = with(density) { lerp(margin, 0f, grow.value).toDp() },
-                    end = with(density) { lerp(margin, 0f, grow.value).toDp() },
-                    bottom = with(density) { lerp(margin + navPx, 0f, grow.value).toDp() },
+                    start = with(density) { lerp(margin, 0f, g).toDp() },
+                    end = with(density) { lerp(margin, 0f, g).toDp() },
+                    bottom = with(density) { lerp(margin + navPx, 0f, g).toDp() },
                 )
                 .fillMaxWidth()
-                .height(with(density) { lerp(cardH, fullH, grow.value).toDp() })
-                .clip(RoundedRectangle(lerp(34f, 0f, grow.value).dp))
+                .height(with(density) { lerp(cardH, fullH, g).toDp() })
+                .clip(RoundedRectangle(lerp(34f, 0f, g).dp))
                 .background(if (c.dark) Color(0xFF111A1F) else Color(0xFFE6ECF4))
                 .clickable(remember { MutableInteractionSource() }, null) {},
         ) {
@@ -229,7 +230,7 @@ private fun Preview(
                 },
             ) {
                 Header(
-                    state, Modifier.align(Alignment.TopCenter).padding(top = with(density) { lerp(0f, statusPx, grow.value).toDp() }),
+                    state, Modifier.align(Alignment.TopCenter).padding(top = with(density) { lerp(0f, statusPx, g).toDp() }),
                     onDrag = { d -> drag += d },
                     onDragEnd = {
                         val threshold = with(density) { 110.dp.toPx() }
