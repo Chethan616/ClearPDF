@@ -84,8 +84,8 @@ import com.chethan616.clearpdf.ui.theme.clear
 import com.chethan616.clearpdf.ui.viewer.CanvasLook
 import com.chethan616.clearpdf.ui.viewer.PageCanvas
 import com.chethan616.clearpdf.ui.viewer.formatSize
-import com.kyant.shapes.Capsule
-import com.kyant.shapes.RoundedRectangle
+import com.chethan616.clearpdf.ui.glass.Capsule
+import com.chethan616.clearpdf.ui.glass.RoundedRectangle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -112,8 +112,15 @@ internal fun QuickPreviewScreen(
     setBlur: (Int) -> Unit,
 ) {
     val overlays = remember { GlassOverlayHost() }
-    ClearTheme(ThemeChoice.System) {
-        PdfcraftTheme(ThemeChoice.System) {
+    // the theme chosen in the app's Settings (the same "app" preference the app reads), not the system's
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val theme = remember {
+        runCatching {
+            ThemeChoice.valueOf(context.getSharedPreferences("app", android.content.Context.MODE_PRIVATE).getString("theme", "System") ?: "System")
+        }.getOrDefault(ThemeChoice.System)
+    }
+    ClearTheme(theme) {
+        PdfcraftTheme(theme) {
             ProvideGlassHaptics {
                 CompositionLocalProvider(LocalGlassOverlayHost provides overlays) {
                     Preview(state, onClose, onExpand, onShare, onOpenWith, onSaveCopy, onPassword, setBlur)

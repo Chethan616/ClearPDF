@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Rect
@@ -92,8 +93,8 @@ import com.chethan616.clearpdf.ui.home.NoteImage
 import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
-import com.kyant.shapes.Capsule
-import com.kyant.shapes.RoundedRectangle
+import com.chethan616.clearpdf.ui.glass.Capsule
+import com.chethan616.clearpdf.ui.glass.RoundedRectangle
 import java.text.DateFormat
 import java.util.Date
 
@@ -139,14 +140,12 @@ fun NoteEditor(vm: AppViewModel, id: String) {
                 Column {
                     Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
                     Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        com.chethan616.clearpdf.ui.glass.HeaderGlassButton(onClick = { vm.closeNote() }, label = stringResource(R.string.common_back)) {
-                            GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(24.dp))
-                        }
+                        com.chethan616.clearpdf.ui.glass.GlassBackButton({ vm.closeNote() })
                         Spacer(Modifier.weight(1f))
                         com.chethan616.clearpdf.ui.glass.HeaderGlassButton(
                             onClick = { menu = true }, label = stringResource(R.string.common_more_options),
                             modifier = Modifier.onGloballyPositioned { anchor = it.boundsInWindow() },
-                        ) { GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(24.dp)) }
+                        ) { GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(20.dp)) }
                     }
                 }
             }
@@ -260,12 +259,16 @@ fun NoteEditor(vm: AppViewModel, id: String) {
 
         // the toolbar, above the keyboard
         // opened from the desk, this is the dock's capsule grown into place: unseen until it has
-        val iconsIn by androidx.compose.animation.core.animateFloatAsState(if (vm.noteBarHidden) 0f else 1f, com.chethan616.clearpdf.ui.glass.Fluid.fade(), label = "bar")
+        val iconsIn by androidx.compose.animation.core.animateFloatAsState(if (vm.noteBarHidden) 0f else 1f, com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "bar")
         Row(
             Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding().padding(bottom = 14.dp)
-                .onGloballyPositioned { vm.noteBarSize = it.size }
+                .onGloballyPositioned { vm.noteBarSize = it.size; vm.noteBarBottom = it.boundsInWindow().bottom }
                 .graphicsLayer { alpha = if (vm.noteBarHidden) 0f else 1f }
-                .glass(Capsule, c.capsule, blur = 10.dp).padding(6.dp)
+                // the very glass of the desk's dock it grew out of: same wash, frost, lens and shade
+                .glass(Capsule, c.glass, blur = 3.dp, lensHeight = 14.dp, lensAmount = 26.dp)
+                .graphicsLayer { clip = true; shape = Capsule }
+                .drawBehind { drawRect(c.capsule, alpha = 0.5f) }
+                .padding(6.dp)
                 .graphicsLayer { alpha = iconsIn },
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,

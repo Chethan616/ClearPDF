@@ -50,6 +50,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import com.chethan616.clearpdf.ui.glass.Fluid
@@ -111,7 +114,7 @@ import com.chethan616.clearpdf.ui.viewer.IdPasswordDialog
 import com.chethan616.clearpdf.ui.viewer.SignFieldChoiceDialog
 import com.chethan616.clearpdf.ui.viewer.SignaturePadScreen
 import com.chethan616.clearpdf.ui.viewer.ViewerScreen
-import com.kyant.shapes.RoundedRectangle
+import com.chethan616.clearpdf.ui.glass.RoundedRectangle
 import kotlinx.coroutines.delay
 
 /** The whole app: the glass stage with the tabs (or a document, or Settings), the dock, and every dialog. */
@@ -231,7 +234,16 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
     )
 
     if (doc == null) vm.fileSheet?.let { (r, recent) -> FileActionsSheet(vm, r, recent) { vm.fileSheet = null } }
-    if (vm.opening) Spinner()
+    // the loader only for an open that takes a while: a quick one shouldn't flash a spinner first
+    var slowOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(vm.opening) {
+        slowOpen = false
+        if (vm.opening) {
+            kotlinx.coroutines.delay(350)
+            slowOpen = true
+        }
+    }
+    if (vm.opening && slowOpen) Spinner()
     Dialogs(vm)
 }
 
@@ -244,7 +256,7 @@ private fun Viewer(vm: AppViewModel, doc: OpenDocument) {
             Modifier.fillMaxSize().windowInsetsPadding(
                 if (fullWidth) WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal) else WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
             ).then(if (fullWidth) Modifier else Modifier.background(pdfColors.surface)),
-        ) { ViewerScreen(vm, doc) }
+        ) { com.chethan616.clearpdf.ui.glass.ProvideScreenInk { ViewerScreen(vm, doc) } }
     }
 }
 
@@ -334,6 +346,12 @@ private val BlockTouches = Modifier.pointerInput(Unit) {
     }
 }
 
+/** Where the last touch went down, in window pixels (MainActivity records it). */
+object LastTouch {
+    @JvmField var x = Float.NaN
+    @JvmField var y = Float.NaN
+}
+
 /** How far a document has risen over the desk: 0 gone, 1 covering it. */
 @androidx.compose.runtime.Stable
 private class RevealState {
@@ -352,8 +370,17 @@ private fun <T : Any> Reveal(value: T?, state: RevealState, content: @Composable
     val last = remember { arrayOfNulls<Any>(1) }
     if (value != null) last[0] = value
     val p = state.progress
+    // the spot it grows out of: where the finger was when it was opened, kept for the way back
+    val from = remember { floatArrayOf(Float.NaN, Float.NaN) }
     LaunchedEffect(value != null) {
-        if (value != null) p.animateTo(1f, Fluid.rise()) else p.animateTo(0f, Fluid.dismiss())
+        if (value != null) {
+            from[0] = LastTouch.x
+            from[1] = LastTouch.y
+            // a soft spring that never overshoots: the page lands, it doesn't bounce
+            p.animateTo(1f, androidx.compose.animation.core.spring(1f, com.chethan616.clearpdf.ui.glass.MotionSettings.stiffness(260f), 0.001f))
+        } else {
+            p.animateTo(0f, Fluid.dismiss())
+        }
         if (value == null) last[0] = null
     }
     // read through a derived state: the content recomposes when it's gone, not on every frame
@@ -361,13 +388,26 @@ private fun <T : Any> Reveal(value: T?, state: RevealState, content: @Composable
     @Suppress("UNCHECKED_CAST")
     val shown = last[0] as T? ?: return
     if (gone && value == null) return
+    val origin = remember { arrayOf(Offset.Zero) }
     Box(
-        Modifier.fillMaxSize().graphicsLayer {
-            val v = p.value
-            translationY = (1f - v) * size.height * 0.07f
-            alpha = (v * 1.8f).coerceIn(0f, 1f)
-            compositingStrategy = CompositingStrategy.ModulateAlpha
-        },
+        Modifier.fillMaxSize()
+            .onGloballyPositioned { origin[0] = it.positionInWindow() }
+            .graphicsLayer {
+                val v = p.value.coerceIn(0f, 1f)
+                // zooms out of the touch, iOS's way of opening from what was tapped; with no touch
+                // (opened from elsewhere) from the middle
+                val fx = if (from[0].isNaN() || size.width <= 0f) 0.5f else ((from[0] - origin[0].x) / size.width).coerceIn(0f, 1f)
+                val fy = if (from[1].isNaN() || size.height <= 0f) 0.5f else ((from[1] - origin[0].y) / size.height).coerceIn(0f, 1f)
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(fx, fy)
+                val s = 0.3f + 0.7f * v
+                scaleX = s
+                scaleY = s
+                alpha = (v * 2.5f).coerceIn(0f, 1f)
+                // corners round while it's small, square once it fills the screen (a rounded rect:
+                // the GPU clips it for nothing)
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(((1f - v) * 44f).dp)
+                clip = v < 1f
+            },
     ) { content(shown) }
 }
 

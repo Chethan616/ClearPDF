@@ -2380,6 +2380,9 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     /** The note toolbar's glass, measured, for the dock to become. */
     var noteBarSize by mutableStateOf(androidx.compose.ui.unit.IntSize.Zero)
 
+    /** Where the note's toolbar ends, in window px (it rides up with the keyboard). Read while drawing. */
+    var noteBarBottom by androidx.compose.runtime.mutableFloatStateOf(0f)
+
     /** Files other apps open show in Quick Preview's floating card first (else straight in the viewer). */
     var quickPreview by mutableStateOf(appPrefs.getBoolean("quickPreview", true))
         private set

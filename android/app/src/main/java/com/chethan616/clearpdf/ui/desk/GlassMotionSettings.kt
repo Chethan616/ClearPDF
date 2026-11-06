@@ -35,6 +35,17 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.Box
+import com.chethan616.clearpdf.ui.glass.pressable
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -69,7 +80,7 @@ import com.chethan616.clearpdf.ui.LucideIcons
 import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
-import com.kyant.shapes.RoundedRectangle
+import com.chethan616.clearpdf.ui.glass.RoundedRectangle
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.exp
@@ -102,14 +113,10 @@ fun GlassMotionPage(onBack: () -> Unit) {
 
         item(key = "glass") { Section(stringResource(R.string.gm_glass_look), custom = g !in GlassStyle.Presets) }
         item(key = "glasstabs") {
-            GlassTabs(
-                glassPresetNames().mapIndexed { i, n -> GlassTab(n, accent = listOf(Candy.Sky, Candy.Mint, Candy.Grape, Candy.Tangerine)[i]) },
-                selected = GlassStyle.Presets.indexOf(g).coerceAtLeast(0), onSelect = { glass(GlassStyle.Presets[it]) },
-                modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(), height = 48.dp,
-            )
+            PresetTiles(glassPresetNames(), GlassStyle.Presets.indexOf(g), { glass(GlassStyle.Presets[it]) }) { i -> drawGlassSwatch(i) }
         }
         item(key = "glassvalues") {
-            Panel {
+            FineTune {
                 SliderRow(stringResource(R.string.gm_blur), g.blur, 0f..3f, Candy.Sky) { glass(g.copy(blur = it)) }
                 SliderRow(stringResource(R.string.gm_lens_height), g.refractionHeight, 0f..2.5f, Candy.Grape) { glass(g.copy(refractionHeight = it)) }
                 SliderRow(stringResource(R.string.gm_lens_amount), g.refractionAmount, 0f..2.5f, Candy.Grape) { glass(g.copy(refractionAmount = it)) }
@@ -124,17 +131,13 @@ fun GlassMotionPage(onBack: () -> Unit) {
 
         item(key = "motion") { Section(stringResource(R.string.settings_motion), custom = m !in MotionStyle.Presets) }
         item(key = "motiontabs") {
-            GlassTabs(
-                motionPresetNames().mapIndexed { i, n -> GlassTab(n, accent = listOf(Candy.Mint, Candy.Sky, Candy.Bubblegum, Candy.Tomato)[i]) },
-                selected = MotionStyle.Presets.indexOf(m).coerceAtLeast(0), onSelect = { motion(MotionStyle.Presets[it]) },
-                modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(), height = 48.dp,
-            )
+            PresetTiles(motionPresetNames(), MotionStyle.Presets.indexOf(m), { motion(MotionStyle.Presets[it]) }) { i -> drawSpringSwatch(MotionStyle.Presets[i].bounce) }
         }
         item(key = "spring") {
             GraphCard(stringResource(R.string.gm_spring), stringResource(R.string.gm_spring_body)) { SpringGraph() }
         }
         item(key = "motionvalues") {
-            Panel {
+            FineTune {
                 SliderRow(stringResource(R.string.gm_bounce), m.bounce, 0f..1f, Candy.Bubblegum) { motion(m.copy(bounce = it)) }
                 SliderRow(stringResource(R.string.gm_speed), m.speed, 0.4f..2.5f, Candy.Sky, times) { motion(m.copy(speed = it)) }
                 SliderRow(stringResource(R.string.gm_press), m.press, 0f..2.5f, Candy.Grape, times) { motion(m.copy(press = it)) }
@@ -168,13 +171,14 @@ fun GlassMotionPage(onBack: () -> Unit) {
             }
         }
         item(key = "reset") {
-            Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.Center) {
-                GlassPill(onClick = {
+            Spacer(Modifier.height(18.dp))
+            Panel {
+                SettingRow(LucideIcons.RotateCcw, Candy.Tomato, stringResource(R.string.gm_reset), {
                     glass(GlassStyle.Default)
                     motion(MotionStyle.Default)
                     MotionSettings.updateCurve(context, EaseCurve.Drawer)
                     MotionSettings.updateDuration(context, 1f)
-                }) { Text(stringResource(R.string.gm_reset), style = ClearType.BodyStrong, color = clear.ink) }
+                }, first = true)
             }
         }
         item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
@@ -223,6 +227,122 @@ private fun PreviewStage() {
     }
 }
 
+/**
+ * Four presets as tiles, each with a little picture of itself ([swatch]): the chosen one ringed and
+ * ticked. A hand-tuned style chooses none.
+ */
+@Composable
+private fun PresetTiles(names: List<String>, selected: Int, onSelect: (Int) -> Unit, swatch: androidx.compose.ui.graphics.drawscope.DrawScope.(Int) -> Unit) {
+    val c = clear
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        names.forEachIndexed { i, name ->
+            val on = i == selected
+            Column(
+                Modifier.weight(1f).pressable({ onSelect(i) }, pressedScale = 0.94f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    Modifier.fillMaxWidth().aspectRatio(1f)
+                        .border(if (on) 2.5.dp else 1.dp, if (on) Candy.Sky else c.ink.copy(alpha = 0.12f), RoundedRectangle(18.dp))
+                        .padding(4.dp)
+                        .clip(RoundedRectangle(14.dp))
+                        .drawBehind { swatch(i) },
+                ) {
+                    if (on) Box(
+                        Modifier.align(Alignment.BottomEnd).padding(5.dp).size(18.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Candy.Sky),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(LucideIcons.Check, null, tint = Color.White, modifier = Modifier.size(12.dp)) }
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(name, style = if (on) ClearType.BodyStrong else ClearType.Label, color = if (on) c.ink else c.inkSoft, maxLines = 1)
+            }
+        }
+    }
+}
+
+/** A glass preset in miniature: candy stripes behind a disc of that glass. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGlassSwatch(i: Int) {
+    val stripes = listOf(Candy.Sky, Candy.Bubblegum, Candy.Lemon, Candy.Mint)
+    val band = size.width / 6f
+    for (k in -2..8) {
+        val x = k * band
+        drawPath(
+            androidx.compose.ui.graphics.Path().apply { moveTo(x, 0f); lineTo(x + band, 0f); lineTo(x + band - size.height, size.height); lineTo(x - size.height, size.height); close() },
+            stripes[(k + 8) % stripes.size],
+        )
+    }
+    val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+    val r = size.minDimension * 0.34f
+    val (fill, rim) = when (i) {
+        1 -> Color.White.copy(alpha = 0.62f) to 0.9f   // frosted
+        2 -> Color.White.copy(alpha = 0.10f) to 1f     // crystal
+        3 -> Color(0xFFEDEAF7).copy(alpha = 0.85f) to 0f // lite
+        else -> Color.White.copy(alpha = 0.28f) to 0.8f  // clear
+    }
+    drawCircle(fill, r, center)
+    if (i == 2) {
+        drawCircle(
+            androidx.compose.ui.graphics.Brush.sweepGradient(listOf(Color(0xFFFF6B9A), Color(0xFFFFD84D), Color(0xFF5BE3B0), Color(0xFF5AA9FF), Color(0xFFB36BFF), Color(0xFFFF6B9A)), center),
+            r, center, style = androidx.compose.ui.graphics.drawscope.Stroke(2.5.dp.toPx()),
+        )
+    } else if (rim > 0f) {
+        drawCircle(Color.White.copy(alpha = rim), r, center, style = androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx()))
+    }
+}
+
+/** A motion preset in miniature: its spring's swing from start to rest. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSpringSwatch(bounce: Float) {
+    drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xFF2A2350), Color(0xFF1A1636))))
+    val damping = (1f - bounce).coerceIn(0.12f, 1f)
+    val w = size.width
+    val h = size.height
+    val rest = h * 0.32f
+    val start = h * 0.82f
+    drawLine(Color.White.copy(alpha = 0.18f), androidx.compose.ui.geometry.Offset(w * 0.08f, rest), androidx.compose.ui.geometry.Offset(w * 0.92f, rest), 1.dp.toPx())
+    val path = androidx.compose.ui.graphics.Path()
+    val omega = 14f
+    for (k in 0..60) {
+        val t = k / 60f
+        val x = w * 0.08f + t * w * 0.84f
+        val d = damping
+        val v = if (d >= 1f) 1f - (1f + omega * t) * kotlin.math.exp(-omega * t)
+        else {
+            val wd = omega * kotlin.math.sqrt(1f - d * d)
+            1f - kotlin.math.exp(-d * omega * t) * (kotlin.math.cos(wd * t) + d * omega / wd * kotlin.math.sin(wd * t))
+        }
+        val y = start + (rest - start) * v
+        if (k == 0) path.moveTo(x, y) else path.lineTo(x, y)
+    }
+    drawPath(path, Candy.Bubblegum, style = androidx.compose.ui.graphics.drawscope.Stroke(2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+}
+
+/** Fine-tuning folded away under one row, so the page leads with the presets. */
+@Composable
+private fun FineTune(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    val c = clear
+    var open by remember { mutableStateOf(false) }
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (open) 180f else 0f, com.chethan616.clearpdf.ui.glass.GlassMotion.settle(), label = "fine")
+    Spacer(Modifier.height(8.dp))
+    Panel {
+        Row(
+            Modifier.fillMaxWidth().pressable({ open = !open }).heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(30.dp).clip(RoundedRectangle(8.dp)).background(Candy.Grape), contentAlignment = Alignment.Center) {
+                Icon(LucideIcons.SlidersHorizontal, null, tint = Color.White, modifier = Modifier.size(17.dp))
+            }
+            Spacer(Modifier.width(14.dp))
+            Text(stringResource(R.string.gm_fine_tune), style = ClearType.Body, color = c.ink, modifier = Modifier.weight(1f))
+            Icon(LucideIcons.ChevronDown, null, tint = c.inkFaint, modifier = Modifier.size(18.dp).graphicsLayer { rotationZ = turn })
+        }
+        androidx.compose.animation.AnimatedVisibility(
+            open,
+            enter = androidx.compose.animation.expandVertically(com.chethan616.clearpdf.ui.glass.GlassMotion.settle()) + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.shrinkVertically(com.chethan616.clearpdf.ui.glass.GlassMotion.settle()) + androidx.compose.animation.fadeOut(),
+        ) { Column { content() } }
+    }
+}
+
 /** A setting's name and value above its glass slider. */
 @Composable
 private fun SliderRow(
@@ -236,7 +356,7 @@ private fun SliderRow(
     val c = clear
     Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(label, style = ClearType.BodyStrong, color = c.ink, modifier = Modifier.weight(1f))
+            Text(label, style = ClearType.Body, color = c.ink, modifier = Modifier.weight(1f))
             Text(format(value), style = ClearType.Label.copy(fontFamily = FontFamily.Monospace), color = c.inkSoft)
         }
         Spacer(Modifier.height(6.dp))

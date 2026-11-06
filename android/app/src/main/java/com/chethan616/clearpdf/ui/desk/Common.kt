@@ -64,7 +64,7 @@ import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
 import com.chethan616.clearpdf.ui.theme.glowing
 import com.chethan616.clearpdf.ui.viewer.formatSize
-import com.kyant.shapes.RoundedRectangle
+import com.chethan616.clearpdf.ui.glass.RoundedRectangle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -144,14 +144,7 @@ fun ScreenHeader(eyebrow: String?, title: String, modifier: Modifier = Modifier,
     Column(modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp)) {
         if (onBack != null) {
             Row(Modifier.fillMaxWidth().padding(bottom = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                // the same plain glass as every glass button (it was a dark, ringed disc). The screen
-                // leaves a beat after the tap, so the glass is seen to swell and spring back first
-                com.chethan616.clearpdf.ui.glass.HeaderGlassButton(
-                    onClick = com.chethan616.clearpdf.ui.glass.rememberBeat(onBack),
-                    label = stringResource(R.string.common_back),
-                ) {
-                    GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(24.dp))
-                }
+                com.chethan616.clearpdf.ui.glass.GlassBackButton(onBack)
                 Spacer(Modifier.weight(1f))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { trailing() }
             }

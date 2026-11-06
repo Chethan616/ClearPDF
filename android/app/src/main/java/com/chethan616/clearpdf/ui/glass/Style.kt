@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import com.kyant.backdrop.BackdropEffectScope
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.colorControls
@@ -41,8 +42,57 @@ data class GlassStyle(
     }
 }
 
+/**
+ * What the app stands on: Artefact's soft aurora (the default, as the old ClearPDF started on its
+ * own plain background), the old ClearPDF's liquid blobs, or a picture of the user's own.
+ */
+enum class Wallpaper { Aurora, Liquid, Custom }
+
 object GlassSettings {
     private const val PREFS = "glass"
+    private const val CUSTOM_FILE = "wallpaper_custom.jpg"
+
+    var wallpaper: Wallpaper by mutableStateOf(Wallpaper.Aurora)
+
+    /** The user's own picture, decoded once (null until one is chosen). */
+    var customWallpaper: androidx.compose.ui.graphics.ImageBitmap? by mutableStateOf(null)
+        private set
+
+    fun updateWallpaper(context: Context, w: Wallpaper) {
+        wallpaper = w
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("wallpaper", w.name).apply()
+    }
+
+    /**
+     * Copies a picture from the gallery into the app (upright, at most 1600 px on its long side, so it
+     * stays after the picker's permission lapses) and makes it the wallpaper. Off the main thread.
+     */
+    suspend fun setCustomWallpaper(context: Context, uri: android.net.Uri): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        runCatching {
+            val source = android.graphics.ImageDecoder.createSource(context.contentResolver, uri)
+            val bitmap = android.graphics.ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                val w = info.size.width
+                val h = info.size.height
+                val scale = minOf(1f, 1600f / maxOf(w, h))
+                decoder.setTargetSize((w * scale).toInt().coerceAtLeast(1), (h * scale).toInt().coerceAtLeast(1))
+                decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+            }
+            java.io.File(context.filesDir, CUSTOM_FILE).outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }
+            val image = bitmap.asImageBitmapCompat()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                customWallpaper = image
+                updateWallpaper(context, Wallpaper.Custom)
+            }
+            true
+        }.getOrDefault(false)
+    }
+
+    private fun android.graphics.Bitmap.asImageBitmapCompat() = asImageBitmap()
+
+    private fun loadCustom(context: Context) {
+        val f = java.io.File(context.filesDir, CUSTOM_FILE)
+        customWallpaper = if (f.exists()) android.graphics.BitmapFactory.decodeFile(f.path)?.asImageBitmapCompat() else null
+    }
 
     var style: GlassStyle by mutableStateOf(GlassStyle.Default)
     var haptics: Boolean by mutableStateOf(true)
@@ -62,6 +112,9 @@ object GlassSettings {
             highlight = p.getFloat("highlight", d.highlight),
         )
         haptics = p.getBoolean("haptics", true)
+        wallpaper = runCatching { Wallpaper.valueOf(p.getString("wallpaper", null) ?: "Aurora") }.getOrDefault(Wallpaper.Aurora)
+        if (wallpaper == Wallpaper.Custom) loadCustom(context)
+        if (wallpaper == Wallpaper.Custom && customWallpaper == null) wallpaper = Wallpaper.Aurora
         MotionSettings.load(context)
     }
 

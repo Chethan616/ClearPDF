@@ -76,6 +76,8 @@ import com.chethan616.clearpdf.ui.glass.GlassIcon
 import com.chethan616.clearpdf.ui.glass.GlassMotion
 import com.chethan616.clearpdf.ui.glass.LocalHaptics
 import com.chethan616.clearpdf.ui.glass.MotionSettings
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
 import com.chethan616.clearpdf.ui.glass.glass
 import com.chethan616.clearpdf.ui.glass.pressable
 import com.chethan616.clearpdf.ui.theme.Candy
@@ -83,7 +85,7 @@ import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
 import com.chethan616.clearpdf.ui.viewer.VoiceRecorder
 import com.chethan616.clearpdf.ui.viewer.clock
-import com.kyant.shapes.Capsule
+import com.chethan616.clearpdf.ui.glass.Capsule
 import java.io.File
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
@@ -189,19 +191,24 @@ fun BoxScope.CreateDock(
     // back into the dock the same way
     val into = remember { Animatable(if (fromNote) 1f else 0f) }
     val done by androidx.compose.runtime.rememberUpdatedState(onNoteMorphed)
+    // layout follows this spring, so it never rings (every ring would re-blur the glass); the
+    // speed is still Settings ▸ Motion's
+    val handSpring = androidx.compose.animation.core.spring<Float>(maxOf(MotionSettings.damping(0.86f), 0.8f), MotionSettings.stiffness(400f))
+    // where the dock rests, in window px, so it can travel to the toolbar wherever the keyboard put it
+    val dockBottom = remember { floatArrayOf(0f) }
     LaunchedEffect(intoNote, fromNote) {
         when {
             intoNote -> {
                 val reached = kotlinx.coroutines.CompletableDeferred<Unit>()
                 launch {
-                    into.animateTo(1f, GlassMotion.unfold()) { if (value >= 0.96f) reached.complete(Unit) }
+                    into.animateTo(1f, handSpring) { if (value >= 0.97f) reached.complete(Unit) }
                     reached.complete(Unit)
                 }
-                kotlinx.coroutines.withTimeoutOrNull(600L) { reached.await() }
+                kotlinx.coroutines.withTimeoutOrNull(450L) { reached.await() }
                 done()
             }
             fromNote -> {
-                into.animateTo(0f, GlassMotion.unfold())
+                into.animateTo(0f, handSpring)
                 done()
             }
             else -> into.snapTo(0f)
@@ -268,7 +275,7 @@ fun BoxScope.CreateDock(
                     desk.haptics?.play(if (desk.fanOpen) Feel.Rise else Feel.Fall)
                 }
                 GlassCircle(
-                    onClick = { if (desk.recorder == null) desk.startRecording(vm) }, size = 54.dp, surface = Color.White.copy(alpha = 0.30f),
+                    onClick = { if (desk.recorder == null) desk.startRecording(vm) }, tap = null, size = 54.dp, surface = Color.White.copy(alpha = 0.30f),
                     label = stringResource(R.string.create_voice),
                 ) { GlassIcon(LucideIcons.Mic, null, Modifier.size(22.dp), tint = DockInk) }
             }
@@ -294,13 +301,16 @@ fun BoxScope.CreateDock(
                 scaleX = (1f + swell * 0.06f * k - pinch * 0.2f * k).coerceIn(0.92f, 1.03f)
                 scaleY = (1f - mid * 0.03f * k - swell * 0.22f * k + pinch * 0.15f * k).coerceIn(0.93f, 1.06f)
                 transformOrigin = TransformOrigin(0.5f, 1f)
-                // the note's toolbar sits 4 dp lower than the dock
-                translationY = into.value.coerceIn(0f, 1f) * 4.dp.toPx()
+                // on to the note's toolbar, which the keyboard may have lifted
+                val n = into.value.coerceIn(0f, 1f)
+                val target = vm.noteBarBottom
+                translationY = if (n > 0f && target > 0f && dockBottom[0] > 0f) n * (target - dockBottom[0]) else 0f
             }
+            .onGloballyPositioned { if (into.value == 0f) dockBottom[0] = it.boundsInWindow().bottom }
             // the very glass of the Back and menu buttons; the recorder darkens it so its white reads
             .glass(Capsule, c.glass, blur = 3.dp, lensHeight = 14.dp, lensAmount = 26.dp)
             .graphicsLayer { clip = true; shape = Capsule }
-            .drawBehind { drawRect(c.capsule, alpha = (lerp(0.5f, 1.9f, morph.value.coerceIn(0f, 1f)) + 0.5f * into.value.coerceIn(0f, 1f)).coerceAtMost(1f)) }
+            .drawBehind { drawRect(c.capsule, alpha = lerp(0.5f, 1.9f, morph.value.coerceIn(0f, 1f)).coerceAtMost(1f)) }
             .padding(6.dp),
     ) { measurables, constraints ->
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
@@ -344,7 +354,7 @@ private fun PlusButton(open: Boolean, onClick: () -> Unit) {
     val label = stringResource(R.string.dock_create)
     Box(
         Modifier.size(58.dp)
-            .pressable(onClick, pressedScale = 0.9f, feel = Feel.Press)
+            .pressable(onClick, pressedScale = 0.9f, feel = null)
             .graphicsLayer { shadowElevation = 4.dp.toPx(); shape = CircleShape; clip = true }
             .background(Color.White)
             .semantics { contentDescription = label },
@@ -441,7 +451,7 @@ private fun Recording(rec: VoiceRecorder, onCancel: () -> Unit, onStop: () -> Un
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         // the + turns to an x in the dock's near-black; the recorder's x wears the same ink, on a light
         // glass so it reads against the dark capsule
-        GlassCircle(onClick = onCancel, size = 50.dp, surface = Color.White.copy(alpha = 0.82f), label = stringResource(R.string.common_cancel)) {
+        GlassCircle(onClick = onCancel, tap = null, size = 50.dp, surface = Color.White.copy(alpha = 0.82f), label = stringResource(R.string.common_cancel)) {
             GlassIcon(LucideIcons.X, null, Modifier.size(20.dp), tint = DockInk)
         }
         // the pulse is read in draw: it never recomposes the row
@@ -449,9 +459,9 @@ private fun Recording(rec: VoiceRecorder, onCancel: () -> Unit, onStop: () -> Un
         Elapsed(rec)
         LiveWave(rec.levels, Modifier.width(112.dp).height(34.dp))
         Box(
-            Modifier.size(54.dp).pressable(onStop, pressedScale = 0.9f, feel = Feel.Confirm).clip(CircleShape).background(Color.White),
+            Modifier.size(54.dp).pressable(onStop, pressedScale = 0.9f, feel = null).clip(CircleShape).background(Color.White),
             contentAlignment = Alignment.Center,
-        ) { Box(Modifier.size(18.dp).clip(com.kyant.shapes.RoundedRectangle(5.dp)).background(Candy.Tomato)) }
+        ) { Box(Modifier.size(18.dp).clip(com.chethan616.clearpdf.ui.glass.RoundedRectangle(5.dp)).background(Candy.Tomato)) }
     }
 }
 

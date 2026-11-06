@@ -70,8 +70,8 @@ import com.chethan616.clearpdf.ui.glass.pressable
 import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
-import com.kyant.shapes.Capsule
-import com.kyant.shapes.RoundedRectangle
+import com.chethan616.clearpdf.ui.glass.Capsule
+import com.chethan616.clearpdf.ui.glass.RoundedRectangle
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned

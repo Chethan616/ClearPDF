@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.chethan616.clearpdf.ui.theme.clear
 import com.kyant.backdrop.drawBackdrop
-import com.kyant.shapes.RoundedRectangle
 
 /**
  * A still glass surface (bars, the dock's body, panels, sheets): refracts [LocalBackdrop] through
@@ -87,11 +86,14 @@ fun GlassCard(
 fun GlassHost(
     modifier: Modifier = Modifier,
     paint: @Composable BoxScope.() -> Unit,
+    opaque: Boolean = false,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val below = LocalBackdrop.current
     val layer = rememberLayerBackdrop()
-    val combined = rememberCombinedBackdrop(below, layer)
+    // an opaque paint hides what's below anyway; sampling only it keeps the glass on it still while
+    // the whole host scrolls (nothing to re-blur), where the wallpaper behind would move every frame
+    val combined = if (opaque) layer else rememberCombinedBackdrop(below, layer)
     Box(modifier) {
         Box(Modifier.matchParentSize().layerBackdrop(layer), content = paint)
         CompositionLocalProvider(LocalBackdrop provides combined) { content() }
@@ -141,7 +143,7 @@ fun Modifier.pressable(
     pressedScale: Float = Fluid.PressedScale,
     role: Role = Role.Button,
     enabled: Boolean = true,
-    feel: Feel = Feel.Tap,
+    feel: Feel? = Feel.Tap,
 ): Modifier {
     val source = remember { MutableInteractionSource() }
     val jelly = rememberJellyPress(source, pressedScale)
@@ -154,7 +156,7 @@ fun Modifier.pressable(
         indication = null,
         enabled = enabled,
         role = role,
-        onClick = { haptics?.play(feel); onClick() },
+        onClick = { if (feel != null) haptics?.play(feel); onClick() },
         onLongClick = onLongClick?.let { l -> { haptics?.play(Feel.Bloom); jelly.rest(); l() } },
     )
 }

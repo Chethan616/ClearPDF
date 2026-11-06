@@ -90,6 +90,7 @@ import com.chethan616.clearpdf.ui.theme.clear
 import com.chethan616.clearpdf.ui.theme.glowing
 import com.chethan616.clearpdf.ui.viewer.VoicePlayer
 import kotlinx.coroutines.launch
+import com.kyant.backdrop.throttleBackdrops
 
 /** What the desk shows: everything, or one kind. */
 enum class DeskFilter(@StringRes val chip: Int, @StringRes val title: Int) {
@@ -200,7 +201,8 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
         LazyVerticalStaggeredGrid(
             columns = StaggeredGridCells.Fixed(2),
             state = grid,
-            modifier = Modifier.fillMaxSize(),
+            // glass in the scrolling desk samples the soft wallpaper: while it scrolls, ten times a second is plenty
+            modifier = Modifier.fillMaxSize().throttleBackdrops { grid.isScrollInProgress },
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = DeskDockClearance + 40.dp),
             verticalItemSpacing = 12.dp,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -263,7 +265,6 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
 private fun DeskHeader(vm: AppViewModel) {
     val c = clear
     var menu by remember { mutableStateOf(false) }
-    var morphing by remember { mutableStateOf(false) }
     var anchor by remember { mutableStateOf(Rect.Zero) }
     Row(Modifier.fillMaxWidth().padding(start = 6.dp, top = 14.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Image(
@@ -272,26 +273,18 @@ private fun DeskHeader(vm: AppViewModel) {
             modifier = Modifier.height(50.dp).width(56.dp),
         )
         Spacer(Modifier.weight(1f))
-        // one glass button, as every other: its own lit rim, no second ring drawn around it
-        // the button becomes the menu: hidden while its glass is out in the overlay
         HeaderGlassButton(
-            onClick = { menu = true; morphing = true },
+            onClick = { menu = true },
             label = stringResource(R.string.common_more_options),
-            modifier = Modifier.onGloballyPositioned { anchor = it.boundsInWindow() }.graphicsLayer { alpha = if (morphing) 0f else 1f },
-        ) { FourDots(c.hero) }
+            modifier = Modifier.onGloballyPositioned { anchor = it.boundsInWindow() },
+        ) { FourDots(androidx.compose.ui.graphics.Color.Unspecified) }
     }
-    if (morphing) {
-        com.chethan616.clearpdf.ui.glass.GlassMorphMenu(
-            open = menu,
-            anchor = anchor,
-            onDismiss = { menu = false },
-            onGone = { morphing = false },
-            items = listOf(
-                GlassMenuItem(stringResource(R.string.home_tab_files), LucideIcons.FolderOpen) { vm.homeTab = HomeTab.Files },
-                GlassMenuItem(stringResource(R.string.home_tab_tools), LucideIcons.LayoutGrid) { vm.homeTab = HomeTab.Tools },
-                GlassMenuItem(stringResource(R.string.home_settings), LucideIcons.Settings) { vm.settingsOpen = true },
-            ),
-        ) { FourDots(c.hero) }
+    if (menu) {
+        GlassMenu(anchor, { menu = false }, listOf(
+            GlassMenuItem(stringResource(R.string.home_tab_files), LucideIcons.FolderOpen) { vm.homeTab = HomeTab.Files },
+            GlassMenuItem(stringResource(R.string.home_tab_tools), LucideIcons.LayoutGrid) { vm.homeTab = HomeTab.Tools },
+            GlassMenuItem(stringResource(R.string.home_settings), LucideIcons.Settings) { vm.settingsOpen = true },
+        ))
     }
 }
 
@@ -371,7 +364,15 @@ private fun FilterChips(selected: DeskFilter, onSelect: (DeskFilter) -> Unit) {
 }
 
 /** A long, eased fade at both edges of a chip row (fade.png): chips dissolve into the sky there. */
-fun Modifier.chipRowFade(): Modifier = graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+fun Modifier.chipRowFade(): Modifier = this
+    // the faded layer reaches 14 dp past the row above and below, so a chip that swells or blooms
+    // under the finger is never cut by it; the row still takes only its own height
+    .layout { m, c ->
+        val r = 14.dp.roundToPx()
+        val p = m.measure(c.copy(minHeight = c.minHeight + 2 * r, maxHeight = if (c.hasBoundedHeight) c.maxHeight + 2 * r else c.maxHeight))
+        layout(p.width, (p.height - 2 * r).coerceAtLeast(0)) { p.place(0, -r) }
+    }
+    .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
     .drawWithContent {
         drawContent()
         val f = 44.dp.toPx() / size.width
@@ -383,6 +384,7 @@ fun Modifier.chipRowFade(): Modifier = graphicsLayer { compositingStrategy = and
             blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
         )
     }
+    .padding(vertical = 14.dp)
 
 /**
  * A filter chip: real liquid glass (the Back and menu buttons' glass, by Settings ▸ liquid glass and
@@ -484,7 +486,7 @@ private fun NameSheet(vm: AppViewModel, n: Note, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
                 decorationBox = { inner ->
                     Row(
-                        Modifier.fillMaxWidth().height(54.dp).clip(com.kyant.shapes.RoundedRectangle(18.dp))
+                        Modifier.fillMaxWidth().height(54.dp).clip(com.chethan616.clearpdf.ui.glass.RoundedRectangle(18.dp))
                             .background(if (c.dark) Color.White.copy(alpha = 0.07f) else Color.White.copy(alpha = 0.7f))
                             .padding(start = 14.dp, end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,

@@ -20,4 +20,17 @@ interface Backdrop {
         coordinates: LayoutCoordinates?,
         layerBlock: (GraphicsLayerScope.() -> Unit)? = null
     )
+
+    /**
+     * Where [coordinates] sit relative to what this backdrop draws, as a key: equal keys draw the same
+     * pixels, so a glass node that moved but kept its key (a chip on a card being scrolled with the
+     * card) needn't re-blur. [UnknownPosition] when it can't tell: always redraw.
+     */
+    fun positionKey(coordinates: LayoutCoordinates): Long = UnknownPosition
 }
+
+const val UnknownPosition: Long = Long.MIN_VALUE
+
+/** Two keys as one, unknown if either is. */
+fun mixPositionKeys(a: Long, b: Long): Long =
+    if (a == UnknownPosition || b == UnknownPosition) UnknownPosition else a * 31 + b

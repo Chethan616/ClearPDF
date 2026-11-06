@@ -19,6 +19,10 @@ import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.node.requireView
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.toIntSize
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.drawscope.translate
 
 /**
  * Moves, scales and fades the content like `graphicsLayer`, but only at draw time: the content is laid
@@ -58,6 +62,7 @@ private class FloatingLayerNode(
     private var layer: GraphicsLayer? = null
     private val scope = InverseLayerScope()
     private var size = Size.Unspecified
+    private var margin = 0
 
     override fun onAttach() {
         layer = requireGraphicsContext().createGraphicsLayer().apply { compositingStrategy = CompositingStrategy.Offscreen }
@@ -91,17 +96,18 @@ private class FloatingLayerNode(
         layer.translationX = scope.translationX
         layer.translationY = scope.translationY
         layer.rotationZ = scope.rotationZ
+        val m = margin.toFloat()
         val origin = scope.transformOrigin
-        layer.pivotOffset = Offset(origin.pivotFractionX * size.width, origin.pivotFractionY * size.height)
+        layer.pivotOffset = Offset(m + origin.pivotFractionX * size.width, m + origin.pivotFractionY * size.height)
         // an animated clip is only an outline on the texture: nothing inside is redrawn for it
         if (scope.clip) {
             when (val o = scope.shape.createOutline(size, requireLayoutDirection(), d)) {
-                is Outline.Rectangle -> layer.setRectOutline(o.rect.topLeft, o.rect.size)
+                is Outline.Rectangle -> layer.setRectOutline(o.rect.topLeft + Offset(m, m), o.rect.size)
                 is Outline.Rounded -> {
                     val r = o.roundRect
-                    layer.setRoundRectOutline(Offset(r.left, r.top), Size(r.width, r.height), r.topLeftCornerRadius.x)
+                    layer.setRoundRectOutline(Offset(r.left + m, r.top + m), Size(r.width, r.height), r.topLeftCornerRadius.x)
                 }
-                is Outline.Generic -> layer.setPathOutline(o.path)
+                is Outline.Generic -> layer.setPathOutline(o.path.apply { translate(Offset(m, m)) })
             }
         }
         layer.clip = scope.clip
@@ -115,9 +121,16 @@ private class FloatingLayerNode(
         }
         if (this.size != this@FloatingLayerNode.size) {
             this@FloatingLayerNode.size = this.size
+            margin = 32.dp.roundToPx()
             applyTransform()
         }
-        layer.record(this.size.toIntSize()) { this@draw.drawContent() }
+        // room around the content, so glass that swells or blooms past its bounds isn't cut off
+        val m = margin
+        val s = this.size.toIntSize()
+        layer.topLeft = IntOffset(-m, -m)
+        layer.record(IntSize(s.width + 2 * m, s.height + 2 * m)) {
+            translate(m.toFloat(), m.toFloat()) { this@draw.drawContent() }
+        }
         drawLayer(layer)
     }
 }

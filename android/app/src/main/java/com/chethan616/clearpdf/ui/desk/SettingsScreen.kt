@@ -31,6 +31,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -66,7 +78,7 @@ import com.chethan616.clearpdf.ui.glass.pressable
 import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
-import com.kyant.shapes.RoundedRectangle
+import com.chethan616.clearpdf.ui.glass.RoundedRectangle
 
 /** Artefact's repository: help, issues and source. */
 const val CLEARPDF_REPO = "https://github.com/Chethan616/ClearPDF"
@@ -109,50 +121,28 @@ private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit, openGlass: 
             Spacer(Modifier.height(14.dp))
             ScreenHeader(null, stringResource(R.string.home_settings), onBack = { vm.settingsOpen = false })
         }
-        item(key = "hero") { AppCard(vm) }
 
+        // what people change most comes first: how the app looks and feels
         item(key = "look") { Section(stringResource(R.string.settings_look)) }
-        item(key = "theme") {
-            Choice(stringResource(R.string.settings_theme)) {
-                val options = listOf(ThemeChoice.System, ThemeChoice.Light, ThemeChoice.Dark)
-                GlassTabs(
-                    listOf(
-                        GlassTab(stringResource(R.string.settings_theme_system), LucideIcons.Contrast, Candy.Grape),
-                        GlassTab(stringResource(R.string.settings_theme_light), LucideIcons.Sun, Candy.Tangerine),
-                        GlassTab(stringResource(R.string.settings_theme_dark), LucideIcons.Moon, Candy.Sky),
-                    ),
-                    selected = options.indexOf(vm.theme).coerceAtLeast(0), onSelect = { vm.setThemeChoice(options[it]) },
-                    modifier = Modifier.fillMaxWidth(), height = 64.dp,
-                )
-            }
-        }
-        item(key = "glassmotion") {
-            // everything about the glass and how it moves lives on a page of its own
+        item(key = "lookpanel") {
             val custom = stringResource(R.string.settings_custom)
             val glassName = GlassStyle.Presets.indexOf(GlassSettings.style).let { if (it < 0) custom else glassPresetNames()[it] }
             val motionName = MotionStyle.Presets.indexOf(MotionSettings.style).let { if (it < 0) custom else motionPresetNames()[it] }
             Panel {
-                GlassRow(
-                    stringResource(R.string.settings_glass_motion), openGlass, icon = LucideIcons.Sparkles, accent = Candy.Grape,
-                    value = "$glassName · $motionName",
-                    trailing = { Icon(LucideIcons.ChevronRight, null, tint = c.inkFaint, modifier = Modifier.padding(start = 4.dp).size(18.dp)) },
-                )
+                ThemePicker(vm.theme) { vm.setThemeChoice(it) }
+                SettingRow(LucideIcons.Sparkles, Candy.Grape, stringResource(R.string.settings_glass_motion), openGlass, value = "$glassName · $motionName", chevron = true)
+                ToggleRow(LucideIcons.Smartphone, Candy.Bubblegum, stringResource(R.string.settings_haptics), null, GlassSettings.haptics) { GlassSettings.updateHaptics(context, it) }
             }
         }
 
-        item(key = "general") { Section(stringResource(R.string.settings_general)) }
-        item(key = "feel") {
-            Panel {
-                ToggleRow(LucideIcons.Sparkles, Candy.Bubblegum, stringResource(R.string.settings_haptics), null, GlassSettings.haptics) { GlassSettings.updateHaptics(context, it) }
-                GlassRow(stringResource(R.string.settings_show_welcome), { vm.showWelcomeAgain() }, icon = LucideIcons.Compass, accent = Candy.Sky)
-            }
-        }
+        item(key = "personal") { Section(stringResource(R.string.settings_personalization)) }
+        item(key = "personalpanel") { Panel { WallpaperPicker(context) } }
 
         item(key = "reading") { Section(stringResource(R.string.settings_reading)) }
         item(key = "readingpanel") {
             Panel {
-                ToggleRow(LucideIcons.PanelsTopLeft, Candy.Sky, stringResource(R.string.settings_quick_preview), stringResource(R.string.settings_quick_preview_body), vm.quickPreview) { vm.updateQuickPreview(it) }
-                ToggleRow(LucideIcons.Sun, Candy.Lemon, stringResource(R.string.home_keep_screen_on), stringResource(R.string.home_keep_screen_on_body), vm.keepScreenOn) { vm.updateKeepScreenOn(it) }
+                ToggleRow(LucideIcons.PanelsTopLeft, Candy.Sky, stringResource(R.string.settings_quick_preview), stringResource(R.string.settings_quick_preview_body), vm.quickPreview, first = true) { vm.updateQuickPreview(it) }
+                ToggleRow(LucideIcons.Sun, Candy.Tangerine, stringResource(R.string.home_keep_screen_on), stringResource(R.string.home_keep_screen_on_body), vm.keepScreenOn) { vm.updateKeepScreenOn(it) }
                 ToggleRow(LucideIcons.Smartphone, Candy.Sky, stringResource(R.string.home_status_bar_in_documents), stringResource(R.string.home_status_bar_in_documents_body), vm.statusBarInDocuments) { vm.updateStatusBarInDocuments(it) }
                 ToggleRow(LucideIcons.Hash, Candy.Mint, stringResource(R.string.home_search_count), stringResource(R.string.home_search_count_body), vm.searchCount) { vm.updateSearchCount(it) }
                 ToggleRow(LucideIcons.SquareTerminal, Candy.Grape, stringResource(R.string.home_keyboard_shortcuts), stringResource(R.string.home_keyboard_shortcuts_body), vm.keyboardShortcuts) { vm.updateKeyboardShortcuts(it) }
@@ -162,34 +152,26 @@ private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit, openGlass: 
         item(key = "forms") { Section(stringResource(R.string.settings_forms)) }
         item(key = "formspanel") {
             Panel {
-                ToggleRow(LucideIcons.TextCursorInput, Candy.Tangerine, stringResource(R.string.home_offer_suggestions), null, vm.formSuggestions) { vm.updateFormSuggestions(it) }
-                GlassRow(stringResource(R.string.home_clear_suggestions), { vm.clearFormSuggestions() }, icon = LucideIcons.BrushCleaning, accent = Candy.Tomato)
-                GlassRow(
-                    stringResource(R.string.home_author_title), { authorDialog = true }, icon = LucideIcons.UserRound, accent = Candy.Sky,
-                    value = vm.toolPrefs.author.ifBlank { stringResource(R.string.home_author_hint) },
+                SettingRow(
+                    LucideIcons.UserRound, Candy.Sky, stringResource(R.string.home_author_title), { authorDialog = true },
+                    value = vm.toolPrefs.author.ifBlank { stringResource(R.string.home_author_hint) }, chevron = true, first = true,
                 )
+                ToggleRow(LucideIcons.TextCursorInput, Candy.Tangerine, stringResource(R.string.home_offer_suggestions), null, vm.formSuggestions) { vm.updateFormSuggestions(it) }
+                SettingRow(LucideIcons.BrushCleaning, Candy.Tomato, stringResource(R.string.home_clear_suggestions), { vm.clearFormSuggestions() })
             }
         }
 
         item(key = "about") { Section(stringResource(R.string.settings_about)) }
         item(key = "aboutpanel") {
             Panel {
-                GlassRow(stringResource(R.string.home_report_problem), { leaving = "$CLEARPDF_REPO/issues" }, icon = LucideIcons.MessageSquare, accent = Candy.Tomato)
-                GlassRow(stringResource(R.string.home_source_code), { uri.openUri(CLEARPDF_REPO) }, icon = LucideIcons.CodeXml, accent = Candy.Grape)
-                GlassRow(stringResource(R.string.home_engine), { uri.openUri("https://github.com/storytold/pdfcraft") }, icon = LucideIcons.Wrench, accent = Candy.Tangerine)
-                GlassRow(stringResource(R.string.home_licences), openLicences, icon = LucideIcons.ScrollText, accent = Candy.Mint)
+                SettingRow(LucideIcons.Compass, Candy.Sky, stringResource(R.string.settings_show_welcome), { vm.showWelcomeAgain() }, first = true)
+                SettingRow(LucideIcons.MessageSquare, Candy.Tomato, stringResource(R.string.home_report_problem), { leaving = "$CLEARPDF_REPO/issues" }, chevron = true)
+                SettingRow(LucideIcons.CodeXml, Candy.Grape, stringResource(R.string.home_source_code), { uri.openUri(CLEARPDF_REPO) }, chevron = true)
+                SettingRow(LucideIcons.Wrench, Candy.Tangerine, stringResource(R.string.home_engine), { uri.openUri("https://github.com/storytold/pdfcraft") }, chevron = true)
+                SettingRow(LucideIcons.ScrollText, Candy.Mint, stringResource(R.string.home_licences), openLicences, chevron = true)
             }
         }
-        item(key = "credits") {
-            // a footnote, as iOS ends its settings: no card of its own
-            Column(Modifier.padding(start = 26.dp, end = 26.dp, top = 18.dp)) {
-                Text(stringResource(R.string.settings_credits_title), style = ClearType.BodyStrong, color = c.inkSoft)
-                Spacer(Modifier.height(4.dp))
-                Text(stringResource(R.string.settings_credits_body), style = ClearType.Caption, color = c.inkSoft)
-                Spacer(Modifier.height(10.dp))
-                Text(stringResource(R.string.home_legal_notice), style = ClearType.Caption, color = c.inkFaint)
-            }
-        }
+        item(key = "credits") { AppFooter(vm) }
         item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
     }
     leaving?.let { url ->
@@ -208,36 +190,35 @@ private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit, openGlass: 
     }
 }
 
-/** The app's own card: its icon, its name, the version (long-press copies it). */
+/** The settings' foot: the mark, name and version (a long press copies it), the credits and notice. */
 @Composable
-private fun AppCard(vm: AppViewModel) {
+private fun AppFooter(vm: AppViewModel) {
     val c = clear
     val clipboard = LocalClipboardManager.current
     val version = stringResource(R.string.home_version, vm.appVersion, com.chethan616.clearpdf.core.engineVersion())
     val copied = stringResource(R.string.home_version_copied)
-    GlassCard(
-        Modifier.padding(horizontal = 16.dp, vertical = 16.dp).fillMaxWidth()
+    Column(
+        Modifier.fillMaxWidth().padding(start = 32.dp, end = 32.dp, top = 28.dp)
             .pointerInput(version) { detectTapGestures(onLongPress = { clipboard.setText(AnnotatedString(version)); vm.tell(copied) }) },
-        shape = RoundedRectangle(30.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Image(painterResource(R.drawable.artefact_logo), null, Modifier.size(64.dp))
-            Spacer(Modifier.width(16.dp))
-            Column {
-                Text(stringResource(R.string.app_name), style = ClearType.Headline, color = c.ink)
-                Spacer(Modifier.height(2.dp))
-                Text(version, style = ClearType.Caption, color = c.inkSoft)
-            }
-        }
+        Image(painterResource(R.drawable.artefact_logo), null, Modifier.size(44.dp))
+        Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.app_name), style = ClearType.BodyStrong, color = c.ink)
+        Text(version, style = ClearType.Caption, color = c.inkSoft)
+        Spacer(Modifier.height(14.dp))
+        Text(stringResource(R.string.settings_credits_body), style = ClearType.Caption, color = c.inkSoft, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.home_legal_notice), style = ClearType.Caption, color = c.inkFaint, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 
 /** A group's name, small and quiet over its panel (as iOS's grouped settings), "Custom" when tuned by hand. */
 @Composable
 internal fun Section(title: String, custom: Boolean = false) {
-    Row(Modifier.fillMaxWidth().padding(start = 26.dp, end = 26.dp, top = 26.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(start = 34.dp, end = 34.dp, top = 24.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title.uppercase(), style = ClearType.Eyebrow, color = clear.inkSoft, modifier = Modifier.weight(1f))
-        if (custom) Text(stringResource(R.string.settings_custom), style = ClearType.Label, color = Candy.Bubblegum)
+        if (custom) Text(stringResource(R.string.settings_custom), style = ClearType.Label, color = clear.inkSoft)
     }
 }
 
@@ -252,31 +233,200 @@ private fun Choice(label: String, content: @Composable () -> Unit) {
 
 @Composable
 internal fun Panel(content: @Composable ColumnScope.() -> Unit) {
-    WashPanel(Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth()) {
-        Spacer(Modifier.height(6.dp))
+    WashPanel(Modifier.padding(horizontal = 16.dp, vertical = 2.dp).fillMaxWidth(), shape = RoundedRectangle(22.dp)) {
+        Spacer(Modifier.height(4.dp))
         content()
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(4.dp))
     }
 }
 
-/** A switch row: a candy blob, the setting's name and what it does, and a glass toggle. */
+/**
+ * The theme as three little desks to pick from: the light one, the dark one, and System split
+ * corner to corner between them. The chosen one is ringed and ticked, and lifts a touch.
+ */
 @Composable
-internal fun ToggleRow(icon: ImageVector, accent: Color, label: String, body: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun ThemePicker(current: ThemeChoice, onPick: (ThemeChoice) -> Unit) {
+    val c = clear
+    val choices = listOf(
+        ThemeChoice.System to stringResource(R.string.settings_theme_system),
+        ThemeChoice.Light to stringResource(R.string.settings_theme_light),
+        ThemeChoice.Dark to stringResource(R.string.settings_theme_dark),
+    )
+    Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        choices.forEach { (choice, label) ->
+            val on = choice == current
+            val lift by androidx.compose.animation.core.animateFloatAsState(if (on) 1f else 0f, com.chethan616.clearpdf.ui.glass.GlassMotion.pop(), label = "theme")
+            Column(
+                Modifier.weight(1f).pressable({ onPick(choice) }, pressedScale = 0.94f).semantics { contentDescription = label },
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    Modifier.fillMaxWidth().aspectRatio(0.78f)
+                        .graphicsLayer { val s = 0.96f + 0.04f * lift; scaleX = s; scaleY = s }
+                        .border(if (on) 2.5.dp else 1.dp, if (on) Candy.Sky else c.ink.copy(alpha = 0.12f), RoundedRectangle(18.dp))
+                        .padding(4.dp)
+                        .clip(RoundedRectangle(14.dp))
+                        .drawBehind { drawThemeDesk(choice) },
+                ) {
+                    if (on) Box(
+                        Modifier.align(Alignment.BottomEnd).padding(6.dp).size(20.dp).clip(CircleShape).background(Candy.Sky),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(LucideIcons.Check, null, tint = Color.White, modifier = Modifier.size(13.dp)) }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(label, style = if (on) ClearType.BodyStrong else ClearType.Body, color = if (on) c.ink else c.inkSoft, maxLines = 1)
+            }
+        }
+    }
+}
+
+/**
+ * The wallpaper: Aurora (Artefact's own), Liquid (the old ClearPDF's) and a picture from the gallery,
+ * each a thumbnail, the chosen one ringed and ticked like the theme's. Custom picks a new picture
+ * every time it is tapped.
+ */
+@Composable
+private fun WallpaperPicker(context: android.content.Context) {
+    val c = clear
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val current = GlassSettings.wallpaper
+    val custom = GlassSettings.customWallpaper
+    val failed = stringResource(R.string.settings_wallpaper_failed)
+    val pick = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) scope.launch {
+            if (!GlassSettings.setCustomWallpaper(context, uri)) android.widget.Toast.makeText(context, failed, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    val choices = listOf(
+        com.chethan616.clearpdf.ui.glass.Wallpaper.Aurora to stringResource(R.string.settings_wallpaper_aurora),
+        com.chethan616.clearpdf.ui.glass.Wallpaper.Liquid to stringResource(R.string.settings_wallpaper_liquid),
+        com.chethan616.clearpdf.ui.glass.Wallpaper.Custom to stringResource(R.string.settings_wallpaper_custom),
+    )
+    Text(stringResource(R.string.settings_wallpaper), style = ClearType.Label, color = c.inkSoft, modifier = Modifier.padding(start = 18.dp, top = 10.dp))
+    Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        choices.forEach { (w, label) ->
+            val on = w == current
+            val tap = {
+                if (w == com.chethan616.clearpdf.ui.glass.Wallpaper.Custom) {
+                    pick.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+                } else GlassSettings.updateWallpaper(context, w)
+            }
+            Column(Modifier.weight(1f).pressable(tap, pressedScale = 0.94f).semantics { contentDescription = label }, horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    Modifier.fillMaxWidth().aspectRatio(0.62f)
+                        .border(if (on) 2.5.dp else 1.dp, if (on) Candy.Sky else c.ink.copy(alpha = 0.12f), RoundedRectangle(18.dp))
+                        .padding(4.dp).clip(RoundedRectangle(14.dp)),
+                ) {
+                    when (w) {
+                        com.chethan616.clearpdf.ui.glass.Wallpaper.Liquid ->
+                            Image(painterResource(if (c.dark) R.drawable.wallpaper_liquid_dark else R.drawable.wallpaper_liquid_light), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                        com.chethan616.clearpdf.ui.glass.Wallpaper.Custom ->
+                            if (custom != null) Image(custom, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                            else Box(Modifier.fillMaxSize().background(c.ink.copy(alpha = 0.06f)), contentAlignment = Alignment.Center) {
+                                Icon(LucideIcons.ImagePlus, null, tint = c.inkSoft, modifier = Modifier.size(26.dp))
+                            }
+                        else -> Box(Modifier.fillMaxSize().drawBehind {
+                            drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(if (c.dark) listOf(Color(0xFF231A3D), Color(0xFF15122A)) else listOf(Color(0xFFDCD8F6), Color(0xFFC9C4EE))))
+                            drawCircle(androidx.compose.ui.graphics.Brush.radialGradient(listOf(Color(0xFFB36BFF).copy(alpha = 0.55f), Color.Transparent), androidx.compose.ui.geometry.Offset(size.width * 0.8f, size.height * 0.2f), size.width * 0.7f), size.width * 0.7f, androidx.compose.ui.geometry.Offset(size.width * 0.8f, size.height * 0.2f))
+                            drawCircle(androidx.compose.ui.graphics.Brush.radialGradient(listOf(Color(0xFF5AA9FF).copy(alpha = 0.45f), Color.Transparent), androidx.compose.ui.geometry.Offset(size.width * 0.15f, size.height * 0.85f), size.width * 0.7f), size.width * 0.7f, androidx.compose.ui.geometry.Offset(size.width * 0.15f, size.height * 0.85f))
+                        })
+                    }
+                    if (on) Box(
+                        Modifier.align(Alignment.BottomEnd).padding(6.dp).size(20.dp).clip(CircleShape).background(Candy.Sky),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(LucideIcons.Check, null, tint = Color.White, modifier = Modifier.size(13.dp)) }
+                    else if (w == com.chethan616.clearpdf.ui.glass.Wallpaper.Custom && custom != null) Box(
+                        Modifier.align(Alignment.BottomEnd).padding(6.dp).size(22.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f)),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(LucideIcons.Pencil, null, tint = Color.White, modifier = Modifier.size(13.dp)) }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(label, style = if (on) ClearType.BodyStrong else ClearType.Body, color = if (on) c.ink else c.inkSoft, maxLines = 1)
+            }
+        }
+    }
+}
+
+/** A tiny desk in a theme's colours: its sky, a bloom, two cards and the dock. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawThemeDesk(choice: ThemeChoice) {
+    fun desk(dark: Boolean) {
+        val sky = if (dark) listOf(Color(0xFF231A3D), Color(0xFF15122A)) else listOf(Color(0xFFDCD8F6), Color(0xFFC9C4EE))
+        drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(sky))
+        drawCircle(
+            androidx.compose.ui.graphics.Brush.radialGradient(listOf((if (dark) Color(0xFF7B4DDB) else Color(0xFFF2B8E4)).copy(alpha = 0.7f), Color.Transparent), androidx.compose.ui.geometry.Offset(size.width * 0.85f, size.height * 0.15f), size.width * 0.8f),
+            size.width * 0.8f, androidx.compose.ui.geometry.Offset(size.width * 0.85f, size.height * 0.15f),
+        )
+        val ink = if (dark) Color.White else Color(0xFF1C1733)
+        val w = size.width
+        val h = size.height
+        drawRoundRect(ink.copy(alpha = 0.85f), androidx.compose.ui.geometry.Offset(w * 0.12f, h * 0.12f), androidx.compose.ui.geometry.Size(w * 0.5f, h * 0.06f), androidx.compose.ui.geometry.CornerRadius(h * 0.03f))
+        val card1 = if (dark) Color(0xFF3B6E5A) else Color(0xFFBFE8D2)
+        val card2 = if (dark) Color(0xFF4A3F86) else Color(0xFFFFFFFF)
+        drawRoundRect(card1, androidx.compose.ui.geometry.Offset(w * 0.1f, h * 0.27f), androidx.compose.ui.geometry.Size(w * 0.38f, h * 0.4f), androidx.compose.ui.geometry.CornerRadius(w * 0.08f))
+        drawRoundRect(card2, androidx.compose.ui.geometry.Offset(w * 0.52f, h * 0.27f), androidx.compose.ui.geometry.Size(w * 0.38f, h * 0.3f), androidx.compose.ui.geometry.CornerRadius(w * 0.08f))
+        drawRoundRect(ink.copy(alpha = if (dark) 0.22f else 0.12f), androidx.compose.ui.geometry.Offset(w * 0.3f, h * 0.8f), androidx.compose.ui.geometry.Size(w * 0.4f, h * 0.1f), androidx.compose.ui.geometry.CornerRadius(h * 0.05f))
+        drawCircle(Color.White, h * 0.035f, androidx.compose.ui.geometry.Offset(w * 0.42f, h * 0.85f))
+    }
+    when (choice) {
+        ThemeChoice.Light -> desk(false)
+        ThemeChoice.Dark -> desk(true)
+        else -> {
+            desk(false)
+            val half = androidx.compose.ui.graphics.Path().apply { moveTo(size.width, 0f); lineTo(size.width, size.height); lineTo(0f, size.height); close() }
+            clipPath(half) { desk(true) }
+        }
+    }
+}
+
+/** A setting's icon: a small solid tile with a white glyph, as grouped settings draw them. */
+@Composable
+private fun SettingIcon(icon: ImageVector, accent: Color) {
+    Box(Modifier.size(30.dp).clip(RoundedRectangle(8.dp)).background(accent), contentAlignment = Alignment.Center) {
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(17.dp))
+    }
+}
+
+/** A hairline between rows of a panel, starting where the words do. */
+private fun Modifier.rowDivider(show: Boolean, color: Color): Modifier = if (!show) this else drawBehind {
+    val x = 60.dp.toPx()
+    drawRect(color, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Size(size.width - x, 0.6.dp.toPx()))
+}
+
+/** A row of a settings panel: icon, name, then a value and a chevron when it opens something. */
+@Composable
+internal fun SettingRow(icon: ImageVector, accent: Color, label: String, onClick: () -> Unit, value: String? = null, chevron: Boolean = false, first: Boolean = false) {
     val c = clear
     Row(
-        Modifier.fillMaxWidth().pressable({ onChange(!checked) }).padding(horizontal = 18.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth().rowDivider(!first, c.ink.copy(alpha = 0.08f)).pressable(onClick).heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(34.dp).clip(RoundedRectangle(11.dp)).background(accent.copy(alpha = if (c.dark) 0.26f else 0.16f)), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = accent, modifier = Modifier.size(19.dp))
+        SettingIcon(icon, accent)
+        Spacer(Modifier.width(14.dp))
+        // the value under the name, as a subtitle, so neither is ever cut short
+        Column(Modifier.weight(1f)) {
+            Text(label, style = ClearType.Body, color = c.ink, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            if (value != null) Text(value, style = ClearType.Caption, color = c.inkSoft, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
+        if (chevron) Icon(LucideIcons.ChevronRight, null, tint = c.inkFaint, modifier = Modifier.padding(start = 4.dp).size(16.dp))
+    }
+}
+
+/** A switch row: icon, the setting's name and (smaller) what it does, and a glass toggle. */
+@Composable
+internal fun ToggleRow(icon: ImageVector, accent: Color, label: String, body: String?, checked: Boolean, first: Boolean = false, onChange: (Boolean) -> Unit) {
+    val c = clear
+    Row(
+        Modifier.fillMaxWidth().rowDivider(!first, c.ink.copy(alpha = 0.08f)).pressable({ onChange(!checked) }).heightIn(min = 52.dp).padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SettingIcon(icon, accent)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(label, style = ClearType.BodyStrong, color = c.ink)
-            if (body != null) Text(body, style = ClearType.Caption, color = c.inkSoft)
+            Text(label, style = ClearType.Body, color = c.ink)
+            if (body != null) Text(body, style = ClearType.Caption, color = c.inkSoft, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
         Spacer(Modifier.width(12.dp))
-        GlassToggle(checked, onChange, accent = accent)
+        GlassToggle(checked, onChange, accent = Candy.Mint)
     }
 }
 

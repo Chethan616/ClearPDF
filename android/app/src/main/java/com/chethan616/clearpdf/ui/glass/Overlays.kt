@@ -73,8 +73,6 @@ import androidx.compose.ui.util.lerp
 import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
-import com.kyant.shapes.Capsule
-import com.kyant.shapes.RoundedRectangle
 import com.kyant.backdrop.floatingLayer
 import kotlin.math.roundToInt
 import kotlin.math.tanh
@@ -318,6 +316,9 @@ data class GlassMenuItem(val label: String, val icon: ImageVector? = null, val d
  * A popover menu anchored to [anchor] (window bounds of its trigger): unfolds from the trigger's
  * corner, width first then height, and folds away on a tap outside or Back.
  */
+/** How long a chosen menu item waits for the menu to fold away (its dismiss tween, about 260 ms). */
+private const val MenuGoneMillis = 220L
+
 @Composable
 fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
     val c = clear
@@ -359,7 +360,13 @@ fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
                     Spacer(Modifier.height(6.dp))
                     items.forEach { item ->
                         Row(
-                            Modifier.fillMaxWidth().pressable({ onDismiss(); item.onClick() }).padding(horizontal = 16.dp, vertical = 11.dp),
+                            // the menu folds away first; what was chosen happens once it has gone
+                            Modifier.fillMaxWidth().pressable({
+                                if (!leaving) {
+                                    onDismiss()
+                                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ item.onClick() }, MenuGoneMillis)
+                                }
+                            }).padding(horizontal = 16.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(item.label, style = ClearType.BodyStrong, color = if (item.destructive) Candy.Tomato else c.ink, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)

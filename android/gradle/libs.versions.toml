@@ -4,6 +4,7 @@ kotlin = "2.3.21"
 composeBom = "2026.09.00"
 # Material 3 Expressive (LoadingIndicator, MaterialShapes): the beta, ahead of the BOM's stable
 material3 = "1.5.0-beta02"
+materialIconsExtended = "1.7.8"
 coreKtx = "1.17.0"
 lifecycle = "2.9.4"
 activityCompose = "1.11.0"
@@ -25,6 +26,7 @@ androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 kyant-shapes = { group = "io.github.kyant0", name = "shapes", version.ref = "kyantShapes" }
 androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIconsExtended" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }

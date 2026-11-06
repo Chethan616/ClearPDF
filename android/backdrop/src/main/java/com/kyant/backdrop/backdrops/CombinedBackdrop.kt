@@ -60,6 +60,9 @@ private class Combined2Backdrops(
         with(backdrop1) { drawBackdrop(density, coordinates, layerBlock) }
         with(backdrop2) { drawBackdrop(density, coordinates, layerBlock) }
     }
+
+    override fun positionKey(coordinates: LayoutCoordinates): Long =
+        com.kyant.backdrop.mixPositionKeys(backdrop1.positionKey(coordinates), backdrop2.positionKey(coordinates))
 }
 
 @Immutable
@@ -83,6 +86,12 @@ private class Combined3Backdrops(
         with(backdrop2) { drawBackdrop(density, coordinates, layerBlock) }
         with(backdrop3) { drawBackdrop(density, coordinates, layerBlock) }
     }
+
+    override fun positionKey(coordinates: LayoutCoordinates): Long =
+        com.kyant.backdrop.mixPositionKeys(
+            com.kyant.backdrop.mixPositionKeys(backdrop1.positionKey(coordinates), backdrop2.positionKey(coordinates)),
+            backdrop3.positionKey(coordinates),
+        )
 }
 
 @Immutable
@@ -102,4 +111,7 @@ private class CombinedBackdrops(
             with(backdrop) { drawBackdrop(density, coordinates, layerBlock) }
         }
     }
+
+    override fun positionKey(coordinates: LayoutCoordinates): Long =
+        backdrops.fold(0L) { k, b -> com.kyant.backdrop.mixPositionKeys(k, b.positionKey(coordinates)) }
 }

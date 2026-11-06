@@ -218,6 +218,25 @@ half4 main(float2 coord) {
         }
     }
 
+    /**
+     * Settles at once (critically damped, ~150 ms) instead of ringing on: a press that opened a menu or
+     * sheet would otherwise keep the whole scene under it redrawing, and re-blurring, for a second.
+     */
+    fun settle() {
+        if (pressAnim.value == 0f && wobbleAnim.value == 0f && glowAnim.value == 0f && expandAnim.value == 0f) return
+        releaseJob?.cancel()
+        longPressJob?.cancel()
+        val quick = spring<Float>(1f, 1400f, 0.004f)
+        releaseJob = animationScope.launch {
+            launch { wobbleAnim.animateTo(0f, quick) }
+            launch { pressAnim.animateTo(0f, quick) }
+            launch { glowAnim.animateTo(0f, quick) }
+            launch { expandAnim.animateTo(0f, quick) }
+            launch { bloomGlowAnim.animateTo(0f, quick) }
+            launch { positionAnim.snapTo(startPosition) }
+        }
+    }
+
     val gestureModifier: Modifier = Modifier.pointerInput(animationScope) {
         val longPressMs = viewConfiguration.longPressTimeoutMillis
         val slop = viewConfiguration.touchSlop

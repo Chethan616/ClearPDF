@@ -99,9 +99,11 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
         selected.clear()
         onClose()
     }
-    // the tick leaves organizing for the grid of pages; back from the grid returns to the document
+    // opened straight into organizing (a tool), Back returns to the document; organizing begun
+    // from the grid returns to the grid
+    val openedOrganizing = remember { vm.organizing }
     fun back() {
-        if (exporting != null) {
+        if (exporting != null || openedOrganizing) {
             close()
         } else if (organizing) {
             vm.organizing = false
@@ -122,15 +124,12 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
             Modifier.fillMaxWidth().height(TopBarHeight).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val goBack = com.chethan616.clearpdf.ui.glass.rememberBeat(::back)
             if (organizing) {
-                com.chethan616.clearpdf.ui.glass.GlassCircle(goBack, size = 48.dp, tint = com.chethan616.clearpdf.ui.theme.Candy.Sky, label = stringResource(if (picked.isEmpty()) R.string.common_done else R.string.common_back)) {
-                    com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Check, null, Modifier.size(22.dp))
+                com.chethan616.clearpdf.ui.glass.GlassCircle(com.chethan616.clearpdf.ui.glass.rememberBeat(::back), tint = com.chethan616.clearpdf.ui.theme.Candy.Sky, label = stringResource(R.string.common_done)) {
+                    com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Check, null, Modifier.size(18.dp))
                 }
             } else {
-                com.chethan616.clearpdf.ui.glass.GlassCircle(goBack, size = 48.dp, label = stringResource(R.string.common_back)) {
-                    com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(23.dp))
-                }
+                com.chethan616.clearpdf.ui.glass.GlassBackButton(::back)
             }
             Spacer(Modifier.width(14.dp))
             Text(
@@ -224,7 +223,7 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
                     ) {
                         Box(
                             Modifier.size(cardW, 162.dp).then(com.chethan616.clearpdf.ui.glass.washPanel())
-                                .then(if (highlighted) Modifier.border(2.dp, com.chethan616.clearpdf.ui.theme.Candy.Sky, com.kyant.shapes.RoundedRectangle(20.dp)) else Modifier),
+                                .then(if (highlighted) Modifier.border(2.dp, com.chethan616.clearpdf.ui.theme.Candy.Sky, com.chethan616.clearpdf.ui.glass.RoundedRectangle(20.dp)) else Modifier),
                             contentAlignment = Alignment.Center,
                         ) {
                             val ratio = (p.width / p.height.coerceAtLeast(1f)).coerceIn(0.2f, 5f)

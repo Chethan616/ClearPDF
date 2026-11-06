@@ -76,8 +76,8 @@ import com.chethan616.clearpdf.ui.theme.CardTone
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.Tone
 import com.chethan616.clearpdf.ui.theme.clear
-import com.kyant.shapes.Capsule
-import com.kyant.shapes.RoundedRectangle
+import com.chethan616.clearpdf.ui.glass.Capsule
+import com.chethan616.clearpdf.ui.glass.RoundedRectangle
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -140,6 +140,7 @@ fun ListCard(note: Note, onOpen: () -> Unit, onLong: () -> Unit, onToggle: (Chec
     GlassHost(
         modifier.pressable(onOpen, onLong, pressedScale = 0.96f),
         paint = { Box(Modifier.fillMaxSize().cardPaint(tone, Offset(0.15f, 0.0f))) },
+        opaque = true,
     ) {
         Column(Modifier.padding(start = 12.dp, end = 12.dp, top = 20.dp, bottom = 14.dp)) {
             WordFitText(
@@ -488,6 +489,7 @@ fun StackCard(
                 // a shade over the top so the title reads on a white page or a bright photo
                 Box(Modifier.fillMaxWidth().height(86.dp).background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.38f), Color.Transparent))))
             },
+            opaque = true,
         ) {
             Column(Modifier.padding(start = 16.dp, top = 14.dp, end = 16.dp)) {
                 Text(title, style = ClearType.Title.copy(fontSize = 17.sp), color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -553,6 +555,7 @@ fun RecentCard(vm: AppViewModel, rows: List<FileRow>, onAll: () -> Unit, modifie
                     }
                 }
             },
+            opaque = true,
         ) {
             Row(Modifier.align(Alignment.BottomStart).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (rows.size > 1) PhotoChip("+${rows.size - 1}", onAll)
@@ -587,11 +590,18 @@ fun DocCard(vm: AppViewModel, r: FileRow, tone: CardTone, tilt: Float, onLong: (
 /** The mock's menu glyph: four dots in a square. */
 @Composable
 fun FourDots(color: Color, modifier: Modifier = Modifier) {
-    Canvas(modifier.size(20.dp)) {
-        val r = 2.4.dp.toPx()
-        val d = 5.2.dp.toPx()
+    // unspecified: the ink of the glass button it sits on
+    val glassInk = com.chethan616.clearpdf.ui.glass.LocalGlassInk.current
+    val ink = when {
+        color != Color.Unspecified -> color
+        glassInk != Color.Unspecified -> glassInk
+        else -> clear.ink
+    }
+    Canvas(modifier.size(16.dp)) {
+        val r = 2.dp.toPx()
+        val d = 4.2.dp.toPx()
         val c = Offset(size.width / 2f, size.height / 2f)
-        for (dx in listOf(-d, d)) for (dy in listOf(-d, d)) drawCircle(color, r, c + Offset(dx, dy))
+        for (dx in listOf(-d, d)) for (dy in listOf(-d, d)) drawCircle(ink, r, c + Offset(dx, dy))
     }
 }
 

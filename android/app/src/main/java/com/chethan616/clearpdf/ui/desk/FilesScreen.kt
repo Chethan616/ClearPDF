@@ -66,7 +66,7 @@ import com.chethan616.clearpdf.ui.home.dayBucket
 import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
-import com.kyant.shapes.Capsule
+import com.chethan616.clearpdf.ui.glass.Capsule
 import kotlinx.coroutines.delay
 
 /** At most this many rows share one panel, so a long folder isn't one giant item. */
@@ -128,7 +128,7 @@ fun FilesScreen(vm: AppViewModel, onBrowse: () -> Unit) {
                     com.chethan616.clearpdf.ui.glass.HeaderGlassButton(
                         onClick = { menuOpen = true }, label = stringResource(R.string.common_more_options),
                         modifier = Modifier.onGloballyPositioned { menuAnchor = it.boundsInWindow() },
-                    ) { GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(22.dp)) }
+                    ) { GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(20.dp)) }
                 }
             }
         }

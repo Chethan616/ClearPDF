@@ -136,11 +136,7 @@ private fun GlassToolBackground(content: @Composable () -> Unit) {
 /** A tool's Back: the round glass Back of every screen, leaving a beat after the tap. */
 @Composable
 private fun GlassBack(onBack: () -> Unit) {
-    com.chethan616.clearpdf.ui.glass.GlassCircle(
-        onClick = com.chethan616.clearpdf.ui.glass.rememberBeat(onBack),
-        size = 48.dp,
-        label = stringResource(R.string.common_back),
-    ) { com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(23.dp)) }
+    com.chethan616.clearpdf.ui.glass.GlassBackButton(onBack)
 }
 
 /** A file as the tools show it: an icon, its name and size. */
@@ -204,11 +200,12 @@ fun ToolPage(
 
 /** A small action on a tool's screen: a glass chip, faint while it can't be used. */
 @Composable
-private fun GlassTextButton(onClick: () -> Unit, enabled: Boolean = true, content: @Composable () -> Unit) {
+private fun GlassTextButton(onClick: () -> Unit, enabled: Boolean = true, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     com.chethan616.clearpdf.ui.glass.GlassChip(
         onClick = { if (enabled) onClick() },
-        modifier = Modifier.alpha(if (enabled) 1f else 0.5f),
+        modifier = modifier.alpha(if (enabled) 1f else 0.5f),
         height = 42.dp,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
     ) { content() }
 }
 
@@ -326,7 +323,7 @@ fun ProtectScreen(vm: AppViewModel, doc: OpenDocument) {
     val mismatch = confirm.isNotEmpty() && confirm != pw
     ToolPage(stringResource(R.string.common_tool_set_password), { vm.toolScreen = null }, stringResource(R.string.common_tool_set_password), pw.isNotEmpty() && confirm.isNotEmpty() && !bad && !mismatch, { vm.protect(doc, pw) },
         trailing = {
-            com.chethan616.clearpdf.ui.glass.GlassCircle({ info = true }, size = 44.dp, label = stringResource(R.string.tools_about_passwords)) {
+            com.chethan616.clearpdf.ui.glass.GlassCircle({ info = true }, label = stringResource(R.string.tools_about_passwords)) {
                 com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Info, null, Modifier.size(20.dp))
             }
         }) {
@@ -471,7 +468,7 @@ fun CombineScreen(vm: AppViewModel) {
                     Modifier.fillMaxWidth().height(62.dp)
                         .offset { IntOffset(0, if (dragIndex == i) dragOffset.roundToInt() else 0) }
                         .then(com.chethan616.clearpdf.ui.glass.washPanel())
-                        .then(if (dragIndex == i) Modifier.border(2.dp, com.chethan616.clearpdf.ui.theme.Candy.Sky, com.kyant.shapes.RoundedRectangle(20.dp)) else Modifier),
+                        .then(if (dragIndex == i) Modifier.border(2.dp, com.chethan616.clearpdf.ui.theme.Candy.Sky, com.chethan616.clearpdf.ui.glass.RoundedRectangle(20.dp)) else Modifier),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
@@ -655,14 +652,14 @@ fun CropScreen(vm: AppViewModel, doc: OpenDocument) {
         // the page in a glass pill, glass arrows either side when cropping them all
         val ink = com.chethan616.clearpdf.ui.theme.clear
         Row(Modifier.fillMaxWidth().height(76.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
-            if (allPages) com.chethan616.clearpdf.ui.glass.GlassCircle({ page = (page - 1).coerceAtLeast(0) }, size = 44.dp, label = stringResource(R.string.tools_previous_page)) {
+            if (allPages) com.chethan616.clearpdf.ui.glass.GlassCircle({ page = (page - 1).coerceAtLeast(0) }, label = stringResource(R.string.tools_previous_page)) {
                 com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(20.dp).alpha(if (page > 0) 1f else 0.35f))
             }
             Box(
                 Modifier.widthIn(min = 110.dp).height(40.dp).glassBar().padding(horizontal = 18.dp),
                 contentAlignment = Alignment.Center,
             ) { Text(stringResource(R.string.tools_page_number, page + 1), style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, color = ink.ink) }
-            if (allPages) com.chethan616.clearpdf.ui.glass.GlassCircle({ page = (page + 1).coerceAtMost(doc.pageCount - 1) }, size = 44.dp, label = stringResource(R.string.tools_next_page)) {
+            if (allPages) com.chethan616.clearpdf.ui.glass.GlassCircle({ page = (page + 1).coerceAtMost(doc.pageCount - 1) }, label = stringResource(R.string.tools_next_page)) {
                 com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.ChevronRight, null, Modifier.size(20.dp).alpha(if (page < doc.pageCount - 1) 1f else 0.35f))
             }
         }
@@ -759,13 +756,13 @@ fun ScanScreen(vm: AppViewModel) {
             pages.forEachIndexed { i, p ->
                 Image(
                     p.thumb, stringResource(R.string.tools_page_number, i + 1),
-                    modifier = Modifier.size(56.dp, 72.dp).clip(com.kyant.shapes.RoundedRectangle(12.dp))
-                        .border(2.5.dp, if (i == current) com.chethan616.clearpdf.ui.theme.Candy.Sky else Color.Transparent, com.kyant.shapes.RoundedRectangle(12.dp))
+                    modifier = Modifier.size(56.dp, 72.dp).clip(com.chethan616.clearpdf.ui.glass.RoundedRectangle(12.dp))
+                        .border(2.5.dp, if (i == current) com.chethan616.clearpdf.ui.theme.Candy.Sky else Color.Transparent, com.chethan616.clearpdf.ui.glass.RoundedRectangle(12.dp))
                         .clickable { current = i },
                     contentScale = ContentScale.Crop,
                 )
             }
-            com.chethan616.clearpdf.ui.glass.GlassCircle(onClick = { vm.takeScanPhoto() }, size = 56.dp, label = addPageLabel) {
+            com.chethan616.clearpdf.ui.glass.GlassCircle(onClick = { vm.takeScanPhoto() }, size = 48.dp, label = addPageLabel) {
                 com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Plus, null, Modifier.size(24.dp))
             }
         }
@@ -777,17 +774,17 @@ fun ScanScreen(vm: AppViewModel) {
             ScanFilter.entries.forEach { f -> com.chethan616.clearpdf.ui.home.DeskChip(stringResource(f.label), f == filter) { filter = f } }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
-            GlassTextButton(onClick = { vm.retakeScan(current) }, enabled = pages.isNotEmpty()) {
+            GlassTextButton(onClick = { vm.retakeScan(current) }, enabled = pages.isNotEmpty(), modifier = Modifier.weight(1f)) {
                 com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Camera, null, Modifier.size(18.dp))
-                Text(stringResource(R.string.tools_retake), color = ink)
+                Text(stringResource(R.string.tools_retake), color = ink, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
             }
-            GlassTextButton(onClick = { cropping = pages.getOrNull(current.coerceAtMost(pages.lastIndex))?.file }, enabled = pages.isNotEmpty()) {
+            GlassTextButton(onClick = { cropping = pages.getOrNull(current.coerceAtMost(pages.lastIndex))?.file }, enabled = pages.isNotEmpty(), modifier = Modifier.weight(1f)) {
                 com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Crop, null, Modifier.size(18.dp))
-                Text(stringResource(R.string.tools_crop), color = ink)
+                Text(stringResource(R.string.tools_crop), color = ink, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
             }
-            GlassTextButton(onClick = { if (pages.isNotEmpty()) { pages.removeAt(current.coerceAtMost(pages.lastIndex)); current = (current - 1).coerceAtLeast(0) } }, enabled = pages.isNotEmpty()) {
+            GlassTextButton(onClick = { if (pages.isNotEmpty()) { pages.removeAt(current.coerceAtMost(pages.lastIndex)); current = (current - 1).coerceAtLeast(0) } }, enabled = pages.isNotEmpty(), modifier = Modifier.weight(1f)) {
                 com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Trash2, null, Modifier.size(18.dp), tint = com.chethan616.clearpdf.ui.theme.Candy.Tomato)
-                Text(stringResource(R.string.common_delete), color = ink)
+                Text(stringResource(R.string.common_delete), color = ink, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
             }
         }
     }

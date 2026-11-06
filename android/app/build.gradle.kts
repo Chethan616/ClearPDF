@@ -171,7 +171,7 @@ abstract class LucideIconsTask : DefaultTask() {
         sb.appendLine("package com.chethan616.clearpdf.ui\n")
         sb.appendLine("import androidx.compose.ui.graphics.vector.ImageVector\n")
         sb.appendLine("/** Lucide icons (ISC, Lucide Contributors; assets/icons/LICENSE-lucide.txt). */")
-        sb.appendLine("object LucideIcons {")
+        sb.appendLine("object LucideSet {")
         val files = iconsDir.get().asFile.listFiles { f -> f.extension == "svg" }.orEmpty().sortedBy { it.name }
         for (f in files) {
             val paths = mutableListOf<String>()
@@ -370,6 +370,7 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.foundation)
     implementation(project(":backdrop"))
     implementation(libs.kyant.shapes)

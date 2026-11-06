@@ -40,4 +40,6 @@ private class Backdrop(
     ) {
         onDraw { with(backdrop) { drawBackdrop(density, coordinates, layerBlock) } }
     }
+
+    override fun positionKey(coordinates: LayoutCoordinates): Long = backdrop.positionKey(coordinates)
 }

@@ -42,6 +42,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.magnifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.imePadding
@@ -360,10 +362,51 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
             // the pages run up under the camera and the glass row: no band of their own up there
             Spacer(Modifier.fillMaxWidth().height(with(density) { statusPx.toDp() }))
             GlassBars(ctl.barsVisible, fromTop = true) {
+                // Find grows out of the title pill over Share and More, and shrinks back into it
+                val sp = remember { androidx.compose.animation.core.Animatable(if (ctl.searching) 1f else 0f) }
+                LaunchedEffect(ctl.searching) {
+                    sp.animateTo(
+                        if (ctl.searching) 1f else 0f,
+                        if (ctl.searching) com.chethan616.clearpdf.ui.glass.GlassMotion.morph() else com.chethan616.clearpdf.ui.glass.GlassMotion.settle(),
+                    )
+                }
+                val searchShown by remember { androidx.compose.runtime.derivedStateOf { ctl.searching || sp.value > 0.002f } }
+                val barShown by remember { androidx.compose.runtime.derivedStateOf { !ctl.searching || sp.value < 0.998f } }
                 Box(barSides) {
-                    if (ctl.searching) {
+                    if (barShown) Box(
+                        Modifier.graphicsLayer { alpha = (1f - sp.value * 1.8f).coerceIn(0f, 1f) }
+                            .then(if (ctl.searching) Modifier.pointerInput(Unit) {
+                                awaitPointerEventScope { while (true) awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial).changes.forEach { it.consume() } }
+                            } else Modifier),
+                    ) {
+                        val fa = vm.fieldActions
+                        if (fa != null) FieldTopBar(fa) else ViewerTopBar(
+                            title = doc.title,
+                            subtitle = stringResource(R.string.desk_page_of, (doc.viewer.currentPage + 1).coerceAtMost(doc.pageCount), doc.pageCount),
+                            toolTitle = if (ctl.tool == ViewerTool.Edit) stringResource(R.string.common_tool_edit_pdf) else null,
+                            toolActive = ctl.tool != ViewerTool.None,
+                            doneIsCheck = ctl.tool != ViewerTool.Comment,
+                            canUndo = doc.localUndo?.canUndo?.invoke() ?: (doc.info.undo != null),
+                            canRedo = doc.localUndo?.canRedo?.invoke() ?: (doc.info.redo != null),
+                            onBack = { if (ctl.tool != ViewerTool.None) vm.leaveTool(doc) else vm.closeDocument() },
+                            onUndo = { vm.undo(doc) },
+                            onRedo = { vm.redo(doc) },
+                            onTitle = { ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More },
+                            onSearch = if (vm.readingMode) null else ({
+                                selection.clear()
+                                ctl.searching = true
+                                ctl.sheet = ViewerSheet.None
+                            }),
+                            onShare = { vm.share(doc) },
+                            onMore = { ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More },
+                            undoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.undo,
+                            redoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.redo,
+                        )
+                    }
+                    if (searchShown) {
                         var query by remember { mutableStateOf(search.query) }
                         SearchBar(
+                            progress = { sp.value },
                             query = query,
                             onQuery = {
                                 query = it
@@ -384,33 +427,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                                 stringResource(R.string.viewer_search_count, (search.current + 1).coerceAtLeast(1), search.hits.size)
                             } else null,
                         )
-                    } else {
-                        val fa = vm.fieldActions
-                        if (fa != null) FieldTopBar(fa) else ViewerTopBar(
-                            title = doc.title,
-                            subtitle = stringResource(R.string.desk_page_of, (doc.viewer.currentPage + 1).coerceAtMost(doc.pageCount), doc.pageCount),
-                            toolTitle = if (ctl.tool == ViewerTool.Edit) stringResource(R.string.common_tool_edit_pdf) else null,
-                            toolActive = ctl.tool != ViewerTool.None,
-                            doneIsCheck = ctl.tool != ViewerTool.Comment,
-                            // while drawing, the strokes not yet added have their own undo and redo
-                            canUndo = doc.localUndo?.canUndo?.invoke() ?: (doc.info.undo != null),
-                            canRedo = doc.localUndo?.canRedo?.invoke() ?: (doc.info.redo != null),
-                            onBack = { if (ctl.tool != ViewerTool.None) vm.leaveTool(doc) else vm.closeDocument() },
-                            onUndo = { vm.undo(doc) },
-                            onRedo = { vm.redo(doc) },
-                            onTitle = { ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More },
-                            // Reading Mode has no search, as the reference's bar shows
-                            onSearch = if (vm.readingMode) null else ({
-                                selection.clear()
-                                ctl.searching = true
-                                ctl.sheet = ViewerSheet.None
-                            }),
-                            onShare = { vm.share(doc) },
-                            onMore = { ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More },
-                            undoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.undo,
-                            redoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.redo,
-                        )
-                }
+                    }
                 }
             }
         }

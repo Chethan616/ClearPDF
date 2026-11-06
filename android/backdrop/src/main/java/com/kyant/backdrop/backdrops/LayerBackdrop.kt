@@ -73,6 +73,18 @@ class LayerBackdrop internal constructor(
         }
     }
 
+    override fun positionKey(coordinates: LayoutCoordinates): Long {
+        val layer = layerCoordinates ?: return com.kyant.backdrop.UnknownPosition
+        if (!layer.isAttached || !coordinates.isAttached) return com.kyant.backdrop.UnknownPosition
+        val o = try {
+            layer.localPositionOf(coordinates)
+        } catch (_: Exception) {
+            return com.kyant.backdrop.UnknownPosition
+        }
+        // to a quarter pixel: closer than that draws the same
+        return (Math.round(o.x * 4f).toLong() shl 32) or (Math.round(o.y * 4f).toLong() and 0xffffffffL)
+    }
+
     private fun obtainInverseLayerScope(): InverseLayerScope {
         return inverseLayerScope?.apply { reset() }
             ?: InverseLayerScope().also { inverseLayerScope = it }

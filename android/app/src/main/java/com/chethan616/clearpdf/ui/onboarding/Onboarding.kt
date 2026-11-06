@@ -80,8 +80,8 @@ import com.chethan616.clearpdf.ui.theme.Tone
 import com.chethan616.clearpdf.ui.theme.clear
 import com.chethan616.clearpdf.ui.theme.glowing
 import com.kyant.backdrop.throttleBackdrops
-import com.kyant.shapes.Capsule
-import com.kyant.shapes.RoundedRectangle
+import com.chethan616.clearpdf.ui.glass.Capsule
+import com.chethan616.clearpdf.ui.glass.RoundedRectangle
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -180,6 +180,7 @@ fun Onboarding(vm: AppViewModel, pager: PagerState = rememberPagerState { Welcom
             GlassPill(
                 onClick = { if (last) { haptics?.play(Feel.Confirm); vm.finishOnboarding() } else scope.launch { pager.animateScrollToPage(pager.currentPage + 1, animationSpec = Fluid.push()) } },
                 tintAt = accent,
+                tap = if (last) null else Feel.Tap,
                 height = 58.dp,
                 modifier = Modifier.fillMaxWidth(),
             ) {

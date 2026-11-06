@@ -1170,6 +1170,13 @@
     <string name="settings_motion_jelly">Jelly</string>
     <string name="settings_custom">Custom</string>
     <string name="settings_general">General</string>
+    <string name="settings_wallpaper">Wallpaper</string>
+    <string name="settings_wallpaper_liquid">Liquid</string>
+    <string name="settings_wallpaper_aurora">Aurora</string>
+    <string name="settings_wallpaper_custom">Gallery</string>
+    <string name="settings_wallpaper_failed">Couldn\'t use that picture</string>
+    <string name="settings_personalization">Personalization</string>
+    <string name="gm_fine_tune">Fine-tune</string>
     <string name="settings_glass_motion">Liquid glass &amp; motion</string>
     <string name="gm_preview_body">These buttons move the way you set them below. Press and hold them.</string>
     <string name="gm_press_me">Press me</string>

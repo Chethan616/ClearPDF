@@ -351,8 +351,14 @@ private class DrawBackdropNode(
     private var lastCoordinatesWrite = 0L
     private var pendingCoordinates: LayoutCoordinates? = null
     private var settleJob: Job? = null
+    private var lastPositionKey = UnknownPosition
 
     private fun publishCoordinates(coordinates: LayoutCoordinates) {
+        // moved, but not against what it samples (a chip scrolled with its card): the blur it holds
+        // is still right, so don't re-record it
+        val key = backdrop.positionKey(coordinates)
+        if (key != UnknownPosition && key == lastPositionKey && layoutCoordinates != null && pendingCoordinates == null) return
+        lastPositionKey = key
         if (!throttleLooked) {
             throttle = findBackdropThrottle()
             throttleLooked = true
@@ -434,6 +440,7 @@ private class DrawBackdropNode(
         pendingCoordinates = null
         throttle = null
         throttleLooked = false
+        lastPositionKey = UnknownPosition
         layoutCoordinates = null
         exportedBackdrop?.layerCoordinates = null
     }

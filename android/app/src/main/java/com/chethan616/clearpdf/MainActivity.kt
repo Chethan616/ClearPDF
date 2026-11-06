@@ -34,6 +34,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
+    // where the last touch went down: a document opened by it zooms out of that spot
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+            com.chethan616.clearpdf.ui.LastTouch.x = ev.rawX
+            com.chethan616.clearpdf.ui.LastTouch.y = ev.rawY
+        }
+        return super.dispatchTouchEvent(ev)
+    }
     companion object {
         /** Set by Quick Preview's Expand: the document came from another app through the preview. */
         const val EXTRA_FROM_PREVIEW = "com.chethan616.clearpdf.FROM_PREVIEW"

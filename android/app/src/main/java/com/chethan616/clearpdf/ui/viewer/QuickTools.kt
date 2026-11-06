@@ -241,15 +241,15 @@ fun CustomizeToolbar(vm: AppViewModel, onDone: () -> Unit) {
         Column {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.toolbar_customize), color = c.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                com.chethan616.clearpdf.ui.glass.GlassCircle(onDone, size = 42.dp, label = stringResource(R.string.common_cancel)) {
-                    com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.X, null, Modifier.size(19.dp))
+                com.chethan616.clearpdf.ui.glass.GlassCircle(onDone, label = stringResource(R.string.common_cancel)) {
+                    com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.X, null, Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(8.dp))
                 com.chethan616.clearpdf.ui.glass.GlassCircle({
                     prefs.save(bar.toList(), grid.toList())
                     onDone()
-                }, size = 42.dp, tint = com.chethan616.clearpdf.ui.theme.Candy.Sky, label = stringResource(R.string.toolbar_save)) {
-                    com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Check, null, Modifier.size(19.dp))
+                }, tint = com.chethan616.clearpdf.ui.theme.Candy.Sky, label = stringResource(R.string.toolbar_save)) {
+                    com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Check, null, Modifier.size(18.dp))
                 }
             }
             Text(

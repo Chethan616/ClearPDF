@@ -31,6 +31,8 @@ private class CanvasBackdrop(
 
     override val isCoordinatesDependent: Boolean = false
 
+    override fun positionKey(coordinates: androidx.compose.ui.layout.LayoutCoordinates): Long = 0L
+
     override fun DrawScope.drawBackdrop(
         density: Density,
         coordinates: LayoutCoordinates?,

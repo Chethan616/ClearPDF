@@ -20,6 +20,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
@@ -98,6 +99,21 @@ private val OffsetPairConverter = TwoWayConverter<Pair<Offset, Offset>, Animatio
  */
 @Composable
 fun Aurora(mood: AuroraMood, modifier: Modifier = Modifier) {
+    // the old ClearPDF's glossy blobs: their hard, shaded edges are what the glass's lens bends at
+    // every rim, so the buttons over them read raised, as they did there
+    val custom = GlassSettings.customWallpaper
+    if (GlassSettings.wallpaper == Wallpaper.Liquid || (GlassSettings.wallpaper == Wallpaper.Custom && custom != null)) {
+        val dark = clear.dark
+        val image = if (GlassSettings.wallpaper == Wallpaper.Custom && custom != null) custom else ImageBitmap.imageResource(
+            if (dark) com.chethan616.clearpdf.R.drawable.wallpaper_liquid_dark else com.chethan616.clearpdf.R.drawable.wallpaper_liquid_light
+        )
+        androidx.compose.foundation.Image(
+            image, null, modifier.fillMaxSize(),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            filterQuality = FilterQuality.Low,
+        )
+        return
+    }
     val colors = clear
     val anims = remember { List(5) { i -> Animatable(mood.blobs[i % mood.blobs.size] to Offset(mood.radius, 0f), OffsetPairConverter) } }
     LaunchedEffect(mood) {

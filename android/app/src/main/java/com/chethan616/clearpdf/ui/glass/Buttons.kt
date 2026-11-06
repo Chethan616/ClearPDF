@@ -36,9 +36,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.chethan616.clearpdf.ui.theme.clear
 import com.kyant.backdrop.drawBackdrop
-import com.kyant.shapes.Capsule
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
 
 /** The ink drawn on a glass control: white on a candy tint, else the theme's ink. */
 val LocalGlassInk = androidx.compose.runtime.compositionLocalOf { Color.Unspecified }
@@ -61,6 +63,7 @@ private fun Modifier.glassControl(
     tap: Feel? = Feel.Tap,
     bloom: Boolean = true,
     tintAt: (() -> Color)? = null,
+    candyBase: Boolean = true,
 ): Modifier {
     val backdrop = LocalBackdrop.current
     val scope = rememberCoroutineScope()
@@ -72,13 +75,18 @@ private fun Modifier.glassControl(
             if (!hasLongClick) currentHaptics?.play(Feel.Bloom)
         })
     }
+    // an overlay opening (often by this very press) settles the press at once, so the scene under the
+    // overlay stops changing and isn't redrawn under it frame after frame
+    val overlays = LocalGlassOverlayHost.current
+    if (overlays != null) LaunchedEffect(overlays, highlight) {
+        androidx.compose.runtime.snapshotFlow { overlays.entries.isNotEmpty() }.collect { if (it) highlight.settle() }
+    }
     val source = remember { MutableInteractionSource() }
     val armed = remember { booleanArrayOf(false) }
     val currentLongClick by rememberUpdatedState(onLongClick)
     LaunchedEffect(source) {
         source.interactions.collect { i ->
             when (i) {
-                is PressInteraction.Press -> currentHaptics?.play(Feel.Press)
                 is PressInteraction.Release -> if (armed[0]) { armed[0] = false; currentLongClick?.invoke() }
                 is PressInteraction.Cancel -> armed[0] = false
             }
@@ -98,9 +106,9 @@ private fun Modifier.glassControl(
                 val t = tintAt?.invoke() ?: tint
                 if (t.isSpecified) {
                     // a soft white base first, so the candy comes out vivid over dark and light alike
-                    drawRect(Color.White.copy(alpha = 0.42f))
+                    if (candyBase) drawRect(Color.White.copy(alpha = 0.42f))
                     drawRect(t, blendMode = BlendMode.Hue)
-                    drawRect(t.copy(alpha = 0.82f))
+                    drawRect(t.copy(alpha = if (candyBase) 0.8f else 0.75f))
                 }
                 if (surface.isSpecified) drawRect(surface.glassTint(style))
                 // read here, while drawing, so a colour animating in changes pixels and recomposes nothing
@@ -153,7 +161,7 @@ fun rememberBeat(action: () -> Unit, millis: Long = BackBeatMillis): () -> Unit 
  * (Settings ▸ liquid glass), so it shows what's under it, the page in the viewer.
  */
 @Composable
-fun Modifier.glassBar(shape: Shape = Capsule, surface: Color = clear.glass, blur: Dp = 6.dp): Modifier {
+fun Modifier.glassBar(shape: Shape = ChromeCapsule, surface: Color = Color.Unspecified, blur: Dp = 2.dp): Modifier {
     val backdrop = LocalBackdrop.current
     val scope = rememberCoroutineScope()
     val highlight = remember(scope) { InteractiveHighlight(scope) }
@@ -180,20 +188,23 @@ fun GlassPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     tint: Color = Color.Unspecified,
-    surface: Color = if (tint.isSpecified) Color.Unspecified else clear.glass,
+    surface: Color = Color.Unspecified,
     height: Dp = 48.dp,
     blur: Dp = 2.dp,
-    horizontalPadding: Dp = 18.dp,
+    horizontalPadding: Dp = 16.dp,
     onLongClick: (() -> Unit)? = null,
     label: String? = null,
     tintAt: (() -> Color)? = null,
+    tap: Feel? = Feel.Tap,
     content: @Composable RowScope.() -> Unit,
 ) {
-    val ink = if (tint.isSpecified || tintAt != null) Color.White else clear.ink
-    CompositionLocalProvider(LocalGlassInk provides ink) {
+    val candy = tint.isSpecified || tintAt != null
+    val probe = if (candy) InkProbe(Modifier, Color.White) else rememberGlassInk(clear.ink)
+    CompositionLocalProvider(LocalGlassInk provides probe.color) {
         Row(
             modifier
-                .glassControl(Capsule, onClick, onLongClick, tint, if (tintAt != null) Color.Unspecified else surface, blur, label, bloom = onLongClick != null, tintAt = tintAt)
+                .then(probe.modifier)
+                .glassControl(ChromeCapsule, onClick, onLongClick, tint, if (tintAt != null) Color.Unspecified else surface, blur, label, tap = tap, bloom = true, tintAt = tintAt)
                 .height(height)
                 .padding(horizontal = horizontalPadding),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
@@ -215,13 +226,14 @@ fun GlassChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     height: Dp = 40.dp,
-    surface: Color = clear.glass,
+    // natural glass, as the header circles and the old app's chips: no wash of its own
+    surface: Color = Color.Unspecified,
     fill: (() -> Color)? = null,
     blur: Dp = 2.dp,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     tap: Feel? = Feel.Tap,
-    bloom: Boolean = false,
+    bloom: Boolean = true,
     onLongClick: (() -> Unit)? = null,
     label: String? = null,
     ink: Color = clear.ink,
@@ -241,14 +253,36 @@ fun GlassChip(
 }
 
 /**
- * The round glass button of a screen's header (Back, More, the desk's menu): 54 dp of the same
- * plain glass every glass button wears, ink in [GlassIcon]s white on the sky. Never ringed or
- * dark-filled: one glass, one lit rim.
+ * The old app's capsule, continuous corners and all, for chrome that stays put (pills, bars): a path
+ * clip costs nothing there. Chips and cards that scroll use the circular [Capsule].
  */
+val ChromeCapsule = com.kyant.shapes.Capsule
+
+/** The old app's header circle: 40 dp of natural glass (no wash), so every header reads the same. */
+val HeaderButtonSize = 40.dp
+
+/** The round glass button of a screen's header (Back, More, the desk's menu). */
 @Composable
-fun HeaderGlassButton(onClick: () -> Unit, label: String, modifier: Modifier = Modifier, size: Dp = 54.dp, content: @Composable () -> Unit) {
-    GlassCircle(onClick = onClick, modifier = modifier, size = size, label = label) {
-        CompositionLocalProvider(LocalGlassInk provides clear.hero) { content() }
+fun HeaderGlassButton(onClick: () -> Unit, label: String, modifier: Modifier = Modifier, size: Dp = HeaderButtonSize, content: @Composable () -> Unit) {
+    GlassCircle(onClick = onClick, modifier = modifier, size = size, label = label, ink = clear.ink) { content() }
+}
+
+/** Material's rounded arrow_back_ios_new, the old app's Back glyph. */
+val BackArrow: ImageVector by lazy {
+    ImageVector.Builder("BackArrow", 24.dp, 24.dp, 24f, 24f).addPath(
+        PathParser().parsePathString(
+            "M16.62,2.99c-0.49,-0.49 -1.28,-0.49 -1.77,0L6.54,11.3c-0.39,0.39 -0.39,1.02 0,1.41l8.31,8.31c0.49,0.49 1.28,0.49 1.77,0 0.49,-0.49 0.49,-1.28 0,-1.77L9.38,12l7.25,-7.25c0.48,-0.48 0.48,-1.28 -0.01,-1.76z"
+        ).toNodes(),
+        fill = SolidColor(Color.Black),
+    ).build()
+}
+
+/** Back, as the old app's: a 40 dp glass circle, a 16 dp arrow, leaving a beat after the press. */
+@Composable
+fun GlassBackButton(onBack: () -> Unit, modifier: Modifier = Modifier, label: String? = null, immediate: Boolean = false) {
+    val beat = rememberBeat(onBack)
+    GlassCircle(onClick = if (immediate) onBack else beat, modifier = modifier, size = HeaderButtonSize, label = label ?: androidx.compose.ui.res.stringResource(com.chethan616.clearpdf.R.string.common_back), ink = clear.ink) {
+        GlassIcon(BackArrow, null, Modifier.size(16.dp))
     }
 }
 
@@ -269,17 +303,20 @@ fun BarGlyphButton(onClick: () -> Unit, label: String, modifier: Modifier = Modi
 fun GlassCircle(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: Dp = 44.dp,
+    size: Dp = HeaderButtonSize,
     tint: Color = Color.Unspecified,
-    surface: Color = if (tint.isSpecified) Color.Unspecified else clear.glass,
+    surface: Color = Color.Unspecified,
     onLongClick: (() -> Unit)? = null,
     label: String? = null,
+    ink: Color = Color.Unspecified,
+    tap: Feel? = Feel.Tap,
     content: @Composable () -> Unit,
 ) {
-    val ink = if (tint.isSpecified) Color.White else clear.ink
-    CompositionLocalProvider(LocalGlassInk provides ink) {
+    // over a document the glyph takes dark or white ink from the page around it, as the old app's
+    val probe = if (tint.isSpecified) InkProbe(Modifier, Color.White) else rememberGlassInk(if (ink.isSpecified) ink else clear.ink)
+    CompositionLocalProvider(LocalGlassInk provides probe.color) {
         Box(
-            modifier.size(size).glassControl(CircleShape, onClick, onLongClick, tint, surface, 2.dp, label, bloom = onLongClick != null),
+            modifier.then(probe.modifier).size(size).glassControl(CircleShape, onClick, onLongClick, tint, surface, 2.dp, label, tap = tap, bloom = true, candyBase = false),
             contentAlignment = Alignment.Center,
         ) { content() }
     }

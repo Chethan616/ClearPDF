@@ -53,7 +53,6 @@ import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
-import com.kyant.shapes.Capsule
 import kotlin.math.abs
 import kotlinx.coroutines.flow.collectLatest
 

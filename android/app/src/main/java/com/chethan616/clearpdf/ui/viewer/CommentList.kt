@@ -146,9 +146,7 @@ fun CommentListScreen(vm: AppViewModel, doc: OpenDocument) {
             Modifier.fillMaxWidth().height(TopBarHeight).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            com.chethan616.clearpdf.ui.glass.GlassCircle(com.chethan616.clearpdf.ui.glass.rememberBeat(::close), size = 48.dp, label = stringResource(R.string.common_back)) {
-                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(23.dp))
-            }
+            com.chethan616.clearpdf.ui.glass.GlassBackButton(::close)
             Spacer(Modifier.width(14.dp))
             Text(
                 if (list == null) stringResource(R.string.comments_title) else threadsTitle(threads.size, stringResource(R.string.comments_none)) { plural(R.plurals.comments_threads, it, it) },
