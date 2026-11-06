@@ -92,7 +92,7 @@ object LocalFiles {
                                 if (depth + 1 <= MAX_DEPTH) queue.add(Triple(id, name, depth + 1))
                                 continue
                             }
-                            if (mime != "application/pdf" && !name.endsWith(".pdf", ignoreCase = true)) continue
+                            if (!DocumentTypes.isOpenable(mime, name)) continue
                             // a folder added twice (or inside another) lists its files once
                             if (!seen.add(id)) continue
                             val uri = DocumentsContract.buildDocumentUriUsingTree(tree, id)

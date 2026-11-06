@@ -102,3 +102,24 @@ ones, as ISO 32000-2 §9.6.5.4 prescribes for symbolic fonts; the
 order the font lists them, platform ID first, so a wrong (1, 0) table (SAS 9.4's AMT fonts)
 drew "8" as "p" and "+" as "V". Covered by `raster::tests::symbolic_truetype_cmap`, whose font
 is built in memory.
+
+## WordCraft (Word documents)
+
+`wordcraft-fonts` and `wordcraft-engine` are storytold/wordcraft's `crates/fonts` and
+`crates/engine` at `729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b`, the revision the rest of WordCraft
+is pinned to (`engine/Cargo.toml`). Their upstream manifests are kept as `Cargo.toml.orig`; the
+`Cargo.toml` beside each writes the workspace inheritance out. Patches are marked
+`Artefact patch:` and drafted for upstream in `docs/upstream/wordcraft-android.md`.
+
+- `wordcraft-fonts`: `system_font_dirs()` lists Android's font folders (`/system/fonts`,
+  `/product/fonts`, `/system/product/fonts`); it listed only the Linux ones there, so a phone found
+  no system fonts. It is a `[patch."https://github.com/storytold/wordcraft"]` entry, so every
+  WordCraft crate uses it. Its bundled faces (`include_bytes!` in `src/fontdb/face.rs`) resolve to
+  `engine/assets/fonts`. Covered by `fontdb::tests::system_font_dirs_on_android_are_the_system_folders`
+  (Android only) and, on the phone, by Word pages drawing with the system's fonts.
+- `wordcraft-engine`: the font store (language packs downloaded by `craft-font-store`, and through
+  it an HTTP client with rustls and ring) is behind a new `font-store` feature, on by default as
+  upstream behaves; Artefact turns it off (`default-features = false`), so the engine has no network
+  code. Without it `packs::Cancel` is the flag the web build already used and `use_font_store` is
+  gone. Covered by the dependency tree: `cargo tree -p artefact-mobile --target aarch64-linux-android`
+  lists no `ureq`, `rustls` or `ring`.

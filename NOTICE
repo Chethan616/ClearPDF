@@ -10,6 +10,13 @@ desk, notes, voice notes and Quick Preview. The engine crates (engine/crates, en
 engine/mobile) come from PdfCraft, laid out under engine/. Artefact's changes are under the same
 terms: MIT OR Apache-2.0, at your option.
 
+Word documents: the engine of WordCraft (https://github.com/storytold/wordcraft) by storytold and
+the WordCraft contributors, MIT OR Apache-2.0, pinned by commit (engine/Cargo.toml). Two of its
+crates are vendored with Artefact's patches (engine/vendor/wordcraft-engine: no font store and so no
+network code; engine/vendor/wordcraft-fonts: Android's font folders), keeping their licence files.
+Its bundled faces Source Sans 3 and Source Serif 4 (Adobe, SIL Open Font License 1.1) are in
+engine/assets/fonts with their licences.
+
 Liquid glass: the backdrop library from AndroidLiquidGlass by Kyant0
 (https://github.com/Kyant0/AndroidLiquidGlass), Apache-2.0, adapted. The velocity squash-and-stretch
 of glass thumbs follows LiquidTracker from AndroidLiquidGlassView by Donny Yale

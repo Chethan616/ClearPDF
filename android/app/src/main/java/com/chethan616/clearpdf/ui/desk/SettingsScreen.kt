@@ -439,12 +439,13 @@ private fun LicencesPage(onBack: () -> Unit) {
     val c = clear
     val context = LocalContext.current
     val texts = remember {
-        listOf("LICENSE-lucide.txt", "OFL-PlusJakartaSans.txt", "OFL-Doto.txt", "OFL-DMSerifDisplay.txt", "OFL-BricolageGrotesque.txt", "OFL-Fraunces.txt", "OFL-DancingScript.txt", "LICENSE-foxit.txt", "LICENSE-adobe-cmaps.txt").mapNotNull { name ->
+        listOf("LICENSE-lucide.txt", "OFL-PlusJakartaSans.txt", "OFL-Doto.txt", "OFL-DMSerifDisplay.txt", "OFL-BricolageGrotesque.txt", "OFL-Fraunces.txt", "OFL-DancingScript.txt", "OFL-SourceSans3.txt", "OFL-SourceSerif4.txt", "LICENSE-foxit.txt", "LICENSE-adobe-cmaps.txt").mapNotNull { name ->
             runCatching { context.assets.open("licences/$name").bufferedReader().readText() }.getOrNull()?.takeIf { it.isNotBlank() }
         }
     }
     val credits = listOf(
         Credit(stringResource(R.string.root_licence_pdfcraft), stringResource(R.string.root_licence_pdfcraft_terms)),
+        Credit(stringResource(R.string.root_licence_wordcraft), stringResource(R.string.root_licence_wordcraft_terms)),
         Credit("AndroidLiquidGlass (backdrop)", "Apache-2.0, Kyant0"),
         Credit("AndroidLiquidGlassView (LiquidTracker)", "MIT, Donny Yale (QmDeve)"),
         Credit("UniFFI", "MPL-2.0, Mozilla"),
@@ -458,6 +459,7 @@ private fun LicencesPage(onBack: () -> Unit) {
         Credit("Fraunces", "SIL Open Font License 1.1, The Fraunces Project Authors"),
         Credit("bot-avatars (the mascots)", "MIT, Jakub Antalik"),
         Credit(stringResource(R.string.root_licence_dancing_script), "SIL Open Font License 1.1, The Dancing Script Project Authors"),
+        Credit("Source Sans 3, Source Serif 4", "SIL Open Font License 1.1, Adobe"),
         Credit(stringResource(R.string.root_licence_foxit), "BSD-3-Clause, Foxit Software Inc. and the PDFium Authors"),
         Credit(stringResource(R.string.root_licence_cmaps), "BSD-3-Clause, Adobe"),
         Credit(stringResource(R.string.root_licence_ocrs), stringResource(R.string.root_licence_ocrs_terms)),

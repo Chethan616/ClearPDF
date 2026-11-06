@@ -176,7 +176,14 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
     var actionsFor by remember { mutableStateOf<Note?>(null) }
     val notes = vm.notes.all
     val recents = vm.recentRows()
-    val items = remember(filter, notes, vm.recentList) { deskItems(filter, notes, recents, com.chethan616.clearpdf.notes.today()) }
+    val fresh = remember(filter, notes, vm.recentList) { deskItems(filter, notes, recents, com.chethan616.clearpdf.notes.today()) }
+    // Opening a document moves it to the front of Recent while the page is still rising out of its
+    // card; re-sorting the cards then (their tones and tilts follow their places) flashed them behind
+    // it. They hold their order while a document moves over the desk and take the new one once it
+    // covers the desk (nothing of it drawn) or has gone.
+    val held = remember { arrayOf(fresh) }
+    if (vm.deskStill) held[0] = fresh
+    val items = held[0]
     val grid = rememberLazyStaggeredGridState()
     LaunchedEffect(filter) { grid.animateScrollToItem(0) }
     // the cards rise in when the desk (or a chip) first shows them, never while scrolling

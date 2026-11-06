@@ -241,7 +241,7 @@ fun FileActionsSheet(vm: AppViewModel, r: FileRow, recent: Boolean, onDismiss: (
         }
     }
     if (renaming) {
-        var name by remember { mutableStateOf(r.name.removeSuffix(".pdf")) }
+        var name by remember { mutableStateOf(com.chethan616.clearpdf.engine.DocumentTypes.title(r.name)) }
         GlassDialog(
             onDismiss = { renaming = false }, title = stringResource(R.string.common_rename), icon = LucideIcons.Pencil, accent = Candy.Grape,
             confirm = stringResource(R.string.common_done), confirmEnabled = name.isNotBlank() && !name.startsWith("."),

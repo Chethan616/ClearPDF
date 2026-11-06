@@ -335,6 +335,8 @@ androidComponents {
             val map = mapOf(
                 File(assetsDir, "icons/LICENSE-lucide.txt") to "licences/LICENSE-lucide.txt",
                 File(assetsDir, "fonts/OFL-DancingScript.txt") to "licences/OFL-DancingScript.txt",
+                File(assetsDir, "fonts/OFL-SourceSans3.txt") to "licences/OFL-SourceSans3.txt",
+                File(assetsDir, "fonts/OFL-SourceSerif4.txt") to "licences/OFL-SourceSerif4.txt",
                 File(cargoWorkspaceDir, "vendor/hayro-interpret/assets/LICENSE_FOXIT") to "licences/LICENSE-foxit.txt",
             )
             files.from(map.keys)

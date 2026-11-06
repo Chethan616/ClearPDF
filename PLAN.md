@@ -106,15 +106,44 @@ fastlane/         store listings (9 languages)
 tools/            i18n helper
 ```
 
-## Later: one engine for every document
+## Office documents: Word, PowerPoint, Excel (in progress)
 
-A single Rust engine (`artefact-engine`) behind the same UniFFI bridge:
+storytold's engines (same family as pdfcraft) behind the same UniFFI bridge, headless crates only
+(never their egui UI). Order: Word viewing → PowerPoint viewing → Excel viewing → export to PDF for
+all three → editing, one format at a time, each built and run on the phone before the next.
 
-1. **PDF**: the current engine.
-2. **Word (.docx)**: model + layout + editing, ideas from storytold/wordcraft (Markdown too, which
-   also powers notes and lists).
-3. **PowerPoint (.pptx)**: slides render + present, ideas from storytold/deckcraft.
-4. **Excel (.xlsx)**: grid, formulas, charts, ideas from storytold/gridcraft.
-5. **Pictures** (storytold/lightcraft) and **voice** (storytold/soundcraft) for notes.
+- [x] Research (2026-11-06): all three are MIT OR Apache-2.0, edition 2024, MSRV 1.95, and their
+      engine crates build for `aarch64-linux-android`. Word and PowerPoint render pages/slides to
+      RGBA (`vello_cpu`); Excel's grid is drawn only by its egui UI, so sheets get a Compose grid.
+- [x] **Word viewing** (wordcraft `729cd0a`), built and unit-tested on the host:
+      - `engine/vendor/wordcraft-engine` (font store behind a `font-store` feature, off: no network
+        code) and `engine/vendor/wordcraft-fonts` (Android's font folders); the rest pinned by git rev.
+        Upstream draft: `docs/upstream/wordcraft-android.md` (not filed).
+      - Bridge (`engine/mobile/src/word.rs`): Word documents open in the same `MobileSession` under
+        ids from 2^40, told from PDFs by their bytes; `DocumentInfo.kind` = `Pdf`/`Word`. Page render
+        and tiles, thumbnails, links, and a text layer built into the PDF engine's `PageText`, so
+        search, selection and Read Aloud work unchanged. `set_locale` for paper of formats without one.
+      - Android: pickers, folder lists, intent filters (share + Quick Preview) take .docx/.doc/.odt/.rtf;
+        the viewer hides the PDF tools for Word (bar = Read Aloud; More sheet without Edit/Print/
+        comments/signatures/PDF tools); names keep their Word extension.
+      - Installed on the phone (fast build, 2026-11-06); [ ] seen there: open the sample .docx from
+        Files, Recent and Quick Preview (the owner was using the phone).
+- [ ] PowerPoint viewing (deckcraft): slides in the viewer, present mode; vendor deckcraft-fonts
+      with the same Android font-folder patch (drafted in the upstream doc).
+- [ ] Excel viewing (gridcraft): pannable Compose grid with frozen headers from cell text, styles,
+      column widths and row heights; charts rendered by gridcraft-chart.
+- [ ] Export to PDF for all three (wordcraft-pdf / deckcraft-pdf through craft-pdf + krilla, already
+      patched in; gridcraft's own writer: check non-Latin text).
+- [ ] Editing, one format at a time (wordcraft's 422 commands through `Session::run`, then deckcraft's
+      and gridcraft's registries).
 
-Quick Preview's intent filter grows with each format (DOCX, XLSX, PPTX, images, text).
+## Later
+
+1. **Pictures** (storytold/lightcraft) and **voice** (storytold/soundcraft) for notes.
+2. **Notes and lists on the Word engine**: once wordcraft is in (it reads and writes Markdown),
+   move the notes and the shopping/to-do lists onto it instead of the app's own light Markdown, with
+   a few adjustments to feel like Apple Notes: checklists, quick formatting tools (headings, bold,
+   lists, tables), inline pictures, and the same note toolbar. Pictures in notes (crop, rotate,
+   adjust, markup) from storytold/lightcraft.
+
+Quick Preview's intent filter grows with each format (DOCX done; XLSX, PPTX, images, text next).

@@ -2298,6 +2298,105 @@ usage = "UI icon of the Android app, turned into Kotlin path data at build time 
 sha256 = "56b6c22f91045d4ee2bd5529668e454bfdc13760f82f89fb868a9e08a875bf26"
 
 [[asset]]
+path = "engine/assets/fonts/SourceSans3-Regular.ttf"
+title = "Source Sans 3 Regular"
+author = "Paul D. Hunt, Adobe"
+source = "https://github.com/adobe-fonts/source-sans (via storytold/wordcraft assets/fonts at 729cd0a)"
+licence = "OFL-1.1"
+licence_file = "engine/assets/fonts/OFL-SourceSans3.txt"
+kind = "font"
+usage = "Word documents: a bundled face of the Word engine (engine/vendor/wordcraft-fonts embeds it into libartefact.so), the fallback for fonts the phone lacks"
+sha256 = "4644c81b86ec9caaa76b634889968ed3c4f4f52f054855933acc7c2b21e53b0f"
+
+[[asset]]
+path = "engine/assets/fonts/SourceSans3-Semibold.ttf"
+title = "Source Sans 3 Semibold"
+author = "Paul D. Hunt, Adobe"
+source = "https://github.com/adobe-fonts/source-sans (via storytold/wordcraft assets/fonts at 729cd0a)"
+licence = "OFL-1.1"
+licence_file = "engine/assets/fonts/OFL-SourceSans3.txt"
+kind = "font"
+usage = "Word documents: a bundled face of the Word engine (engine/vendor/wordcraft-fonts embeds it into libartefact.so), the fallback for fonts the phone lacks"
+sha256 = "a3f4f8dcf343a8f24dc61951de93f3ba1558b15cd250ba24af8a40e957081b7d"
+
+[[asset]]
+path = "engine/assets/fonts/SourceSans3-Bold.ttf"
+title = "Source Sans 3 Bold"
+author = "Paul D. Hunt, Adobe"
+source = "https://github.com/adobe-fonts/source-sans (via storytold/wordcraft assets/fonts at 729cd0a)"
+licence = "OFL-1.1"
+licence_file = "engine/assets/fonts/OFL-SourceSans3.txt"
+kind = "font"
+usage = "Word documents: a bundled face of the Word engine (engine/vendor/wordcraft-fonts embeds it into libartefact.so), the fallback for fonts the phone lacks"
+sha256 = "9214b9d95e4231c609802815c2646c98174e2102d0d37f88978a7f8e71006e6a"
+
+[[asset]]
+path = "engine/assets/fonts/SourceSans3-It.ttf"
+title = "Source Sans 3 Italic"
+author = "Paul D. Hunt, Adobe"
+source = "https://github.com/adobe-fonts/source-sans (via storytold/wordcraft assets/fonts at 729cd0a)"
+licence = "OFL-1.1"
+licence_file = "engine/assets/fonts/OFL-SourceSans3.txt"
+kind = "font"
+usage = "Word documents: a bundled face of the Word engine (engine/vendor/wordcraft-fonts embeds it into libartefact.so), the fallback for fonts the phone lacks"
+sha256 = "192afd78f0f54a3c69eaf02d43f4d9a821e9d6110e41d3d25d61a7385cd580e4"
+
+[[asset]]
+path = "engine/assets/fonts/SourceSerif4-Regular.ttf"
+title = "Source Serif 4 Regular"
+author = "Frank Grießhammer, Adobe"
+source = "https://github.com/adobe-fonts/source-serif (via storytold/wordcraft assets/fonts at 729cd0a)"
+licence = "OFL-1.1"
+licence_file = "engine/assets/fonts/OFL-SourceSerif4.txt"
+kind = "font"
+usage = "Word documents: a bundled face of the Word engine (engine/vendor/wordcraft-fonts embeds it into libartefact.so), the fallback for fonts the phone lacks"
+sha256 = "e5a4ee6a3d87bb9024796be390c6771e2a0eb1883dae25effaf57ca01668e24b"
+
+[[asset]]
+path = "engine/assets/fonts/SourceSerif4-It.ttf"
+title = "Source Serif 4 Italic"
+author = "Frank Grießhammer, Adobe"
+source = "https://github.com/adobe-fonts/source-serif (via storytold/wordcraft assets/fonts at 729cd0a)"
+licence = "OFL-1.1"
+licence_file = "engine/assets/fonts/OFL-SourceSerif4.txt"
+kind = "font"
+usage = "Word documents: a bundled face of the Word engine (engine/vendor/wordcraft-fonts embeds it into libartefact.so), the fallback for fonts the phone lacks"
+sha256 = "9d2950a8f1da66e21502c35d646a1d2148e79f9ea43fd2158cf02f5232e7f430"
+
+[[asset]]
+path = "engine/assets/fonts/SourceSerif4-Semibold.ttf"
+title = "Source Serif 4 Semibold"
+author = "Frank Grießhammer, Adobe"
+source = "https://github.com/adobe-fonts/source-serif (via storytold/wordcraft assets/fonts at 729cd0a)"
+licence = "OFL-1.1"
+licence_file = "engine/assets/fonts/OFL-SourceSerif4.txt"
+kind = "font"
+usage = "Word documents: a bundled face of the Word engine (engine/vendor/wordcraft-fonts embeds it into libartefact.so), the fallback for fonts the phone lacks"
+sha256 = "36db62940cb5728b12b1802476dc7fcf4c6c519a7bdd476ba23a4e555fc4655f"
+
+[[asset]]
+path = "engine/assets/fonts/SourceSerif4-Bold.ttf"
+title = "Source Serif 4 Bold"
+author = "Frank Grießhammer, Adobe"
+source = "https://github.com/adobe-fonts/source-serif (via storytold/wordcraft assets/fonts at 729cd0a)"
+licence = "OFL-1.1"
+licence_file = "engine/assets/fonts/OFL-SourceSerif4.txt"
+kind = "font"
+usage = "Word documents: a bundled face of the Word engine (engine/vendor/wordcraft-fonts embeds it into libartefact.so), the fallback for fonts the phone lacks"
+sha256 = "7cf4f4e1ad74f45058d5bc61716b82560442fbdcd9d3654d2dea96bf6c683d86"
+
+[[asset]]
+path = "engine/assets/fonts/SourceSerif4-BoldIt.ttf"
+title = "Source Serif 4 Bold Italic"
+author = "Frank Grießhammer, Adobe"
+source = "https://github.com/adobe-fonts/source-serif (via storytold/wordcraft assets/fonts at 729cd0a)"
+licence = "OFL-1.1"
+licence_file = "engine/assets/fonts/OFL-SourceSerif4.txt"
+kind = "font"
+usage = "Word documents: a bundled face of the Word engine (engine/vendor/wordcraft-fonts embeds it into libartefact.so), the fallback for fonts the phone lacks"
+sha256 = "7b215b37f8873f5579f3f8d2ded3ca7c588e2f435cd996605ebfc5befe2cd5eb"
+
+[[asset]]
 path = "engine/assets/fonts/Inter-Regular.ttf"
 title = "Inter Regular"
 author = "The Inter Project Authors (Rasmus Andersson)"

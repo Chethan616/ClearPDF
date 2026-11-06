@@ -54,6 +54,12 @@ pdfcraft-platform = { path = "crates/platform", version = "0.14.0" }
 pdfcraft-ui-egui = { path = "crates/ui-egui", version = "0.14.0" }
 pdfcraft-automation = { path = "crates/automation", version = "0.14.0", default-features = false }
 
+# Word (.docx and the other word-processor formats): storytold/wordcraft's headless crates, pinned
+# to one revision (the vendored engine names it for its siblings).
+# The engine is vendored (vendor/wordcraft-engine) to leave its font store, and so all network
+# code, out: `default-features = false` turns off its `font-store` feature.
+wordcraft-engine = { path = "vendor/wordcraft-engine", version = "0.15.1", default-features = false }
+
 # pdf
 hayro = "0.7.1"
 hayro-syntax = "0.7.2"
@@ -119,3 +125,9 @@ hayro-jbig2 = { path = "vendor/hayro-jbig2" }
 lopdf = { path = "vendor/lopdf" }
 vello_cpu = { path = "vendor/vello_cpu" }
 vello_common = { path = "vendor/vello_common" }
+# craft-pdf (Word's PDF export) writes through the suite's krilla fork, as wordcraft's own build does.
+krilla = { git = "https://github.com/storytold/craft-libs", rev = "c5a1cbfb5f9049f9270955caffb5bee5997aebf7" }
+
+# wordcraft crates we carry a patch for (see vendor/README.md).
+[patch."https://github.com/storytold/wordcraft"]
+wordcraft-fonts = { path = "vendor/wordcraft-fonts" }

@@ -39,6 +39,7 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.plural
 import com.chethan616.clearpdf.text
 import com.chethan616.clearpdf.core.MobileException
+import com.chethan616.clearpdf.engine.DocumentTypes
 import com.chethan616.clearpdf.engine.DocumentFiles
 import com.chethan616.clearpdf.engine.Engine
 import com.chethan616.clearpdf.engine.RecentFile
@@ -90,6 +91,12 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     /** A document is being opened (a spinner over Home). */
     var opening by mutableStateOf(false)
         private set
+
+    /**
+     * Nothing is moving over the desk: no document rising over it or falling away (ClearApp keeps
+     * it). The desk's cards change order only then, so they don't shuffle behind a page in motion.
+     */
+    var deskStill by mutableStateOf(true)
 
     val messages = Channel<Message>(Channel.BUFFERED)
 
@@ -529,7 +536,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             refresh(doc)
             save(doc)
             val uri = withContext(Dispatchers.IO) { files.shareable(doc.file, doc.name) }
-            sendIntent(listOf(uri)).putExtra(Intent.EXTRA_SUBJECT, text(R.string.msg_share_subject, doc.title))
+            sendIntent(listOf(uri), DocumentTypes.mimeOf(doc.info.name)).putExtra(Intent.EXTRA_SUBJECT, text(R.string.msg_share_subject, doc.title))
         }
     }
 
@@ -2753,13 +2760,16 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         handOut {
             val f = localFileOf(row) ?: error(text(R.string.common_file_unreadable))
             val uri = withContext(Dispatchers.IO) { files.shareable(f, row.name) }
-            Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            Intent(Intent.ACTION_VIEW).setDataAndType(uri, DocumentTypes.mimeOf(row.name)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     }
 
     fun renameFile(row: com.chethan616.clearpdf.ui.home.FileRow, newName: String) {
         viewModelScope.launch {
-            val name = DocumentFiles.safeName(newName.trim())
+            // a Word document keeps its extension when the new name leaves it out
+            val typed = newName.trim()
+            val wordExt = row.name.substringAfterLast('.', "").takeIf { DocumentTypes.isWordName(row.name) }
+            val name = DocumentFiles.safeName(if (wordExt != null && !DocumentTypes.isWordName(typed)) "$typed.$wordExt" else typed)
             val u = Uri.parse(row.key)
             val ok = withContext(Dispatchers.IO) {
                 runCatching {

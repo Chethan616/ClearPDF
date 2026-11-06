@@ -66,7 +66,8 @@ class Engine private constructor(val session: MobileSession) {
     companion object {
         fun open(): Engine {
             initLogging()
-            return Engine(MobileSession())
+            // the paper of documents that give none (plain text, Markdown) follows the reader's region
+            return Engine(MobileSession().apply { setLocale(java.util.Locale.getDefault().toLanguageTag()) })
         }
 
         /** Maps, lists, arrays and plain values as JSON (nulls are left out of objects). */

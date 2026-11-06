@@ -52,8 +52,8 @@ fun dayBucket(t: Long): Int {
 }
 
 /**
- * A file's name as the screens show it: no ".pdf", underscores as spaces, and a break allowed after
+ * A file's name as the screens show it: no ".pdf" (or Word extension), underscores as spaces, and a break allowed after
  * each hyphen, so "report_2026-09-22.pdf" wraps between words instead of inside a number.
  */
 fun displayName(name: String): String =
-    name.removeSuffix(".pdf").removeSuffix(".PDF").replace('_', ' ').replace("-", "-\u200B")
+    com.chethan616.clearpdf.engine.DocumentTypes.title(name).replace('_', ' ').replace("-", "-\u200B")

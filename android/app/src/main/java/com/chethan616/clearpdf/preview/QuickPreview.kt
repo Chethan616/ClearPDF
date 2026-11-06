@@ -325,7 +325,7 @@ private fun Header(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    ready?.name?.removeSuffix(".pdf")?.removeSuffix(".PDF") ?: stringResource(R.string.preview_title),
+                    ready?.name?.let(com.chethan616.clearpdf.engine.DocumentTypes::title) ?: stringResource(R.string.preview_title),
                     style = ClearType.BodyStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
                 if (ready != null) {

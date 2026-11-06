@@ -93,7 +93,7 @@ class DocumentFiles(private val context: Context) {
     fun existingCopy(uri: Uri): File? =
         File(workDir, sha(uri.toString())).listFiles()?.firstOrNull { it.isFile && !it.name.startsWith(".") }
 
-    /** The file name another app gives [uri], ending in `.pdf`. */
+    /** The file name another app gives [uri], ending in `.pdf` (or a Word document's own extension). */
     fun displayName(uri: Uri): String {
         val name = runCatching {
             resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
@@ -237,10 +237,13 @@ class DocumentFiles(private val context: Context) {
     }
 
     companion object {
-        /** A file name without path separators or control characters, ending in `.pdf`. */
+        /**
+         * A file name without path separators or control characters, ending in `.pdf` unless it
+         * is a Word document's, which keeps its own extension (the engine reads it by it).
+         */
         fun safeName(name: String): String {
             val clean = name.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_").trim().trimStart('.').ifEmpty { "Document" }
-            return if (clean.lowercase().endsWith(".pdf")) clean else "$clean.pdf"
+            return if (clean.lowercase().endsWith(".pdf") || DocumentTypes.isWordName(clean)) clean else "$clean.pdf"
         }
 
         private fun sha(s: String): String =

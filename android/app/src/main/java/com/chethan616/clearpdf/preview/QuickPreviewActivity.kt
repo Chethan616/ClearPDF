@@ -22,6 +22,7 @@ import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.core.DocumentInfo
 import com.chethan616.clearpdf.core.MobileException
 import com.chethan616.clearpdf.engine.DocumentFiles
+import com.chethan616.clearpdf.engine.DocumentTypes
 import com.chethan616.clearpdf.engine.Engine
 import com.chethan616.clearpdf.engine.userMessage
 import com.chethan616.clearpdf.ui.glass.GlassSettings
@@ -165,14 +166,14 @@ class QuickPreviewActivity : ComponentActivity() {
     private fun share() {
         val f = copy ?: return
         val shared = runCatching { files.shareable(f, (state as? PreviewState.Ready)?.name ?: f.name) }.getOrNull() ?: return
-        val send = Intent(Intent.ACTION_SEND).setType("application/pdf").putExtra(Intent.EXTRA_STREAM, shared).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        val send = Intent(Intent.ACTION_SEND).setType(DocumentTypes.mimeOf(f.name)).putExtra(Intent.EXTRA_STREAM, shared).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         launch(Intent.createChooser(send, null))
     }
 
     private fun openWith() {
         val f = copy ?: return
         val shared = runCatching { files.shareable(f, (state as? PreviewState.Ready)?.name ?: f.name) }.getOrNull() ?: return
-        launch(Intent.createChooser(Intent(Intent.ACTION_VIEW).setDataAndType(shared, "application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), null))
+        launch(Intent.createChooser(Intent(Intent.ACTION_VIEW).setDataAndType(shared, DocumentTypes.mimeOf(f.name)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), null))
     }
 
     private fun saveCopy(done: (String) -> Unit) {

@@ -1,0 +1,51 @@
+# Vendored from storytold/wordcraft crates/engine at 729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b
+# (Cargo.toml.orig is its manifest; the workspace inheritance is written out here).
+# Artefact patch: the font store (language-pack downloads: craft-font-store, craft-font-catalog,
+# and through them an HTTP client) is behind the `font-store` feature, which Artefact leaves off,
+# so the engine has no network code (see ../README.md).
+[package]
+name = "wordcraft-engine"
+version = "0.15.1"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/storytold/wordcraft"
+description = "WordCraft engine: session, selection, undo, the command registry (every action is a command), Word's command catalog, file I/O dispatch"
+
+[features]
+default = ["font-store"]
+# Language packs downloaded by the suite's font store. Off: no packs, and no network code.
+font-store = ["dep:craft-font-store", "dep:craft-font-catalog"]
+test-support = []
+
+[dependencies]
+wordcraft-geom = { git = "https://github.com/storytold/wordcraft", rev = "729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b", features = ["image"] }
+wordcraft-doc = { git = "https://github.com/storytold/wordcraft", rev = "729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b" }
+wordcraft-fonts = { git = "https://github.com/storytold/wordcraft", rev = "729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b" }
+wordcraft-layout = { git = "https://github.com/storytold/wordcraft", rev = "729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b" }
+wordcraft-render = { git = "https://github.com/storytold/wordcraft", rev = "729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b" }
+wordcraft-proof = { package = "craft-proof", git = "https://github.com/storytold/craft-libs", rev = "01315d9c92b5b0e69082d35ca56099461a1efd45", version = "=0.1.0" }
+wordcraft-docx = { git = "https://github.com/storytold/wordcraft", rev = "729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b" }
+wordcraft-docbin = { git = "https://github.com/storytold/wordcraft", rev = "729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b" }
+wordcraft-pdf = { git = "https://github.com/storytold/wordcraft", rev = "729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b" }
+wordcraft-formats = { git = "https://github.com/storytold/wordcraft", rev = "729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b" }
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+thiserror = "2"
+log = "0.4"
+chrono = { version = "0.4.45", default-features = false, features = ["std"] }
+regex = { version = "1", default-features = false, features = ["std", "unicode", "perf"] }
+regex-automata = { version = "0.4", default-features = false, features = ["std", "syntax", "meta", "nfa-pikevm", "unicode"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff"] }
+zeroize = "1"
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+js-sys = "0.3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+getrandom = "0.3"
+craft-font-store = { git = "https://github.com/storytold/craft-libs", rev = "762a06a4c6b48b522b7d4de84a87917ef90265e6", version = "=0.1.0", optional = true }
+craft-font-catalog = { git = "https://github.com/storytold/craft-libs", rev = "762a06a4c6b48b522b7d4de84a87917ef90265e6", version = "=0.1.0", optional = true }
+chrono = { version = "0.4.45", default-features = false, features = ["std", "clock"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

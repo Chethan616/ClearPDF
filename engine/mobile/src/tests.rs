@@ -441,3 +441,99 @@ fn form_scripts_run_when_fields_are_filled_and_buttons_pressed() {
     let big = run("form_fill", json!({"doc": doc, "values": {"b": "8"}}));
     assert_eq!(big["alerts"], json!(["Big"]), "{big}");
 }
+
+/// A Word document (.docx) holding `text`, written by WordCraft into a fresh folder as `name`.
+fn word_file(text: &str, name: &str) -> String {
+    let doc = wordcraft_engine::doc::Document::from_text(text);
+    let bytes = wordcraft_engine::io::save_bytes("doc.docx", &doc).unwrap();
+    let path = scratch().join(name);
+    std::fs::write(&path, bytes).unwrap();
+    path.to_string_lossy().into_owned()
+}
+
+#[test]
+fn opens_a_word_document_beside_the_pdfs() {
+    let s = MobileSession::new();
+    let pdf = s.open(blank_pdf(1), None).unwrap();
+    let word = s.open(word_file("Quarterly results were strong.", "Report.docx"), None).unwrap();
+    assert_eq!(word.kind, DocumentKind::Word);
+    assert_eq!(pdf.kind, DocumentKind::Pdf);
+    assert_ne!(word.id, pdf.id);
+    assert_eq!(word.name, "Report.docx");
+    assert_eq!(word.pages.len(), 1);
+    assert!(word.pages[0].width > 500.0 && word.pages[0].height > 700.0, "{:?}", word.pages[0]);
+    assert!(word.read_only_reason.is_some());
+    assert_eq!(s.documents(), vec![pdf.id, word.id]);
+    assert_eq!(s.document(word.id).unwrap().pages.len(), 1);
+    // the PDF-only lists are empty, not errors
+    assert!(s.comments(word.id).unwrap().is_empty());
+    assert!(s.widgets(word.id).unwrap().is_empty());
+    assert!(s.outline(word.id).unwrap().is_empty());
+    s.close(word.id, false).unwrap();
+    assert_eq!(s.documents(), vec![pdf.id]);
+}
+
+#[test]
+fn a_word_document_is_told_by_its_bytes_not_its_name() {
+    // a working copy named as a PDF is still read as the Word document it is
+    let s = MobileSession::new();
+    let info = s.open(word_file("Hello.", "Letter.pdf"), None).unwrap();
+    assert_eq!(info.kind, DocumentKind::Word);
+}
+
+#[test]
+fn renders_a_word_page_and_a_tile_with_its_text() {
+    let s = MobileSession::new();
+    let doc = s.open(word_file("Inked words on the page.", "Ink.docx"), None).unwrap();
+    let page = s.render_page(doc.id, 0, 1.0, None).unwrap();
+    assert_eq!((page.width, page.height), (doc.pages[0].width.ceil() as u32, doc.pages[0].height.ceil() as u32));
+    assert_eq!(page.rgba.len() as u32, page.width * page.height * 4);
+    // the words are drawn: some pixel of the page is dark
+    let dark = page.rgba.as_chunks::<4>().0.iter().any(|p| p[0] < 100 && p[3] == 255);
+    assert!(dark, "nothing drawn on the page");
+    let tile = s.render_page(doc.id, 0, 2.0, Some(TileRect { x: 100, y: 100, width: 64, height: 32 })).unwrap();
+    assert_eq!((tile.width, tile.height), (64, 32));
+    assert!(s.render_page(doc.id, 5, 1.0, None).is_err());
+}
+
+#[test]
+fn a_word_page_can_be_searched_selected_and_read() {
+    let s = MobileSession::new();
+    let doc = s.open(word_file("The quick brown fox jumps over the lazy dog.", "Fox.docx"), None).unwrap().id;
+    assert!(s.glyph_count(doc, 0).unwrap() > 30);
+    assert_eq!(s.page_plain_text(doc, 0).unwrap().trim(), "The quick brown fox jumps over the lazy dog.");
+    let hits = s.find_in_page(doc, 0, "brown fox".into(), false, false).unwrap();
+    assert_eq!(hits.len(), 1);
+    let hit = hits.first().unwrap();
+    assert_eq!(s.text_of(doc, hit.range).unwrap(), "brown fox");
+    assert_eq!(hit.rects.len(), 4);
+    // a long press on "brown" selects the word
+    let [x0, y0, x1, y1] = [hit.rects[0], hit.rects[1], hit.rects[2], hit.rects[3]];
+    let word = s.word_at(doc, 0, x0 + 2.0, (y0 + y1) / 2.0, 2.0).unwrap().unwrap();
+    assert_eq!(s.text_of(doc, word).unwrap(), "brown");
+    assert!(x1 > x0);
+    let blocks = s.reading_blocks(doc, 0).unwrap();
+    assert_eq!(blocks.len(), 1);
+    assert_eq!(blocks[0].text, "The quick brown fox jumps over the lazy dog.");
+}
+
+#[test]
+fn a_word_thumbnail_fits_the_size_asked() {
+    let img = file_thumbnail(word_file("Thumb.", "Thumb.docx"), 120).unwrap();
+    assert_eq!(img.width.max(img.height), 120);
+}
+
+#[test]
+#[ignore = "renders the file in ARTEFACT_SAMPLE to raw RGBA beside it, for a look"]
+fn render_sample() {
+    let Ok(path) = std::env::var("ARTEFACT_SAMPLE") else { return };
+    let s = MobileSession::new();
+    let info = s.open(path.clone(), None).unwrap();
+    eprintln!("{:?} pages {} title {:?}", info.kind, info.pages.len(), info.title);
+    for p in 0..info.pages.len() as u32 {
+        let img = s.render_page(info.id, p, 1.5, None).unwrap();
+        std::fs::write(format!("{path}.{p}.{}x{}.rgba", img.width, img.height), &img.rgba).unwrap();
+        eprintln!("hits {:?}", s.find_in_page(info.id, p, "revenue".into(), false, false).unwrap().len());
+        eprintln!("links {:?}", s.links(info.id, p).unwrap());
+    }
+}

@@ -22,6 +22,49 @@ Read this first after a `/clear`. The roadmap is `PLAN.md`.
   `adb shell cmd package compile -f -m speed-profile com.chethan616.clearpdf.debug` to compile the
   profile at once. A debuggable build runs Compose several times slower.
 
+## Office documents (Word in; PowerPoint and Excel next)
+
+Plan and status: PLAN.md "Office documents". How the Word bridge works:
+
+- **Engine**: storytold/wordcraft pinned at `729cd0a` (git deps). Two crates vendored with patches
+  (`engine/vendor/README.md`, section WordCraft): `wordcraft-engine` (font store behind `font-store`,
+  which Artefact leaves off: no ureq/rustls/ring; check with
+  `cargo tree -p artefact-mobile --target aarch64-linux-android -e normal`) and `wordcraft-fonts`
+  (`/system/fonts` on Android; its bundled faces `include_bytes!` from `engine/assets/fonts`, so
+  Source Sans 3 / Source Serif 4 live there). `[patch.crates-io] krilla` = craft-libs `c5a1cbf`
+  (Word's PDF export needs the suite's krilla, and Cargo ignores a dependency's own patches).
+  Upstream draft (not filed, don't file without the owner): `docs/upstream/wordcraft-android.md`.
+- **Bridge** (`engine/mobile/src/word.rs`): `MobileSession.open(path)` sniffs the bytes
+  (`word_extension`: zip with `word/document.xml`, ODF text, CFB `WordDocument`, `{
+tf`; an encrypted
+  CFB only when the name says .docx) and opens a `WordDocument` (wordcraft `Session`) under an id
+  from `WORD_IDS` = 2^40. Every per-document call checks `self.word(doc)` first: `document`,
+  `render_page` (whole page or tile via `render_region` with a translate+scale `Affine`), `links`
+  (web/mail runs only), `close`, `documents`; comments/widgets/attachments/outline are empty for
+  Word. Text: `page_text` builds glyph boxes from `page_display` (`Draw::Glyphs`, recursing into
+  `Figure`/`Clip`; turned/rotated boxes left out) and lays them out with
+  `pdfcraft_render::text::layout`, so `word_at`, `text_rects`, `find_in_page`, `reading_blocks`
+  are the PDF code. Headers are drawn undimmed (`dim_header: false`); proofing is off
+  (`session.view.proofing = false`: no spelling squiggles in a reader). `DocumentInfo.kind` tells the
+  app; `read_only_reason` is set (no editing yet). Errors reuse `MobileError` (NeedsPassword /
+  WrongPassword for protected .docx).
+- **Android**: `engine/DocumentTypes.kt` (types, Word extensions, `title`, `mimeOf`);
+  `OpenDocument.isWord`; `QuickTool.WORD` (Read Aloud only) on the bar, empty More tools, More sheet
+  without Edit/Print/comments/signatures/PDF tools; `safeName` keeps Word extensions (the engine
+  needs .docx for encrypted files); manifest SEND and Quick Preview VIEW filters list the Word types.
+- Tests: `cargo test -p artefact-mobile` (Word tests write a .docx with wordcraft, open, render,
+  search, select, read aloud, thumbnail). To look at any file's pages on the PC:
+  `ARTEFACT_SAMPLE=<path> cargo test -p artefact-mobile --lib render_sample -- --ignored --nocapture`
+  writes `<path>.<page>.<w>x<h>.rgba` (convert with Pillow).
+- Sample on the phone: `/sdcard/Download/Artefact-Word-Sample.docx` (MediaStore id 1000145153;
+  headings, table, link, header/footer, 2 pages, Cyrillic/Greek/Japanese/Hindi line). Made by a
+  small Python script (zipfile, hand-written OOXML). Quick Preview test:
+  `adb shell am start -a android.intent.action.VIEW -t application/vnd.openxmlformats-officedocument.wordprocessingml.document -d content://media/external/file/1000145153 --grant-read-uri-permission -n com.chethan616.clearpdf.debug/com.chethan616.clearpdf.preview.QuickPreviewActivity`
+- Size: with WordCraft the arm64 fast APK went from 49 MB to 76 MB (libartefact.so is now 58 MB). Look at what is big (craft-proof's word lists? the .doc/ODT/RTF readers?) before
+  PowerPoint adds its codecs.
+- Build note: the first release build of wordcraft is long (~20 min on this PC); `assembleFast`
+  compiles the Rust release profile (thin LTO, one codegen unit).
+
 ## Motion rules (2026-11-06)
 
 - **Glass things spring, screens glide** (sheets on their own fixed spring, see Gotchas). Glass controls AND glass popovers (menus, dialogs, toasts, hint toasts, the recorder pill) use
@@ -147,6 +190,19 @@ Read this first after a `/clear`. The roadmap is `PLAN.md`.
   attached): check them first when it is. Fast APK: `android/app/build/outputs/apk/fast/app-fast.apk`.
   If gradle complains a backdrop class is "outside the root directory", run `./gradlew :backdrop:clean`.
 
+## Desk flicker (2026-11-06, fix built, not yet seen on the phone)
+
+The owner saw the desk's cards "appear again for a second" after tapping a card. Cause found in
+the code: opening a document calls `refreshRecents()` while the viewer is still rising out of the
+card (`Reveal`, not yet covering), so the desk grid re-sorted behind it: the tapped card jumped to
+the front and the cards' tones and tilts (picked by index) changed. Fix: `AppViewModel.deskStill`
+(kept by ClearApp from the reveal's progress: 0 or 1) and `HomeScreen` keeps the last item list
+while it is false, taking the new order once the viewer covers the desk or has gone. If the owner
+still sees a flash on the Files/Pdf collection cards (a route change, not a document), look at
+`RouteHost` next.
+
 ## Next up
 
-See PLAN.md "Next". Immediate: viewer chrome polish, release APK, GitHub master branch + issue + discussion.
+See PLAN.md "Office documents" and "Next". Immediate: when Artefact is in front on the phone,
+check Word viewing (Files, Recent, Quick Preview with the sample above) and the desk flicker fix,
+then PowerPoint viewing (deckcraft).

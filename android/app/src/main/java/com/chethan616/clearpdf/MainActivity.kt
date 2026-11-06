@@ -24,6 +24,7 @@ import androidx.activity.viewModels
 import androidx.core.content.FileProvider
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
+import com.chethan616.clearpdf.engine.DocumentTypes
 import com.chethan616.clearpdf.ui.ClearApp
 import com.chethan616.clearpdf.ui.AppViewModel
 import com.chethan616.clearpdf.ui.FilePickKind
@@ -85,7 +86,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             ClearApp(
                 vm,
-                onBrowse = { launchSafely { pickPdf.launch(arrayOf("application/pdf")) } },
+                onBrowse = { launchSafely { pickPdf.launch(DocumentTypes.OPENABLE) } },
                 onPickSignatureImage = { launchSafely { pickSignature.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
             )
         }
@@ -107,7 +108,8 @@ class MainActivity : ComponentActivity() {
                     when (kind) {
                         FilePickKind.Combine -> pickMany.launch(arrayOf("application/pdf", "image/*", "text/plain") + OFFICE_TYPES)
                         FilePickKind.Create -> pickMany.launch(arrayOf("image/*", "text/plain", "application/pdf") + OFFICE_TYPES)
-                        FilePickKind.Insert, FilePickKind.Open -> pickOne.launch(arrayOf("application/pdf"))
+                        FilePickKind.Insert -> pickOne.launch(arrayOf(DocumentTypes.PDF))
+                        FilePickKind.Open -> pickOne.launch(DocumentTypes.OPENABLE)
                         // .p12 / .pfx: providers type them as PKCS #12, or not at all
                         FilePickKind.DigitalId -> pickOne.launch(arrayOf("application/x-pkcs12", "application/pkcs12", "application/octet-stream"))
                     }

@@ -42,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -178,6 +179,10 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
     }
 
     val reveal = remember { RevealState() }
+    // the desk's cards wait for a document to finish rising (or leaving) before they re-sort
+    LaunchedEffect(reveal) {
+        snapshotFlow { reveal.progress.value.let { it <= 0f || it >= 1f } }.collect { vm.deskStill = it }
+    }
     // under an open document nothing of the desk shows: skip drawing it (and its glass) entirely
     val underDoc = Modifier.drawWithContent { if (!reveal.covering) drawContent() }
     GlassStage(

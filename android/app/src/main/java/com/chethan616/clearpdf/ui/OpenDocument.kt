@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.chethan616.clearpdf.core.DocumentInfo
+import com.chethan616.clearpdf.core.DocumentKind
 import com.chethan616.clearpdf.engine.Engine
 import com.chethan616.clearpdf.ui.viewer.LinkFlash
 import com.chethan616.clearpdf.ui.viewer.PageImages
@@ -76,8 +77,11 @@ class OpenDocument(
      */
     var localUndo by mutableStateOf<LocalUndo?>(null)
 
+    /** A Word document (read by the Word engine): it opens for reading, the PDF tools don't apply. */
+    val isWord: Boolean get() = info.kind == DocumentKind.WORD
+
     /** The file name without its extension, as the reference titles documents. */
-    val title: String get() = info.name.removeSuffix(".pdf").removeSuffix(".PDF")
+    val title: String get() = com.chethan616.clearpdf.engine.DocumentTypes.title(info.name)
     val name: String get() = info.name
     val pageCount: Int get() = info.pages.size
 
