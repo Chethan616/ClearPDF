@@ -39,21 +39,23 @@ class VoiceRecorder(private val file: File, private val scope: CoroutineScope) {
         private set
     val levels = mutableStateListOf<Float>()
     private var job: Job? = null
+    @Volatile private var stopped = false
 
-    /** Start recording; false when the microphone can't be opened (permission, busy). */
+    private class Mic(val rec: AudioRecord, val ns: NoiseSuppressor?)
+
+    /** Opens and starts the microphone (slow on some phones: call it off the main thread when you can). */
     @SuppressLint("MissingPermission") // the caller asks for RECORD_AUDIO first
-    fun start(): Boolean {
-        val rate = 16_000
-        val minBuf = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        if (minBuf <= 0) return false
+    private fun openMic(): Mic? {
+        val minBuf = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        if (minBuf <= 0) return null
         val rec = try {
-            AudioRecord(MediaRecorder.AudioSource.MIC, rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(minBuf, rate / 10 * 2))
+            AudioRecord(MediaRecorder.AudioSource.MIC, RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(minBuf, RATE / 10 * 2))
         } catch (e: Exception) {
-            return false
+            return null
         }
         if (rec.state != AudioRecord.STATE_INITIALIZED) {
             rec.release()
-            return false
+            return null
         }
         val ns = if (NoiseSuppressor.isAvailable()) runCatching { NoiseSuppressor.create(rec.audioSessionId)?.apply { enabled = true } }.getOrNull() else null
         try {
@@ -61,8 +63,42 @@ class VoiceRecorder(private val file: File, private val scope: CoroutineScope) {
         } catch (e: Exception) {
             ns?.release()
             rec.release()
+            return null
+        }
+        return Mic(rec, ns)
+    }
+
+    /** Start recording; false when the microphone can't be opened (permission, busy). */
+    fun start(): Boolean {
+        stopped = false
+        val mic = openMic() ?: return false
+        run(mic)
+        return true
+    }
+
+    /**
+     * [start], with the microphone opened on a background thread so the screen never waits for it.
+     * False when it can't be opened, or when [stop] came first (the microphone is then let go at once).
+     */
+    suspend fun startAsync(): Boolean {
+        stopped = false
+        val mic = withContext(Dispatchers.IO) { openMic() } ?: return false
+        if (stopped) {
+            withContext(Dispatchers.IO) {
+                runCatching { mic.rec.stop() }
+                mic.ns?.release()
+                mic.rec.release()
+            }
             return false
         }
+        run(mic)
+        return true
+    }
+
+    private fun run(mic: Mic) {
+        val rate = RATE
+        val rec = mic.rec
+        val ns = mic.ns
         levels.clear()
         elapsedMs = 0L
         recording = true
@@ -101,17 +137,19 @@ class VoiceRecorder(private val file: File, private val scope: CoroutineScope) {
                 rec.release()
             }
         }
-        return true
     }
 
     /** Stop recording and wait until the file is complete. */
     suspend fun stop() {
+        stopped = true
         recording = false
         job?.join()
         job = null
     }
 
     companion object {
+        private const val RATE = 16_000
+
         /** A RIFF/WAVE header for [dataBytes] of 16-bit mono PCM at [rate], at the file's start. */
         fun writeWavHeader(out: RandomAccessFile, dataBytes: Long, rate: Int) {
             val len = dataBytes.coerceAtMost(0xFFFF_FFFFL - 36)

@@ -89,13 +89,13 @@ enum class ThemeChoice { System, Light, Dark }
 private fun pdfColorsFrom(cc: com.chethan616.clearpdf.ui.theme.ClearColors): PdfColors {
     val candy = com.chethan616.clearpdf.ui.theme.Candy
     val dark = cc.dark
-    val surface = if (dark) Color(0xFF121B20) else Color(0xFFF5F7FB)
-    val raised = if (dark) Color(0xFF1B262C) else Color(0xFFE9EDF4)
+    val surface = if (dark) Color(0xFF12132B) else Color(0xFFF5F7FB)
+    val raised = if (dark) Color(0xFF1C1D3E) else Color(0xFFE9EDF4)
     return PdfColors(
         dark = dark,
         surface = surface,
         surfaceRaised = raised,
-        pressed = if (dark) Color(0xFF24323A) else Color(0xFFDDE3EC),
+        pressed = if (dark) Color(0xFF2A2B52) else Color(0xFFDDE3EC),
         desk = cc.desk,
         pageEdge = if (dark) Color.Transparent else Color(0x1F000000),
         text = cc.ink,
@@ -109,7 +109,7 @@ private fun pdfColorsFrom(cc: com.chethan616.clearpdf.ui.theme.ClearColors): Pdf
         button = candy.Sky,
         red = candy.Tomato,
         scrim = if (dark) Color(0x99000000) else Color(0x55000000),
-        toast = if (dark) Color(0xFF24323A) else Color(0xFF26324A),
+        toast = if (dark) Color(0xFF2A2B52) else Color(0xFF26324A),
         onToast = Color.White,
         label = cc.ink,
         toolAccent = candy.Sky,

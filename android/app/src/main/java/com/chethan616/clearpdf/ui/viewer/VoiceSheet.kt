@@ -114,13 +114,14 @@ fun VoiceSheet(vm: AppViewModel, prompt: VoicePrompt) {
     PdfSheet(onDismiss = ::close, dim = true) {
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.voice_record_comment), color = c.text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            TextButton(
-                onClick = {
+            com.chethan616.clearpdf.ui.glass.GlassTextAction(
+                stringResource(R.string.common_post),
+                {
                     player.release()
                     vm.postVoice(prompt, file)
                 },
-                enabled = recorded,
-            ) { Text(stringResource(R.string.common_post), color = if (recorded) c.accent else c.textSecondary, fontWeight = FontWeight.SemiBold) }
+                enabled = recorded, primary = true,
+            )
         }
         Text(
             when {

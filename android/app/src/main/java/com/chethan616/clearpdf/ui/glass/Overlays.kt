@@ -6,6 +6,12 @@ import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -13,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +29,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -52,9 +60,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -64,16 +75,10 @@ import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
 import com.kyant.shapes.Capsule
 import com.kyant.shapes.RoundedRectangle
+import com.kyant.backdrop.floatingLayer
 import kotlin.math.roundToInt
+import kotlin.math.tanh
 import kotlinx.coroutines.launch
-
-/** A 0 → 1 entrance on [spec], read in draw. */
-@Composable
-private fun rememberAppear(): Animatable<Float, AnimationVector1D> {
-    val a = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { a.animateTo(1f, GlassMotion.morph()) }
-    return a
-}
 
 /** The dim behind a dialog or sheet; a tap on it dismisses. */
 @Composable
@@ -88,8 +93,10 @@ private fun BoxScope.Scrim(appear: Animatable<Float, AnimationVector1D>, onDismi
 }
 
 /**
- * A dialog: a frosted card that springs up from 82 %, an optional candy [icon] blob, a big title,
- * then [content] and the buttons. [destructive] paints the confirm button tomato.
+ * A dialog: a frosted card that springs in from 90 % (a glass spring) and fades quickly away, an
+ * optional candy [icon] blob, a big title, then [content] and the buttons. [destructive] paints the
+ * confirm button tomato. [centered] sets it out as an alert: everything centred, the buttons side
+ * by side across the card.
  */
 @Composable
 fun GlassDialog(
@@ -104,13 +111,16 @@ fun GlassDialog(
     icon: ImageVector? = null,
     accent: Color = Candy.Sky,
     dismissible: Boolean = true,
+    centered: Boolean = false,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     val c = clear
     val tint = if (destructive) Candy.Tomato else accent
-    GlassOverlay {
-        BackHandler(enabled = dismissible, onBack = onDismiss)
-        val appear = rememberAppear()
+    GlassOverlay(animatesOut = true) {
+        val leaving = LocalOverlayPresence.current?.leaving == true
+        BackHandler(enabled = dismissible && !leaving, onBack = onDismiss)
+        // pops in on a glass spring (a little past full size, then settles); leaves quickly, no bounce
+        val appear = rememberOverlayAppear(enter = GlassMotion.morph(), exit = Fluid.dismiss())
         Box(Modifier.fillMaxSize().imePadding(), contentAlignment = Alignment.Center) {
             Scrim(appear) { if (dismissible) onDismiss() }
             GlassCard(
@@ -118,19 +128,21 @@ fun GlassDialog(
                     .padding(24.dp)
                     .widthIn(max = 380.dp)
                     .fillMaxWidth()
-                    .graphicsLayer {
-                        val s = lerp(0.82f, 1f, appear.value)
+                    .floatingLayer {
+                        val s = lerp(0.9f, 1f, appear.value)
                         scaleX = s
                         scaleY = s
                         alpha = appear.value.coerceIn(0f, 1f)
-                        compositingStrategy = CompositingStrategy.ModulateAlpha
                     }
                     .clickable(remember { MutableInteractionSource() }, null) {},
                 shape = RoundedRectangle(34.dp),
                 wash = c.frost,
                 blur = 16.dp,
             ) {
-                Column(Modifier.padding(start = 22.dp, end = 22.dp, top = 22.dp, bottom = 18.dp)) {
+                Column(
+                    Modifier.padding(start = 22.dp, end = 22.dp, top = 22.dp, bottom = 18.dp),
+                    horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
+                ) {
                     if (icon != null) {
                         Box(Modifier.size(46.dp).clip(CircleShape).background(tint), contentAlignment = Alignment.Center) {
                             Icon(icon, null, tint = Color.White, modifier = Modifier.size(24.dp))
@@ -138,16 +150,23 @@ fun GlassDialog(
                         Spacer(Modifier.height(14.dp))
                     }
                     if (title != null) {
-                        Text(title, style = ClearType.Headline, color = c.ink)
+                        Text(
+                            title, style = if (centered) ClearType.Title.copy(fontSize = 19.sp, lineHeight = 24.sp) else ClearType.Headline, color = c.ink,
+                            textAlign = if (centered) TextAlign.Center else TextAlign.Start,
+                        )
                         Spacer(Modifier.height(10.dp))
                     }
                     Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) { content() }
                     if (confirm != null || dismiss != null) {
                         Spacer(Modifier.height(20.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp, if (centered) Alignment.CenterHorizontally else Alignment.End),
+                        ) {
+                            val each = if (centered) Modifier.weight(1f) else Modifier
                             if (dismiss != null) {
-                                GlassPill(onClick = { (onDismissButton ?: onDismiss)() }, height = 46.dp) {
-                                    Text(dismiss, style = ClearType.BodyStrong, color = c.ink)
+                                GlassPill(onClick = { (onDismissButton ?: onDismiss)() }, height = 46.dp, modifier = each) {
+                                    Text(dismiss, style = ClearType.BodyStrong, color = c.ink, maxLines = 1)
                                 }
                             }
                             if (confirm != null) {
@@ -155,7 +174,8 @@ fun GlassDialog(
                                     onClick = { if (confirmEnabled) onConfirm() },
                                     tint = if (confirmEnabled) tint else c.inkFaint,
                                     height = 46.dp,
-                                ) { Text(confirm, style = ClearType.BodyStrong, color = Color.White) }
+                                    modifier = each,
+                                ) { Text(confirm, style = ClearType.BodyStrong, color = Color.White, maxLines = 1) }
                             }
                         }
                     }
@@ -166,8 +186,13 @@ fun GlassDialog(
 }
 
 /**
- * A sheet: a floating frosted card along the bottom, inset from the edges, that rises on a spring.
- * [title] in the headline face, an optional [subtitle], then [content].
+ * A sheet: a floating frosted card along the bottom, inset from the edges. It rises on the glass
+ * spring (Settings ▸ Motion sets how far it swings) and the title and rows fade in a beat behind, then
+ * it slides away on an accelerating curve. [title] in the headline face, an optional [subtitle], then
+ * [content].
+ *
+ * Cost while it moves: the card slides as a finished texture ([floatingLayer]); nothing behind it is
+ * re-sampled or re-blurred until it has settled.
  */
 @Composable
 fun GlassSheet(
@@ -178,10 +203,15 @@ fun GlassSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val c = clear
-    GlassOverlay {
-        BackHandler(onBack = onDismiss)
-        val appear = rememberAppear()
+    GlassOverlay(animatesOut = true) {
+        val leaving = LocalOverlayPresence.current?.leaving == true
+        BackHandler(enabled = !leaving, onBack = onDismiss)
+        val appear = rememberOverlayAppear(enter = SheetEnter, exit = SheetExit)
         val density = LocalDensity.current
+        val scope = rememberCoroutineScope()
+        // the finger's pull on the sheet, in px: down follows 1:1, up rubber-bands
+        val drag = remember { Animatable(0f) }
+        var height by remember { mutableStateOf(0f) }
         val overlayHeight = LocalGlassOverlayHost.current?.size?.height ?: 0
         Box(Modifier.fillMaxSize().imePadding(), contentAlignment = Alignment.BottomCenter) {
             Scrim(appear, onDismiss)
@@ -193,17 +223,38 @@ fun GlassSheet(
                     .widthIn(max = 560.dp)
                     .fillMaxWidth()
                     .heightIn(max = maxH)
-                    .graphicsLayer {
-                        val p = appear.value
-                        translationY = (1f - p) * 96.dp.toPx()
-                        val s = lerp(0.94f, 1f, p)
-                        scaleX = s
-                        scaleY = s
-                        transformOrigin = TransformOrigin(0.5f, 1f)
-                        alpha = p.coerceIn(0f, 1f)
-                        compositingStrategy = CompositingStrategy.ModulateAlpha
+                    .onSizeChanged { height = it.height.toFloat() }
+                    .floatingLayer {
+                        val travel = size.height + 48.dp.toPx()
+                        translationY = (1f - appear.value) * travel + drag.value
+                        val up = (-drag.value).coerceAtLeast(0f)
+                        if (up > 0f && size.height > 0f) {
+                            scaleY = 1f + up / size.height * 0.5f
+                            transformOrigin = TransformOrigin(0.5f, 1f)
+                        }
                     }
-                    .clickable(remember { MutableInteractionSource() }, null) {},
+                    .clickable(remember { MutableInteractionSource() }, null) {}
+                    .draggable(
+                        rememberDraggableState { delta ->
+                            val cur = drag.value
+                            val next = if (cur + delta < 0f) cur + delta * 0.25f else cur + delta
+                            scope.launch { drag.snapTo(next.coerceAtLeast(-with(density) { 40.dp.toPx() })) }
+                        },
+                        Orientation.Vertical,
+                        enabled = !leaving,
+                        onDragStopped = { velocity ->
+                            if (drag.value > height * 0.3f || velocity > 1200f) {
+                                // carry on from where the finger let go
+                                val travel = height + with(density) { 48.dp.toPx() }
+                                val from = 1f - (drag.value / travel).coerceIn(0f, 1f)
+                                drag.snapTo(0f)
+                                appear.snapTo(from)
+                                onDismiss()
+                            } else {
+                                drag.animateTo(0f, spring(MotionSettings.damping(0.7f), MotionSettings.stiffness(500f)), velocity)
+                            }
+                        },
+                    ),
                 shape = RoundedRectangle(32.dp),
                 wash = c.frost,
                 blur = 16.dp,
@@ -224,6 +275,11 @@ fun GlassSheet(
         }
     }
 }
+
+// the old app's sheet, a shade bouncier: it rises ~3 % past rest and settles once, whatever the motion
+// setting (scaled by Jelly it shivered)
+private val SheetEnter = spring<Float>(dampingRatio = 0.74f, stiffness = 380f, visibilityThreshold = 0.001f)
+private val SheetExit = spring<Float>(dampingRatio = 1f, stiffness = 600f, visibilityThreshold = 0.001f)
 
 /** A row of a sheet or menu: a candy icon blob, a label, an optional value. */
 @Composable
@@ -265,14 +321,19 @@ data class GlassMenuItem(val label: String, val icon: ImageVector? = null, val d
 @Composable
 fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
     val c = clear
-    GlassOverlay {
-        BackHandler(onBack = onDismiss)
+    GlassOverlay(animatesOut = true) {
+        val leaving = LocalOverlayPresence.current?.leaving == true
+        BackHandler(enabled = !leaving, onBack = onDismiss)
         val host = LocalGlassOverlayHost.current ?: return@GlassOverlay
-        val w = remember { Animatable(0f) }
-        val h = remember { Animatable(0f) }
-        LaunchedEffect(Unit) {
-            launch { w.animateTo(1f, GlassMotion.unfold()) }
-            launch { h.animateTo(1f, GlassMotion.unfoldLag()) }
+        val bars = WindowInsets.systemBars
+        val view = LocalView.current
+        // unfolds out of its button like a drop of gel: width first, the height a beat behind, each on
+        // a glass spring (Settings ▸ Motion) that swells a little past rest and settles;
+        // folding back into the button is quick and never bounces
+        val appear = rememberOverlayAppear(enter = GlassMotion.unfold(), exit = Fluid.dismiss())
+        val lag = remember { Animatable(0f) }
+        LaunchedEffect(leaving) {
+            if (!leaving) lag.animateTo(1f, GlassMotion.unfoldLag()) else lag.animateTo(0f, Fluid.dismiss())
         }
         Box(Modifier.fillMaxSize().clickable(remember { MutableInteractionSource() }, null, onClick = onDismiss))
         val local = Rect(host.windowToLocal(anchor.topLeft), host.windowToLocal(anchor.bottomRight))
@@ -284,12 +345,12 @@ fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
                 GlassCard(
                     Modifier
                         .width(236.dp)
-                        .graphicsLayer {
-                            scaleX = lerp(0.4f, 1f, w.value)
-                            scaleY = lerp(0.2f, 1f, h.value)
+                        .floatingLayer {
+                            val p = appear.value
+                            scaleX = lerp(0.5f, 1f, p).coerceAtLeast(0.2f)
+                            scaleY = lerp(0.35f, 1f, lag.value).coerceAtLeast(0.2f)
                             transformOrigin = TransformOrigin(if (fromRight) 1f else 0f, if (fromBelow) 0f else 1f)
-                            alpha = (h.value * 1.6f).coerceIn(0f, 1f)
-                            compositingStrategy = CompositingStrategy.ModulateAlpha
+                            alpha = (p * 1.6f).coerceIn(0f, 1f)
                         },
                     shape = RoundedRectangle(24.dp),
                     wash = c.frost,
@@ -308,17 +369,27 @@ fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
                     Spacer(Modifier.height(6.dp))
                 }
             },
-            modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding(),
+            modifier = Modifier.fillMaxSize(),
         ) { measurables, constraints ->
             val p = measurables.first().measure(Constraints(maxWidth = constraints.maxWidth, maxHeight = constraints.maxHeight))
+            // the system bars are in the way only where this portal reaches under them: the app's does,
+            // a card's (Quick Preview) doesn't. Positions stay in the portal's own space, unshifted.
+            val origin = host.originInWindow
+            val root = view.rootView
+            val barTop = (bars.getTop(this) - origin.y).coerceAtLeast(0f)
+            val barBottom = (bars.getBottom(this) - (root.height - origin.y - constraints.maxHeight)).coerceAtLeast(0f)
+            val barLeft = (bars.getLeft(this, layoutDirection) - origin.x).coerceAtLeast(0f)
+            val barRight = (bars.getRight(this, layoutDirection) - (root.width - origin.x - constraints.maxWidth)).coerceAtLeast(0f)
             layout(constraints.maxWidth, constraints.maxHeight) {
                 val right = local.center.x > constraints.maxWidth / 2f
                 fromRight = right
                 val x = if (right) (local.right - p.width) else local.left
-                val below = local.bottom + 6f + p.height < constraints.maxHeight - margin
+                val below = local.bottom + 6f + p.height < constraints.maxHeight - barBottom - margin
                 fromBelow = below
                 val y = if (below) local.bottom + 6f else local.top - 6f - p.height
-                p.place(IntOffset(x.coerceIn(margin, constraints.maxWidth - p.width - margin).roundToInt(), y.coerceAtLeast(margin).roundToInt()))
+                val minX = barLeft + margin
+                val maxX = (constraints.maxWidth - barRight - p.width - margin).coerceAtLeast(minX)
+                p.place(IntOffset(x.coerceIn(minX, maxX).roundToInt(), y.coerceAtLeast(barTop + margin).roundToInt()))
             }
         }
     }
@@ -363,18 +434,18 @@ fun GlassTextField(
     )
 }
 
-/** A toast: a glass capsule that pops in above the dock, with an optional candy action. */
+/** A toast: a glass capsule that rises in above the dock, with an optional candy action. */
 @Composable
 fun GlassToast(text: String, action: String?, onAction: () -> Unit, modifier: Modifier = Modifier) {
     val c = clear
-    val appear = rememberAppear()
+    val appear = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { appear.animateTo(1f, GlassMotion.morph()) }
     Row(
         modifier
-            .graphicsLayer {
+            .floatingLayer {
                 val p = appear.value
                 translationY = (1f - p) * 24.dp.toPx()
                 alpha = p.coerceIn(0f, 1f)
-                compositingStrategy = CompositingStrategy.ModulateAlpha
             }
             .widthIn(max = 520.dp)
             .glass(Capsule, c.frost, blur = 12.dp)

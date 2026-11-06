@@ -119,6 +119,9 @@ fun NoteEditor(vm: AppViewModel, id: String) {
     var menu by remember { mutableStateOf(false) }
     var anchor by remember { mutableStateOf(Rect.Zero) }
     val isList = note.kind == NoteKind.List
+    // a thought of the day not yet written on: its words show, with a line inviting you to go on
+    val seed = remember(id) { note.title to note.body }
+    val reading = note.thought != 0L && title.text == seed.first && body.text == seed.second && note.images.isEmpty()
 
     fun commit() {
         val n = vm.notes.get(id) ?: return
@@ -136,15 +139,14 @@ fun NoteEditor(vm: AppViewModel, id: String) {
                 Column {
                     Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
                     Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        GlassCircle(onClick = { vm.closeNote() }, size = 56.dp, surface = c.capsule, label = stringResource(R.string.common_back)) {
-                            GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(24.dp), tint = Color.White)
+                        com.chethan616.clearpdf.ui.glass.HeaderGlassButton(onClick = { vm.closeNote() }, label = stringResource(R.string.common_back)) {
+                            GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(24.dp))
                         }
                         Spacer(Modifier.weight(1f))
-                        GlassCircle(
-                            onClick = { menu = true }, size = 56.dp, surface = Color.White.copy(alpha = 0.16f),
-                            modifier = Modifier.onGloballyPositioned { anchor = it.boundsInWindow() }.border(1.dp, c.rim, CircleShape),
-                            label = stringResource(R.string.common_more_options),
-                        ) { GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(24.dp), tint = c.hero) }
+                        com.chethan616.clearpdf.ui.glass.HeaderGlassButton(
+                            onClick = { menu = true }, label = stringResource(R.string.common_more_options),
+                            modifier = Modifier.onGloballyPositioned { anchor = it.boundsInWindow() },
+                        ) { GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(24.dp)) }
                     }
                 }
             }
@@ -217,9 +219,21 @@ fun NoteEditor(vm: AppViewModel, id: String) {
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp).focusRequester(bodyFocus),
                         decorationBox = { inner ->
-                            Box {
-                                if (body.text.isEmpty()) Text(stringResource(R.string.notes_body_hint), style = ClearType.Body.copy(fontSize = 18.sp, lineHeight = 30.sp), color = c.ink.copy(alpha = 0.38f))
-                                inner()
+                            Column {
+                                Box {
+                                    if (body.text.isEmpty()) Text(stringResource(R.string.notes_body_hint), style = ClearType.Body.copy(fontSize = 18.sp, lineHeight = 30.sp), color = c.ink.copy(alpha = 0.38f))
+                                    inner()
+                                }
+                                if (reading) {
+                                    Text(
+                                        stringResource(R.string.notes_body_hint), style = ClearType.Body.copy(fontSize = 18.sp, lineHeight = 30.sp), color = c.ink.copy(alpha = 0.38f),
+                                        modifier = Modifier.padding(top = 30.dp).pressable({
+                                            val text = body.text + "\n\n"
+                                            body = TextFieldValue(text, TextRange(text.length))
+                                            runCatching { bodyFocus.requestFocus() }
+                                        }, pressedScale = 0.98f),
+                                    )
+                                }
                             }
                         },
                     )
@@ -245,9 +259,14 @@ fun NoteEditor(vm: AppViewModel, id: String) {
         }
 
         // the toolbar, above the keyboard
+        // opened from the desk, this is the dock's capsule grown into place: unseen until it has
+        val iconsIn by androidx.compose.animation.core.animateFloatAsState(if (vm.noteBarHidden) 0f else 1f, com.chethan616.clearpdf.ui.glass.Fluid.fade(), label = "bar")
         Row(
             Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding().padding(bottom = 14.dp)
-                .glass(Capsule, c.capsule, blur = 10.dp).padding(6.dp),
+                .onGloballyPositioned { vm.noteBarSize = it.size }
+                .graphicsLayer { alpha = if (vm.noteBarHidden) 0f else 1f }
+                .glass(Capsule, c.capsule, blur = 10.dp).padding(6.dp)
+                .graphicsLayer { alpha = iconsIn },
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -282,7 +301,7 @@ private fun ItemRow(item: CheckItem, focus: Boolean, onChange: (String) -> Unit,
     val fr = remember { FocusRequester() }
     LaunchedEffect(focus) { if (focus) runCatching { fr.requestFocus() } }
     var value by remember(item.id) { mutableStateOf(TextFieldValue(item.text, TextRange(item.text.length))) }
-    val tick by animateFloatAsState(if (item.done) 1f else 0f, GlassMotion.pop(), label = "tick")
+    val tick by animateFloatAsState(if (item.done) 1f else 0f, com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "tick")
     val ink by animateColorAsState(if (item.done) c.ink.copy(alpha = 0.45f) else c.ink, GlassMotion.settle(), label = "ink")
     Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(30.dp).pressable(onToggle, pressedScale = 0.8f).semantics { contentDescription = item.text }, contentAlignment = Alignment.Center) {

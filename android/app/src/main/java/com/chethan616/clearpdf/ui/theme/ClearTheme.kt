@@ -8,7 +8,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -84,7 +83,7 @@ data class ClearColors(
 }
 
 private val InkLight = Color(0xFF172033)
-private val InkDark = Color(0xFFF1F5F9)
+private val InkDark = Color(0xFFEEF1FF)
 
 private val LightTones = mapOf(
     Tone.Sage to CardTone(Color(0xFF8ED0C1), Color(0xFFB2DFD6), Color(0xFF12302B), Color(0xFF1B6E60)),
@@ -97,14 +96,20 @@ private val LightTones = mapOf(
     Tone.Peach to CardTone(Color(0xFFF8C6A3), Color(0xFFFBDCC5), Color(0xFF4A2512), Color(0xFFD9541C)),
 )
 
-/** At night the cards keep their pastel, a little deeper, so the home screen keeps its colour. */
-private val DarkTones = LightTones.mapValues { (t, c) ->
-    if (t == Tone.Paper) {
-        CardTone(Color(0xFFFFFFFF).copy(alpha = 0.16f), Color(0xFFFFFFFF).copy(alpha = 0.10f), InkDark, Color(0xFF8DBCF5))
-    } else {
-        CardTone(lerp(c.top, Color.Black, 0.22f), lerp(c.bottom, Color.Black, 0.26f), c.ink, c.accent)
-    }
-}
+/**
+ * At night the cards become jewels: saturated, deep, lit from above, with pale ink on them. (The
+ * pastels merely darkened turned muddy against the midnight wallpaper.)
+ */
+private val DarkTones = mapOf(
+    Tone.Sage to CardTone(Color(0xFF22877A), Color(0xFF15605A), Color(0xFFEAFBF6), Color(0xFF7CE3CF)),
+    Tone.Paper to CardTone(Color(0xFFCBD5FF).copy(alpha = 0.16f), Color(0xFFCBD5FF).copy(alpha = 0.09f), InkDark, Color(0xFF9DB8FF)),
+    Tone.Lavender to CardTone(Color(0xFF5B4FD6), Color(0xFF3F34A6), Color.White, Color(0xFFD9D4FF)),
+    Tone.Butter to CardTone(Color(0xFFB38A1F), Color(0xFF7C5C12), Color(0xFFFFF6DA), Color(0xFFFFD66B)),
+    Tone.Orchid to CardTone(Color(0xFF9A3FB5), Color(0xFF66257F), Color(0xFFFBE9FF), Color(0xFFF0A6FF)),
+    Tone.Blush to CardTone(Color(0xFFC7415F), Color(0xFF8F2644), Color(0xFFFFE9EE), Color(0xFFFF9DB5)),
+    Tone.Sky to CardTone(Color(0xFF2D79D6), Color(0xFF1A4FA0), Color(0xFFE8F3FF), Color(0xFF9CCBFF)),
+    Tone.Peach to CardTone(Color(0xFFD2723B), Color(0xFF9C4A22), Color(0xFFFFF0E4), Color(0xFFFFBE91)),
+)
 
 val LightClear = ClearColors(
     dark = false,
@@ -132,25 +137,26 @@ val LightClear = ClearColors(
 
 val DarkClear = ClearColors(
     dark = true,
-    wall = listOf(Color(0xFF0E1A20), Color(0xFF13262C), Color(0xFF0F1A22)),
+    // Midnight Aurora: deep indigo with cobalt, violet and a breath of magenta pooled in it
+    wall = listOf(Color(0xFF0A0B1E), Color(0xFF14123A), Color(0xFF0B1030)),
     blooms = listOf(
-        Color(0xFF2C6C64) to 0.55f,
-        Color(0xFF2B4072) to 0.50f,
-        Color(0xFF4C2F66) to 0.36f,
-        Color(0xFF3D6D5D) to 0.34f,
-        Color(0xFF9FC6FF) to 0.06f,
+        Color(0xFF1E6FD9) to 0.46f,
+        Color(0xFF7C3AED) to 0.52f,
+        Color(0xFFD62C86) to 0.26f,
+        Color(0xFF3B4FD8) to 0.42f,
+        Color(0xFFA5B4FF) to 0.07f,
     ),
     hero = Color.White,
-    heroGlow = Color.Black.copy(alpha = 0.30f),
+    heroGlow = Color(0xFF05061A).copy(alpha = 0.45f),
     ink = InkDark,
-    inkSoft = InkDark.copy(alpha = 0.66f),
-    inkFaint = InkDark.copy(alpha = 0.42f),
+    inkSoft = InkDark.copy(alpha = 0.68f),
+    inkFaint = InkDark.copy(alpha = 0.44f),
     line = InkDark.copy(alpha = 0.10f),
-    glass = Color(0xFF1E2C33).copy(alpha = 0.42f),
-    rim = Color.White.copy(alpha = 0.22f),
-    frost = Color(0xFF16232A).copy(alpha = 0.86f),
-    desk = Color(0xFF0D1418),
-    capsule = Color(0xFF060B10).copy(alpha = 0.40f),
+    glass = Color(0xFFC9D2FF).copy(alpha = 0.11f),
+    rim = Color.White.copy(alpha = 0.26f),
+    frost = Color(0xFF1A1B3C).copy(alpha = 0.90f),
+    desk = Color(0xFF090A18),
+    capsule = Color(0xFF0B0C22).copy(alpha = 0.46f),
     tones = DarkTones,
 )
 
@@ -190,6 +196,27 @@ val Serif: FontFamily = FontFamily(
     Font(R.font.dm_serif_italic, FontWeight.Normal, FontStyle.Italic),
 )
 
+/** Fraunces (OFL): a soft serif. [soft] rounds its terminals (0..100); [wonk] 1 leans some letters (quirky), 0 keeps them upright. */
+private fun fraunces(weight: Int, soft: Float, size: TextUnit, wonk: Float = 0f) = FontFamily(
+    Font(
+        R.font.fraunces, FontWeight(weight),
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(weight), FontVariation.opticalSizing(size),
+            FontVariation.Setting("SOFT", soft), FontVariation.Setting("WONK", wonk),
+        ),
+    ),
+)
+
+/** Bricolage Grotesque (OFL): a grotesque with a width axis, from a tall condensed 75 to the normal 100. */
+private fun bricolage(weight: Int, width: Float, size: TextUnit) = FontFamily(
+    Font(
+        R.font.bricolage, FontWeight(weight),
+        variationSettings = FontVariation.Settings(
+            FontVariation.weight(weight), FontVariation.width(width), FontVariation.opticalSizing(size),
+        ),
+    ),
+)
+
 private val Trim = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.Both)
 
 private fun display(family: FontFamily, size: TextUnit, line: TextUnit, tracking: TextUnit) =
@@ -213,6 +240,25 @@ object ClearType {
     val SerifWord = display(Serif, 52.sp, 52.sp, (-1.2).sp)
     /** A list card's title. */
     val DotTitle = display(Doto, 30.sp, 32.sp, 0.sp)
+
+    // The desk's big title, one face per shelf, each in the voice of what it holds: a clean bold
+    // grotesque for everything, an upright soft serif for notes, dots for lists, an editorial serif
+    // for PDFs, a thin italic for pictures, a light wide grotesque for voices.
+    // All six share one size and one line height, so switching chips never moves anything below the
+    // title; the desk shrinks that one size (for every title alike) only if a translation is too wide.
+    val DeskTitleSize = 44.sp
+    val DeskTitleLine = 50.sp
+    val DeskAll = display(bricolage(700, 100f, 96.sp), DeskTitleSize, DeskTitleLine, (-1.4).sp)
+    val DeskNotes = display(fraunces(600, 50f, 72.sp), DeskTitleSize, DeskTitleLine, (-0.8).sp)
+    val DeskTodo = display(Doto, DeskTitleSize, DeskTitleLine, 0.sp)
+    val DeskPdfs = display(Serif, DeskTitleSize, DeskTitleLine, (-0.8).sp)
+    val DeskImages = display(jakarta(300, italic = true), DeskTitleSize, DeskTitleLine, (-1.4).sp).copy(fontStyle = FontStyle.Italic)
+    val DeskAudio = display(bricolage(300, 100f, 72.sp), DeskTitleSize, DeskTitleLine, (-1.0).sp)
+
+    /** The Tools screen's title: Fraunces at its softest and quirkiest, a face no other screen uses. */
+    val ToolsTitle = display(fraunces(700, 100f, 72.sp, wonk = 1f), DeskTitleSize, DeskTitleLine, (-0.8).sp)
+    /** A tool tile's name, set like the desk's "Files" and "Pdf" words. */
+    val ToolWord = display(Serif, 31.sp, 33.sp, (-0.6).sp)
 
     val Eyebrow = TextStyle(fontFamily = Jakarta, fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp, lineHeight = 14.sp, letterSpacing = 1.4.sp)
     val Body = TextStyle(fontFamily = Jakarta, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 22.sp)

@@ -267,11 +267,18 @@ private fun SizePanel(para: Paragraph, onSize: (Float) -> Unit) {
         Text(stringResource(R.string.edit_text_size_pt, size.roundToInt()), color = c.label, fontSize = 15.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
             Text("A", color = c.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 10.dp))
-            Slider(
-                value = size, onValueChange = { size = ((it / 2f).roundToInt() * 2f).coerceIn(6f, 66f) }, onValueChangeFinished = { onSize(size) },
-                valueRange = 6f..66f, steps = 29,
-                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = c.textSecondary, inactiveTrackColor = c.textSecondary, activeTickColor = c.textSecondary, inactiveTickColor = c.textSecondary),
-                modifier = Modifier.weight(1f),
+            // the glass slider; the size is set on the text once the thumb rests a moment
+            var applied by remember { mutableStateOf(size) }
+            LaunchedEffect(size) {
+                if (size != applied) {
+                    kotlinx.coroutines.delay(300)
+                    applied = size
+                    onSize(size)
+                }
+            }
+            com.chethan616.clearpdf.ui.glass.GlassSlider(
+                size, { size = ((it / 2f).roundToInt() * 2f).coerceIn(6f, 66f) },
+                modifier = Modifier.weight(1f), range = 6f..66f,
             )
             Text("A", color = c.textSecondary, fontSize = 22.sp, modifier = Modifier.padding(horizontal = 10.dp))
         }

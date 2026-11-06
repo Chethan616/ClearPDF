@@ -23,17 +23,17 @@ import com.chethan616.clearpdf.ui.theme.clear
 
 /**
  * The one loader: Material 3 Expressive's morphing indicator (its shapes turn into one another)
- * inside a glass circle that pops in on a spring. Every wait in the app shows this.
+ * inside a glass circle that grows in. Every wait in the app shows this.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GlassLoader(modifier: Modifier = Modifier, size: Dp = 64.dp, color: Color = Candy.Sky, label: String? = null) {
     val appear = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { appear.animateTo(1f, GlassMotion.pop()) }
+    LaunchedEffect(Unit) { appear.animateTo(1f, Fluid.quick()) }
     Box(
         modifier
             .graphicsLayer {
-                val s = 0.6f + 0.4f * appear.value
+                val s = 0.8f + 0.2f * appear.value
                 scaleX = s
                 scaleY = s
                 alpha = appear.value.coerceIn(0f, 1f)

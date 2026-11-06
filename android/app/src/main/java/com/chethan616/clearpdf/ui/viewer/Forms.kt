@@ -85,10 +85,7 @@ fun BoxScope.FieldEditor(vm: AppViewModel, edit: FieldEdit) {
                         }.height(48.dp).padding(start = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        androidx.compose.material3.RadioButton(
-                            selected = w.value == value, onClick = { vm.fieldEdit = null; vm.fillField(doc, w.field, value) },
-                            colors = androidx.compose.material3.RadioButtonDefaults.colors(selectedColor = Color(0xFF1473E6), unselectedColor = c.icon),
-                        )
+                        com.chethan616.clearpdf.ui.glass.GlassRadio(w.value == value, { vm.fieldEdit = null; vm.fillField(doc, w.field, value) })
                         Spacer(Modifier.width(12.dp))
                         Text(label.ifBlank { value }, color = c.text, fontSize = 17.sp)
                     }

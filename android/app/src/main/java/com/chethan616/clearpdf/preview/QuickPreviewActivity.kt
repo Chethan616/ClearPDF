@@ -42,7 +42,7 @@ import kotlinx.coroutines.withContext
  * The window is translucent (Theme.Artefact.Preview) and joins the caller's task, so the app that
  * opened the file stays drawn behind it, exactly where it was; Android dims and, where the phone
  * allows cross-window blur (Android 12+), softly blurs it. The card itself is compact: it never
- * covers the whole screen. Expand hands the file to the full viewer; closing just finishes, which
+ * covers the whole screen. Open hands the file to the full viewer at once; closing just finishes, which
  * reveals the caller again. Nothing here draws over other apps: no overlay permission, no PiP.
  */
 class QuickPreviewActivity : ComponentActivity() {
@@ -154,10 +154,12 @@ class QuickPreviewActivity : ComponentActivity() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         copy?.let { base.putExtra(MainActivity.EXTRA_LOCAL_COPY, it.absolutePath) }
         val withSource = Intent(base).setDataAndType(u, mime ?: "application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        // the card has already grown to fill the screen: the viewer just fades in over it
-        val fade = android.app.ActivityOptions.makeCustomAnimation(this, android.R.anim.fade_in, android.R.anim.fade_out).toBundle()
-        if (runCatching { startActivity(withSource, fade) }.isFailure) runCatching { startActivity(base, fade) }
-        finishQuietly()
+        // straight into the app, no stop at a full-screen preview: the viewer rises over the card
+        // (which holds still under it) on the sheet curve
+        val rise = android.app.ActivityOptions.makeCustomAnimation(this, R.anim.preview_open_enter, R.anim.preview_open_exit).toBundle()
+        if (runCatching { startActivity(withSource, rise) }.isFailure) runCatching { startActivity(base, rise) }
+        // no override here: a (0, 0) override would replace the animation above
+        finish()
     }
 
     private fun share() {

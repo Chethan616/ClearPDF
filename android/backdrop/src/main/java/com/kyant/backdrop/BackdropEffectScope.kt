@@ -79,6 +79,5 @@ internal abstract class BackdropEffectScopeImpl : BackdropEffectScope, RuntimeSh
         layoutDirection = LayoutDirection.Ltr
         padding = 0f
         renderEffect = null
-        runtimeShaderCache.clear()
     }
 }

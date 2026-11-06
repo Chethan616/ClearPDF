@@ -22,12 +22,13 @@ This file is the roadmap. `HANDOFF.md` is the short "where we are right now" for
 
 | Token | Light | Dark |
 |---|---|---|
-| Wallpaper | sky gradient `#9AB4DC → #B3C5E8 → #A8BEE3` + blooms (aqua, lilac, pink, periwinkle) | `#0E1A20 → #13262C` + teal / slate / plum blooms |
+| Wallpaper | sky gradient `#9AB4DC → #B3C5E8 → #A8BEE3` + blooms (aqua, lilac, pink, periwinkle) | "Midnight Aurora": indigo `#0A0B1E → #14123A → #0B1030` + cobalt, violet, magenta, periwinkle blooms |
 | Hero titles | white + soft glow | white |
-| Ink | `#172033` | `#F1F5F9` |
+| Ink | `#172033` | `#EEF1FF` |
+| Viewer surfaces | `#F5F7FB` / `#E9EDF4` | indigo `#12132B` / `#1C1D3E` / pressed `#2A2B52` |
 | Chip (chosen) | lemon `#EEF27E` | same |
 | Accents (`Candy`) | Apple system hues: red `#FF5B4F`, orange, yellow, green, mint, blue `#0A84FF`, indigo, pink | same |
-| Card tones (`Tone`) | Sage (lists), Paper (notes), Lavender (voice), Butter (Files), Orchid (Pdf), Blush, Sky, Peach | same hues, 22 % deeper |
+| Card tones (`Tone`) | Sage (lists), Paper (notes), Lavender (voice), Butter (Files), Orchid (Pdf), Blush, Sky, Peach | same hues as jewels: saturated, deep, pale ink on them (`DarkTones`) |
 
 Type: Plus Jakarta Sans (all UI), Doto (list titles, dot-matrix), DM Serif Display (collection
 words). All OFL, in `res/font`, licences in `assets/licences`.
@@ -50,10 +51,44 @@ bot-avatars) for empty, waiting and error states only.
 - [x] Welcome (onboarding), 4 pages, shown once, "Show the welcome again" in Settings.
 - [x] Quick Preview (floating card over the calling app) with Expand / Share / More / Close.
 - [x] M3 Expressive loader in a glass circle replaces every spinner.
+- [x] Motion and speed pass (2026-11-06): Apple-curve screen/sheet motion (`Fluid`), bounce only on
+      glass controls, overlays animate out, onboarding/dock/voice card read motion in draw only,
+      wallpaper bitmap reused, mic opened off the main thread, Recent rows memoised, `fast` build.
+- [x] Material 3 Expressive haptics (`ui/glass/Haptics.kt`: vibrator primitives, `Feel`s) on
+      buttons, rows, chips, toggles, tabs, the dock, recording, mascots, sheet pull thresholds.
+- [x] Voice card to the mock; voice memos can be named (toast "Name it" after saving, long press ▸ Rename).
+- [x] Viewer: glass refracts the pages; iOS-style top bar (grouped buttons), sheets and alerts.
+- [x] Tool screens (Compress, Combine, …, signature pad) now open over the viewer (were under it).
+- [x] Quick Preview made minimal (header, pages, one Open pill; the rest in More), More menu glass
+      fixed (refracts the pages), Open goes straight into the app (no full-screen stage).
+- [x] Thought of the day: a Paper card second on the desk (All, Notes), opens a flagged note
+      (`Note.thought` = epoch day) with the day's quote as title and a reflection as body, "Tap here
+      to continue…" under it; kept only once written on. 30 quotes + reflections in 9 languages
+      (`thought_quotes`, `thought_reflections`).
+- [x] Glass and motion pass 2 (2026-11-06): welcome no longer shows neighbour pages at rest; menus,
+      dialogs, sheets, toasts, hint toasts, the + fan and the recorder pill move on `GlassMotion`
+      springs (screen transitions untouched); filter chips, card chips and check pills are
+      `GlassChip`s (same glass as Back/More) and the dock capsule is `glass`; every glass part follows
+      `GlassSettings.style` and `MotionSettings`; dark theme rebuilt as "Midnight Aurora" with jewel cards.
+- [x] Perf and polish pass 3 (2026-11-06): welcome made light (own layers for dots and mascots, mascots
+      paused off-screen, glow titles and costly cards cached while still, no offscreen alpha passes),
+      Continue is a candy `GlassPill` that takes each page's colour (`tintAt`), Skip is a `GlassChip`;
+      the + fan no longer recomposes per frame (scrim in draw, chips composed one by one); the dock
+      capsule swells and shrinks on slower springs (`GlassMotion.shape`/`shapeBack`) so the bounce shows.
+- [x] Lag pass 4 (2026-11-06): Crystal mode made cheap (shared + pre-warmed shaders, adaptive-tap
+      dispersion, highlight skips re-recording), welcome cards throttle the glass under them, Jelly dock no
+      longer freezes at its extremes (damping floor, capped layout overshoot), recorder X in dark ink,
+      sheets rise/leave on better curves with staggered content, six distinct desk-title fonts.
+- [x] Bounce pass (2026-11-06): the + fan and sheets rise on a fixed-time bounce tween (`GlassMotion.bounce`)
+      instead of springs, so the glass goes quiet on a known frame; "Your Artefacts" in a clean bold grotesque.
 
 ## Next (UI first)
 
-- [ ] Viewer chrome to the new look (floating glass top bar, dock), check every tool sheet.
+- [ ] Viewer: check every tool sheet against the new sheet parts (VoiceSheet, NoteSheet, ReadAloud,
+      DigitalSign, FillSign still use their own layouts inside `PdfSheet`); CommentList, Pages screens.
+- [ ] Device check of the four 2026-11-06 passes on the `fast` build (pass 4: Crystal + / welcome page 2 / Jelly mic / long-press sheet) (no phone was attached): welcome swipe
+      smoothness, + fan with a busy desk, menu/dialog/sheet/toast springs, recorder pill expand/shrink
+      bounce (tune `GlassMotion.shape` stiffness if still too quick/slow), GlassChip rows, dark theme.
 - [ ] Files / Tools / Settings polish against the mocks; Collection deck (mock 2) for Pdf & notes.
 - [ ] Signature validation badges drawn by the viewer (Acrobat-style tick), never in the file.
 - [x] Translations: ar, de, es, fr, it, pt-BR complete + **pt** and **ru**.

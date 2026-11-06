@@ -39,6 +39,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -50,6 +51,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import com.chethan616.clearpdf.ui.glass.Fluid
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -160,6 +163,8 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
     }
     val onDesk = doc == null && route == HomeTab.Home.name && vm.toolScreen == null && vm.signaturePad == null && vm.certSign == null && !vm.idCreate
     val desk = remember { DeskState(scope) }
+    var dockIntoNote by remember { mutableStateOf(false) }
+    var dockFromNote by remember { mutableStateOf(false) }
     val mood = when {
         route == "welcome" -> AuroraMoods.Welcome
         vm.settingsOpen -> AuroraMoods.Settings
@@ -169,11 +174,14 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
         else -> AuroraMoods.Desk
     }
 
+    val reveal = remember { RevealState() }
+    // under an open document nothing of the desk shows: skip drawing it (and its glass) entirely
+    val underDoc = Modifier.drawWithContent { if (!reveal.covering) drawContent() }
     GlassStage(
-        wallpaper = { Aurora(mood) },
+        wallpaper = { Aurora(mood, underDoc) },
         screens = {
-            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
-                AnimatedContent(route, transitionSpec = { push(depth(initialState), depth(targetState)) }, label = "route") { r ->
+            Box(Modifier.fillMaxSize().then(underDoc).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
+                RouteHost(route) { r ->
                     when {
                         r == "welcome" -> Onboarding(vm)
                         r == "settings" -> SettingsScreen(vm)
@@ -183,24 +191,36 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
                         else -> HomeScreen(vm, desk)
                     }
                 }
+            }
+            // the document rises over the desk (translation and a cheap fade: no scaling, no layer)
+            Reveal(doc, reveal) { Viewer(vm, it) }
+            // a tool's own screen opens over whatever it was started from: the desk or a document
+            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
                 vm.toolScreen?.let { ToolScreenHost(vm, it) }
                 vm.signaturePad?.let { SignaturePadScreen(vm, it, onPickSignatureImage) }
                 vm.certSign?.let { CertSignScreen(vm, it) }
                 if (vm.idCreate) CreateIdScreen(vm)
             }
-            // the document opens over the desk, zooming up from it
-            AnimatedVisibility(
-                doc != null,
-                enter = fadeIn(GlassMotion.settle()) + scaleIn(GlassMotion.morph(), initialScale = 0.9f),
-                exit = fadeOut(GlassMotion.fold()) + scaleOut(GlassMotion.fold(), targetScale = 0.94f),
-            ) {
-                val last = remember { arrayOfNulls<OpenDocument>(1) }
-                if (doc != null) last[0] = doc
-                last[0]?.let { Viewer(vm, it) }
-            }
         },
         chrome = {
-            if (onDesk) CreateDock(vm, desk, onBrowse)
+            // a note opened from the desk: the dock stays a moment and becomes the note's toolbar; back
+            // on the desk, the note's toolbar becomes the dock again
+            val lastRoute = remember { arrayOf(route) }
+            if (lastRoute[0] != route) {
+                val intoNote = lastRoute[0] == HomeTab.Home.name && route.startsWith("note:") && doc == null
+                val fromNote = lastRoute[0].startsWith("note:") && route == HomeTab.Home.name && doc == null
+                if (intoNote != dockIntoNote) dockIntoNote = intoNote
+                if (fromNote != dockFromNote) dockFromNote = fromNote
+                if (vm.noteBarHidden != (intoNote || fromNote)) vm.noteBarHidden = intoNote || fromNote
+                lastRoute[0] = route
+            }
+            if (onDesk || dockIntoNote) {
+                CreateDock(vm, desk, onBrowse, intoNote = !onDesk, fromNote = onDesk && dockFromNote) {
+                    dockIntoNote = false
+                    dockFromNote = false
+                    vm.noteBarHidden = false
+                }
+            }
             toast?.let { m ->
                 Box(
                     Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
@@ -244,12 +264,111 @@ private fun depth(route: String): Int = when {
     else -> 1
 }
 
-/** A push (or a pop): the new screen slides and grows in on a spring while the old one shrinks back. */
-private fun push(from: Int, to: Int): ContentTransform {
-    val forward = to >= from
-    val dir = if (forward) 1 else -1
-    return (slideInHorizontally(GlassMotion.morph()) { it * dir / 3 } + fadeIn(GlassMotion.settle()) + scaleIn(GlassMotion.morph(), initialScale = if (forward) 0.96f else 1.04f)) togetherWith
-        (slideOutHorizontally(GlassMotion.fold()) { -it * dir / 5 } + fadeOut(GlassMotion.fold()) + scaleOut(GlassMotion.fold(), targetScale = if (forward) 0.94f else 1.04f))
+/**
+ * The screens, one route at a time, moved the way iOS pushes: on one eased curve (quick to start,
+ * long and soft to land, never past its place; no spring, and Settings ▸ Motion doesn't touch it).
+ * The new screen glides in from the side as the old one drifts the other way and fades out ahead
+ * of it; Back mirrors it, a touch quicker. Both stay one composition throughout (keyed, so the old
+ * screen is moved, not rebuilt), each route keeps its state, and the fades modulate alpha per draw
+ * instead of rendering whole screens offscreen. The new screen is composed at alpha 0, so a slow
+ * first frame is never seen.
+ */
+@Composable
+private fun RouteHost(route: String, content: @Composable (String) -> Unit) {
+    val holder = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+    var shown by remember { mutableStateOf(route) }
+    var leaving by remember { mutableStateOf<String?>(null) }
+    var forward by remember { mutableStateOf(true) }
+    val p = remember { Animatable(1f) }
+    LaunchedEffect(route) {
+        if (route == shown) return@LaunchedEffect
+        forward = depth(route) >= depth(shown)
+        leaving = shown
+        shown = route
+        p.snapTo(0f)
+        p.animateTo(1f, if (forward) Fluid.push() else Fluid.pop())
+        leaving = null
+    }
+    // The desk stays composed (unseen, untouchable) under the screens pushed over it, so coming back to
+    // it rebuilds nothing: no cards, thumbnails or glass appearing a moment after the screen has.
+    val desk = HomeTab.Home.name
+    var deskSeen by remember { mutableStateOf(route == desk) }
+    if (shown == desk) deskSeen = true
+    val routes = buildList {
+        if (deskSeen && desk != leaving && desk != shown) add(desk)
+        leaving?.let(::add)
+        add(shown)
+    }
+    Box(Modifier.fillMaxSize()) {
+        for (r in routes) {
+            key(r) {
+                val isNew = r == shown
+                val hidden = r != shown && r != leaving
+                Box(
+                    Modifier.fillMaxSize().then(if (hidden) BlockTouches else Modifier).graphicsLayer {
+                        if (hidden) {
+                            alpha = 0f
+                            return@graphicsLayer
+                        }
+                        val v = p.value
+                        val dir = if (forward) 1f else -1f
+                        if (isNew) {
+                            translationX = dir * size.width * 0.24f * (1f - v)
+                            alpha = (v * 1.25f).coerceIn(0f, 1f)
+                        } else {
+                            translationX = -dir * size.width * 0.10f * v
+                            alpha = (1f - v * 1.6f).coerceIn(0f, 1f)
+                        }
+                        compositingStrategy = CompositingStrategy.ModulateAlpha
+                    },
+                ) { holder.SaveableStateProvider(r) { content(r) } }
+            }
+        }
+    }
+}
+
+/** Takes every touch before anything inside sees it (a screen kept alive but not shown). */
+private val BlockTouches = Modifier.pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial).changes.forEach { it.consume() }
+    }
+}
+
+/** How far a document has risen over the desk: 0 gone, 1 covering it. */
+@androidx.compose.runtime.Stable
+private class RevealState {
+    val progress = Animatable(0f)
+
+    /** Fully over the desk: what's beneath needn't be drawn at all. */
+    val covering by androidx.compose.runtime.derivedStateOf { progress.value >= 1f }
+}
+
+/**
+ * [value] rising into view while it is set, on the eased curve a sheet rises on, and falling away
+ * (quicker) once it's null, still drawn as it was.
+ */
+@Composable
+private fun <T : Any> Reveal(value: T?, state: RevealState, content: @Composable (T) -> Unit) {
+    val last = remember { arrayOfNulls<Any>(1) }
+    if (value != null) last[0] = value
+    val p = state.progress
+    LaunchedEffect(value != null) {
+        if (value != null) p.animateTo(1f, Fluid.rise()) else p.animateTo(0f, Fluid.dismiss())
+        if (value == null) last[0] = null
+    }
+    // read through a derived state: the content recomposes when it's gone, not on every frame
+    val gone by remember { androidx.compose.runtime.derivedStateOf { p.value <= 0f } }
+    @Suppress("UNCHECKED_CAST")
+    val shown = last[0] as T? ?: return
+    if (gone && value == null) return
+    Box(
+        Modifier.fillMaxSize().graphicsLayer {
+            val v = p.value
+            translationY = (1f - v) * size.height * 0.07f
+            alpha = (v * 1.8f).coerceIn(0f, 1f)
+            compositingStrategy = CompositingStrategy.ModulateAlpha
+        },
+    ) { content(shown) }
 }
 
 /** Everything the view model can ask: passwords, read-only files, links, form alerts, waits. */

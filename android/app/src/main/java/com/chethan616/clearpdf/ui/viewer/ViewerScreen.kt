@@ -28,7 +28,10 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import com.chethan616.clearpdf.ui.glass.LocalBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -118,7 +121,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
     // of a camera at the side
     val cutoutSides = if (statusBar) Modifier.windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)) else Modifier
     // the bars on their own colour there
-    val barSides = if (statusBar) Modifier.background(c.surface).then(cutoutSides) else Modifier
+    val barSides = cutoutSides
 
     // The page area starts under the top bar and leaves room for the bottom bar. The room is the same
     // whether the bars show or not (they hide as the reader scrolls: the pages must not jump), and
@@ -132,8 +135,10 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
     // keyed on the document too: one opened over another (Create, Combine) has a fresh page view
     LaunchedEffect(doc, statusPx, navPx, ctl.searching, ctl.tool, vm.readingMode, bottomPx) {
         val bottomShown = !ctl.searching && !vm.readingMode
+        // the first page starts at the top of the screen, under the camera; the glass row floats over
+        // it as over the rest (no empty band above it)
         doc.viewer.setPadding(
-            top = statusPx + topPx,
+            top = 0f,
             bottom = if (bottomShown) bottomPx + navPx else navPx,
         )
     }
@@ -192,9 +197,14 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         }
     }
 
+    // The pages are recorded as the viewer's own backdrop: every glass control over them (the top
+    // row, the dock, a tool's bar) refracts the document, never the desk's wallpaper beneath it.
+    val pagesBackdrop = com.kyant.backdrop.backdrops.rememberLayerBackdrop()
     // a magnifier over the text while a selection handle is dragged, as the reference shows one
+    // no fill of its own: the page canvas paints the desk (every full-screen fill under the pages
+    // costs bandwidth on every frame of a scroll)
     Box(
-        Modifier.fillMaxSize().background(c.desk).magnifier(
+        Modifier.fillMaxSize().magnifier(
             sourceCenter = { selection.magnifierAt ?: Offset.Unspecified },
             magnifierCenter = { selection.magnifierAt?.let { it - Offset(0f, with(density) { 56.dp.toPx() }) } ?: Offset.Unspecified },
             zoom = 1.25f,
@@ -203,6 +213,8 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         ),
     ) {
         val gesturesForTool = ctl.tool == ViewerTool.None || ctl.tool == ViewerTool.Edit
+        // (Reading Mode's text has no ground of its own: the desk goes in under it, inside the backdrop)
+        Box(Modifier.fillMaxSize().layerBackdrop(pagesBackdrop).then(if (vm.readingMode) Modifier.background(c.desk) else Modifier)) {
         if (vm.readingMode) ReadingModeContent(
             vm, doc,
             // the text stays put when the bars hide, as the pages do
@@ -266,7 +278,9 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                 drawLinkFlash(doc)
             },
         )
+        }
 
+        CompositionLocalProvider(LocalBackdrop provides pagesBackdrop) {
         // The active tool takes the touches over the pages.
         ToolLayer(vm, doc)
         if (ctl.tool == ViewerTool.Edit) EditOverlay(vm, doc)
@@ -296,7 +310,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                 Scrubber(
                     doc = doc,
                     visible = indicatorVisible && !ctl.searching,
-                    top = with(density) { (doc.viewer.padTop).toDp() },
+                    top = with(density) { (statusPx + topPx).toDp() },
                     bottom = with(density) { (doc.viewer.padBottom).toDp() },
                     onDrag = { ctl.lastMoved = SystemClock.uptimeMillis() },
                     onTap = { ctl.goToPage = true },
@@ -326,7 +340,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         }
         androidx.compose.animation.AnimatedVisibility(
             nameChip && ctl.tool == ViewerTool.None,
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = with(density) { doc.viewer.padTop.toDp() } + 22.dp),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = with(density) { (statusPx + topPx).toDp() } + 10.dp),
             enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut(),
         ) {
             Row(
@@ -343,15 +357,9 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
 
         // The bars.
         Column(Modifier.fillMaxWidth().align(Alignment.TopCenter)) {
-            Box(
-                Modifier.fillMaxWidth().height(with(density) { statusPx.toDp() })
-                    .background(if (!statusBar) c.desk else if (ctl.barsVisible) c.surface else Color.Transparent),
-            )
-            AnimatedVisibility(
-                ctl.barsVisible,
-                enter = slideInVertically(tween(PdfMotion.BARS_MS)) { -it } + fadeIn(tween(PdfMotion.BARS_MS)),
-                exit = slideOutVertically(tween(PdfMotion.BARS_MS)) { -it } + fadeOut(tween(PdfMotion.BARS_MS)),
-            ) {
+            // the pages run up under the camera and the glass row: no band of their own up there
+            Spacer(Modifier.fillMaxWidth().height(with(density) { statusPx.toDp() }))
+            GlassBars(ctl.barsVisible, fromTop = true) {
                 Box(barSides) {
                     if (ctl.searching) {
                         var query by remember { mutableStateOf(search.query) }
@@ -410,11 +418,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         // while typing on the page, the bar (with its formatting) rides above the keyboard
         if (vm.readAloud == null && vm.fieldActions == null) Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).then(if (vm.editing != null) Modifier.imePadding() else Modifier)) {
             vm.success?.let { SuccessBannerView(it, onClose = { vm.success = null }) }
-            AnimatedVisibility(
-                ctl.barsVisible && !ctl.searching && !vm.readingMode,
-                enter = slideInVertically(tween(PdfMotion.BARS_MS)) { it } + fadeIn(tween(PdfMotion.BARS_MS)),
-                exit = slideOutVertically(tween(PdfMotion.BARS_MS)) { it } + fadeOut(tween(PdfMotion.BARS_MS)),
-            ) {
+            GlassBars(ctl.barsVisible && !ctl.searching && !vm.readingMode, fromTop = false) {
                 Column(barSides) {
                     if (ctl.tool == ViewerTool.None) {
                         QuickToolbar(
@@ -428,8 +432,8 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                     }
                 }
             }
-            // the navigation bar's band stays solid while the bars show (also while searching)
-            if (ctl.barsVisible) Box(Modifier.fillMaxWidth().windowInsetsBottomHeight(WindowInsets.navigationBars).background(c.navBand))
+            // the pages run under the gesture bar too: no solid band there, the glass floats
+            if (ctl.barsVisible) Spacer(Modifier.fillMaxWidth().windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
 
         // The active tool's sheets, over everything.
@@ -479,6 +483,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         vm.readAloud?.let { ReadAloudBar(vm, doc, it) }
         if (ctl.goToPage) GoToPageDialog(doc, onDismiss = { ctl.goToPage = false })
         if (ctl.pagesOpen) PagesScreen(vm, doc, onClose = { ctl.pagesOpen = false })
+        }
     }
 }
 

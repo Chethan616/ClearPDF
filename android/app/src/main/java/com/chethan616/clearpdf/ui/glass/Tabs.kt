@@ -92,7 +92,7 @@ fun GlassTabs(
 ) {
     val c = clear
     val backdrop = LocalBackdrop.current
-    val haptics = LocalHapticFeedback.current
+    val haptics = LocalHaptics.current
     val count = tabs.size
     val container = c.glass
     val inner = (height - 8.dp).coerceAtLeast(0.dp)
@@ -136,7 +136,7 @@ fun GlassTabs(
             snapshotFlow { current }.collectLatest { i ->
                 if (drag.targetValue.fastRoundToInt() != i) drag.animateToValue(i.toFloat())
                 if (i != selectedNow) {
-                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    haptics?.play(Feel.Tick)
                     select(i)
                 }
             }
@@ -206,11 +206,12 @@ fun GlassTabs(
                     shadow = null,
                     effects = {
                         val p = drag.pressProgress
+                        val style = GlassSettings.style
                         vibrancy()
-                        blur(8f.dp.toPx())
-                        lens(24f.dp.toPx() * p, 24f.dp.toPx() * p)
+                        blur(8f.dp.toPx() * style.blur)
+                        lens(24f.dp.toPx() * p * style.refractionHeight, 24f.dp.toPx() * p * style.refractionAmount)
                     },
-                    highlight = { Highlight.Default.copy(alpha = drag.pressProgress) },
+                    highlight = { Highlight.Default.copy(alpha = drag.pressProgress * GlassSettings.style.highlight.coerceIn(0f, 1f)) },
                     onDrawSurface = { drawRect(container) },
                 )
                 .height(inner)
@@ -233,9 +234,10 @@ fun GlassTabs(
                     shape = { Capsule },
                     effects = {
                         val p = drag.pressProgress
-                        lens(10f.dp.toPx() * p, 14f.dp.toPx() * p, chromaticAberration = true)
+                        val style = GlassSettings.style
+                        lens(10f.dp.toPx() * p * style.refractionHeight, 14f.dp.toPx() * p * style.refractionAmount, chromaticAberration = true)
                     },
-                    highlight = { Highlight.Default.copy(alpha = drag.pressProgress) },
+                    highlight = { Highlight.Default.copy(alpha = drag.pressProgress * GlassSettings.style.highlight.coerceIn(0f, 1f)) },
                     shadow = null,
                     innerShadow = {
                         val p = drag.pressProgress

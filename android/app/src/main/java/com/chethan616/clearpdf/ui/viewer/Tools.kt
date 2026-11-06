@@ -459,13 +459,10 @@ fun PropertyPicker(vm: AppViewModel, tool: StyledTool, picker: Picker, markup: T
                 Text(stringResource(R.string.toolbar_text_size), color = c.text, fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, bottom = 4.dp))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.toolbar_text_size_pt, prefs.textSize.toInt()), color = c.text, fontSize = 15.sp, modifier = Modifier.width(56.dp))
-                    Slider(
-                        value = prefs.textSize,
-                        onValueChange = { v -> prefs.updateTextSize((Math.round(v / 2f) * 2f).coerceIn(6f, 22f)) },
-                        valueRange = 6f..22f,
-                        steps = TextSizes.size - 2,
-                        colors = SliderDefaults.colors(thumbColor = c.accent, activeTrackColor = c.accent),
-                        modifier = Modifier.weight(1f),
+                    com.chethan616.clearpdf.ui.glass.GlassSlider(
+                        prefs.textSize,
+                        { v -> prefs.updateTextSize((Math.round(v / 2f) * 2f).coerceIn(6f, 22f)) },
+                        modifier = Modifier.weight(1f), range = 6f..22f,
                     )
                 }
                 Spacer(Modifier.height(8.dp))

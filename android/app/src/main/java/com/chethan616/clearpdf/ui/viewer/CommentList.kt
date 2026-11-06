@@ -139,23 +139,20 @@ fun CommentListScreen(vm: AppViewModel, doc: OpenDocument) {
     val parents = all.filter { it.replyTo == null && it.state == null && it.subtype in LISTED }
     // each thread: its comment, then the replies to it in order
     val threads = parents.map { p -> listOf(p) + all.filter { it.replyTo != null && it.replyTo == p.name && it.state == null } }
-    Column(
-        Modifier.fillMaxSize().background(Color.Black).safeTopPadding()
-            .background(c.navBand).navigationBarsPadding().background(c.surface),
+    com.chethan616.clearpdf.ui.glass.AuroraScreen { Column(
+        Modifier.fillMaxSize().safeTopPadding().navigationBarsPadding(),
     ) {
         Row(
-            Modifier.fillMaxWidth().height(TopBarHeight).drawBehind {
-                val line = 1.dp.toPx()
-                drawRect(c.divider, Offset(0f, size.height - line), Size(size.width, line))
-            }.padding(bottom = 1.dp),
+            Modifier.fillMaxWidth().height(TopBarHeight).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) {
-                BarIcon(LucideIcons.ArrowLeft, stringResource(R.string.common_back), ::close, iconSize = 27.dp)
+            com.chethan616.clearpdf.ui.glass.GlassCircle(com.chethan616.clearpdf.ui.glass.rememberBeat(::close), size = 48.dp, label = stringResource(R.string.common_back)) {
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(23.dp))
             }
+            Spacer(Modifier.width(14.dp))
             Text(
                 if (list == null) stringResource(R.string.comments_title) else threadsTitle(threads.size, stringResource(R.string.comments_none)) { plural(R.plurals.comments_threads, it, it) },
-                color = c.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
+                style = com.chethan616.clearpdf.ui.theme.ClearType.Title, color = com.chethan616.clearpdf.ui.theme.clear.ink,
             )
         }
         if (list != null && threads.isEmpty()) {
@@ -218,7 +215,7 @@ fun CommentListScreen(vm: AppViewModel, doc: OpenDocument) {
                 }
             }
         }
-    }
+    } }
     menuFor?.let { cm ->
         PdfSheet(onDismiss = { menuFor = null }, dim = true) {
             val text = cm.contents?.takeIf { it.isNotBlank() }

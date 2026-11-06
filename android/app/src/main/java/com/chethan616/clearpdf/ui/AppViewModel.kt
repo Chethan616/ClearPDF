@@ -2374,6 +2374,12 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     /** The note open in the editor. */
     var openNote by mutableStateOf<String?>(null)
 
+    /** The desk's dock is turning into the open note's toolbar: the toolbar waits, unseen, until it has. */
+    var noteBarHidden by mutableStateOf(false)
+
+    /** The note toolbar's glass, measured, for the dock to become. */
+    var noteBarSize by mutableStateOf(androidx.compose.ui.unit.IntSize.Zero)
+
     /** Files other apps open show in Quick Preview's floating card first (else straight in the viewer). */
     var quickPreview by mutableStateOf(appPrefs.getBoolean("quickPreview", true))
         private set
@@ -2423,9 +2429,29 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         openNote = notes.create(kind, items = items).id
     }
 
+    /** Today's "Thought of the day" straight into the editor: its note is made the first time it's opened. */
+    fun openThought() {
+        val day = com.chethan616.clearpdf.notes.today()
+        val note = notes.all.firstOrNull { it.thought == day } ?: com.chethan616.clearpdf.notes.thoughtFor(getApplication<Application>().resources, day).let {
+            notes.create(com.chethan616.clearpdf.notes.NoteKind.Text, it.quote, it.reflection, thought = day)
+        }
+        openNote = note.id
+    }
+
     fun closeNote() {
-        openNote?.let(notes::prune)
+        val id = openNote ?: return
         openNote = null
+        val note = notes.get(id)
+        if (note != null && note.thought != 0L && note.updated == note.created) {
+            // a thought read but not written on isn't kept; the editor finishes leaving first
+            viewModelScope.launch {
+                delay(700)
+                val still = notes.get(id)
+                if (openNote != id && still != null && still.updated == still.created) notes.delete(id)
+            }
+        } else {
+            notes.prune(id)
+        }
     }
 
     /** Run [action] once the microphone is allowed (asking for it first if need be). */
@@ -2577,9 +2603,21 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         }
     }
 
-    fun recentRows(): List<com.chethan616.clearpdf.ui.home.FileRow> = recentList.map { r ->
-        com.chethan616.clearpdf.ui.home.FileRow(r.uri, r.name, thumbPathFor(r.uri), locationOf(r.uri), r.opened, r.size, r.starred) { open(Uri.parse(r.uri)) }
+    /**
+     * Recent's rows, made once per change of the list: making one looks for the file's working copy
+     * on disk and its place, which the desk and Files must not do again on every recomposition.
+     */
+    fun recentRows(): List<com.chethan616.clearpdf.ui.home.FileRow> {
+        val list = recentList
+        recentRowsMemo?.let { (from, rows) -> if (from === list) return rows }
+        val rows = list.map { r ->
+            com.chethan616.clearpdf.ui.home.FileRow(r.uri, r.name, thumbPathFor(r.uri), locationOf(r.uri), r.opened, r.size, r.starred) { open(Uri.parse(r.uri)) }
+        }
+        recentRowsMemo = list to rows
+        return rows
     }
+
+    private var recentRowsMemo: Pair<List<RecentFile>, List<com.chethan616.clearpdf.ui.home.FileRow>>? = null
 
     fun starredRows(): List<com.chethan616.clearpdf.ui.home.FileRow> = recentRows().filter { it.starred }.let { l ->
         if (starSort == 1) l.sortedBy { it.name.lowercase() } else l.sortedByDescending { it.date }

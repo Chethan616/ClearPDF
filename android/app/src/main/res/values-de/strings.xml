@@ -1152,7 +1152,7 @@
     <string name="settings_glass_frosted">Milchig</string>
     <string name="settings_glass_crystal">Kristall</string>
     <string name="settings_glass_lite">Leicht</string>
-    <string name="settings_motion">Bewegung</string>
+    <string name="settings_motion">Bewegung der Tasten</string>
     <string name="settings_motion_calm">Ruhig</string>
     <string name="settings_motion_normal">Normal</string>
     <string name="settings_motion_bouncy">Federnd</string>
@@ -1205,6 +1205,11 @@
     <string name="notes_pin">Oben anheften</string>
     <string name="notes_unpin">Lösen</string>
     <string name="notes_open">Öffnen</string>
+    <string name="notes_rename">Umbenennen</string>
+    <string name="voice_note">Sprachnotiz</string>
+    <string name="voice_name_title">Sprachnotiz benennen</string>
+    <string name="voice_name_hint">Name</string>
+    <string name="voice_name_it">Benennen</string>
     <string name="notes_title_hint">Titel</string>
     <string name="notes_list_title_hint">Name der Liste</string>
     <string name="notes_body_hint">Hier tippen, um weiterzuschreiben…</string>
@@ -1261,4 +1266,69 @@
     </plurals>
     <string name="settings_quick_preview">Schnellansicht</string>
     <string name="settings_quick_preview_body">Dateien, die andere Apps öffnen, erscheinen zuerst in einer schwebenden Karte darüber</string>
+    <string name="thought_title">Gedanke des Tages</string>
+    <string-array name="thought_quotes">
+        <item>Genieße den Augenblick und lass deinen Geist fliegen.</item>
+        <item>Kleine Schritte führen auch irgendwohin.</item>
+        <item>Fang dort an, wo du gerade bist.</item>
+        <item>Sei heute freundlich zu dir.</item>
+        <item>Neugier ist eine Form von Mut.</item>
+        <item>Erledige eine Sache, die du aufgeschoben hast.</item>
+        <item>In der Stille wachsen Ideen.</item>
+        <item>Du darfst deine Meinung ändern.</item>
+        <item>Freundlichkeit kostet nichts und reicht weit.</item>
+        <item>Lass los, was du nicht tragen kannst.</item>
+        <item>Heute ist ein leeres Blatt.</item>
+        <item>Fokus ist eine Form von Freiheit.</item>
+        <item>Schaffe Platz für Freude.</item>
+        <item>Dein Tempo ist das richtige Tempo.</item>
+        <item>Fehler beweisen, dass du es versuchst.</item>
+        <item>Hör mehr zu, als du sprichst.</item>
+        <item>Dankbarkeit macht aus genug reichlich.</item>
+        <item>Schreib es auf, bevor es entwischt.</item>
+        <item>Mut heißt, es zu fühlen und trotzdem zu gehen.</item>
+        <item>Ohne etwas Geduld wächst nichts.</item>
+        <item>Wähle Fortschritt statt Perfektion.</item>
+        <item>Die schönste Aussicht kommt nach dem Aufstieg.</item>
+        <item>Schau kurz vom Bildschirm auf.</item>
+        <item>Du hast schon schwere Tage gemeistert.</item>
+        <item>Teile, was du weißt.</item>
+        <item>Verbringe Zeit mit dem, was bleibt.</item>
+        <item>Fang an, bevor du dich bereit fühlst.</item>
+        <item>Lass den Tag einfach sein.</item>
+        <item>Sei die Ruhe im Raum.</item>
+        <item>Erschaffe etwas, und sei es noch so klein.</item>
+    </string-array>
+    <string-array name="thought_reflections">
+        <item>Jeder Tag ist ein Neuanfang. Begegne ihm mit **Hoffnung und Mut** und lass dich von jedem Moment inspirieren, zu wachsen und **heller** zu strahlen als zuvor.</item>
+        <item>Du brauchst heute nicht die ganze Treppe. Geh **einen kleinen Schritt**, dann den nächsten, und vertraue darauf, dass sich **Fortschritt** summiert.</item>
+        <item>Perfekte Bedingungen kommen selten. Beginne mit dem, was du hast, **jetzt gleich**, und lass den Rest **zu dir finden**.</item>
+        <item>Ruhe ist keine Belohnung fürs Fertigwerden, sie gehört zur Arbeit. **Atme langsam**, trink etwas Wasser und lass den Tag **genug** sein.</item>
+        <item>Stell die Frage, die du zurückgehalten hast. **Staunen** öffnet mehr Türen, als Gewissheit es je tut.</item>
+        <item>Die kleine Aufgabe wiegt im Kopf mehr als in den Händen. Bring sie hinter dich und **spür die Leichtigkeit**, die danach kommt.</item>
+        <item>Geh ein paar Minuten weg vom Lärm. Deine **besten Gedanken** kommen oft dann, wenn du aufhörst, ihnen nachzujagen.</item>
+        <item>Wachsen heißt, alten Plänen **zu entwachsen**. Entscheide dich neu, **ohne dich zu entschuldigen**, und geh weiter.</item>
+        <item>Ein nettes Wort kann für jemanden **das Schönste der Woche** sein. Schenke es großzügig und sieh zu, wie es **zu dir zurückkommt**.</item>
+        <item>Nicht jede Sorge verdient einen Platz in deinem Tag. Leg ab, was nicht deins ist, und **halte fest**, was **zählt**.</item>
+        <item>Gestern ist geschrieben, morgen noch nicht. Füll dieses Blatt mit **etwas, das dir wichtig ist**, und sei es nur eine Zeile.</item>
+        <item>Wähle **eine Sache** und gib ihr deine ganze Aufmerksamkeit. Die Welt wartet, und du **machst es besser**.</item>
+        <item>Freude braucht keinen Grund und keinen Anlass. Bemerke die **kleinen guten Dinge**: warmes Licht, ein Lachen, ein gutes Lied, und **bleib einen Moment dabei**.</item>
+        <item>Vergleichen nimmt dem eigenen Weg die Freude. Geh in dem **Tempo, das du durchhalten kannst**, und du wirst **ankommen**.</item>
+        <item>Jeder Stolperer lehrt etwas, das ein glatter Weg nicht kann. **Lerne daraus**, danke ihm und **versuch es noch einmal**.</item>
+        <item>Verstehen beginnt mit **Aufmerksamkeit**. Frag, warte und hör die Antwort wirklich.</item>
+        <item>Nenne drei Dinge, **für die du dankbar bist**. Spür, wie sich der Tag danach **anders** anfühlt.</item>
+        <item>Ein Gedanke auf Papier ist einer, zu dem du **zurückkehren kannst**. Halte ihn jetzt fest und **forme ihn später**.</item>
+        <item>Angst ist kein Stoppschild, nur ein **Zeichen, dass es wichtig ist**. Mach den nächsten Schritt **mit ihr an deiner Seite**.</item>
+        <item>Samen haben es nicht eilig, und du musst es auch nicht. **Pflege weiter**, was dir wichtig ist, und **vertraue der Jahreszeit**.</item>
+        <item>Fertig und unperfekt schlägt perfekt und unvollendet. **Schick den Entwurf los** und mach ihn dann besser.</item>
+        <item>Das harte Stück **baut die Kraft auf** für das, was kommt. Behalte **den Horizont** im Blick.</item>
+        <item>Der Raum, das Fenster, der Himmel: **alles ist noch da**. Gönn Augen und Kopf eine **kurze, echte Pause**.</item>
+        <item>Denk an die, die du überstanden hast. Du bist **fähiger**, als die Sorge von heute sagt, und **morgen** ist eine neue Chance.</item>
+        <item>Deine Erfahrung ist für jemand anderen eine **Abkürzung**. Bring es bei, erkläre es oder **sag es einfach laut**; es hilft auch dir.</item>
+        <item>Aufmerksamkeit ist das **Wertvollste**, was du hast. Schenke sie **Menschen und Arbeit**, die auch nächstes Jahr noch zählen.</item>
+        <item>Bereitschaft ist meist ein **Gefühl, das dem Tun folgt**, nicht vorausgeht. **Beginne**, und lass die Zuversicht nachkommen.</item>
+        <item>Nicht alles muss optimiert werden. Mach **wenige Dinge gut**, lass Raum drumherum und nenn das einen **guten Tag**.</item>
+        <item>Du kannst nicht jede Welle kontrollieren, aber du kannst **wählen, wie du ihr begegnest**. Ein ruhiger Atem ist **ansteckend**.</item>
+        <item>Ein Satz, eine Skizze, ein aufgeräumtes Regal. **Erschaffen** erinnert dich daran, dass du **die Welt um dich** verändern kannst, auch nur ein wenig.</item>
+    </string-array>
 </resources>

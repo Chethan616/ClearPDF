@@ -7,6 +7,7 @@
 package com.kyant.backdrop
 
 import android.os.Build
+import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +44,11 @@ import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.InnerShadowElement
 import com.kyant.backdrop.shadow.Shadow
 import com.kyant.backdrop.shadow.ShadowElement
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+private const val ThrottleIntervalMs = 100L
 
 private val DefaultHighlight = { Highlight.Default }
 private val DefaultShadow = { Shadow.Default }
@@ -340,10 +346,46 @@ private class DrawBackdropNode(
         }
     }
 
+    private var throttle: ThrottleBackdropsNode? = null
+    private var throttleLooked = false
+    private var lastCoordinatesWrite = 0L
+    private var pendingCoordinates: LayoutCoordinates? = null
+    private var settleJob: Job? = null
+
+    private fun publishCoordinates(coordinates: LayoutCoordinates) {
+        if (!throttleLooked) {
+            throttle = findBackdropThrottle()
+            throttleLooked = true
+        }
+        val now = SystemClock.uptimeMillis()
+        val gate = throttle
+        if (gate == null || layoutCoordinates == null || !gate.moving() ||
+            now - lastCoordinatesWrite >= ThrottleIntervalMs
+        ) {
+            layoutCoordinates = coordinates
+            lastCoordinatesWrite = now
+            pendingCoordinates = null
+            return
+        }
+        pendingCoordinates = coordinates
+        if (settleJob == null) {
+            settleJob = coroutineScope.launch {
+                delay((lastCoordinatesWrite + ThrottleIntervalMs - now).coerceAtLeast(1L))
+                settleJob = null
+                val latest = pendingCoordinates
+                pendingCoordinates = null
+                if (latest != null && latest.isAttached) {
+                    layoutCoordinates = latest
+                    lastCoordinatesWrite = SystemClock.uptimeMillis()
+                }
+            }
+        }
+    }
+
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
         if (coordinates.isAttached) {
             if (backdrop.isCoordinatesDependent) {
-                layoutCoordinates = coordinates
+                publishCoordinates(coordinates)
             } else {
                 if (layoutCoordinates != null) {
                     layoutCoordinates = null
@@ -388,6 +430,10 @@ private class DrawBackdropNode(
         }
 
         effectScope.reset()
+        settleJob = null
+        pendingCoordinates = null
+        throttle = null
+        throttleLooked = false
         layoutCoordinates = null
         exportedBackdrop?.layerCoordinates = null
     }

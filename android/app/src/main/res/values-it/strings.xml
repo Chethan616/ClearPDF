@@ -1142,7 +1142,7 @@
     <string name="settings_glass_frosted">Satinato</string>
     <string name="settings_glass_crystal">Cristallo</string>
     <string name="settings_glass_lite">Leggero</string>
-    <string name="settings_motion">Movimento</string>
+    <string name="settings_motion">Movimento dei pulsanti</string>
     <string name="settings_motion_calm">Calmo</string>
     <string name="settings_motion_normal">Normale</string>
     <string name="settings_motion_bouncy">Rimbalzante</string>
@@ -1195,6 +1195,11 @@
     <string name="notes_pin">Fissa in alto</string>
     <string name="notes_unpin">Sblocca</string>
     <string name="notes_open">Apri</string>
+    <string name="notes_rename">Rinomina</string>
+    <string name="voice_note">Nota vocale</string>
+    <string name="voice_name_title">Dai un nome alla nota vocale</string>
+    <string name="voice_name_hint">Nome</string>
+    <string name="voice_name_it">Dai un nome</string>
     <string name="notes_title_hint">Titolo</string>
     <string name="notes_list_title_hint">Nome della lista</string>
     <string name="notes_body_hint">Tocca qui per continuare…</string>
@@ -1251,4 +1256,69 @@
     </plurals>
     <string name="settings_quick_preview">Anteprima rapida</string>
     <string name="settings_quick_preview_body">I file aperti da altre app compaiono prima in una scheda fluttuante sopra di esse</string>
+    <string name="thought_title">Pensiero del giorno</string>
+    <string-array name="thought_quotes">
+        <item>Abbraccia il momento e lascia che il tuo spirito voli.</item>
+        <item>Anche i piccoli passi portano da qualche parte.</item>
+        <item>Parti da dove sei.</item>
+        <item>Abbi cura di te oggi.</item>
+        <item>La curiosità è una forma di coraggio.</item>
+        <item>Fai quella cosa che rimandi da tempo.</item>
+        <item>Le idee crescono nel silenzio.</item>
+        <item>Puoi cambiare idea.</item>
+        <item>La gentilezza non costa nulla e arriva lontano.</item>
+        <item>Lascia andare ciò che non puoi portare.</item>
+        <item>Oggi è una pagina bianca.</item>
+        <item>La concentrazione è una forma di libertà.</item>
+        <item>Fai spazio alla gioia.</item>
+        <item>Il tuo ritmo è il ritmo giusto.</item>
+        <item>Gli errori dimostrano che ci stai provando.</item>
+        <item>Ascolta più di quanto parli.</item>
+        <item>La gratitudine trasforma il sufficiente in abbondanza.</item>
+        <item>Scrivilo prima che sfugga.</item>
+        <item>Coraggio è sentire la paura e andare avanti lo stesso.</item>
+        <item>Niente cresce senza un po\' di pazienza.</item>
+        <item>Scegli il progresso al posto della perfezione.</item>
+        <item>La vista più bella arriva dopo la salita.</item>
+        <item>Alza lo sguardo dallo schermo per un momento.</item>
+        <item>Hai già affrontato giorni difficili.</item>
+        <item>Condividi ciò che sai.</item>
+        <item>Dedica tempo a ciò che dura.</item>
+        <item>Comincia prima che sia tutto chiaro.</item>
+        <item>Che oggi sia semplice.</item>
+        <item>Sii la calma nella stanza.</item>
+        <item>Crea qualcosa, per quanto piccolo.</item>
+    </string-array>
+    <string-array name="thought_reflections">
+        <item>Ogni giorno è un nuovo inizio. Accoglilo con **speranza e coraggio**, e lascia che ogni momento ti ispiri a crescere e a brillare **più** di prima.</item>
+        <item>Oggi non ti serve tutta la scala. Fai **un piccolo passo**, poi un altro, e fidati che il **progresso** si accumula.</item>
+        <item>Le condizioni perfette arrivano di rado. Comincia con ciò che hai, **proprio ora**, e lascia che il resto **ti trovi**.</item>
+        <item>Riposare non è un premio per aver finito, fa parte del lavoro. **Respira piano**, bevi un po\' d\'acqua e lascia che oggi sia **abbastanza**.</item>
+        <item>Fai la domanda che hai trattenuto. **Lo stupore** apre più porte di quanto faccia la certezza.</item>
+        <item>Quel piccolo compito pesa più nella testa che nelle mani. Portalo a termine e **senti la leggerezza** che segue.</item>
+        <item>Allontanati dal rumore per qualche minuto. I tuoi **pensieri migliori** arrivano spesso quando smetti di inseguirli.</item>
+        <item>Crescere significa **lasciarsi alle spalle** i vecchi piani. Scegli di nuovo, **senza scusarti**, e continua a camminare.</item>
+        <item>Una parola gentile può essere **la parte migliore della settimana** di qualcuno. Offrila liberamente e guarda come **ti torna indietro**.</item>
+        <item>Non ogni preoccupazione merita un posto nella tua giornata. Posa ciò che non è tuo e **tieni stretto** ciò che **conta**.</item>
+        <item>Ieri è scritto e domani no. Riempi questa pagina con **qualcosa che conti per te**, anche solo una riga.</item>
+        <item>Scegli **una cosa** e dalle tutta la tua attenzione. Il mondo aspetterà e **la farai meglio**.</item>
+        <item>La gioia non ha bisogno di un motivo né di un\'occasione. Nota le **piccole cose belle**: una luce calda, una risata, una bella canzone, e **fermati un momento** con loro.</item>
+        <item>Il confronto ruba la gioia al tuo cammino. Vai **alla velocità che puoi mantenere** e **arriverai**.</item>
+        <item>Ogni inciampo insegna ciò che una strada liscia non può. **Impara**, ringrazia e **riprova**.</item>
+        <item>Capire comincia dall\'**attenzione**. Chiedi, aspetta e ascolta davvero la risposta.</item>
+        <item>Nomina tre cose per cui **dici grazie** adesso. Nota come la giornata ti sembra **diversa** dopo.</item>
+        <item>Un pensiero sulla carta è un pensiero a cui puoi **tornare**. Fissalo ora e **dagli forma dopo**.</item>
+        <item>La paura non è un segnale di stop, solo **un segno che questo conta**. Fai il prossimo passo **con lei accanto**.</item>
+        <item>I semi non hanno fretta, e nemmeno tu. **Continua a prenderti cura** di ciò che ti sta a cuore e **fidati della stagione**.</item>
+        <item>Fatto e imperfetto vale più di perfetto e incompiuto. **Consegna la bozza**, poi migliorala.</item>
+        <item>Il tratto duro **costruisce la forza** per ciò che viene. Tieni gli occhi sull\'**orizzonte**.</item>
+        <item>La stanza, la finestra, il cielo: **sono ancora lì**. Concedi a occhi e mente una **pausa breve e vera**.</item>
+        <item>Ricorda quelli che hai superato. Sei **più capace** di quanto dica la preoccupazione di oggi, e **domani** è un\'altra occasione.</item>
+        <item>La tua esperienza è una **scorciatoia** per qualcun altro. Insegna, spiega o **dillo semplicemente a voce alta**: aiuta anche te.</item>
+        <item>L\'attenzione è la cosa **più preziosa** che hai. Dalla a **persone e lavori** che conteranno ancora l\'anno prossimo.</item>
+        <item>La sicurezza è spesso un **sentimento che segue l\'azione**, non uno che la precede. **Inizia** e lascia che la fiducia ti raggiunga.</item>
+        <item>Non tutto va ottimizzato. Fai **poche cose bene**, lascia spazio intorno e chiamala una **buona giornata**.</item>
+        <item>Non puoi controllare ogni onda, ma puoi **scegliere come affrontarla**. Un respiro tranquillo è **contagioso**.</item>
+        <item>Una frase, uno schizzo, uno scaffale in ordine. **Creare** ti ricorda che puoi **cambiare il mondo intorno a te**, anche solo un poco.</item>
+    </string-array>
 </resources>

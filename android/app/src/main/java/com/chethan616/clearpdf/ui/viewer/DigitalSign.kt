@@ -265,7 +265,7 @@ fun CertPlaceLayer(vm: AppViewModel, doc: OpenDocument) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(stringResource(R.string.sign_place_hint), color = c.text, fontSize = 14.sp, modifier = Modifier.weight(1f, fill = false))
-            TextButton(onClick = { vm.certPlacing = null }) { Text(stringResource(R.string.common_cancel), color = c.accent) }
+            com.chethan616.clearpdf.ui.glass.GlassTextAction(stringResource(R.string.common_cancel), { vm.certPlacing = null })
         }
     }
 }
@@ -302,13 +302,12 @@ fun CertSignScreen(vm: AppViewModel, target: CertTarget) {
     fun sign() {
         if (chosen != null && canSign) vm.signWithId(target, chosen, password, if (look == CertLook.Drawn && !hasDrawn) CertLook.Name else look, reason, location)
     }
-    Column(Modifier.fillMaxSize().background(c.surface).pointerInput(Unit) { detectTapGestures() }.safeTopPadding().navigationBarsPadding().imePadding()) {
+    com.chethan616.clearpdf.ui.glass.AuroraScreen { Column(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures() }.safeTopPadding().navigationBarsPadding().imePadding()) {
         Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { vm.certSign = null }) { Text(stringResource(R.string.common_cancel), color = c.accent) }
+            com.chethan616.clearpdf.ui.glass.GlassTextAction(stringResource(R.string.common_cancel), { vm.certSign = null })
             Text(stringResource(R.string.common_tool_sign_digital_id), color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            TextButton(onClick = ::sign, enabled = canSign) { Text(stringResource(R.string.common_sign), color = if (canSign) c.accent else c.textSecondary, fontWeight = FontWeight.SemiBold) }
+            com.chethan616.clearpdf.ui.glass.GlassTextAction(stringResource(R.string.common_sign), ::sign, enabled = canSign, primary = true)
         }
-        SheetDivider(inset = 0.dp)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
             Section(stringResource(R.string.sign_section_id))
             if (ids.isEmpty()) {
@@ -362,7 +361,7 @@ fun CertSignScreen(vm: AppViewModel, target: CertTarget) {
                 color = c.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
         }
-    }
+    } }
 }
 
 /**
@@ -423,7 +422,9 @@ private fun IdRow(vm: AppViewModel, id: DigitalId, selected: Boolean, onClick: (
             val until = idProblem(id) ?: stringResource(R.string.sign_id_valid_until, shortDate(id.validTo * 1000))
             Text("$by · $until", color = if (idProblem(id) != null) c.red else c.textSecondary, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        BarIcon(LucideIcons.Trash2, stringResource(R.string.sign_remove_id_description, id.name), { confirm = true }, size = 40.dp)
+        com.chethan616.clearpdf.ui.glass.GlassCircle({ confirm = true }, size = 40.dp, label = stringResource(R.string.sign_remove_id_description, id.name)) {
+            com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Trash2, null, Modifier.size(18.dp), tint = com.chethan616.clearpdf.ui.theme.Candy.Tomato)
+        }
     }
     if (confirm) {
         PdfDialog(
@@ -469,15 +470,12 @@ fun CreateIdScreen(vm: AppViewModel) {
         else -> null
     }
     val ok = name.isNotBlank() && password.length >= 8 && again == password
-    Column(Modifier.fillMaxSize().background(c.surface).pointerInput(Unit) { detectTapGestures() }.safeTopPadding().navigationBarsPadding().imePadding()) {
+    com.chethan616.clearpdf.ui.glass.AuroraScreen { Column(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures() }.safeTopPadding().navigationBarsPadding().imePadding()) {
         Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { vm.idCreate = false }) { Text(stringResource(R.string.common_cancel), color = c.accent) }
+            com.chethan616.clearpdf.ui.glass.GlassTextAction(stringResource(R.string.common_cancel), { vm.idCreate = false })
             Text(stringResource(R.string.sign_create_id), color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-            TextButton(onClick = { vm.createDigitalId(name, email, organization, password) }, enabled = ok) {
-                Text(stringResource(R.string.common_create), color = if (ok) c.accent else c.textSecondary, fontWeight = FontWeight.SemiBold)
-            }
+            com.chethan616.clearpdf.ui.glass.GlassTextAction(stringResource(R.string.common_create), { vm.createDigitalId(name, email, organization, password) }, enabled = ok, primary = true)
         }
-        SheetDivider(inset = 0.dp)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
             Text(
                 stringResource(R.string.sign_create_about),
@@ -503,7 +501,7 @@ fun CreateIdScreen(vm: AppViewModel) {
                 color = c.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
         }
-    }
+    } }
 }
 
 /** Tapping an empty signature field: draw a signature there, or sign it with a digital ID. */
@@ -611,23 +609,23 @@ private fun SignatureDetails(vm: AppViewModel, doc: OpenDocument, s: SignatureEn
         } else {
             Text(stringResource(R.string.sign_field_unsigned), color = c.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
         }
-        Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (s.page != null && s.rect != null) {
-                TextButton(onClick = { doc.controller.sheet = ViewerSheet.None; vm.showSignature(doc, s) }) { Text(stringResource(R.string.sign_go_to), color = c.accent) }
+                com.chethan616.clearpdf.ui.glass.GlassTextAction(stringResource(R.string.sign_go_to), { doc.controller.sheet = ViewerSheet.None; vm.showSignature(doc, s) })
             }
             val sha = s.cert?.sha256
             if (s.signed && sha != null) {
                 if (vm.trustedCerts.contains(sha)) {
-                    TextButton(onClick = { vm.untrustSigner(doc, s) }) { Text(stringResource(R.string.sign_stop_trusting), color = c.accent) }
+                    com.chethan616.clearpdf.ui.glass.GlassTextAction(stringResource(R.string.sign_stop_trusting), { vm.untrustSigner(doc, s) })
                 } else if (s.status == "unknown") {
-                    TextButton(onClick = { vm.trustSigner(doc, s) }) { Text(stringResource(R.string.sign_trust), color = c.accent) }
+                    com.chethan616.clearpdf.ui.glass.GlassTextAction(stringResource(R.string.sign_trust), { vm.trustSigner(doc, s) }, primary = true)
                 }
             }
             if (!s.signed) {
-                TextButton(onClick = {
+                com.chethan616.clearpdf.ui.glass.GlassTextAction(stringResource(R.string.common_sign), {
                     doc.controller.sheet = ViewerSheet.None
                     doc.widgets.firstOrNull { it.field == s.field }?.let { vm.signFieldWithId(doc, it) }
-                }) { Text(stringResource(R.string.common_sign), color = c.accent) }
+                }, primary = true)
             }
         }
     }

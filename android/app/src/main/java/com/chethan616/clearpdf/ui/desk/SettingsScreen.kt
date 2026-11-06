@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.AppViewModel
 import com.chethan616.clearpdf.ui.LucideIcons
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
 import com.chethan616.clearpdf.ui.ThemeChoice
 import com.chethan616.clearpdf.ui.glass.GlassCard
 import com.chethan616.clearpdf.ui.glass.GlassCircle
@@ -74,14 +76,28 @@ const val CLEARPDF_REPO = "https://github.com/Chethan616/ClearPDF"
 fun SettingsScreen(vm: AppViewModel) {
     var page by remember { mutableStateOf("root") }
     BackHandler { if (page == "root") vm.settingsOpen = false else page = "root" }
-    when (page) {
-        "licences" -> LicencesPage { page = "root" }
-        else -> SettingsRoot(vm) { page = "licences" }
+    AnimatedContent(
+        page,
+        transitionSpec = {
+            val deeper = targetState != "root"
+            val dir = if (deeper) 1 else -1
+            (androidx.compose.animation.slideInHorizontally(com.chethan616.clearpdf.ui.glass.Fluid.push()) { dir * it / 4 } +
+                androidx.compose.animation.fadeIn(com.chethan616.clearpdf.ui.glass.Fluid.quick())) togetherWith
+                (androidx.compose.animation.slideOutHorizontally(com.chethan616.clearpdf.ui.glass.Fluid.push()) { -dir * it / 10 } +
+                    androidx.compose.animation.fadeOut(com.chethan616.clearpdf.ui.glass.Fluid.fade()))
+        },
+        label = "settings page",
+    ) { p ->
+        when (p) {
+            "licences" -> LicencesPage { page = "root" }
+            "glass" -> GlassMotionPage { page = "root" }
+            else -> SettingsRoot(vm, openLicences = { page = "licences" }, openGlass = { page = "glass" })
+        }
     }
 }
 
 @Composable
-private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit) {
+private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit, openGlass: () -> Unit) {
     val c = clear
     val context = LocalContext.current
     val uri = LocalUriHandler.current
@@ -110,36 +126,21 @@ private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit) {
                 )
             }
         }
-        item(key = "glass") {
-            Choice(stringResource(R.string.settings_glass)) {
-                val presets = GlassStyle.Presets
-                GlassTabs(
-                    listOf(
-                        GlassTab(stringResource(R.string.settings_glass_clear), accent = Candy.Sky),
-                        GlassTab(stringResource(R.string.settings_glass_frosted), accent = Candy.Mint),
-                        GlassTab(stringResource(R.string.settings_glass_crystal), accent = Candy.Grape),
-                        GlassTab(stringResource(R.string.settings_glass_lite), accent = Candy.Tangerine),
-                    ),
-                    selected = presets.indexOf(GlassSettings.style).coerceAtLeast(0), onSelect = { GlassSettings.update(context, presets[it]) },
-                    modifier = Modifier.fillMaxWidth(), height = 48.dp,
+        item(key = "glassmotion") {
+            // everything about the glass and how it moves lives on a page of its own
+            val custom = stringResource(R.string.settings_custom)
+            val glassName = GlassStyle.Presets.indexOf(GlassSettings.style).let { if (it < 0) custom else glassPresetNames()[it] }
+            val motionName = MotionStyle.Presets.indexOf(MotionSettings.style).let { if (it < 0) custom else motionPresetNames()[it] }
+            Panel {
+                GlassRow(
+                    stringResource(R.string.settings_glass_motion), openGlass, icon = LucideIcons.Sparkles, accent = Candy.Grape,
+                    value = "$glassName · $motionName",
+                    trailing = { Icon(LucideIcons.ChevronRight, null, tint = c.inkFaint, modifier = Modifier.padding(start = 4.dp).size(18.dp)) },
                 )
             }
         }
-        item(key = "motion") {
-            Choice(stringResource(R.string.settings_motion)) {
-                val presets = MotionStyle.Presets
-                GlassTabs(
-                    listOf(
-                        GlassTab(stringResource(R.string.settings_motion_calm), accent = Candy.Mint),
-                        GlassTab(stringResource(R.string.settings_motion_normal), accent = Candy.Sky),
-                        GlassTab(stringResource(R.string.settings_motion_bouncy), accent = Candy.Bubblegum),
-                        GlassTab(stringResource(R.string.settings_motion_jelly), accent = Candy.Tomato),
-                    ),
-                    selected = presets.indexOf(MotionSettings.style).coerceAtLeast(0), onSelect = { MotionSettings.update(context, presets[it]) },
-                    modifier = Modifier.fillMaxWidth(), height = 48.dp,
-                )
-            }
-        }
+
+        item(key = "general") { Section(stringResource(R.string.settings_general)) }
         item(key = "feel") {
             Panel {
                 ToggleRow(LucideIcons.Sparkles, Candy.Bubblegum, stringResource(R.string.settings_haptics), null, GlassSettings.haptics) { GlassSettings.updateHaptics(context, it) }
@@ -180,14 +181,13 @@ private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit) {
             }
         }
         item(key = "credits") {
-            GlassCard(Modifier.padding(horizontal = 16.dp, vertical = 14.dp).fillMaxWidth(), shape = RoundedRectangle(28.dp)) {
-                Column(Modifier.padding(20.dp)) {
-                    Text(stringResource(R.string.settings_credits_title), style = ClearType.Title, color = c.ink)
-                    Spacer(Modifier.height(6.dp))
-                    Text(stringResource(R.string.settings_credits_body), style = ClearType.Body, color = c.inkSoft)
-                    Spacer(Modifier.height(12.dp))
-                    Text(stringResource(R.string.home_legal_notice), style = ClearType.Caption, color = c.inkFaint)
-                }
+            // a footnote, as iOS ends its settings: no card of its own
+            Column(Modifier.padding(start = 26.dp, end = 26.dp, top = 18.dp)) {
+                Text(stringResource(R.string.settings_credits_title), style = ClearType.BodyStrong, color = c.inkSoft)
+                Spacer(Modifier.height(4.dp))
+                Text(stringResource(R.string.settings_credits_body), style = ClearType.Caption, color = c.inkSoft)
+                Spacer(Modifier.height(10.dp))
+                Text(stringResource(R.string.home_legal_notice), style = ClearType.Caption, color = c.inkFaint)
             }
         }
         item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
@@ -232,9 +232,13 @@ private fun AppCard(vm: AppViewModel) {
     }
 }
 
+/** A group's name, small and quiet over its panel (as iOS's grouped settings), "Custom" when tuned by hand. */
 @Composable
-private fun Section(title: String) {
-    Text(title, style = ClearType.Headline, color = clear.ink, modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 22.dp, bottom = 10.dp))
+internal fun Section(title: String, custom: Boolean = false) {
+    Row(Modifier.fillMaxWidth().padding(start = 26.dp, end = 26.dp, top = 26.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title.uppercase(), style = ClearType.Eyebrow, color = clear.inkSoft, modifier = Modifier.weight(1f))
+        if (custom) Text(stringResource(R.string.settings_custom), style = ClearType.Label, color = Candy.Bubblegum)
+    }
 }
 
 /** A setting chosen by a segmented capsule: its name above, the glass capsule below. */
@@ -247,7 +251,7 @@ private fun Choice(label: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Panel(content: @Composable ColumnScope.() -> Unit) {
+internal fun Panel(content: @Composable ColumnScope.() -> Unit) {
     WashPanel(Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth()) {
         Spacer(Modifier.height(6.dp))
         content()
@@ -257,7 +261,7 @@ private fun Panel(content: @Composable ColumnScope.() -> Unit) {
 
 /** A switch row: a candy blob, the setting's name and what it does, and a glass toggle. */
 @Composable
-private fun ToggleRow(icon: ImageVector, accent: Color, label: String, body: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun ToggleRow(icon: ImageVector, accent: Color, label: String, body: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
     val c = clear
     Row(
         Modifier.fillMaxWidth().pressable({ onChange(!checked) }).padding(horizontal = 18.dp, vertical = 10.dp),
@@ -285,7 +289,7 @@ private fun LicencesPage(onBack: () -> Unit) {
     val c = clear
     val context = LocalContext.current
     val texts = remember {
-        listOf("LICENSE-lucide.txt", "OFL-PlusJakartaSans.txt", "OFL-Doto.txt", "OFL-DMSerifDisplay.txt", "OFL-DancingScript.txt", "LICENSE-foxit.txt", "LICENSE-adobe-cmaps.txt").mapNotNull { name ->
+        listOf("LICENSE-lucide.txt", "OFL-PlusJakartaSans.txt", "OFL-Doto.txt", "OFL-DMSerifDisplay.txt", "OFL-BricolageGrotesque.txt", "OFL-Fraunces.txt", "OFL-DancingScript.txt", "LICENSE-foxit.txt", "LICENSE-adobe-cmaps.txt").mapNotNull { name ->
             runCatching { context.assets.open("licences/$name").bufferedReader().readText() }.getOrNull()?.takeIf { it.isNotBlank() }
         }
     }
@@ -300,6 +304,8 @@ private fun LicencesPage(onBack: () -> Unit) {
         Credit("Plus Jakarta Sans", "SIL Open Font License 1.1, The Plus Jakarta Sans Project Authors"),
         Credit("Doto", "SIL Open Font License 1.1, The Doto Project Authors"),
         Credit("DM Serif Display", "SIL Open Font License 1.1, Colophon Foundry"),
+        Credit("Bricolage Grotesque", "SIL Open Font License 1.1, The Bricolage Grotesque Project Authors"),
+        Credit("Fraunces", "SIL Open Font License 1.1, The Fraunces Project Authors"),
         Credit("bot-avatars (the mascots)", "MIT, Jakub Antalik"),
         Credit(stringResource(R.string.root_licence_dancing_script), "SIL Open Font License 1.1, The Dancing Script Project Authors"),
         Credit(stringResource(R.string.root_licence_foxit), "BSD-3-Clause, Foxit Software Inc. and the PDFium Authors"),

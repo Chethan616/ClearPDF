@@ -58,6 +58,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import com.chethan616.clearpdf.ui.home.chipRowFade
+import com.chethan616.clearpdf.ui.glass.glassBar
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -100,34 +103,44 @@ fun ToolScaffold(
     viewerBands: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val c = pdfColors
     BackHandler(onBack = onBack)
-    Column(
-        Modifier.fillMaxSize().background(if (viewerBands) Color.Black else c.surface).safeTopPadding()
-            .background(if (viewerBands) c.navBand else c.surface).navigationBarsPadding().background(c.surface).imePadding(),
-    ) {
-        Row(
-            Modifier.fillMaxWidth().height(com.chethan616.clearpdf.ui.viewer.TopBarHeight).then(
-                if (viewerBands) Modifier.drawBehind { drawRect(c.divider, Offset(0f, size.height - 1.dp.toPx()), Size(size.width, 1.dp.toPx())) } else Modifier,
-            ),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, stringResource(R.string.common_back), onBack, iconSize = 27.dp) }
-            Spacer(Modifier.width(16.dp))
-            Text(title, color = c.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            trailing?.invoke()
-        }
-        Column(Modifier.weight(1f).fillMaxWidth(), content = content)
-        if (action != null) {
-            Button(
-                onClick = onAction,
-                enabled = actionEnabled,
-                colors = ButtonDefaults.buttonColors(containerColor = c.button, contentColor = Color.White, disabledContainerColor = c.pressed),
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
-            ) { Text(action, fontWeight = FontWeight.SemiBold, fontSize = 16.sp) }
+    GlassToolBackground {
+        Column(Modifier.fillMaxSize().safeTopPadding().navigationBarsPadding().imePadding()) {
+            Row(
+                Modifier.fillMaxWidth().height(com.chethan616.clearpdf.ui.viewer.TopBarHeight).padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                GlassBack(onBack)
+                Spacer(Modifier.width(14.dp))
+                Text(title, style = com.chethan616.clearpdf.ui.theme.ClearType.Title, color = com.chethan616.clearpdf.ui.theme.clear.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                trailing?.invoke()
+            }
+            Column(Modifier.weight(1f).fillMaxWidth(), content = content)
+            if (action != null) ActionPill(action, actionEnabled, onAction, Modifier.fillMaxWidth().padding(16.dp))
         }
     }
+}
+
+/**
+ * A tool's screen stands on the app's own wallpaper (a glass layer of its own), so its glass Back,
+ * action and panels refract it and follow Settings ▸ liquid glass and motion like the rest of the app.
+ */
+@Composable
+private fun GlassToolBackground(content: @Composable () -> Unit) {
+    com.chethan616.clearpdf.ui.glass.GlassHost(
+        Modifier.fillMaxSize(),
+        paint = { com.chethan616.clearpdf.ui.glass.Aurora(com.chethan616.clearpdf.ui.glass.AuroraMoods.Tools) },
+    ) { content() }
+}
+
+/** A tool's Back: the round glass Back of every screen, leaving a beat after the tap. */
+@Composable
+private fun GlassBack(onBack: () -> Unit) {
+    com.chethan616.clearpdf.ui.glass.GlassCircle(
+        onClick = com.chethan616.clearpdf.ui.glass.rememberBeat(onBack),
+        size = 48.dp,
+        label = stringResource(R.string.common_back),
+    ) { com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(23.dp)) }
 }
 
 /** A file as the tools show it: an icon, its name and size. */
@@ -135,7 +148,7 @@ fun ToolScaffold(
 fun FileCard(name: String, size: Long?, modifier: Modifier = Modifier, trailing: (@Composable () -> Unit)? = null) {
     val c = pdfColors
     Row(
-        modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).clip(RoundedCornerShape(8.dp)).background(c.surfaceRaised).padding(12.dp),
+        modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).then(com.chethan616.clearpdf.ui.glass.washPanel()).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         PdfBadge()
@@ -171,34 +184,46 @@ fun ToolPage(
     trailing: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val c = pdfColors
     BackHandler(onBack = onBack)
     // the keyboard covers the pill rather than lifting it, as the reference's does
-    Column(Modifier.fillMaxSize().background(c.surface).safeTopPadding().background(c.navBand).navigationBarsPadding().background(c.surface)) {
-        Row(Modifier.fillMaxWidth().height(com.chethan616.clearpdf.ui.viewer.TopBarHeight), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, stringResource(R.string.common_back), onBack, iconSize = 27.dp) }
-            Spacer(Modifier.weight(1f))
-            trailing?.invoke()
-            Spacer(Modifier.width(8.dp))
-        }
-        Text(title, color = c.label, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 14.dp))
-        Column(Modifier.weight(1f).fillMaxWidth(), content = content)
-        Row(Modifier.fillMaxWidth().padding(end = 24.dp, bottom = 16.dp, top = 8.dp), horizontalArrangement = Arrangement.End) {
-            ActionPill(action, actionEnabled, onAction)
+    GlassToolBackground {
+        Column(Modifier.fillMaxSize().safeTopPadding().navigationBarsPadding()) {
+            Row(Modifier.fillMaxWidth().height(com.chethan616.clearpdf.ui.viewer.TopBarHeight).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                GlassBack(onBack)
+                Spacer(Modifier.weight(1f))
+                trailing?.invoke()
+            }
+            Text(title, style = com.chethan616.clearpdf.ui.theme.ClearType.Headline, color = com.chethan616.clearpdf.ui.theme.clear.hero, modifier = Modifier.padding(start = 24.dp, top = 12.dp, bottom = 14.dp))
+            Column(Modifier.weight(1f).fillMaxWidth(), content = content)
+            Row(Modifier.fillMaxWidth().padding(end = 24.dp, bottom = 16.dp, top = 8.dp), horizontalArrangement = Arrangement.End) {
+                ActionPill(action, actionEnabled, onAction)
+            }
         }
     }
 }
 
-/** The blue pill a tool page ends with (grey while it can't be used). */
+/** A small action on a tool's screen: a glass chip, faint while it can't be used. */
+@Composable
+private fun GlassTextButton(onClick: () -> Unit, enabled: Boolean = true, content: @Composable () -> Unit) {
+    com.chethan616.clearpdf.ui.glass.GlassChip(
+        onClick = { if (enabled) onClick() },
+        modifier = Modifier.alpha(if (enabled) 1f else 0.5f),
+        height = 42.dp,
+    ) { content() }
+}
+
+/** The candy glass pill a tool ends with (plain glass, faint, while it can't be used). */
 @Composable
 fun ActionPill(label: String, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val c = pdfColors
-    Box(
-        modifier.heightIn(min = 40.dp).widthIn(min = 90.dp).clip(RoundedCornerShape(20.dp))
-            .background(if (enabled) c.button else c.pressed).clickable(enabled = enabled, role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
-            .padding(horizontal = 22.dp),
-        contentAlignment = Alignment.Center,
-    ) { Text(label, color = if (enabled) Color.White else c.textSecondary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+    val c = com.chethan616.clearpdf.ui.theme.clear
+    com.chethan616.clearpdf.ui.glass.GlassPill(
+        onClick = { if (enabled) onClick() },
+        modifier = modifier.widthIn(min = 110.dp),
+        tint = if (enabled) com.chethan616.clearpdf.ui.theme.Candy.Sky else Color.Unspecified,
+        height = 50.dp,
+        horizontalPadding = 24.dp,
+        label = label,
+    ) { Text(label, style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, color = if (enabled) Color.White else c.inkFaint, maxLines = 1) }
 }
 
 /** The file a tool works on, in an outlined card: a picture of its first page, its name, type and size. */
@@ -213,7 +238,7 @@ fun OutlinedFileCard(vm: AppViewModel, doc: OpenDocument) {
         thumb = runCatching { withContext(eng.thumbnails) { eng.session.renderPage(doc.id, 0u, scale, null).toBitmap().asImageBitmap() } }.getOrNull()
     }
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 24.dp).clip(RoundedCornerShape(8.dp)).border(1.dp, c.divider, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 24.dp).then(com.chethan616.clearpdf.ui.glass.washPanel()).padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(34.dp, 40.dp).background(Color.White)) {
@@ -235,7 +260,7 @@ private fun ToolChoice(selected: Boolean, name: String, description: String?, on
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 8.dp, end = 16.dp, top = if (description == null) 0.dp else 6.dp, bottom = if (description == null) 0.dp else 8.dp),
         verticalAlignment = if (description == null) Alignment.CenterVertically else Alignment.Top,
     ) {
-        RadioButton(selected = selected, onClick = onClick, colors = RadioButtonDefaults.colors(selectedColor = c.toolAccent, unselectedColor = c.icon))
+        com.chethan616.clearpdf.ui.glass.GlassRadio(selected, onClick, Modifier.padding(top = if (description == null) 0.dp else 4.dp))
         Column(Modifier.padding(start = 6.dp, top = if (description == null) 0.dp else 10.dp)) {
             Text(name, color = c.label, fontSize = 16.sp, fontWeight = if (description == null) FontWeight.Normal else FontWeight.SemiBold)
             if (description != null) {
@@ -300,7 +325,11 @@ fun ProtectScreen(vm: AppViewModel, doc: OpenDocument) {
     val bad = pw.isNotEmpty() && (pw.length !in 6..128 || pw.any { it < '!' || it > '~' })
     val mismatch = confirm.isNotEmpty() && confirm != pw
     ToolPage(stringResource(R.string.common_tool_set_password), { vm.toolScreen = null }, stringResource(R.string.common_tool_set_password), pw.isNotEmpty() && confirm.isNotEmpty() && !bad && !mismatch, { vm.protect(doc, pw) },
-        trailing = { BarIcon(LucideIcons.Info, stringResource(R.string.tools_about_passwords), { info = true }) }) {
+        trailing = {
+            com.chethan616.clearpdf.ui.glass.GlassCircle({ info = true }, size = 44.dp, label = stringResource(R.string.tools_about_passwords)) {
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Info, null, Modifier.size(20.dp))
+            }
+        }) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Text(stringResource(R.string.tools_protect_intro), color = c.label, fontSize = 16.sp, modifier = Modifier.padding(horizontal = 24.dp))
             PasswordField(stringResource(R.string.tools_new_password), pw, { pw = it }, visible, { visible = !visible }, bad, focus)
@@ -362,34 +391,26 @@ fun ExportScreen(vm: AppViewModel, doc: OpenDocument) {
  */
 @Composable
 fun CreateSourcesScreen(vm: AppViewModel) {
-    val c = pdfColors
     val back = { vm.toolScreen = null }
-    BackHandler(onBack = back)
-    Column(Modifier.fillMaxSize().background(c.surface).safeTopPadding().background(c.navBand).navigationBarsPadding().background(c.surface)) {
-        Row(Modifier.fillMaxWidth().height(com.chethan616.clearpdf.ui.viewer.TopBarHeight), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, stringResource(R.string.common_back), back, iconSize = 27.dp) }
-            Spacer(Modifier.width(4.dp))
-            Text(stringResource(R.string.tools_create_title), color = c.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-        }
+    ToolScaffold(stringResource(R.string.tools_create_title), back, action = null, actionEnabled = false, onAction = {}) {
         Spacer(Modifier.height(8.dp))
-        SourceRow(LucideIcons.Images, stringResource(R.string.home_photos)) { vm.toolScreen = null; vm.pickPhotosToPdf() }
-        SourceRow(LucideIcons.FolderOpen, stringResource(R.string.tools_browse_files)) { vm.toolScreen = null; vm.pickFiles(FilePickKind.Create) }
-        Text(stringResource(R.string.tools_or_make_new), color = c.textSecondary, fontSize = 14.sp, modifier = Modifier.padding(start = 20.dp, top = 20.dp, bottom = 6.dp))
-        Box(Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(1.dp).background(c.divider))
-        SourceRow(LucideIcons.Camera, stringResource(R.string.tools_scan_document)) { vm.toolScreen = null; vm.startScan() }
+        com.chethan616.clearpdf.ui.glass.WashPanel(Modifier.padding(horizontal = 16.dp).fillMaxWidth()) {
+            SourceRow(LucideIcons.Images, stringResource(R.string.home_photos), com.chethan616.clearpdf.ui.theme.Candy.Tangerine) { vm.toolScreen = null; vm.pickPhotosToPdf() }
+            SourceRow(LucideIcons.FolderOpen, stringResource(R.string.tools_browse_files), com.chethan616.clearpdf.ui.theme.Candy.Grape) { vm.toolScreen = null; vm.pickFiles(FilePickKind.Create) }
+        }
+        Text(
+            stringResource(R.string.tools_or_make_new).uppercase(), style = com.chethan616.clearpdf.ui.theme.ClearType.Eyebrow,
+            color = com.chethan616.clearpdf.ui.theme.clear.inkSoft, modifier = Modifier.padding(start = 26.dp, top = 24.dp, bottom = 8.dp),
+        )
+        com.chethan616.clearpdf.ui.glass.WashPanel(Modifier.padding(horizontal = 16.dp).fillMaxWidth()) {
+            SourceRow(LucideIcons.Camera, stringResource(R.string.tools_scan_document), com.chethan616.clearpdf.ui.theme.Candy.Tomato) { vm.toolScreen = null; vm.startScan() }
+        }
     }
 }
 
 @Composable
-private fun SourceRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    val c = pdfColors
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).background(c.pressed), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = c.icon, modifier = Modifier.size(22.dp))
-        }
-        Spacer(Modifier.width(16.dp))
-        Text(label, color = c.label, fontSize = 16.sp)
-    }
+private fun SourceRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, accent: Color, onClick: () -> Unit) {
+    com.chethan616.clearpdf.ui.glass.GlassRow(label, onClick, icon = icon, accent = accent)
 }
 
 /** The tool screen that is open. */
@@ -425,32 +446,32 @@ fun CombineScreen(vm: AppViewModel) {
     val dragLabel = stringResource(R.string.tools_drag_to_reorder)
     val removedMessage = stringResource(R.string.tools_file_removed)
     BackHandler(onBack = back)
-    Column(Modifier.fillMaxSize().background(c.surface).safeTopPadding().background(c.navBand).navigationBarsPadding().background(c.surface)) {
+    val ink = com.chethan616.clearpdf.ui.theme.clear
+    GlassToolBackground {
+    Column(Modifier.fillMaxSize().safeTopPadding().navigationBarsPadding()) {
         Row(
-            Modifier.fillMaxWidth().height(com.chethan616.clearpdf.ui.viewer.TopBarHeight)
-                .drawBehind { drawRect(c.divider, Offset(0f, size.height - 1.dp.toPx()), Size(size.width, 1.dp.toPx())) },
+            Modifier.fillMaxWidth().height(com.chethan616.clearpdf.ui.viewer.TopBarHeight).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) { BarIcon(LucideIcons.ArrowLeft, stringResource(R.string.common_back), back, iconSize = 27.dp) }
-            Spacer(Modifier.width(4.dp))
+            GlassBack(back)
+            Spacer(Modifier.width(14.dp))
             Text(
                 if (files.size > 1) pluralStringResource(R.plurals.tools_file_count, files.size, files.size) else stringResource(R.string.common_tool_combine),
-                color = c.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f),
+                style = com.chethan616.clearpdf.ui.theme.ClearType.Title, color = ink.ink, maxLines = 1, modifier = Modifier.weight(1f),
             )
-            Box(
-                Modifier.padding(end = 20.dp).height(36.dp).clip(RoundedCornerShape(18.dp)).border(2.dp, c.label, RoundedCornerShape(18.dp))
-                    .clickable { vm.pickFiles(FilePickKind.Combine) }.padding(horizontal = 16.dp),
-                contentAlignment = Alignment.Center,
-            ) { Text(stringResource(R.string.tools_add_files), color = c.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+            com.chethan616.clearpdf.ui.glass.GlassPill(onClick = { vm.pickFiles(FilePickKind.Combine) }, height = 44.dp) {
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Plus, null, Modifier.size(18.dp))
+                Text(stringResource(R.string.tools_add_files), style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, color = ink.ink, maxLines = 1)
+            }
         }
         if (files.size > 12) Text(stringResource(R.string.tools_combine_too_many), color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
-        LazyColumn(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 8.dp)) {
+        LazyColumn(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)) {
             itemsIndexed(files, key = { _, f -> f.uri.toString() }) { i, f ->
                 Row(
-                    Modifier.fillMaxWidth().height(58.dp)
+                    Modifier.fillMaxWidth().height(62.dp)
                         .offset { IntOffset(0, if (dragIndex == i) dragOffset.roundToInt() else 0) }
-                        .background(if (dragIndex == i) c.pressed else Color.Transparent)
-                        .drawBehind { drawRect(c.divider, Offset(8.dp.toPx(), size.height - 1.dp.toPx()), Size(size.width - 16.dp.toPx(), 1.dp.toPx())) },
+                        .then(com.chethan616.clearpdf.ui.glass.washPanel())
+                        .then(if (dragIndex == i) Modifier.border(2.dp, com.chethan616.clearpdf.ui.theme.Candy.Sky, com.kyant.shapes.RoundedRectangle(20.dp)) else Modifier),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
@@ -473,20 +494,19 @@ fun CombineScreen(vm: AppViewModel) {
                             }
                         }.semantics { contentDescription = dragLabel },
                         contentAlignment = Alignment.Center,
-                    ) { Icon(LucideIcons.GripVertical, null, tint = c.icon, modifier = Modifier.size(20.dp)) }
+                    ) { Icon(LucideIcons.GripVertical, null, tint = ink.inkSoft, modifier = Modifier.size(20.dp)) }
                     Column(Modifier.weight(1f)) {
-                        Text(f.name.substringBeforeLast('.'), color = c.label, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(listOfNotNull(f.name.substringAfterLast('.', "").uppercase(), f.size?.let { formatSize(it) }).joinToString(" • "), color = c.text, fontSize = 14.sp)
+                        Text(f.name.substringBeforeLast('.'), style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, color = ink.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(listOfNotNull(f.name.substringAfterLast('.', "").uppercase(), f.size?.let { formatSize(it) }).joinToString(" • "), style = com.chethan616.clearpdf.ui.theme.ClearType.Caption, color = ink.inkSoft)
                     }
-                    BarIcon(LucideIcons.CircleMinus, stringResource(R.string.tools_remove_file, f.name), { files.remove(f); vm.tell(removedMessage) })
+                    com.chethan616.clearpdf.ui.glass.GlassCircle(onClick = { files.remove(f); vm.tell(removedMessage) }, size = 38.dp, label = stringResource(R.string.tools_remove_file, f.name)) {
+                        com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Minus, null, Modifier.size(18.dp), tint = com.chethan616.clearpdf.ui.theme.Candy.Tomato)
+                    }
+                    Spacer(Modifier.width(10.dp))
                 }
             }
         }
-        Box(
-            Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 12.dp).height(42.dp).clip(RoundedCornerShape(21.dp))
-                .background(if (ok) c.button else c.pressed).clickable(enabled = ok) { naming = true },
-            contentAlignment = Alignment.Center,
-        ) { Text(stringResource(R.string.tools_combine_as_pdf), color = if (ok) Color.White else c.textSecondary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold) }
+        ActionPill(stringResource(R.string.tools_combine_as_pdf), ok, { naming = true }, Modifier.fillMaxWidth().padding(16.dp))
         if (naming) {
             var name by remember { mutableStateOf("Combine " + java.text.DateFormat.getDateInstance(java.text.DateFormat.LONG).format(java.util.Date())) }
             val focus = remember { androidx.compose.ui.focus.FocusRequester() }
@@ -496,6 +516,7 @@ fun CombineScreen(vm: AppViewModel) {
                 confirmEnabled = name.isNotBlank(),
             ) { PdfField(name, { name = it }, stringResource(R.string.common_file_name), focus = focus) }
         }
+    }
     }
 }
 
@@ -531,15 +552,12 @@ fun CropScreen(vm: AppViewModel, doc: OpenDocument) {
     ToolScaffold(stringResource(if (allPages) R.string.tools_all_pages else R.string.tools_current_page), { vm.toolScreen = null }, null, false, {},
         viewerBands = true,
         trailing = {
-            Text(
-                stringResource(R.string.common_save), color = if (changed) c.label else c.textSecondary.copy(alpha = 0.5f), fontSize = 17.sp,
-                modifier = Modifier.clickable(enabled = changed) {
-                    val info = p ?: return@clickable
-                    vm.crop(doc, if (allPages) null else page, floatArrayOf(rect[0] * info.width, rect[1] * info.height, rect[2] * info.width, rect[3] * info.height))
-                }.padding(horizontal = 16.dp, vertical = 12.dp),
-            )
+            ActionPill(stringResource(R.string.common_save), changed, {
+                val info = p ?: return@ActionPill
+                vm.crop(doc, if (allPages) null else page, floatArrayOf(rect[0] * info.width, rect[1] * info.height, rect[2] * info.width, rect[3] * info.height))
+            })
         }) {
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().background(c.desk), contentAlignment = Alignment.Center) {
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).then(com.chethan616.clearpdf.ui.glass.washPanel()), contentAlignment = Alignment.Center) {
             val info = p ?: return@BoxWithConstraints
             val ratio = info.width / info.height.coerceAtLeast(1f)
             // the page sits 32 dp in from the sides; touches are taken a margin beyond its edges
@@ -634,22 +652,29 @@ fun CropScreen(vm: AppViewModel, doc: OpenDocument) {
             }
         }
         // the page in a grey pill (with arrows to step through the pages when cropping them all)
-        Row(Modifier.fillMaxWidth().background(c.desk).height(88.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            if (allPages) BarIcon(LucideIcons.ChevronLeft, stringResource(R.string.tools_previous_page), { page = (page - 1).coerceAtLeast(0) }, enabled = page > 0)
+        // the page in a glass pill, glass arrows either side when cropping them all
+        val ink = com.chethan616.clearpdf.ui.theme.clear
+        Row(Modifier.fillMaxWidth().height(76.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
+            if (allPages) com.chethan616.clearpdf.ui.glass.GlassCircle({ page = (page - 1).coerceAtLeast(0) }, size = 44.dp, label = stringResource(R.string.tools_previous_page)) {
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(20.dp).alpha(if (page > 0) 1f else 0.35f))
+            }
             Box(
-                Modifier.widthIn(min = 102.dp).height(32.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFFD1D1D1)).padding(horizontal = 16.dp),
+                Modifier.widthIn(min = 110.dp).height(40.dp).glassBar().padding(horizontal = 18.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text(stringResource(R.string.tools_page_number, page + 1), color = Color(0xFF2C2C2C), fontSize = 15.sp) }
-            if (allPages) BarIcon(LucideIcons.ChevronRight, stringResource(R.string.tools_next_page), { page = (page + 1).coerceAtMost(doc.pageCount - 1) }, enabled = page < doc.pageCount - 1)
+            ) { Text(stringResource(R.string.tools_page_number, page + 1), style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, color = ink.ink) }
+            if (allPages) com.chethan616.clearpdf.ui.glass.GlassCircle({ page = (page + 1).coerceAtMost(doc.pageCount - 1) }, size = 44.dp, label = stringResource(R.string.tools_next_page)) {
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.ChevronRight, null, Modifier.size(20.dp).alpha(if (page < doc.pageCount - 1) 1f else 0.35f))
+            }
         }
-        Row(Modifier.fillMaxWidth().height(54.dp).background(c.surface).padding(start = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            PdfSwitch(allPages, { allPages = it })
-            Spacer(Modifier.width(16.dp))
-            Text(stringResource(R.string.tools_all_pages), color = c.label, fontSize = 16.sp, modifier = Modifier.weight(1f))
-            Text(
-                stringResource(R.string.tools_reset), color = if (changed) c.label else c.textSecondary.copy(alpha = 0.5f), fontSize = 16.sp,
-                modifier = Modifier.clickable(enabled = changed) { rect = floatArrayOf(0f, 0f, 1f, 1f) }.padding(horizontal = 12.dp, vertical = 12.dp),
-            )
+        com.chethan616.clearpdf.ui.glass.WashPanel(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().height(58.dp).padding(start = 18.dp, end = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.tools_all_pages), style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, color = ink.ink, modifier = Modifier.weight(1f))
+                com.chethan616.clearpdf.ui.glass.GlassToggle(allPages, { allPages = it })
+                Spacer(Modifier.width(10.dp))
+                com.chethan616.clearpdf.ui.glass.GlassPill(onClick = { if (changed) rect = floatArrayOf(0f, 0f, 1f, 1f) }, height = 40.dp, horizontalPadding = 14.dp) {
+                    Text(stringResource(R.string.tools_reset), style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, color = if (changed) ink.ink else ink.inkFaint)
+                }
+            }
         }
     }
 }
@@ -706,17 +731,19 @@ fun ScanScreen(vm: AppViewModel) {
         if (vm.insertScanAt == null && vm.scanName.isNotBlank()) {
             val nameLabel = stringResource(R.string.tools_scan_name_description, vm.scanName)
             Row(
-                Modifier.fillMaxWidth().clickable { naming = true }.padding(horizontal = 16.dp, vertical = 10.dp).semantics { contentDescription = nameLabel },
+                Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth().then(com.chethan616.clearpdf.ui.glass.washPanel())
+                    .clickable { naming = true }
+                    .padding(horizontal = 16.dp, vertical = 12.dp).semantics { contentDescription = nameLabel },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(LucideIcons.FileText, null, tint = c.icon, modifier = Modifier.size(20.dp))
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.FileText, null, Modifier.size(20.dp))
                 Spacer(Modifier.width(12.dp))
-                Text(vm.scanName, color = c.text, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Text(vm.scanName, style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, color = com.chethan616.clearpdf.ui.theme.clear.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 Spacer(Modifier.width(12.dp))
-                Icon(LucideIcons.Pencil, null, tint = c.icon, modifier = Modifier.size(20.dp))
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Pencil, null, Modifier.size(18.dp))
             }
         }
-        Box(Modifier.weight(1f).fillMaxWidth().background(c.desk), contentAlignment = Alignment.Center) {
+        Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).then(com.chethan616.clearpdf.ui.glass.washPanel()), contentAlignment = Alignment.Center) {
             val page = pages.getOrNull(current.coerceAtMost(pages.lastIndex))
             if (page != null) {
                 ScanPhoto(page.thumb, page.corners, Modifier.fillMaxSize())
@@ -724,26 +751,44 @@ fun ScanScreen(vm: AppViewModel) {
                 Text(stringResource(R.string.tools_scan_empty), color = c.textSecondary)
             }
         }
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        val ink = com.chethan616.clearpdf.ui.theme.clear.ink
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
+        ) {
             pages.forEachIndexed { i, p ->
-                Image(p.thumb, stringResource(R.string.tools_page_number, i + 1), modifier = Modifier.size(56.dp, 72.dp).clip(RoundedCornerShape(4.dp)).border(2.dp, if (i == current) c.accent else Color.Transparent, RoundedCornerShape(4.dp)).clickable { current = i }, contentScale = ContentScale.Crop)
-            }
-            Box(Modifier.size(56.dp, 72.dp).clip(RoundedCornerShape(4.dp)).background(c.surfaceRaised).clickable { vm.takeScanPhoto() }.semantics { contentDescription = addPageLabel }, contentAlignment = Alignment.Center) {
-                Icon(LucideIcons.Plus, null, tint = c.icon)
-            }
-        }
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ScanFilter.entries.forEach { f ->
-                Text(
-                    stringResource(f.label), color = if (f == filter) c.accent else c.text, fontSize = 14.sp,
-                    modifier = Modifier.clip(CircleShape).background(if (f == filter) c.pressed else Color.Transparent).clickable { filter = f }.padding(horizontal = 14.dp, vertical = 8.dp),
+                Image(
+                    p.thumb, stringResource(R.string.tools_page_number, i + 1),
+                    modifier = Modifier.size(56.dp, 72.dp).clip(com.kyant.shapes.RoundedRectangle(12.dp))
+                        .border(2.5.dp, if (i == current) com.chethan616.clearpdf.ui.theme.Candy.Sky else Color.Transparent, com.kyant.shapes.RoundedRectangle(12.dp))
+                        .clickable { current = i },
+                    contentScale = ContentScale.Crop,
                 )
             }
+            com.chethan616.clearpdf.ui.glass.GlassCircle(onClick = { vm.takeScanPhoto() }, size = 56.dp, label = addPageLabel) {
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Plus, null, Modifier.size(24.dp))
+            }
         }
-        Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            TextButton(onClick = { vm.retakeScan(current) }, enabled = pages.isNotEmpty()) { Text(stringResource(R.string.tools_retake), color = c.accent) }
-            TextButton(onClick = { cropping = pages.getOrNull(current.coerceAtMost(pages.lastIndex))?.file }, enabled = pages.isNotEmpty()) { Text(stringResource(R.string.tools_crop), color = c.accent) }
-            TextButton(onClick = { if (pages.isNotEmpty()) { pages.removeAt(current.coerceAtMost(pages.lastIndex)); current = (current - 1).coerceAtLeast(0) } }, enabled = pages.isNotEmpty()) { Text(stringResource(R.string.common_delete), color = c.accent) }
+        // the looks, as the desk's filter chips
+        Row(
+            Modifier.fillMaxWidth().chipRowFade().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            ScanFilter.entries.forEach { f -> com.chethan616.clearpdf.ui.home.DeskChip(stringResource(f.label), f == filter) { filter = f } }
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+            GlassTextButton(onClick = { vm.retakeScan(current) }, enabled = pages.isNotEmpty()) {
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Camera, null, Modifier.size(18.dp))
+                Text(stringResource(R.string.tools_retake), color = ink)
+            }
+            GlassTextButton(onClick = { cropping = pages.getOrNull(current.coerceAtMost(pages.lastIndex))?.file }, enabled = pages.isNotEmpty()) {
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Crop, null, Modifier.size(18.dp))
+                Text(stringResource(R.string.tools_crop), color = ink)
+            }
+            GlassTextButton(onClick = { if (pages.isNotEmpty()) { pages.removeAt(current.coerceAtMost(pages.lastIndex)); current = (current - 1).coerceAtLeast(0) } }, enabled = pages.isNotEmpty()) {
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Trash2, null, Modifier.size(18.dp), tint = com.chethan616.clearpdf.ui.theme.Candy.Tomato)
+                Text(stringResource(R.string.common_delete), color = ink)
+            }
         }
     }
     if (naming) {
@@ -766,12 +811,19 @@ private fun ScanCrop(page: ScanPage, onDone: (FloatArray) -> Unit, onCancel: () 
     val c = pdfColors
     var corners by remember(page.file) { mutableStateOf(page.corners) }
     ToolScaffold(stringResource(R.string.tools_crop), onCancel, stringResource(R.string.common_done), true, { onDone(corners) }) {
-        Box(Modifier.weight(1f).fillMaxWidth().background(c.desk)) {
+        Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).then(com.chethan616.clearpdf.ui.glass.washPanel())) {
             ScanPhoto(page.thumb, corners, Modifier.fillMaxSize(), onMove = { corners = it })
         }
-        Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            TextButton(onClick = { page.found?.let { corners = it } }, enabled = page.found != null) { Text(stringResource(R.string.tools_auto_detect), color = if (page.found != null) c.accent else c.textSecondary) }
-            TextButton(onClick = { corners = ScanPage.WHOLE }) { Text(stringResource(R.string.tools_no_crop), color = c.accent) }
+        val ink = com.chethan616.clearpdf.ui.theme.clear.ink
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+            GlassTextButton(onClick = { page.found?.let { corners = it } }, enabled = page.found != null) {
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Sparkles, null, Modifier.size(18.dp))
+                Text(stringResource(R.string.tools_auto_detect), color = ink)
+            }
+            GlassTextButton(onClick = { corners = ScanPage.WHOLE }) {
+                com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Maximize, null, Modifier.size(18.dp))
+                Text(stringResource(R.string.tools_no_crop), color = ink)
+            }
         }
     }
 }

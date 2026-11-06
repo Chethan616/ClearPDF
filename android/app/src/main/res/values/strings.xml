@@ -1163,11 +1163,45 @@
     <string name="settings_glass_frosted">Frosted</string>
     <string name="settings_glass_crystal">Crystal</string>
     <string name="settings_glass_lite">Lite</string>
-    <string name="settings_motion">Motion</string>
+    <string name="settings_motion">Button motion</string>
     <string name="settings_motion_calm">Calm</string>
     <string name="settings_motion_normal">Normal</string>
     <string name="settings_motion_bouncy">Bouncy</string>
     <string name="settings_motion_jelly">Jelly</string>
+    <string name="settings_custom">Custom</string>
+    <string name="settings_general">General</string>
+    <string name="settings_glass_motion">Liquid glass &amp; motion</string>
+    <string name="gm_preview_body">These buttons move the way you set them below. Press and hold them.</string>
+    <string name="gm_press_me">Press me</string>
+    <string name="gm_chip">Chip</string>
+    <string name="gm_glass_look">Glass</string>
+    <string name="gm_blur">Frost</string>
+    <string name="gm_lens_height">Lens depth</string>
+    <string name="gm_lens_amount">Lens strength</string>
+    <string name="gm_tint">Tint</string>
+    <string name="gm_saturation">Colour</string>
+    <string name="gm_brightness">Brightness</string>
+    <string name="gm_highlight">Rim light</string>
+    <string name="gm_depth">Depth</string>
+    <string name="gm_chromatic">Prism edge</string>
+    <string name="gm_spring">Glass spring</string>
+    <string name="gm_spring_body">How glass swells, springs past and settles. Tap the graph to pause it.</string>
+    <string name="gm_spring_stats">Damping %1$s · stiffness %2$s · settles in %3$s s</string>
+    <string name="gm_bounce">Bounce</string>
+    <string name="gm_speed">Speed</string>
+    <string name="gm_press">Press</string>
+    <string name="gm_wobble">Wobble</string>
+    <string name="gm_stretch">Stretch</string>
+    <string name="gm_bloom">Bloom</string>
+    <string name="gm_transitions">Screen transitions</string>
+    <string name="gm_curve_body">Drag the two handles to draw the curve screens, sheets and fades travel on. Tap the graph to pause it.</string>
+    <string name="gm_duration">Duration</string>
+    <string name="gm_curve_drawer">Drawer</string>
+    <string name="gm_curve_standard">Standard</string>
+    <string name="gm_curve_emphasized">Emphasized</string>
+    <string name="gm_curve_ease">Ease in-out</string>
+    <string name="gm_curve_linear">Linear</string>
+    <string name="gm_reset">Reset to defaults</string>
     <string name="settings_haptics">Haptic feedback</string>
     <string name="settings_reading">Reading</string>
     <string name="settings_forms">Forms</string>
@@ -1225,6 +1259,11 @@
     <string name="notes_pin">Pin to the top</string>
     <string name="notes_unpin">Unpin</string>
     <string name="notes_open">Open</string>
+    <string name="notes_rename">Rename</string>
+    <string name="voice_note">Voice note</string>
+    <string name="voice_name_title">Name this voice note</string>
+    <string name="voice_name_hint">Name</string>
+    <string name="voice_name_it">Name it</string>
     <string name="notes_title_hint">Title</string>
     <string name="notes_list_title_hint">List name</string>
     <string name="notes_body_hint">Tap here to continue…</string>
@@ -1287,4 +1326,69 @@
     </plurals>
     <string name="settings_quick_preview">Quick Preview</string>
     <string name="settings_quick_preview_body">Files other apps open show in a floating card over them first</string>
+    <string name="thought_title">Thought of the day</string>
+    <string-array name="thought_quotes">
+        <item>Embrace the moment and let your spirit soar.</item>
+        <item>Small steps still take you somewhere.</item>
+        <item>Begin where you are.</item>
+        <item>Be gentle with yourself today.</item>
+        <item>Curiosity is a kind of courage.</item>
+        <item>Do one thing you\'ve been putting off.</item>
+        <item>Quiet is where ideas grow.</item>
+        <item>You are allowed to change your mind.</item>
+        <item>Kindness costs nothing and travels far.</item>
+        <item>Let go of what you can\'t carry.</item>
+        <item>Today is a blank page.</item>
+        <item>Focus is a form of freedom.</item>
+        <item>Make room for joy.</item>
+        <item>Your pace is the right pace.</item>
+        <item>Mistakes are proof you\'re trying.</item>
+        <item>Listen more than you speak.</item>
+        <item>Gratitude turns enough into plenty.</item>
+        <item>Write it down before it slips away.</item>
+        <item>Courage is feeling it and going anyway.</item>
+        <item>Nothing grows without a little patience.</item>
+        <item>Choose progress over perfect.</item>
+        <item>The best view comes after the climb.</item>
+        <item>Look up from the screen for a moment.</item>
+        <item>You\'ve handled hard days before.</item>
+        <item>Share what you know.</item>
+        <item>Spend time on what lasts.</item>
+        <item>Start before you feel ready.</item>
+        <item>Let today be simple.</item>
+        <item>Be the calm in the room.</item>
+        <item>Make something, however small.</item>
+    </string-array>
+    <string-array name="thought_reflections">
+        <item>Every day is a fresh start—embrace it with **hope and courage**. Let each moment inspire you to grow and shine **brighter** than before.</item>
+        <item>You don\'t need the whole staircase today. Take **one small step**, then another, and trust that **progress** adds up.</item>
+        <item>Perfect conditions rarely arrive. Start with what you have, **right now**, and let the rest **find its way** to you.</item>
+        <item>Rest isn\'t a reward for finishing, it\'s part of the work. **Breathe slowly**, drink some water, and let today be **enough**.</item>
+        <item>Ask the question you\'ve been holding back. **Wonder** opens more doors than certainty ever will.</item>
+        <item>That small task weighs more in your head than in your hands. Finish it, and **feel the lightness** that follows.</item>
+        <item>Step away from the noise for a few minutes. Your **best thoughts** often arrive when you stop chasing them.</item>
+        <item>Growing means **outgrowing** old plans. Choose again, **without apology**, and keep walking.</item>
+        <item>A kind word today may be the **best part of someone\'s week**. Offer it freely and watch it **come back around**.</item>
+        <item>Not every worry deserves a place in your day. Put down what isn\'t yours and **hold on** to what **matters**.</item>
+        <item>Yesterday is written and tomorrow isn\'t. Fill this page with **something you\'ll be proud of**, even if it\'s just a line.</item>
+        <item>Choose **one thing** and give it your full attention. The world will wait, and you\'ll **do it better**.</item>
+        <item>Joy doesn\'t need a reason or an occasion. Notice the **small good things**—warm light, a laugh, a good song—and **stay with them** a moment.</item>
+        <item>Comparison steals the joy from your own road. Keep going at **the speed you can sustain**, and you\'ll **get there**.</item>
+        <item>Each stumble teaches something a smooth path can\'t. **Learn it**, thank it, and **try again**.</item>
+        <item>Understanding begins with **attention**. Ask, wait, and really hear the answer.</item>
+        <item>Name three things you\'re **thankful for** right now. Notice how the day feels **different** afterwards.</item>
+        <item>A thought on paper is a thought you can **return to**. Capture it now and **shape it later**.</item>
+        <item>Fear is not a stop sign, only a **signal that this matters**. Take the next step **with it beside you**.</item>
+        <item>Seeds don\'t hurry, and neither must you. **Keep tending** what you care about and **trust the season**.</item>
+        <item>Done and imperfect beats perfect and unfinished. **Ship the draft**, then make it better.</item>
+        <item>The hard stretch is **building the strength** for what\'s ahead. Keep your eyes on **the horizon**.</item>
+        <item>The room, the window, the sky: **they\'re all still there**. Give your eyes and your mind a **short, real break**.</item>
+        <item>Remember the ones you got through. You are **more capable** than today\'s worry says, and **tomorrow** is another chance.</item>
+        <item>Your experience is someone else\'s **shortcut**. Teach, explain, or simply **say it out loud**; it helps you too.</item>
+        <item>Attention is the **most valuable thing** you have. Give it to **people and work** that will still matter next year.</item>
+        <item>Readiness is usually a **feeling that follows action**, not one that comes before it. **Begin**, and let confidence catch up.</item>
+        <item>Not everything needs to be optimised. Do **a few things well**, leave space around them, and call that a **good day**.</item>
+        <item>You can\'t control every wave, but you can **choose how you meet it**. A steady breath is **contagious**.</item>
+        <item>A sentence, a sketch, a tidy shelf. **Creating** reminds you that you can **change the world around you**, even a little.</item>
+    </string-array>
 </resources>

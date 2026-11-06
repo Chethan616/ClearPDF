@@ -42,6 +42,8 @@ data class Note(
     val created: Long = System.currentTimeMillis(),
     val updated: Long = created,
     val pinned: Boolean = false,
+    /** The epoch day this is the "Thought of the day" for, or 0 for an ordinary note. */
+    val thought: Long = 0,
 ) {
     val isEmpty: Boolean get() = title.isBlank() && body.isBlank() && items.none { it.text.isNotBlank() } && images.isEmpty() && audio == null
 }
@@ -80,8 +82,8 @@ class Notes(private val context: Context, private val scope: CoroutineScope) {
     /** A new file name in the media folder. */
     fun newMedia(ext: String): File = File(media, "${UUID.randomUUID()}.$ext")
 
-    fun create(kind: NoteKind, title: String = "", body: String = "", items: List<CheckItem> = emptyList()): Note {
-        val n = Note(UUID.randomUUID().toString(), kind, title, body, items)
+    fun create(kind: NoteKind, title: String = "", body: String = "", items: List<CheckItem> = emptyList(), thought: Long = 0): Note {
+        val n = Note(UUID.randomUUID().toString(), kind, title, body, items, thought = thought)
         all = listOf(n) + all
         save()
         return n
@@ -166,6 +168,7 @@ private fun Note.toJson() = JSONObject().apply {
     put("created", created)
     put("updated", updated)
     put("pinned", pinned)
+    if (thought != 0L) put("thought", thought)
 }
 
 private fun JSONObject.toNote(): Note {
@@ -187,6 +190,7 @@ private fun JSONObject.toNote(): Note {
         created = optLong("created", System.currentTimeMillis()),
         updated = optLong("updated", System.currentTimeMillis()),
         pinned = optBoolean("pinned"),
+        thought = optLong("thought"),
     )
 }
 

@@ -23,8 +23,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -50,31 +51,30 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.lerp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.LucideIcons
 import com.chethan616.clearpdf.ui.PdfField
 import com.chethan616.clearpdf.ui.PdfcraftTheme
 import com.chethan616.clearpdf.ui.ThemeChoice
-import com.chethan616.clearpdf.ui.glass.GlassCircle
-import com.chethan616.clearpdf.ui.glass.GlassIcon
 import com.chethan616.clearpdf.ui.glass.GlassLayer
 import com.chethan616.clearpdf.ui.glass.GlassLoader
 import com.chethan616.clearpdf.ui.glass.GlassMenu
 import com.chethan616.clearpdf.ui.glass.GlassMenuItem
-import com.chethan616.clearpdf.ui.glass.GlassMotion
+import com.chethan616.clearpdf.ui.glass.Fluid
 import com.chethan616.clearpdf.ui.glass.GlassOverlayHost
 import com.chethan616.clearpdf.ui.glass.GlassOverlayLayer
 import com.chethan616.clearpdf.ui.glass.GlassPill
 import com.chethan616.clearpdf.ui.glass.GlassToast
 import com.chethan616.clearpdf.ui.glass.LocalGlassOverlayHost
 import com.chethan616.clearpdf.ui.glass.ProvideGlassHaptics
-import com.chethan616.clearpdf.ui.glass.glass
+import com.chethan616.clearpdf.ui.glass.pressable
 import com.chethan616.clearpdf.ui.mascot.Mascot
 import com.chethan616.clearpdf.ui.mascot.MascotMood
 import com.chethan616.clearpdf.ui.theme.Candy
@@ -94,8 +94,10 @@ private const val CardHeight = 0.84f
 
 /**
  * Quick Preview's window content: a dim (and on newer phones a blur) over the app that opened the
- * file, and the card rising from the bottom on a spring. The card's header is glass over the
- * pages: Close, the name, Expand, Share and More. Drag the header down to close, up to expand.
+ * file, and a card rising from the bottom on the eased curve. The card is as plain as it can be:
+ * the pages, the name over them with More and Close, and one Open button. Drag the header down to
+ * close, or up to open the file in Artefact. Floating glass (the More menu) lives inside the card's
+ * own glass layer, so it refracts the pages.
  */
 @Composable
 internal fun QuickPreviewScreen(
@@ -114,10 +116,7 @@ internal fun QuickPreviewScreen(
         PdfcraftTheme(ThemeChoice.System) {
             ProvideGlassHaptics {
                 CompositionLocalProvider(LocalGlassOverlayHost provides overlays) {
-                    Box(Modifier.fillMaxSize()) {
-                        Preview(state, onClose, onExpand, onShare, onOpenWith, onSaveCopy, onPassword, setBlur)
-                        GlassOverlayLayer(overlays)
-                    }
+                    Preview(state, onClose, onExpand, onShare, onOpenWith, onSaveCopy, onPassword, setBlur)
                 }
             }
         }
@@ -138,16 +137,18 @@ private fun Preview(
     val c = clear
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val overlays = LocalGlassOverlayHost.current
     val appear = remember { Animatable(0f) }
-    val grow = remember { Animatable(0f) }
     var drag by remember { mutableFloatStateOf(0f) }
     var leaving by remember { mutableStateOf(false) }
     var toast by remember { mutableStateOf<String?>(null) }
+    val paper = if (c.dark) Color(0xFF111A1F) else Color(0xFFE6ECF4)
 
-    LaunchedEffect(Unit) { appear.animateTo(1f, GlassMotion.morph()) }
+    // the card slides up as an iOS sheet does: one eased curve, never past its place
+    LaunchedEffect(Unit) { appear.animateTo(1f, Fluid.rise()) }
     // the blur behind follows the card in and out
     LaunchedEffect(Unit) {
-        snapshotFlow { (appear.value.coerceIn(0f, 1f) * (1f - grow.value) * 36f).toInt() }.collect { setBlur(it) }
+        snapshotFlow { (appear.value.coerceIn(0f, 1f) * 36f).toInt() }.collect { setBlur(it) }
     }
     LaunchedEffect(toast) {
         if (toast != null) {
@@ -160,68 +161,59 @@ private fun Preview(
         if (leaving) return
         leaving = true
         scope.launch {
-            appear.animateTo(0f, GlassMotion.fold())
+            appear.animateTo(0f, Fluid.dismiss())
             onClose()
         }
     }
 
-    fun expand() {
+    // straight into the app: the viewer's own window animation takes over from here, so the card
+    // never goes full screen first
+    fun open() {
         if (leaving) return
         leaving = true
-        scope.launch {
-            // layout grows, so no bounce (a spring past 1 would make the margins negative)
-            grow.animateTo(1f, GlassMotion.settle())
-            onExpand()
-        }
+        scope.launch { Animatable(drag).animateTo(0f, Fluid.follow()) { drag = value } }
+        onExpand()
     }
     BackHandler { close() }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val fullH = constraints.maxHeight.toFloat()
         val navPx = WindowInsets.navigationBars.getBottom(density).toFloat()
-        val statusPx = WindowInsets.statusBars.getTop(density).toFloat()
         // the dim over the caller: tap it to close
         Box(
             Modifier.fillMaxSize()
-                .graphicsLayer { alpha = appear.value.coerceIn(0f, 1f) * (1f - grow.value * 0.3f) }
+                .graphicsLayer { alpha = appear.value.coerceIn(0f, 1f) }
                 .background(Color.Black.copy(alpha = if (c.dark) 0.5f else 0.32f))
                 .clickable(remember { MutableInteractionSource() }, null) { close() },
         )
         val margin = with(density) { 10.dp.toPx() }
         val cardH = fullH * CardHeight - navPx
-        val g = grow.value.coerceIn(0f, 1f)
         Box(
             Modifier
                 .align(Alignment.BottomCenter)
                 .graphicsLayer {
-                    val p = appear.value
-                    // rising in, following a drag, growing to the whole screen for Expand
-                    translationY = (1f - p) * cardH * 0.9f + drag.coerceAtLeast(0f) * (1f - g)
+                    // rising in from below the screen's edge, following a drag
+                    translationY = (1f - appear.value) * (cardH + margin + navPx) + drag.coerceAtLeast(0f)
                     val pull = (-drag).coerceAtLeast(0f) / fullH
-                    scaleX = lerp(0.94f, 1f, p.coerceIn(0f, 1.2f)) + pull * 0.06f
+                    scaleX = 1f + pull * 0.04f
                     scaleY = scaleX
                 }
-                .padding(
-                    start = with(density) { lerp(margin, 0f, g).toDp() },
-                    end = with(density) { lerp(margin, 0f, g).toDp() },
-                    bottom = with(density) { lerp(margin + navPx, 0f, g).toDp() },
-                )
+                .padding(start = 10.dp, end = 10.dp, bottom = with(density) { (margin + navPx).toDp() })
                 .fillMaxWidth()
-                .height(with(density) { lerp(cardH, fullH, g).toDp() })
-                .clip(RoundedRectangle(lerp(34f, 0f, g).dp))
-                .background(if (c.dark) Color(0xFF111A1F) else Color(0xFFE6ECF4))
+                .height(with(density) { cardH.toDp() })
+                .clip(RoundedRectangle(34.dp))
+                .background(paper)
                 .clickable(remember { MutableInteractionSource() }, null) {},
         ) {
-            val headerH = 112.dp
             GlassLayer(
                 Modifier.fillMaxSize(),
                 content = {
                     AnimatedContent(
                         state, contentKey = { it::class }, label = "preview",
-                        transitionSpec = { fadeIn(GlassMotion.settle()) togetherWith fadeOut(GlassMotion.fold()) },
+                        transitionSpec = { fadeIn(Fluid.fade()) togetherWith fadeOut(Fluid.fade()) },
                     ) { s ->
                         when (s) {
-                            is PreviewState.Ready -> Pages(s, headerH)
+                            is PreviewState.Ready -> Pages(s, paper)
                             is PreviewState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { GlassLoader(size = 72.dp) }
                             is PreviewState.Password -> PasswordCard(s, onPassword)
                             is PreviewState.Failed -> FailedCard(s.message) { close() }
@@ -229,54 +221,75 @@ private fun Preview(
                     }
                 },
             ) {
+                val haptics = com.chethan616.clearpdf.ui.glass.LocalHaptics.current
+                val threshold = with(density) { 110.dp.toPx() }
                 Header(
-                    state, Modifier.align(Alignment.TopCenter).padding(top = with(density) { lerp(0f, statusPx, g).toDp() }),
-                    onDrag = { d -> drag += d },
+                    state, paper, Modifier.align(Alignment.TopCenter),
+                    onDrag = { d ->
+                        val before = drag > threshold || drag < -threshold * 0.8f
+                        drag += d
+                        // a tick where letting go would close (down) or open (up)
+                        if (before != (drag > threshold || drag < -threshold * 0.8f)) haptics?.play(com.chethan616.clearpdf.ui.glass.Feel.Tick)
+                    },
                     onDragEnd = {
-                        val threshold = with(density) { 110.dp.toPx() }
                         when {
                             drag > threshold -> close()
-                            drag < -threshold * 0.8f -> expand()
-                            else -> scope.launch { Animatable(drag).animateTo(0f, GlassMotion.pressOut()) { drag = value } }
+                            drag < -threshold * 0.8f -> open()
+                            else -> scope.launch { Animatable(drag).animateTo(0f, Fluid.follow()) { drag = value } }
                         }
                     },
-                    onClose = ::close, onExpand = ::expand, onShare = onShare, onOpenWith = onOpenWith,
+                    onClose = ::close, onShare = onShare, onOpenWith = onOpenWith,
                     onSaveCopy = { onSaveCopy { toast = it } },
                 )
-                (state as? PreviewState.Ready)?.let { BottomBar(it, onShare, ::expand, Modifier.align(Alignment.BottomCenter).padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) }
+                if (state is PreviewState.Ready) {
+                    GlassPill(
+                        onClick = ::open, tint = Candy.Sky, height = 50.dp, horizontalPadding = 30.dp,
+                        label = stringResource(R.string.preview_expand),
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp),
+                    ) {
+                        Text(stringResource(R.string.preview_open), style = ClearType.BodyStrong, color = Color.White)
+                    }
+                }
                 toast?.let { t -> GlassToast(t, null, {}, Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = 84.dp)) }
+                // floating glass (the More menu) is composed here, over the pages, so it refracts them
+                overlays?.let { GlassOverlayLayer(it) }
             }
         }
     }
 }
 
-/** The pages, scrolling under the glass header; pinch and double tap zoom as in the viewer. */
+/** The header's height: the pages start below it and fade up into it as they scroll. */
+private val HeaderHeight = 84.dp
+
+/** The pages, scrolling under the header; pinch and double tap zoom as in the viewer. */
 @Composable
-private fun Pages(s: PreviewState.Ready, headerTop: androidx.compose.ui.unit.Dp) {
-    val c = clear
+private fun Pages(s: PreviewState.Ready, paper: Color) {
     val density = LocalDensity.current
     LaunchedEffect(s) {
-        with(density) { s.view.setPadding(headerTop.toPx(), 86.dp.toPx()) }
+        with(density) { s.view.setPadding(HeaderHeight.toPx(), 92.dp.toPx()) }
     }
     PageCanvas(
         state = s.view,
         images = s.images,
         generation = s.info.generation.toLong(),
-        look = CanvasLook(background = if (c.dark) Color(0xFF111A1F) else Color(0xFFE6ECF4), pageShadow = Color(0x26000000)),
+        look = CanvasLook(background = paper, pageShadow = Color(0x26000000)),
         gap = 10.dp,
         margin = 12.dp,
     )
 }
 
-/** The glass header: a handle, Close, the document's name and size, and More. Drag it to close or expand. */
+/**
+ * The header, plain: a handle, the document's name and size, More and Close as quiet round buttons.
+ * It sits on the card's own colour and fades into the pages below it. Drag it to close or to open.
+ */
 @Composable
 private fun Header(
     state: PreviewState,
+    paper: Color,
     modifier: Modifier,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
     onClose: () -> Unit,
-    onExpand: () -> Unit,
     onShare: () -> Unit,
     onOpenWith: () -> Unit,
     onSaveCopy: () -> Unit,
@@ -286,23 +299,24 @@ private fun Header(
     var anchor by remember { mutableStateOf(Rect.Zero) }
     val ready = state as? PreviewState.Ready
     Column(
-        modifier.fillMaxWidth().pointerInput(Unit) {
-            detectVerticalDragGestures(onDragEnd = onDragEnd, onDragCancel = onDragEnd) { ch, d ->
-                ch.consume()
-                onDrag(d)
-            }
-        },
+        modifier.fillMaxWidth()
+            .background(Brush.verticalGradient(0f to paper, 0.74f to paper, 1f to paper.copy(alpha = 0f)))
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(onDragEnd = onDragEnd, onDragCancel = onDragEnd) { ch, d ->
+                    ch.consume()
+                    onDrag(d)
+                }
+            },
     ) {
-        Box(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 6.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(40.dp, 5.dp).clip(Capsule).background(c.ink.copy(alpha = 0.22f)))
+        Box(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(36.dp, 5.dp).clip(Capsule).background(c.ink.copy(alpha = 0.2f)))
         }
         Row(
-            Modifier.padding(horizontal = 10.dp).fillMaxWidth().glass(Capsule, c.frost, blur = 14.dp).padding(6.dp),
+            Modifier.fillMaxWidth().padding(start = 22.dp, end = 14.dp, bottom = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            GlassCircle(onClick = onClose, size = 44.dp, label = stringResource(R.string.preview_close)) { GlassIcon(LucideIcons.X, null, Modifier.size(20.dp)) }
-            Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
+            Column(Modifier.weight(1f)) {
                 Text(
                     ready?.name?.removeSuffix(".pdf")?.removeSuffix(".PDF") ?: stringResource(R.string.preview_title),
                     style = ClearType.BodyStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -315,18 +329,19 @@ private fun Header(
                 }
             }
             if (ready != null) {
-                GlassCircle(
-                    onClick = { menu = true }, size = 44.dp, label = stringResource(R.string.common_more_options),
-                    modifier = Modifier.onGloballyPositioned { anchor = it.boundsInWindow() },
-                ) { GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(20.dp)) }
+                QuietButton(
+                    { menu = true }, stringResource(R.string.common_more_options),
+                    Modifier.onGloballyPositioned { anchor = it.boundsInWindow() },
+                ) { Icon(LucideIcons.Ellipsis, null, tint = c.ink, modifier = Modifier.size(20.dp)) }
             }
+            QuietButton(onClose, stringResource(R.string.preview_close)) { Icon(LucideIcons.X, null, tint = c.ink, modifier = Modifier.size(18.dp)) }
         }
     }
     if (menu) {
         GlassMenu(
             anchor, { menu = false },
             listOf(
-                GlassMenuItem(stringResource(R.string.preview_open_in_app), LucideIcons.Maximize2, onClick = onExpand),
+                GlassMenuItem(stringResource(R.string.common_share), LucideIcons.Share2, onClick = onShare),
                 GlassMenuItem(stringResource(R.string.preview_save_downloads), LucideIcons.FileDown, onClick = onSaveCopy),
                 GlassMenuItem(stringResource(R.string.home_open_with), LucideIcons.ExternalLink, onClick = onOpenWith),
             ),
@@ -334,24 +349,13 @@ private fun Header(
     }
 }
 
-/** The card's foot, on glass: Share, the page it's on ("3 / 12"), and Open (Expand) in the app's blue. */
+/** A round button with no glass: a faint disc of ink and a glyph, for a plain surface. */
 @Composable
-private fun BottomBar(s: PreviewState.Ready, onShare: () -> Unit, onExpand: () -> Unit, modifier: Modifier) {
-    val c = clear
-    Row(
-        modifier.fillMaxWidth().glass(Capsule, c.frost, blur = 14.dp).padding(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        GlassCircle(onClick = onShare, size = 46.dp, label = stringResource(R.string.common_share)) { GlassIcon(LucideIcons.Share2, null, Modifier.size(20.dp)) }
-        Text(
-            "${s.view.currentPage + 1} / ${s.info.pages.size}", style = ClearType.Label, color = c.inkSoft,
-            textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
-        )
-        GlassPill(onClick = onExpand, tint = Candy.Sky, height = 46.dp, horizontalPadding = 18.dp, label = stringResource(R.string.preview_expand)) {
-            Icon(LucideIcons.Maximize2, null, tint = Color.White, modifier = Modifier.size(17.dp))
-            Text(stringResource(R.string.preview_open), style = ClearType.BodyStrong, color = Color.White)
-        }
-    }
+private fun QuietButton(onClick: () -> Unit, label: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Box(
+        modifier.size(38.dp).pressable(onClick, pressedScale = 0.9f).clip(CircleShape).background(clear.ink.copy(alpha = 0.08f)).semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) { content() }
 }
 
 /** A locked document: its password, asked for right in the card. */

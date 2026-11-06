@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -65,6 +66,7 @@ import com.chethan616.clearpdf.ui.theme.glowing
 import com.chethan616.clearpdf.ui.viewer.formatSize
 import com.kyant.shapes.RoundedRectangle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** A tool as the desk and the Tools tab show it: one candy colour everywhere it appears. */
@@ -137,13 +139,18 @@ val DockClearance = 40.dp
  * caps [eyebrow], the [title] large and white on the sky, and [trailing] controls.
  */
 @Composable
-fun ScreenHeader(eyebrow: String?, title: String, modifier: Modifier = Modifier, onBack: (() -> Unit)? = null, trailing: @Composable () -> Unit = {}) {
+fun ScreenHeader(eyebrow: String?, title: String, modifier: Modifier = Modifier, onBack: (() -> Unit)? = null, titleStyle: TextStyle = ClearType.Display, trailing: @Composable () -> Unit = {}) {
     val c = clear
     Column(modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp)) {
         if (onBack != null) {
             Row(Modifier.fillMaxWidth().padding(bottom = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                GlassCircle(onClick = onBack, size = 54.dp, surface = c.capsule, label = stringResource(R.string.common_back)) {
-                    GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(24.dp), tint = Color.White)
+                // the same plain glass as every glass button (it was a dark, ringed disc). The screen
+                // leaves a beat after the tap, so the glass is seen to swell and spring back first
+                com.chethan616.clearpdf.ui.glass.HeaderGlassButton(
+                    onClick = com.chethan616.clearpdf.ui.glass.rememberBeat(onBack),
+                    label = stringResource(R.string.common_back),
+                ) {
+                    GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(24.dp))
                 }
                 Spacer(Modifier.weight(1f))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { trailing() }
@@ -155,7 +162,7 @@ fun ScreenHeader(eyebrow: String?, title: String, modifier: Modifier = Modifier,
                     Text(eyebrow.uppercase(), style = ClearType.Eyebrow, color = c.hero.copy(alpha = 0.85f))
                     Spacer(Modifier.height(6.dp))
                 }
-                Text(title, style = ClearType.Display.copy(color = c.hero).glowing(c))
+                Text(title, style = titleStyle.copy(color = c.hero).glowing(c))
             }
             if (onBack == null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { trailing() }
         }

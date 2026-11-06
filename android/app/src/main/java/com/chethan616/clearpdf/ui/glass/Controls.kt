@@ -61,6 +61,7 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 private fun Modifier.thumb(drag: DampedDragAnimation, track: com.kyant.backdrop.backdrops.LayerBackdrop, lensHeight: Float, lensAmount: Float, trackScale: Float): Modifier {
     val backdrop = LocalBackdrop.current
+    val style = GlassSettings.style
     return drawBackdrop(
         backdrop = rememberCombinedBackdrop(
             backdrop,
@@ -72,12 +73,16 @@ private fun Modifier.thumb(drag: DampedDragAnimation, track: com.kyant.backdrop.
         shape = { Capsule },
         effects = {
             val p = drag.pressProgress
-            if (p > 0f) blur(8f.dp.toPx() * (1f - p))
-            lens(lensHeight.dp.toPx() * p, lensAmount.dp.toPx() * p, chromaticAberration = true)
+            if (p > 0f) blur(8f.dp.toPx() * (1f - p) * style.blur)
+            lens(
+                lensHeight.dp.toPx() * p * style.refractionHeight, lensAmount.dp.toPx() * p * style.refractionAmount,
+                chromaticAberration = true,
+            )
         },
         highlight = {
             val p = drag.pressProgress
-            if (p <= 0f) null else Highlight.Ambient.copy(width = Highlight.Ambient.width / 1.5f, blurRadius = Highlight.Ambient.blurRadius / 1.5f, alpha = p)
+            if (p <= 0f || style.highlight <= 0f) null
+            else Highlight.Ambient.copy(width = Highlight.Ambient.width / 1.5f, blurRadius = Highlight.Ambient.blurRadius / 1.5f, alpha = p * style.highlight.coerceIn(0f, 1f))
         },
         shadow = null,
         innerShadow = {
@@ -101,7 +106,7 @@ fun GlassToggle(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifie
     val track = if (c.dark) Color(0xFF787880).copy(0.36f) else Color(0xFF787878).copy(0.2f)
     val density = LocalDensity.current
     val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
-    val haptics = LocalHapticFeedback.current
+    val haptics = LocalHaptics.current
     val dragWidth = with(density) { 20f.dp.toPx() }
     val scope = rememberCoroutineScope()
     val current by rememberUpdatedState(checked)
@@ -116,7 +121,7 @@ fun GlassToggle(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifie
                 fraction = if (didDrag) (if (targetValue >= 0.5f) 1f else 0f) else (if (current) 0f else 1f)
                 didDrag = false
                 if ((fraction == 1f) != current) {
-                    haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    haptics?.play(if (fraction == 1f) Feel.ToggleOn else Feel.ToggleOff)
                     change(fraction == 1f)
                 }
             },

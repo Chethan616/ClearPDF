@@ -42,12 +42,19 @@ the full viewer would put it, so:
 **Lifecycle.** The engine document is closed (`doc_close`, discarding nothing since previews never
 change the file) when the activity finishes; page images are dropped on memory pressure.
 
-**Transitions.** Opening: the card rises from the bottom on a spring as the dim and blur fade in.
-Closing: it folds down without bounce, then the activity finishes with no system animation.
-Expand: the card grows to fill the screen (margins and corners to zero), then the full viewer
-fades in over it and the preview finishes.
+**Transitions.** Opening: the card rises from the bottom on the sheet curve (no bounce: only glass
+controls bounce) as the dim and blur fade in. Closing: it folds down, then the activity finishes
+with no system animation. Open: straight into the app, with no stop at a full-screen preview. The
+card holds still while the viewer rises over it (`preview_open_enter` / `preview_open_exit`, the
+UIKit curve in `res/interpolator/ui_curve.xml`), and the preview finishes without an override that
+would replace that animation.
 
-**Gestures.** Drag the header down past 110 dp to close, up past 88 dp to expand.
+**The card is minimal.** A plain header (grabber, name and size, a quiet More and Close), the
+pages, and one tinted glass "Open" pill. Share, Save to Downloads and Open with live in More. The
+More menu's glass sits inside the card's glass layer, so it refracts the pages (an overlay only
+refracts the backdrop at the place its layer is composed).
+
+**Gestures.** Drag the header down past 110 dp to close, up past 88 dp to open.
 
 **Settings.** Settings ▸ Reading ▸ Quick Preview turns it off: files then go straight to the full
 viewer.

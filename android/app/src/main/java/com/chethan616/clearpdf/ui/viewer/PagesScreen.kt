@@ -47,6 +47,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.chethan616.clearpdf.ui.glass.glassBar
+import com.chethan616.clearpdf.ui.glass.pressable
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -112,29 +115,27 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
     LaunchedEffect(organizing) { if (organizing && selected.isEmpty()) selected[doc.viewer.currentPage] = true }
     val picked = selected.filterValues { it }.keys.sorted()
     val canDrag = doc.info.allowsAssembly && doc.pageCount > 1
-    // black where the camera is (the status bar stays hidden) and the viewer's band behind the
-    // navigation buttons, as the reference's Pages has
-    Column(
-        Modifier.fillMaxSize().background(Color.Black).safeTopPadding()
-            .background(c.navBand).navigationBarsPadding().background(c.surface),
-    ) {
+    // Artefact's own pages: the app's wallpaper, a glass Back, frosted page cards and a glass bar
+    com.chethan616.clearpdf.ui.glass.AuroraScreen {
+    Column(Modifier.fillMaxSize().safeTopPadding().navigationBarsPadding()) {
         Row(
-            Modifier.fillMaxWidth().height(TopBarHeight).drawBehind {
-                val line = 1.dp.toPx()
-                drawRect(c.divider, androidx.compose.ui.geometry.Offset(0f, size.height - line), androidx.compose.ui.geometry.Size(size.width, line))
-            }.padding(bottom = 1.dp),
+            Modifier.fillMaxWidth().height(TopBarHeight).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(56.dp), contentAlignment = Alignment.Center) {
-                if (organizing) {
-                    BarIcon(LucideIcons.Check, stringResource(if (picked.isEmpty()) R.string.common_done else R.string.common_back), ::back, tint = c.toolAccent)
-                } else {
-                    BarIcon(LucideIcons.ArrowLeft, stringResource(R.string.common_back), ::back, iconSize = 27.dp)
+            val goBack = com.chethan616.clearpdf.ui.glass.rememberBeat(::back)
+            if (organizing) {
+                com.chethan616.clearpdf.ui.glass.GlassCircle(goBack, size = 48.dp, tint = com.chethan616.clearpdf.ui.theme.Candy.Sky, label = stringResource(if (picked.isEmpty()) R.string.common_done else R.string.common_back)) {
+                    com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Check, null, Modifier.size(22.dp))
+                }
+            } else {
+                com.chethan616.clearpdf.ui.glass.GlassCircle(goBack, size = 48.dp, label = stringResource(R.string.common_back)) {
+                    com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(23.dp))
                 }
             }
+            Spacer(Modifier.width(14.dp))
             Text(
                 if (organizing && picked.isNotEmpty()) pluralStringResource(R.plurals.pages_selected_count, picked.size, picked.size) else if (organizing) stringResource(R.string.pages_select) else stringResource(R.string.pages_title),
-                color = c.label, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f),
+                style = com.chethan616.clearpdf.ui.theme.ClearType.Title, color = com.chethan616.clearpdf.ui.theme.clear.ink, maxLines = 1, modifier = Modifier.weight(1f),
             )
             if (organizing && exporting == null) {
                 UndoMenuButton(doc.info.undo != null, doc.info.redo != null, { vm.undo(doc) }, { vm.redo(doc) }, doc.info.undo, doc.info.redo)
@@ -222,8 +223,8 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Box(
-                            Modifier.size(cardW, 162.dp).clip(RoundedCornerShape(5.dp)).background(c.pageCard)
-                                .border(if (highlighted) 2.dp else 1.dp, if (highlighted) c.toolAccent else c.pageCard, RoundedCornerShape(5.dp)),
+                            Modifier.size(cardW, 162.dp).then(com.chethan616.clearpdf.ui.glass.washPanel())
+                                .then(if (highlighted) Modifier.border(2.dp, com.chethan616.clearpdf.ui.theme.Candy.Sky, com.kyant.shapes.RoundedRectangle(20.dp)) else Modifier),
                             contentAlignment = Alignment.Center,
                         ) {
                             val ratio = (p.width / p.height.coerceAtLeast(1f)).coerceIn(0.2f, 5f)
@@ -232,29 +233,20 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
                             Box(Modifier.size(w, w / ratio).background(Color.White)) {
                                 thumbs[i]?.let { Image(it, null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
                             }
-                            if (organizing) {
-                                Box(
-                                    Modifier.align(Alignment.TopStart).padding(8.dp).size(18.dp).clip(RoundedCornerShape(2.dp))
-                                        .background(if (isSel) c.toolAccent else Color.Transparent)
-                                        .border(2.dp, if (isSel) c.toolAccent else c.textSecondary, RoundedCornerShape(2.dp)),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    if (isSel) Icon(LucideIcons.Check, null, tint = Color.White, modifier = Modifier.size(12.dp))
-                                }
-                            }
+                            if (organizing) com.chethan616.clearpdf.ui.glass.GlassTick(isSel, Modifier.align(Alignment.TopStart).padding(8.dp))
                         }
                         Spacer(Modifier.height(8.dp))
-                        Text("${i + 1}", color = c.icon, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, lineHeight = 17.sp)
+                        Text("${i + 1}", style = com.chethan616.clearpdf.ui.theme.ClearType.Label, color = com.chethan616.clearpdf.ui.theme.clear.inkSoft)
                         Spacer(Modifier.height(12.dp))
                     }
                 }
             }
         }
         val enabled = picked.isNotEmpty()
+        // the actions on one floating glass capsule, as the viewer's toolbar
         Row(
-            // at least the bar's height, taller when a large font setting enlarges the labels (sp, as the reference's)
-            Modifier.fillMaxWidth().heightIn(min = BottomBarHeight).barTopLine().background(c.surface),
-            horizontalArrangement = Arrangement.spacedBy(if (organizing) 0.dp else 20.dp, Alignment.CenterHorizontally),
+            Modifier.padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth().height(60.dp)
+                .glassBar().padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (exporting != null) {
@@ -282,6 +274,7 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
             }
         }
     }
+    }
     if (insertMenu) {
         // where the new pages go, as the reference asks: around the selection, or at either end
         var after by remember { mutableStateOf(true) }
@@ -305,10 +298,8 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
                     Modifier.fillMaxWidth().clickable(role = Role.RadioButton) { after = option }.padding(horizontal = 12.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    androidx.compose.material3.RadioButton(
-                        selected = after == option, onClick = { after = option },
-                        colors = androidx.compose.material3.RadioButtonDefaults.colors(selectedColor = c.toolAccent, unselectedColor = c.icon),
-                    )
+                    com.chethan616.clearpdf.ui.glass.GlassRadio(after == option, { after = option })
+                    Spacer(Modifier.width(8.dp))
                     Text(label, color = c.text, fontSize = 16.sp)
                 }
             }
@@ -321,18 +312,13 @@ fun PagesScreen(vm: AppViewModel, doc: OpenDocument, onClose: () -> Unit) {
     }
 }
 
+/** An action of the pages' glass bar: its glyph in the glass's ink (it names itself to TalkBack), faint while it can't be used. */
 @Composable
-private fun OrganizeItem(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
-    val c = pdfColors
-    val tint = if (enabled) c.icon else c.icon.copy(alpha = 0.35f)
-    // the reference's items: a 40 dp icon box over an 11 sp label, 56 dp wide (wider for long labels)
-    Column(
-        Modifier.widthIn(min = 56.dp).heightIn(min = BottomBarHeight).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = label }.padding(horizontal = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+private fun androidx.compose.foundation.layout.RowScope.OrganizeItem(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.weight(1f).fillMaxHeight().pressable(onClick, enabled = enabled, pressedScale = 0.86f).semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { Icon(icon, null, tint = tint, modifier = Modifier.size(24.dp)) }
-        Text(label, color = if (enabled) c.label else c.label.copy(alpha = 0.35f), fontSize = 10.5.sp, maxLines = 1)
+        com.chethan616.clearpdf.ui.glass.GlassIcon(icon, null, Modifier.size(24.dp).graphicsLayer { alpha = if (enabled) 1f else 0.35f })
     }
 }

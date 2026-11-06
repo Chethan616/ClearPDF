@@ -234,12 +234,13 @@ fun SignaturePadScreen(vm: AppViewModel, pad: SignaturePad, onPickImage: () -> U
     val ink = Color(vm.toolPrefs.fillColor)
     val imported = vm.importedSignature
     val drawFirst = stringResource(if (pad.initials) R.string.fill_draw_initials_first else R.string.fill_draw_signature_first)
-    Column(Modifier.fillMaxSize().background(c.surface).safeTopPadding().navigationBarsPadding()) {
+    com.chethan616.clearpdf.ui.glass.AuroraScreen { Column(Modifier.fillMaxSize().safeTopPadding().navigationBarsPadding()) {
         Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { vm.signaturePad = null; vm.importedSignature = null }) { Text(stringResource(R.string.common_cancel), color = c.accent) }
+            com.chethan616.clearpdf.ui.glass.GlassTextAction(stringResource(R.string.common_cancel), { vm.signaturePad = null; vm.importedSignature = null })
             Text(stringResource(if (pad.initials) R.string.fill_create_initials else R.string.fill_create_signature), color = c.text, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            TextButton(
-                onClick = {
+            com.chethan616.clearpdf.ui.glass.GlassTextAction(
+                stringResource(R.string.common_done),
+                {
                     val bmp = imported ?: renderStrokes(strokes, size, ink)
                     if (bmp == null) {
                         vm.tell(drawFirst)
@@ -247,7 +248,8 @@ fun SignaturePadScreen(vm: AppViewModel, pad: SignaturePad, onPickImage: () -> U
                         vm.finishSignature(pad, bmp, save)
                     }
                 },
-            ) { Text(stringResource(R.string.common_done), color = c.accent, fontWeight = FontWeight.SemiBold) }
+                primary = true,
+            )
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TabChip(stringResource(R.string.fill_tab_draw), imported == null) { vm.importedSignature = null }
@@ -287,10 +289,10 @@ fun SignaturePadScreen(vm: AppViewModel, pad: SignaturePad, onPickImage: () -> U
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.fill_save_to_device), color = c.text, fontSize = 15.sp, modifier = Modifier.weight(1f))
-            Switch(checked = save, onCheckedChange = { save = it }, colors = SwitchDefaults.colors(checkedTrackColor = c.accent))
+            com.chethan616.clearpdf.ui.glass.GlassToggle(save, { save = it })
         }
         Spacer(Modifier.height(8.dp))
-    }
+    } }
     SheetDivider(inset = 0.dp)
 }
 

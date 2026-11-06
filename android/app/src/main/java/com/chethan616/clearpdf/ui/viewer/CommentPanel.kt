@@ -156,10 +156,10 @@ fun CommentPanel(vm: AppViewModel, doc: OpenDocument, c: CommentInfo) {
                                 value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp),
                                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colors.toolAccent, cursorColor = colors.toolAccent),
                             )
-                            Row {
+                            Row(Modifier.padding(top = 8.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
                                 Spacer(Modifier.weight(1f))
-                                TextButton(onClick = { editing = null }) { Text(stringResource(R.string.common_cancel), color = colors.toolAccent) }
-                                TextButton(onClick = { editing = null; vm.editCommentText(doc, cm, text) }) { Text(stringResource(R.string.common_save), color = colors.toolAccent, fontWeight = FontWeight.SemiBold) }
+                                com.chethan616.clearpdf.ui.glass.GlassTextAction(stringResource(R.string.common_cancel), { editing = null })
+                                com.chethan616.clearpdf.ui.glass.GlassTextAction(stringResource(R.string.common_save), { editing = null; vm.editCommentText(doc, cm, text) }, primary = true)
                             }
                         }
                     } else {

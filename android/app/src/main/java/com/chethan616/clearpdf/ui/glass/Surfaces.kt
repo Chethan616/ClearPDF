@@ -8,6 +8,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.Icon
@@ -78,6 +79,26 @@ fun GlassCard(
 }
 
 /**
+ * A painted surface (a desk card) that glass can sit on: [paint] is drawn as a sibling layer under
+ * [content], so a [GlassChip] inside refracts the card's own colour instead of the wallpaper behind it.
+ * (A glass control can't refract the layer it is drawn in, hence two layers.)
+ */
+@Composable
+fun GlassHost(
+    modifier: Modifier = Modifier,
+    paint: @Composable BoxScope.() -> Unit,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val below = LocalBackdrop.current
+    val layer = rememberLayerBackdrop()
+    val combined = rememberCombinedBackdrop(below, layer)
+    Box(modifier) {
+        Box(Modifier.matchParentSize().layerBackdrop(layer), content = paint)
+        CompositionLocalProvider(LocalBackdrop provides combined) { content() }
+    }
+}
+
+/**
  * The wash panel scrolling lists use: the glass's tint and its lit rim without the backdrop pass.
  * Over the aurora's soft gradients a blur changes almost nothing, but re-sampling every panel on
  * every scrolled frame costs a lot; floating chrome keeps the real glass.
@@ -92,6 +113,10 @@ fun Modifier.wash(shape: Shape = RoundedRectangle(28.dp), tint: Color = clear.gl
         .border(1.dp, Brush.verticalGradient(listOf(rimTop, rimBottom)), shape)
 }
 
+/** The [wash] of a panel (a file card, a group of rows), with its 20 dp continuous corners. */
+@Composable
+fun washPanel(): Modifier = Modifier.wash(RoundedRectangle(20.dp))
+
 /** A [wash] panel holding rows. */
 @Composable
 fun WashPanel(modifier: Modifier = Modifier, shape: Shape = RoundedRectangle(28.dp), content: @Composable ColumnScope.() -> Unit) {
@@ -105,21 +130,22 @@ fun GlassPanel(modifier: Modifier = Modifier, shape: Shape = RoundedRectangle(28
 }
 
 /**
- * A flat pressable (a row, a tile, a card): dips on press with the jelly spring, springs back past
- * rest once, one haptic per tap. No ripple.
+ * A flat pressable (a row, a tile, a card): sinks under the finger and eases back (no bounce: that
+ * is the glass buttons'), one haptic per tap. No ripple.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Modifier.pressable(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
-    pressedScale: Float = GlassMotion.PressedScale,
+    pressedScale: Float = Fluid.PressedScale,
     role: Role = Role.Button,
     enabled: Boolean = true,
+    feel: Feel = Feel.Tap,
 ): Modifier {
     val source = remember { MutableInteractionSource() }
     val jelly = rememberJellyPress(source, pressedScale)
-    val haptics = LocalHapticFeedback.current
+    val haptics = LocalHaptics.current
     return graphicsLayer {
         scaleX = jelly.scale
         scaleY = jelly.scale
@@ -128,8 +154,8 @@ fun Modifier.pressable(
         indication = null,
         enabled = enabled,
         role = role,
-        onClick = { haptics.performHapticFeedback(HapticFeedbackType.ContextClick); onClick() },
-        onLongClick = onLongClick?.let { l -> { haptics.performHapticFeedback(HapticFeedbackType.LongPress); l() } },
+        onClick = { haptics?.play(feel); onClick() },
+        onLongClick = onLongClick?.let { l -> { haptics?.play(Feel.Bloom); jelly.rest(); l() } },
     )
 }
 

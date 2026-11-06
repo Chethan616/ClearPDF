@@ -171,7 +171,11 @@ class InteractiveHighlight(
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private object PressGlow {
-        fun create(): Shader = RuntimeShader(
+        // one compiled shader for every button: each press sets its uniforms and draws in the same UI-thread
+        // step, and a paint snapshots them, so sharing costs nothing and saves a compile at each button's first press
+        private var shared: Shader? = null
+
+        fun create(): Shader = shared ?: RuntimeShader(
             """
 uniform float2 size;
 layout(color) uniform half4 color;
@@ -183,7 +187,7 @@ half4 main(float2 coord) {
     float intensity = smoothstep(radius, radius * 0.5, dist);
     return color * intensity;
 }""",
-        )
+        ).also { shared = it }
 
         fun update(shader: Shader, size: Size, color: Int, radius: Float, position: Offset) {
             (shader as RuntimeShader).apply {
@@ -280,8 +284,9 @@ fun GraphicsLayerScope.liquidPressTransform(h: InteractiveHighlight) {
 }
 
 /**
- * The press jelly of flat pressables (rows, tiles, chips): dips on press, springs back past rest once,
- * and holds a quick tap long enough to be seen. Read [scale] inside graphicsLayer.
+ * The press of flat pressables (rows, tiles, cards, chips): sinks under the finger and comes back
+ * softly, never past rest (the jelly belongs to the glass buttons alone), and holds a quick tap long
+ * enough to be seen. Read [scale] inside graphicsLayer.
  */
 @Stable
 class JellyPress internal constructor(private val scope: CoroutineScope, private val pressedScale: Float) {
@@ -290,13 +295,13 @@ class JellyPress internal constructor(private val scope: CoroutineScope, private
     private var releaseJob: Job? = null
 
     val scale: Float get() = anim.value
-    /** 0 at rest, 1 fully pressed (past 1 on the overshoot). */
-    val progress: Float get() = ((1f - anim.value) / (1f - pressedScale)).fastCoerceIn(-0.5f, 1.5f)
+    /** 0 at rest, 1 fully pressed. */
+    val progress: Float get() = ((1f - anim.value) / (1f - pressedScale)).fastCoerceIn(0f, 1f)
 
     fun press() {
         releaseJob?.cancel()
         downAt = SystemClock.uptimeMillis()
-        scope.launch { anim.animateTo(pressedScale, GlassMotion.pressIn()) }
+        scope.launch { anim.animateTo(pressedScale, Fluid.pressIn()) }
     }
 
     fun release() {
@@ -304,13 +309,22 @@ class JellyPress internal constructor(private val scope: CoroutineScope, private
         releaseJob = scope.launch {
             val held = SystemClock.uptimeMillis() - downAt
             if (held < GlassMotion.MinPressMillis) delay(GlassMotion.MinPressMillis - held)
-            anim.animateTo(1f, GlassMotion.pressOut())
+            anim.animateTo(1f, Fluid.pressOut())
         }
+    }
+
+    /**
+     * Back to rest at once: a long press opens a sheet over this, and springing back under the sheet
+     * would redraw the whole still scene on every frame of it.
+     */
+    fun rest() {
+        releaseJob?.cancel()
+        scope.launch { anim.snapTo(1f) }
     }
 }
 
 @Composable
-fun rememberJellyPress(interaction: InteractionSource, pressedScale: Float = GlassMotion.PressedScale): JellyPress {
+fun rememberJellyPress(interaction: InteractionSource, pressedScale: Float = Fluid.PressedScale): JellyPress {
     val scope = rememberCoroutineScope()
     val jelly = remember(scope, pressedScale) { JellyPress(scope, pressedScale) }
     LaunchedEffect(interaction, jelly) {
@@ -336,7 +350,7 @@ class LiquidStretchState internal constructor(
     private val maxScale: Float,
     private val settleDelayMs: Long,
 ) {
-    private val spec = spring<Float>(dampingRatio = 0.35f, stiffness = 180f, visibilityThreshold = 0.0005f)
+    private val spec get() = spring<Float>(MotionSettings.damping(0.35f), MotionSettings.stiffness(180f), 0.0005f)
     private val sx = Animatable(1f, 0.0005f)
     private val sy = Animatable(1f, 0.0005f)
     private var lastX = Float.NaN
@@ -366,8 +380,9 @@ class LiquidStretchState internal constructor(
     fun onVelocity(vx: Float, vy: Float) {
         val ax = abs(vx)
         val ay = abs(vy)
-        val (tx, ty) = if (ax >= ay) (1f + ax * stretchFactor) to (1f - ax * stretchFactor * 0.5f)
-        else (1f - ay * stretchFactor * 0.5f) to (1f + ay * stretchFactor)
+        val k = stretchFactor * MotionSettings.style.stretch
+        val (tx, ty) = if (ax >= ay) (1f + ax * k) to (1f - ax * k * 0.5f)
+        else (1f - ay * k * 0.5f) to (1f + ay * k)
         animateTo(tx.coerceIn(minScale, maxScale), ty.coerceIn(minScale, maxScale))
         settleJob?.cancel()
         settleJob = scope.launch {

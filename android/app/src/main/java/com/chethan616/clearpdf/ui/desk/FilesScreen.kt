@@ -125,11 +125,10 @@ fun FilesScreen(vm: AppViewModel, onBrowse: () -> Unit) {
                 SelectionHeader(vm, recent = tab == 0) { confirmDelete = true }
             } else {
                 ScreenHeader(pluralStringResource(R.plurals.files_count, rows.size, rows.size), stringResource(R.string.home_tab_files), onBack = { vm.homeTab = HomeTab.Home }) {
-                    GlassCircle(
-                        onClick = { menuOpen = true }, size = 54.dp, surface = Color.White.copy(alpha = 0.16f),
+                    com.chethan616.clearpdf.ui.glass.HeaderGlassButton(
+                        onClick = { menuOpen = true }, label = stringResource(R.string.common_more_options),
                         modifier = Modifier.onGloballyPositioned { menuAnchor = it.boundsInWindow() },
-                        label = stringResource(R.string.common_more_options),
-                    ) { GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(22.dp), tint = clear.hero) }
+                    ) { GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(22.dp)) }
                 }
             }
         }

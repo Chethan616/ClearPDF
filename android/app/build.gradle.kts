@@ -277,6 +277,16 @@ android {
             // reproducible builds: no record of the checkout in the APK
             vcsInfo { include = false }
         }
+        // The debug app (same id, same data, debug key) built as a release is: no debugger, R8, and
+        // Compose's baseline profiles. A debuggable build runs Compose several times slower, so
+        // judge smoothness on this one: `./gradlew installFast -Partefact.abis=arm64-v8a`.
+        create("fast") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".debug"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+        }
     }
     // reproducible builds: no dependency metadata signing block (F-Droid's check rejects it)
     dependenciesInfo {
@@ -345,9 +355,10 @@ androidComponents {
     }
 }
 
-// reproducible builds: no baseline profile in the APK (its bytes vary from one build to the next)
+// reproducible builds: no baseline profile in the APK (its bytes vary from one build to the next);
+// the local `fast` build keeps Compose's, as it isn't published
 tasks.configureEach {
-    if (name.contains("ArtProfile")) enabled = false
+    if (name.contains("ArtProfile") && !name.contains("Fast")) enabled = false
 }
 
 dependencies {

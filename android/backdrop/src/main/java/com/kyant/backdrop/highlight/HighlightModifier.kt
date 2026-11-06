@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -26,6 +27,7 @@ import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.fastCoerceAtMost
 import com.kyant.backdrop.RuntimeShaderCacheImpl
 import com.kyant.backdrop.ShapeProvider
@@ -89,6 +91,16 @@ internal class HighlightNode(
 
     private var prevStyle: HighlightStyle? = null
 
+    // what the layer was last recorded for: the rim only changes with these, not with the node's
+    // position, so a glass node that moves (a fan chip, a swaying card) doesn't re-record its rim
+    private var recordedSize = IntSize.Zero
+    private var recordedDensity = 0f
+    private var recordedWidth = Float.NaN
+    private var recordedBlur = Float.NaN
+    private var recordedStyle: HighlightStyle? = null
+    private var recordedShape: Shape? = null
+    private var recordedLayoutDirection: LayoutDirection? = null
+
     override fun ContentDrawScope.draw() {
         val highlight = highlight()
         if (highlight == null || highlight.width.value <= 0f) {
@@ -117,18 +129,37 @@ internal class HighlightNode(
                     null
                 }
 
-            configurePaint(highlight)
+            val shape = shapeProvider.shape
+            val widthPx = highlight.width.toPx()
+            val blurPx = highlight.blurRadius.toPx()
+            val unchanged = safeSize == recordedSize &&
+                density.density == recordedDensity &&
+                widthPx == recordedWidth &&
+                blurPx == recordedBlur &&
+                highlight.style == recordedStyle &&
+                shape == recordedShape &&
+                layoutDirection == recordedLayoutDirection
 
             highlightLayer.alpha = highlight.alpha
             highlightLayer.blendMode = highlight.style.blendMode
-            highlightLayer.record(safeSize) {
-                translate(1f, 1f) {
-                    val canvas = drawContext.canvas
-                    canvas.save()
-                    canvas.clipOutline(outline, clipPath)
-                    canvas.drawOutline(outline, paint)
-                    canvas.restore()
+            if (!unchanged) {
+                configurePaint(highlight)
+                highlightLayer.record(safeSize) {
+                    translate(1f, 1f) {
+                        val canvas = drawContext.canvas
+                        canvas.save()
+                        canvas.clipOutline(outline, clipPath)
+                        canvas.drawOutline(outline, paint)
+                        canvas.restore()
+                    }
                 }
+                recordedSize = safeSize
+                recordedDensity = density.density
+                recordedWidth = widthPx
+                recordedBlur = blurPx
+                recordedStyle = highlight.style
+                recordedShape = shape
+                recordedLayoutDirection = layoutDirection
             }
 
             translate(-1f, -1f) {
@@ -149,8 +180,8 @@ internal class HighlightNode(
             highlightLayer = null
         }
         clipPath = null
-        runtimeShaderCache.clear()
         prevStyle = null
+        recordedStyle = null
     }
 
     private fun DrawScope.configurePaint(highlight: Highlight) {

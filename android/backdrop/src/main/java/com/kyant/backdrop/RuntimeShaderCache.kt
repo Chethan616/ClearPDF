@@ -20,16 +20,41 @@ sealed interface RuntimeShaderCache {
     ): RuntimeShader
 }
 
-internal class RuntimeShaderCacheImpl : RuntimeShaderCache {
+/**
+ * Every glass node asks for the same few shaders, and a [RuntimeShader] compiles its AGSL on the
+ * calling (UI) thread, so they are built once for the whole process instead of once per node: a
+ * fan of chips, or a page of cards, used to compile two shaders each, the prismatic lens being the
+ * dearest. Sharing is safe because an effect or paint snapshots the uniforms the moment it is made,
+ * and every node sets its uniforms and makes its effect in one go on the UI thread.
+ */
+private val sharedRuntimeShaders = HashMap<String, RuntimeShader>()
 
-    private val runtimeShaders = mutableMapOf<String, RuntimeShader>()
+internal class RuntimeShaderCacheImpl : RuntimeShaderCache {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun obtainRuntimeShader(key: String, string: String): RuntimeShader {
-        return runtimeShaders.getOrPut(key) { RuntimeShader(string) }
+        return sharedRuntimeShaders.getOrPut(key) { RuntimeShader(string) }
     }
+}
 
-    fun clear() {
-        runtimeShaders.clear()
+/**
+ * Compiles the glass shaders ahead of the first glass that needs them. Call [next] from an idle
+ * handler until it returns false: one shader per call, so no single call holds the UI thread long.
+ */
+object GlassShaderWarmup {
+    private var step = 0
+
+    @Suppress("NewApi")
+    fun next(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+        val cache = RuntimeShaderCacheImpl()
+        when (step++) {
+            0 -> cache.obtainRuntimeShader("Refraction", RoundedRectRefractionShaderString)
+            1 -> cache.obtainRuntimeShader("RefractionWithDispersion", RoundedRectRefractionWithDispersionShaderString)
+            2 -> cache.obtainRuntimeShader("Default", DefaultHighlightShaderString)
+            3 -> cache.obtainRuntimeShader("Ambient", AmbientHighlightShaderString)
+            else -> return false
+        }
+        return step < 4
     }
 }

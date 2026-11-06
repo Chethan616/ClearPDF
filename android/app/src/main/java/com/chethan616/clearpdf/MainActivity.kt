@@ -80,6 +80,8 @@ class MainActivity : ComponentActivity() {
                 onPickSignatureImage = { launchSafely { pickSignature.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
             )
         }
+        // the glass shaders compile one per idle moment, so the first glass on screen doesn't pay for it
+        if (savedInstanceState == null) android.os.Looper.myQueue().addIdleHandler { com.kyant.backdrop.GlassShaderWarmup.next() }
     }
 
     /** The view model's requests that need the activity: other apps, pickers, the camera, printing. */

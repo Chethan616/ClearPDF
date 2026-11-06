@@ -1,13 +1,23 @@
 package com.chethan616.clearpdf.ui.glass
 
 import android.content.Context
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.ln
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /**
  * How springy the glass moves: multipliers on the designed physics, so [Normal] is the design exactly.
@@ -34,14 +44,66 @@ data class MotionStyle(
     }
 }
 
+/** A cubic-bezier easing curve from (0, 0) to (1, 1) through two handles, as CSS and Figma write it. */
+@Immutable
+data class EaseCurve(val x1: Float, val y1: Float, val x2: Float, val y2: Float) {
+    val easing: Easing get() = CubicBezierEasing(x1, y1, x2, y2)
+
+    companion object {
+        /** UIKit's drawer curve: fast out, a long gentle landing (the app's own). */
+        val Drawer = EaseCurve(0.32f, 0.72f, 0f, 1f)
+        val Standard = EaseCurve(0.4f, 0f, 0.2f, 1f)
+        val Emphasized = EaseCurve(0.05f, 0.7f, 0.1f, 1f)
+        val EaseInOut = EaseCurve(0.42f, 0f, 0.58f, 1f)
+        val Linear = EaseCurve(0f, 0f, 1f, 1f)
+        val Presets = listOf(Drawer, Standard, Emphasized, EaseInOut, Linear)
+    }
+}
+
 object MotionSettings {
     private const val PREFS = "glass"
 
     var style: MotionStyle by mutableStateOf(MotionStyle.Default)
         private set
 
+    /** The curve screens, sheets and fades travel on (Settings ▸ Liquid glass & motion). */
+    var curve: EaseCurve by mutableStateOf(EaseCurve.Drawer)
+        private set
+
+    /** Multiplies every tween's time: 1 is the design. */
+    var duration: Float by mutableStateOf(1f)
+        private set
+
+    private var cachedCurve: EaseCurve? = null
+    private var cachedEasing: Easing = EaseCurve.Drawer.easing
+
+    val easing: Easing
+        get() {
+            val c = curve
+            if (c != cachedCurve) {
+                cachedCurve = c
+                cachedEasing = c.easing
+            }
+            return cachedEasing
+        }
+
+    fun updateCurve(context: Context, c: EaseCurve, save: Boolean = true) {
+        curve = c
+        if (save) context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString("motion_curve", "${c.x1},${c.y1},${c.x2},${c.y2}").apply()
+    }
+
+    fun updateDuration(context: Context, d: Float) {
+        duration = d
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putFloat("motion_duration", d).apply()
+    }
+
     fun load(context: Context) {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        p.getString("motion_curve", null)?.split(',')?.mapNotNull { it.toFloatOrNull() }?.takeIf { it.size == 4 }?.let {
+            curve = EaseCurve(it[0], it[1], it[2], it[3])
+        }
+        duration = p.getFloat("motion_duration", 1f)
         val d = MotionStyle.Default
         style = MotionStyle(
             bounce = p.getFloat("motion_bounce", d.bounce),
@@ -72,42 +134,85 @@ object MotionSettings {
 }
 
 /**
- * The shared springs. Bounce belongs on draw-time properties (scale, translation, rotation), never on
- * layout or alpha: a bouncing size re-runs the glass blur every overshoot frame, a bouncing alpha flickers.
+ * Motion for everything that is not a liquid glass control: screens, sheets, dialogs, menus, cards,
+ * chips, toasts. Apple's way by default: a quick start and a long, soft landing, never past the
+ * target. Its curve and pace are the user's (Settings ▸ Liquid glass & motion ▸ Screen transitions).
+ */
+object Fluid {
+    /** The curve for pushes and sheets: UIKit's "drawer" curve unless the user drew another. */
+    val Ease: Easing get() = MotionSettings.easing
+
+    /** For small things fading or sliding a short way. */
+    val Soft: Easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
+
+    private fun ms(designed: Int): Int = (designed * MotionSettings.duration.coerceIn(0.3f, 3f)).roundToInt()
+
+    /** A screen pushed in. */
+    fun <T> push(): TweenSpec<T> = tween(ms(420), easing = Ease)
+
+    /** A screen popped (Back): a touch quicker than the push. */
+    fun <T> pop(): TweenSpec<T> = tween(ms(360), easing = Ease)
+
+    /** A sheet, a dialog, a document rising. */
+    fun <T> rise(): TweenSpec<T> = tween(ms(400), easing = Ease)
+
+    /** Anything going away. */
+    fun <T> dismiss(): TweenSpec<T> = tween(ms(260), easing = Ease)
+
+    /** A sheet leaving: it eases away, then gathers speed off the edge, rather than sinking slowly out of sight. */
+    fun <T> sheetLeave(): TweenSpec<T> = tween(ms(240), easing = Leave)
+
+    private val Leave: Easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.5f)
+
+    /** Small changes: a title swapping, a chip lighting, an icon turning. */
+    fun <T> quick(): TweenSpec<T> = tween(ms(260), easing = Ease)
+
+    /** Fades. */
+    fun <T> fade(): TweenSpec<T> = tween(ms(200), easing = Soft)
+
+    /** Values that follow something (an interrupted drag, a moving target): no overshoot. */
+    fun <T> follow(): SpringSpec<T> = spring(dampingRatio = 1f, stiffness = 520f)
+
+    /** A finger on a flat surface (cards, rows): it sinks fast ... */
+    fun <T> pressIn(): SpringSpec<T> = spring(dampingRatio = 1f, stiffness = 1800f)
+
+    /** ... and comes back softly, never past rest. */
+    fun <T> pressOut(): SpringSpec<T> = spring(dampingRatio = 1f, stiffness = 420f)
+
+    /** How far a flat pressable sinks. */
+    const val PressedScale = 0.97f
+}
+
+/**
+ * The liquid glass's motion: springs tuned by Settings ▸ Motion (menus, dialogs, toasts, the + fan,
+ * the recorder pill, the press feel in `Press.kt`). Overshoot belongs on draw-time properties
+ * (scale, translation, rotation), never on alpha (it flickers); layout values may swing only if
+ * clamped. Sheets keep one well-damped spring of their own whatever the setting (`Overlays.kt`).
  */
 object GlassMotion {
-    /** Springs open: capsules, chevrons, thumbs. ~8 % overshoot. */
-    fun <T> morph(): SpringSpec<T> = spring(MotionSettings.damping(0.58f), MotionSettings.stiffness(420f))
-
-    /** Small things landing: icons, beads, toasts. */
-    fun <T> pop(): SpringSpec<T> = spring(MotionSettings.damping(0.45f), MotionSettings.stiffness(500f))
-
-    /** Alpha and layout. Never bounces. */
+    /** Alpha and colour. Never bounces. */
     fun <T> settle(): SpringSpec<T> = spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)
 
-    /** Finger down: lands in ~80 ms, barely overshoots. */
-    fun <T> pressIn(): SpringSpec<T> = spring(MotionSettings.damping(0.72f), MotionSettings.stiffness(900f))
-
-    /** Finger up: one small swing past rest. */
-    fun <T> pressOut(): SpringSpec<T> = spring(MotionSettings.damping(0.46f), MotionSettings.stiffness(420f))
-
-    /** Menus unfolding from their anchor: width first ... */
+    /** A menu unfolding: its width leads and settles with a soft overshoot (the one every entrance is judged against). */
     fun <T> unfold(): SpringSpec<T> = spring(MotionSettings.damping(0.68f), MotionSettings.stiffness(420f))
 
-    /** ... then the height a beat behind, like a drop of gel. */
+    /** The menu's height, a beat behind its width. */
     fun <T> unfoldLag(): SpringSpec<T> = spring(MotionSettings.damping(0.6f), MotionSettings.stiffness(340f))
 
-    /** Folding away: fast and critically damped. Dismissals never bounce. */
-    fun <T> fold(): SpringSpec<T> = spring(dampingRatio = 1f, stiffness = MotionSettings.stiffness(900f))
+    /** Springs open: capsules, chevrons, thumbs, dialogs, toasts. */
+    fun <T> morph(): SpringSpec<T> = spring(MotionSettings.damping(0.58f), MotionSettings.stiffness(420f))
 
-    /** Entrances of whole blocks: a soft rise with a little overshoot. */
-    fun <T> rise(): SpringSpec<T> = spring(MotionSettings.damping(0.62f), MotionSettings.stiffness(220f))
+    /** A small thing popping into place: fan chips, the + glyph. */
+    fun <T> pop(): SpringSpec<T> = spring(MotionSettings.damping(0.45f), MotionSettings.stiffness(500f))
 
-    val PressedScale: Float get() = 1f - 0.06f * MotionSettings.style.press.coerceIn(0f, 2.5f)
+    /** The recorder pill growing: slow and soft, with a floor on damping so Jelly cannot ring on. */
+    fun <T> shape(): SpringSpec<T> = spring(maxOf(MotionSettings.damping(0.6f), ShapeMinDamping), MotionSettings.stiffness(105f))
+
+    /** The recorder pill shrinking back. */
+    fun <T> shapeBack(): SpringSpec<T> = spring(maxOf(MotionSettings.damping(0.62f), ShapeMinDamping), MotionSettings.stiffness(125f))
+
+    private const val ShapeMinDamping = 0.46f
 
     /** A tap shorter than this still plays the whole press. */
     const val MinPressMillis = 90L
-
-    /** A tapped back button waits this long so its press is seen first. */
-    const val BackTapDelayMillis = 280L
 }

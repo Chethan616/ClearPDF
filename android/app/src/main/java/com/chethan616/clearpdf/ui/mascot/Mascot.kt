@@ -27,6 +27,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -92,7 +93,10 @@ fun Mascot(
   still: Boolean = false,
   /** Changing this makes the bot hop (a reaction, e.g. to a key press); 0 does nothing. */
   hopSignal: Int = 0,
+  /** Off screen (a pager's far page): stops redrawing with the breath, so it costs no frames. */
+  paused: Boolean = false,
 ) {
+  val clock = remember { floatArrayOf(0f, 0.4f, 0.5f) }
   val shape = BOT_SHAPES[type] ?: BOT_SHAPES.getValue("flower")
   val body = remember(type) { PathParser().parsePathString(shape.path).toPath() }
   val parts = remember(type) { shape.parts?.let { PathParser().parsePathString(it).toPath() } }
@@ -102,6 +106,7 @@ fun Mascot(
   val bodyColor = lerp(base, Color(0xFF8C9199), grey)
   val ink = inkFor(base)
   val hopFeedback = LocalMascotHop.current
+  val haptics = com.chethan616.clearpdf.ui.glass.LocalHaptics.current
   val scope = rememberCoroutineScope()
   val seed = remember(type) { Random(type.hashCode()) }
 
@@ -253,7 +258,11 @@ fun Mascot(
     Modifier.pointerInput(type) {
       detectTapGestures {
         hopFeedback()
-        scope.launch { jump(18f) }
+        haptics?.play(com.chethan616.clearpdf.ui.glass.Feel.Rise)
+        scope.launch {
+          jump(18f)
+          haptics?.play(com.chethan616.clearpdf.ui.glass.Feel.Thud)
+        }
       }
     }
   } else Modifier
@@ -261,12 +270,20 @@ fun Mascot(
   Canvas(
     modifier
       .size(size)
+      // its own layer: the breathing and blinking redraw only this, not the card or page around it
+      .graphicsLayer {}
       .then(tapModifier)
       .semantics { contentDescription = label ?: "Artefact mascot, ${moodLabel(mood)}" },
   ) {
     val unit = this.size.minDimension / 100f
-    val breath = breathPhase?.value ?: 0f
-    val beat = beatPhase?.value ?: 0.4f
+    // paused (off screen) it reads no clock, so it is never redrawn, and keeps its last pose
+    if (!paused) {
+      clock[0] = breathPhase?.value ?: 0f
+      clock[1] = beatPhase?.value ?: 0.4f
+      clock[2] = nudgePhase?.value ?: 0.5f
+    }
+    val breath = clock[0]
+    val beat = clock[1]
     val phase = breath * 2f * PI.toFloat()
     val breathe = if (slow) 1f + 0.025f * sin(phase) else 1f + 0.012f * sin(phase)
     val bob = if (mood == MascotMood.Idle) 1.2f * sin(phase) else 0f
@@ -312,7 +329,7 @@ fun Mascot(
               face = lerpFace(faceFrom.value, faceTo.value, faceMix.value),
               shape = shape, ink = ink, lookX = lookX.value, lookY = lookY.value,
               eyeOpen = eyeOpen.value, large = large,
-              breath = sin(phase), nudge = nudgePhase?.value ?: 0.5f,
+              breath = sin(phase), nudge = clock[2],
             )
           }
         }

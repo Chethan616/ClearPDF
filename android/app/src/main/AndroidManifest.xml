@@ -6,6 +6,8 @@
 
     <!-- Comment ▸ Voice: recording a voice comment (asked for when first used) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Expressive haptics: the vibrator's rich primitives (clicks, ticks, swells) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <!-- Scan: the phone's camera app takes the pages. No CAMERA permission: declaring it without

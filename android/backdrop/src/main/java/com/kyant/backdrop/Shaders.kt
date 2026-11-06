@@ -125,7 +125,21 @@ half4 main(float2 coord) {
     float2 refractedCoord = coord + d * grad;
     float dispersionIntensity = chromaticAberration * ((centeredCoord.x * centeredCoord.y) / (halfSize.x * halfSize.y));
     float2 dispersedCoord = d * grad * dispersionIntensity;
-    
+
+    // Most of the rim bends the colours by less than a pixel or two, where seven taps and one tap
+    // per channel look the same: take the cheap path there and the full spectrum only where the
+    // fringes are wide enough to be seen. The taps sit at the centroids of the seven-tap weights.
+    float spread = dot(dispersedCoord, dispersedCoord);
+    if (spread < 0.25) {
+        return content.eval(refractedCoord);
+    }
+    if (spread < 4.0) {
+        half4 r = content.eval(refractedCoord + dispersedCoord * 0.4286);
+        half4 g = content.eval(refractedCoord + dispersedCoord * 0.0952);
+        half4 b = content.eval(refractedCoord - dispersedCoord * 0.6667);
+        return half4(r.r, g.g, b.b, (r.a + g.a + b.a) / 3.0);
+    }
+
     half4 color = half4(0.0);
     
     half4 red = content.eval(refractedCoord + dispersedCoord);
