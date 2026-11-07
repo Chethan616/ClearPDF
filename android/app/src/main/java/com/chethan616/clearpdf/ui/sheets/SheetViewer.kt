@@ -320,7 +320,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
     var menuAt by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var fillMenuAt by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val topPx = with(density) { WindowInsets.statusBars.getTop(this) + 64.dp.toPx() } +
-        with(density) { (if (searching || grid.selected != null) 56.dp else 0.dp).toPx() }
+        with(density) { ((if (searching) 56.dp else 0.dp) + (if (grid.selected != null) 56.dp else 0.dp)).toPx() }
 
     // the chosen cell's contents, for the formula bar
     LaunchedEffect(grid.selected, grid.version) {
@@ -354,7 +354,13 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
         Box(Modifier.fillMaxSize().layerBackdrop(backdrop)) {
             SheetGrid(
                 grid, top = topPx,
-                onCell = { cell -> grid.selected = cell; editing = false },
+                onCell = { cell ->
+                    if (cell != null && cell == grid.selected) editing = true
+                    else {
+                        grid.selected = cell
+                        editing = false
+                    }
+                },
                 onDoubleTapCell = { cell -> grid.selected = cell; editing = true },
             )
         }
@@ -378,7 +384,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                     ) { GlassIcon(LucideIcons.MoreHorizontal, null, Modifier.size(20.dp)) }
                 }
                 if (searching) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Row(Modifier.weight(1f).height(48.dp).glassBar().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.weight(1f).height(48.dp).background(c.frost, com.chethan616.clearpdf.ui.glass.Capsule).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         GlassTextField(
                             query, { query = it }, stringResource(R.string.viewer_find_in_document), Modifier.weight(1f),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -399,9 +405,11 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                         Spacer(Modifier.size(6.dp))
                         GlassCircle(onClick = { grid.hit = (grid.hit + 1) % grid.hits.size }, size = 44.dp, label = stringResource(R.string.viewer_find_next)) { GlassIcon(LucideIcons.ChevronDown, null, Modifier.size(18.dp)) }
                     }
-                } else grid.selected?.let { cell ->
+                }
+                if (searching) Spacer(Modifier.height(8.dp))
+                grid.selected?.let { cell ->
                     // the formula bar: the cell's name, what it holds, and a field to change it
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(48.dp).glassBar().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(48.dp).background(c.frost, com.chethan616.clearpdf.ui.glass.Capsule).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.padding(4.dp).glassBar(surface = Candy.Sky.copy(alpha = 0.22f)).padding(horizontal = 10.dp, vertical = 6.dp)) {
                             Text(columnName(cell.col0.toInt()) + (cell.row0.toInt() + 1), style = ClearType.Label, color = c.ink)
                         }
@@ -443,7 +451,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                 }
                 // the dock: the chosen cell's formatting, else the workbook's tools
                 Row(
-                    Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+                    Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -453,7 +461,6 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (cell == null) {
-                            DockKey(LucideIcons.Search, stringResource(R.string.viewer_find_in_document)) { searching = true }
                             DockKey(LucideIcons.FilePdf, stringResource(R.string.office_export_pdf)) { vm.exportOffice(doc, "pdf") }
                             var saveRect by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
                             DockKey(LucideIcons.SaveAs, stringResource(R.string.office_save_as), modifier = Modifier.onGloballyPositioned { saveRect = it.boundsInWindow() }) { menuAt = saveRect }
@@ -479,8 +486,8 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                             DockKey(LucideIcons.Trash2, stringResource(R.string.sheet_clear)) { run("edit.clearContents") }
                         }
                     }
-                    if (cell != null) GlassCircle(onClick = { grid.selected = null; editing = false }, size = 60.dp, tint = Candy.Sky, label = stringResource(R.string.common_done)) {
-                        GlassIcon(LucideIcons.Check, null, Modifier.size(22.dp))
+                    if (cell != null) GlassCircle(onClick = { grid.selected = null; editing = false }, size = 48.dp, tint = Candy.Sky, label = stringResource(R.string.common_done)) {
+                        GlassIcon(LucideIcons.Check, null, Modifier.size(19.dp))
                     }
                 }
                 Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
@@ -507,7 +514,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
 /** One glyph of a dock, in the glass's ink. */
 @Composable
 private fun DockKey(icon: ImageVector, label: String, enabled: Boolean = true, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(modifier.size(46.dp).pressable({ if (enabled) onClick() }), contentAlignment = Alignment.Center) {
+    Box(modifier.size(40.dp).pressable({ if (enabled) onClick() }), contentAlignment = Alignment.Center) {
         GlassIcon(icon, label, Modifier.size(21.dp).graphicsLayer { alpha = if (enabled) 1f else 0.35f })
     }
 }

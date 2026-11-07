@@ -33,7 +33,7 @@ mod slides;
 
 pub use photo::PhotoEditor;
 pub use sheets::{CellEdge, CellSpan, CellView, SheetAxes, SheetInfo};
-pub use word::WordCaret;
+pub use word::{WordCaret, WordParagraph};
 #[cfg(test)]
 mod tests;
 mod word;
@@ -924,6 +924,12 @@ impl MobileSession {
         let d = self.office(doc).ok_or(MobileError::NoDocument(doc))?;
         let w = d.as_word().ok_or(MobileError::NoDocument(doc))?;
         w.run(&command, &params).map(|v| v.to_string())
+    }
+
+    /// The paragraph at a point of Word document `doc`, selected for editing in place.
+    pub fn word_paragraph_at(&self, doc: u64, page: u32, x: f32, y: f32) -> Result<Option<WordParagraph>, MobileError> {
+        let d = self.office(doc).ok_or(MobileError::NoDocument(doc))?;
+        d.as_word().ok_or(MobileError::NoDocument(doc))?.paragraph_at(page, x, y)
     }
 
     /// Where Word document `doc`'s caret is, and its selection.

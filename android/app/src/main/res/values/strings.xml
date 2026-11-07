@@ -976,7 +976,7 @@
     <string name="sheet_clear">Clear contents</string>
     <string name="word_undo">Undo</string>
     <string name="word_edit">Edit document</string>
-    <string name="word_tap_to_type">Tap where you want to type. Long press a word to select it.</string>
+    <string name="word_tap_to_type">Tap a paragraph to edit it, as in a PDF. Done puts the changes in.</string>
     <string name="word_redo">Redo</string>
     <string name="word_bold">Bold</string>
     <string name="word_italic">Italic</string>

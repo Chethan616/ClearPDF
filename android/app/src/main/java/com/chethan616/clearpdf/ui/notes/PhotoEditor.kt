@@ -227,16 +227,18 @@ fun PhotoEditScreen(vm: AppViewModel, noteId: String, name: String, onClose: () 
 private fun Dial(a: Adjust, value: Float, chosen: Boolean, onClick: () -> Unit) {
     val span = maxOf(abs(a.min), abs(a.max))
     val part = (value / span).coerceIn(-1f, 1f)
-    Box(Modifier.size(60.dp).pressable(onClick), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(58.dp)) {
-            val stroke = 2.6.dp.toPx()
+    // the app's glass button, its ring drawn round it
+    Box(Modifier.size(62.dp), contentAlignment = Alignment.Center) {
+        GlassCircle(onClick = onClick, size = 52.dp, label = stringResource(a.label), ink = Color.White) {
+            GlassIcon(a.icon, null, Modifier.size(21.dp), tint = if (chosen) Candy.Lemon else Color.White)
+        }
+        Canvas(Modifier.size(62.dp)) {
+            val stroke = 2.4.dp.toPx()
             val inset = stroke / 2
             val box = Size(size.width - stroke, size.height - stroke)
-            drawCircle(Color.White.copy(alpha = if (chosen) 0.16f else 0.08f), radius = size.minDimension / 2)
-            drawArc(Color.White.copy(alpha = 0.22f), 0f, 360f, false, Offset(inset, inset), box, style = Stroke(stroke))
+            drawArc(Color.White.copy(alpha = if (chosen) 0.35f else 0.14f), 0f, 360f, false, Offset(inset, inset), box, style = Stroke(stroke))
             if (part != 0f) drawArc(if (chosen) Candy.Lemon else Color.White, -90f, 360f * part, false, Offset(inset, inset), box, style = Stroke(stroke, cap = StrokeCap.Round))
         }
-        GlassIcon(a.icon, stringResource(a.label), Modifier.size(22.dp), tint = if (chosen) Candy.Lemon else Color.White)
     }
 }
 

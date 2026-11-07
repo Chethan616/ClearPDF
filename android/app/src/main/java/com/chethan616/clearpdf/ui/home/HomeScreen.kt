@@ -154,7 +154,9 @@ fun deskItems(filter: DeskFilter, notes: List<Note>, recents: List<FileRow>, day
         DeskFilter.Todo -> sorted.filter { it.kind == NoteKind.List }.map { DeskItem.Of(it) }
         DeskFilter.Audio -> sorted.filter { it.kind == NoteKind.Voice }.map { DeskItem.Of(it) }
         DeskFilter.Images -> sorted.filter { it.images.isNotEmpty() }.map { DeskItem.Picture(it) }
-        DeskFilter.Pdfs -> if (recents.isEmpty()) emptyList() else listOf(DeskItem.Files, DeskItem.Pdfs(recents.size)) + recents.map { DeskItem.Doc(it) }
+        // the PDFs shelf holds PDFs only (Word, slides and sheets live in Files)
+        DeskFilter.Pdfs -> recents.filter { com.chethan616.clearpdf.engine.DocumentTypes.kindOf(it.name) == com.chethan616.clearpdf.engine.DocumentTypes.Kind.Pdf }
+            .let { pdfs -> if (pdfs.isEmpty()) emptyList() else listOf(DeskItem.Files, DeskItem.Pdfs(pdfs.size)) + pdfs.map { DeskItem.Doc(it) } }
     }
 }
 

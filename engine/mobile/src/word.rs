@@ -27,6 +27,17 @@ pub struct WordCaret {
     pub selection: Vec<f32>,
 }
 
+/// A paragraph picked for editing in place: its text, and the box it fills on its page (points).
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct WordParagraph {
+    pub text: String,
+    pub page: u32,
+    pub x0: f32,
+    pub y0: f32,
+    pub x1: f32,
+    pub y1: f32,
+}
+
 /// Commands that only move the caret or read: the document's version stays.
 fn changes_nothing(command: &str) -> bool {
     command.starts_with("caret.") || command.starts_with("select.") || command == "format.state" || command == "list.get"
@@ -114,6 +125,30 @@ impl WordDocument {
             s.generation = s.generation.wrapping_add(1);
         }
         Ok(out)
+    }
+
+    /// The paragraph at point (`x`, `y`) of page `page`, selected (without its paragraph mark), with
+    /// its text and box: what the app edits in place, as it edits a PDF's text.
+    pub(crate) fn paragraph_at(&self, page: u32, x: f32, y: f32) -> Result<Option<WordParagraph>, MobileError> {
+        self.run("caret.set", &serde_json::json!({ "page": page, "x": x, "y": y }))?;
+        self.run("select.paragraph", &serde_json::json!({}))?;
+        // the paragraph mark stays out of the selection: replacing the text keeps the paragraph
+        let mut text = self.lock().session.selected_text();
+        while text.ends_with(['\n', '\r']) {
+            text.pop();
+            self.run("caret.left", &serde_json::json!({ "extend": true }))?;
+        }
+        let Some(c) = self.caret() else { return Ok(None) };
+        let mut rects = c.selection.chunks(5).filter(|r| r.len() == 5);
+        let Some(first) = rects.next() else {
+            return Ok(Some(WordParagraph { text, page: c.page, x0: c.x, y0: c.top, x1: c.x + 1.0, y1: c.top + c.height }));
+        };
+        let page_of = first.first().copied().unwrap_or(0.0) as u32;
+        let mut b = [first[1], first[2], first[3], first[4]];
+        for r in rects.filter(|r| r.first().copied().unwrap_or(-1.0) as u32 == page_of) {
+            b = [b[0].min(r[1]), b[1].min(r[2]), b[2].max(r[3]), b[3].max(r[4])];
+        }
+        Ok(Some(WordParagraph { text, page: page_of, x0: b[0], y0: b[1], x1: b[2], y1: b[3] }))
     }
 
     /// The caret (or the selection) as it is drawn.

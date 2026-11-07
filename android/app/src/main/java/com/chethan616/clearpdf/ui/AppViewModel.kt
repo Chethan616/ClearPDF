@@ -2409,8 +2409,9 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     /** Where the caret (or the selection) is in [wordEditing]. */
     var wordCaret by mutableStateOf<com.chethan616.clearpdf.core.WordCaret?>(null)
 
-    /** Bumped by each tap that places the caret: the keyboard comes up (again) for it. */
-    var wordKeyboard by mutableStateOf(0)
+    /** The paragraph open for editing in place (as a PDF's paragraph is), and its text as typed. */
+    var wordPara by mutableStateOf<com.chethan616.clearpdf.core.WordParagraph?>(null)
+    var wordDraft by mutableStateOf("")
 
     /** WordCraft's formatting at the caret (`bold`, `italic`, ... as `format.state` gives it). */
     var wordFormat by mutableStateOf(org.json.JSONObject())
@@ -2419,6 +2420,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     fun startWordEdit(doc: OpenDocument) {
         wordEditing = doc
         wordCaret = null
+        wordPara = null
         doc.selection.clear()
         doc.controller.barsVisible = true
         // the keyboard waits for a place to type: a tap on the page puts the caret there
@@ -2428,9 +2430,24 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     /** Leave editing; the changes are saved with the document (as on closing it). */
     fun stopWordEdit() {
         val doc = wordEditing ?: return
-        wordEditing = null
-        wordCaret = null
-        viewModelScope.launch { save(doc, quiet = true) }
+        viewModelScope.launch {
+            commitWordPara(doc)
+            wordEditing = null
+            wordCaret = null
+            save(doc, quiet = true)
+        }
+    }
+
+    /** The open paragraph's new text into the document (one undoable change), and the box closed. */
+    private suspend fun commitWordPara(doc: OpenDocument) {
+        val para = wordPara ?: return
+        val eng = engine ?: return
+        val text = wordDraft
+        wordPara = null
+        if (text == para.text) return
+        runCatching { eng.command { wordCommand(doc.id, "text.insert", Engine.toJson(mapOf("text" to text)).toString()) } }
+            .onFailure { tell(it.userMessage) }
+        refresh(doc)
     }
 
     /** Run WordCraft command [command] on [doc], then show its result: the pages, caret and formatting. */
@@ -2445,9 +2462,16 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     }
 
     /** A tap on [doc]'s page while editing: the caret goes there ([extend]: the selection grows to it). */
-    fun wordTap(doc: OpenDocument, at: com.chethan616.clearpdf.ui.viewer.PagePoint, extend: Boolean = false) {
-        wordRun(doc, "caret.set", mapOf("page" to at.page, "x" to at.x, "y" to at.y, "extend" to extend))
-        wordKeyboard++
+    fun wordTap(doc: OpenDocument, at: com.chethan616.clearpdf.ui.viewer.PagePoint) {
+        val eng = engine ?: return
+        viewModelScope.launch {
+            // the paragraph open before goes in first, then the one tapped opens in its box
+            commitWordPara(doc)
+            val para = runCatching { eng.command { wordParagraphAt(doc.id, at.page.toUInt(), at.x, at.y) } }.getOrNull() ?: return@launch
+            refreshWordCaret(doc)
+            wordDraft = para.text
+            wordPara = para
+        }
     }
 
     /** A long press while editing: the word there is selected (to format or replace it). */
@@ -2462,7 +2486,6 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
                 }
             }.onFailure { tell(it.userMessage) }
             refreshWordCaret(doc)
-            wordKeyboard++
         }
     }
 

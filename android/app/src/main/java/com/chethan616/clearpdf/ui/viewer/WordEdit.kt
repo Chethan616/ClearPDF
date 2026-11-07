@@ -5,7 +5,17 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,102 +69,51 @@ import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.clear
 
 /**
- * What the keyboard types into: a field that always holds one sentinel character. Text committed
- * after it goes into the document; the sentinel gone is a backspace. A word still being composed
- * (the keyboard's suggestions) waits until it is committed.
- */
-private const val SENTINEL = "​"
-
-/**
- * Word editing over the pages: the selection's rectangles and a blinking caret, drawn where
- * WordCraft's layout puts them, and the keyboard's field.
+ * Word editing as a PDF's text is edited: the paragraph tapped opens in a box over the page, at the
+ * document's size and weight, outlined in the selection blue; typing happens right there, and the
+ * text goes into the document when another paragraph is tapped or Done is.
  */
 @Composable
 fun WordEditLayer(vm: AppViewModel, doc: OpenDocument) {
-    val caret = vm.wordCaret
-    val accent = Candy.Sky
-    val blink = rememberInfiniteTransition(label = "caret").animateFloat(1f, 0f, infiniteRepeatable(tween(530), RepeatMode.Reverse), label = "blink")
-    Canvas(Modifier.fillMaxSize()) {
-        caret ?: return@Canvas
-        val v = doc.viewer
-        val sel = caret.selection
-        var i = 0
-        while (i + 4 < sel.size) {
-            val page = sel[i].toInt()
-            val a = v.pageToScreen(page, sel[i + 1], sel[i + 2])
-            val b = v.pageToScreen(page, sel[i + 3], sel[i + 4])
-            drawRect(accent.copy(alpha = 0.25f), a, Size(b.x - a.x, b.y - a.y))
-            i += 5
-        }
-        if (sel.isEmpty()) {
-            val p = caret.page.toInt()
-            val top = v.pageToScreen(p, caret.x, caret.top)
-            val bottom = v.pageToScreen(p, caret.x, caret.top + caret.height)
-            drawLine(accent.copy(alpha = blink.value.coerceIn(0f, 1f)), top, bottom, 2.2f * density)
-        }
+    val para = vm.wordPara ?: return
+    val v = doc.viewer
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val a = v.pageToScreen(para.page.toInt(), para.x0, para.y0)
+    val b = v.pageToScreen(para.page.toInt(), para.x1, para.y1)
+    val f = vm.wordFormat
+    val points = f.optDouble("size", 11.0).toFloat().takeIf { it > 0f } ?: 11f
+    val px = points * v.pixelsPerPoint(para.page.toInt())
+    val sp = with(density) { (px / fontScale).toSp() }
+    val focus = remember(para) { FocusRequester() }
+    var value by remember(para) { mutableStateOf(TextFieldValue(vm.wordDraft, TextRange(vm.wordDraft.length))) }
+    LaunchedEffect(para) { focus.requestFocus() }
+    // the box kept in sight above the keyboard and the dock
+    val imeBottom = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(density)
+    LaunchedEffect(para, imeBottom) {
+        val room = v.viewH - imeBottom - with(density) { (BottomBarHeight + 24.dp).toPx() }
+        if (b.y > room) v.setScroll(v.scrollX, v.scrollY + (b.y - room))
     }
-
-    // the keyboard's field, out of sight
-    val focus = remember { FocusRequester() }
-    val keyboard = LocalSoftwareKeyboardController.current
-    var field by remember { mutableStateOf(TextFieldValue(SENTINEL, TextRange(SENTINEL.length))) }
-    // every tap that places the caret brings the keyboard up, focused on the field
-    LaunchedEffect(vm.wordKeyboard) {
-        if (vm.wordKeyboard == 0) return@LaunchedEffect
-        focus.requestFocus()
-        keyboard?.show()
-    }
-    // the caret kept in sight above the keyboard (and below the top bar)
-    val ime = androidx.compose.foundation.layout.WindowInsets.ime
-    val dens = androidx.compose.ui.platform.LocalDensity.current
-    val imeBottom = ime.getBottom(dens)
-    LaunchedEffect(caret, imeBottom) {
-        val c = caret ?: return@LaunchedEffect
-        if (c.selection.isNotEmpty()) return@LaunchedEffect
-        val v = doc.viewer
-        val bottom = v.pageToScreen(c.page.toInt(), c.x, c.top + c.height).y
-        val top = v.pageToScreen(c.page.toInt(), c.x, c.top).y
-        val room = v.viewH - imeBottom - with(dens) { 96.dp.toPx() }
-        when {
-            // scrollBy takes a finger's move: the page goes up as a finger moving up takes it
-            bottom > room -> v.scrollBy(0f, -(bottom - room))
-            top < v.padTop -> v.scrollBy(0f, v.padTop - top)
+    with(density) {
+        Box(
+            Modifier.offset { androidx.compose.ui.unit.IntOffset(a.x.toInt(), a.y.toInt()) }
+                .width((b.x - a.x).toDp() + 6.dp).heightIn(min = (b.y - a.y).toDp() + 6.dp)
+                .background(Color.White).drawBehind { drawRect(Candy.Sky, size = size, style = Stroke(2.dp.toPx())) }
+                .padding(3.dp),
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = { value = it; vm.wordDraft = it.text },
+                textStyle = TextStyle(
+                    color = Color.Black, fontSize = sp, lineHeight = sp * 1.2f,
+                    fontWeight = if (f.optBoolean("bold")) FontWeight.Bold else FontWeight.Normal,
+                    fontStyle = if (f.optBoolean("italic")) FontStyle.Italic else FontStyle.Normal,
+                ),
+                cursorBrush = SolidColor(Candy.Sky),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+            )
         }
     }
-    DisposableEffect(Unit) { onDispose { keyboard?.hide() } }
-    BasicTextField(
-        value = field,
-        onValueChange = { v ->
-            if (v.composition != null) {
-                field = v
-                return@BasicTextField
-            }
-            val text = v.text
-            when {
-                !text.startsWith(SENTINEL) -> vm.wordRun(doc, "text.backspace")
-                text.length > SENTINEL.length -> {
-                    // each line typed is a paragraph of its own
-                    val typed = text.substring(SENTINEL.length)
-                    typed.split('\n').forEachIndexed { n, part ->
-                        if (n > 0) vm.wordRun(doc, "text.newParagraph")
-                        if (part.isNotEmpty()) vm.wordRun(doc, "text.insert", mapOf("text" to part))
-                    }
-                }
-            }
-            field = TextFieldValue(SENTINEL, TextRange(SENTINEL.length))
-        },
-        modifier = Modifier.size(1.dp).graphicsLayer { alpha = 0f }.focusRequester(focus).onPreviewKeyEvent { e ->
-            // a hardware keyboard's Delete and Enter
-            if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-            when (e.key) {
-                Key.Backspace -> { vm.wordRun(doc, "text.backspace"); true }
-                Key.Enter -> { vm.wordRun(doc, "text.newParagraph"); true }
-                else -> false
-            }
-        },
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, autoCorrectEnabled = true, imeAction = ImeAction.None),
-        keyboardActions = KeyboardActions.Default,
-    )
 }
 
 /**
@@ -169,11 +128,11 @@ fun WordEditDock(vm: AppViewModel, doc: OpenDocument) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        GlassCircle(onClick = { vm.stopWordEdit() }, size = 60.dp, tint = Candy.Sky, label = stringResource(R.string.common_done)) {
-            GlassIcon(LucideIcons.Check, null, Modifier.size(22.dp))
+        GlassCircle(onClick = { vm.stopWordEdit() }, size = 48.dp, tint = Candy.Sky, label = stringResource(R.string.common_done)) {
+            GlassIcon(LucideIcons.Check, null, Modifier.size(19.dp))
         }
         Row(
-            Modifier.weight(1f).fillMaxHeight().glassBar().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
+            Modifier.weight(1f).height(48.dp).glassBar().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -198,7 +157,7 @@ fun WordEditDock(vm: AppViewModel, doc: OpenDocument) {
 private fun EditKey(icon: ImageVector, label: String, enabled: Boolean = true, on: Boolean = false, onClick: () -> Unit) {
     val c = clear
     Box(
-        Modifier.size(44.dp).pressable({ if (enabled) onClick() }).then(
+        Modifier.size(40.dp).pressable({ if (enabled) onClick() }).then(
             if (on) Modifier.padding(4.dp).glassBar(surface = Candy.Sky.copy(alpha = 0.28f)) else Modifier,
         ),
         contentAlignment = Alignment.Center,

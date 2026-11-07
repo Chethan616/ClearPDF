@@ -724,3 +724,16 @@ fn a_powerpoint_97_2003_file_opens_with_its_slides_text() {
     assert_eq!(s.find_in_page(info.id, 1, "new markets".into(), false, false).unwrap().len(), 1);
     assert!(s.render_page(info.id, 0, 0.5, None).is_ok());
 }
+
+#[test]
+fn a_word_paragraph_is_edited_in_place() {
+    let s = MobileSession::new();
+    let id = s.open(word_file("First line here\nSecond line", "Para.docx"), None).unwrap().id;
+    let hit = s.find_in_page(id, 0, "First".into(), false, false).unwrap().remove(0);
+    let p = s.word_paragraph_at(id, 0, hit.rects[0] + 2.0, (hit.rects[1] + hit.rects[3]) / 2.0).unwrap().unwrap();
+    assert_eq!(p.text, "First line here");
+    assert!(p.x1 > p.x0 && p.y1 > p.y0);
+    s.word_command(id, "text.insert".into(), r#"{"text":"A new first line"}"#.into()).unwrap();
+    let text = s.page_plain_text(id, 0).unwrap();
+    assert!(text.contains("A new first line") && text.contains("Second line") && !text.contains("First line here"), "{text}");
+}
