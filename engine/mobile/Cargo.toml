@@ -29,6 +29,11 @@ deckcraft-render = { workspace = true }
 # Excel workbooks (src/sheets.rs): GridCraft's engine
 gridcraft-engine = { workspace = true }
 gridcraft-xlsx = { workspace = true }
+# Pictures (src/photo.rs): LightCraft's decoding, develop settings and pipeline
+lightcraft-codecs = { workspace = true }
+lightcraft-develop = { workspace = true }
+lightcraft-pipeline = { workspace = true }
+lightcraft-raster = { workspace = true }
 kurbo = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }

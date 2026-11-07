@@ -135,8 +135,16 @@ all three → editing, one format at a time, each built and run on the phone bef
       lists and filters; same reading-only viewer as Word. [ ] seen on the phone; [ ] present mode
       (full-screen slides, tap/swipe to advance; transitions from `deckcraft-render::render_transition`).
       Password-protected decks are refused with a message (deckcraft can't decrypt).
-- [ ] Excel viewing (gridcraft): pannable Compose grid with frozen headers from cell text, styles,
-      column widths and row heights; charts rendered by gridcraft-chart.
+- [x] **Excel viewing** (gridcraft `6a8eb4f`, 2026-11-07, built and host-tested): `sheets.rs` opens
+      .xlsx/.xlsb/.ods/.csv (recalculated on open) and serves tabs, axes, cell windows with looks,
+      merges, find; `ui/sheets/SheetViewer.kt` draws the grid on a canvas (pan, pinch zoom, heading
+      strips, frozen panes, cells in 50×20 blocks) under glass. [ ] seen on the phone; [ ] search UI
+      (bridge `sheet_find` is there); [ ] charts (gridcraft-chart) and pictures on sheets.
+- [x] **Pictures in notes** (lightcraft `8a0b91a`, 2026-11-07, built and host-tested): `photo.rs`
+      (`PhotoEditor`: decode, develop with LightCraft's `DevelopSettings` JSON, export JPEG; codecs,
+      develop, pipeline only: no GPU, faces or catalog). Tap a note's picture: glass editor with
+      Exposure, Contrast, Highlights, Shadows, Vibrance, Saturation and rotate; Done saves a new JPEG.
+      [ ] seen on the phone; [ ] crop; [ ] markup.
 - [ ] Export to PDF for all three (wordcraft-pdf / deckcraft-pdf through craft-pdf + krilla, already
       patched in; gridcraft's own writer: check non-Latin text).
 - [ ] Editing, one format at a time (wordcraft's 422 commands through `Session::run`, then deckcraft's
@@ -144,7 +152,7 @@ all three → editing, one format at a time, each built and run on the phone bef
 
 ## Later
 
-1. **Pictures** (storytold/lightcraft) and **voice** (storytold/soundcraft) for notes.
+1. **Voice** (storytold/soundcraft) for notes; more of LightCraft (crop, presets, markup).
 2. **Notes and lists on the Word engine**: once wordcraft is in (it reads and writes Markdown),
    move the notes and the shopping/to-do lists onto it instead of the app's own light Markdown, with
    a few adjustments to feel like Apple Notes: checklists, quick formatting tools (headings, bold,

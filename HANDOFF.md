@@ -22,7 +22,7 @@ Read this first after a `/clear`. The roadmap is `PLAN.md`.
   `adb shell cmd package compile -f -m speed-profile com.chethan616.clearpdf.debug` to compile the
   profile at once. A debuggable build runs Compose several times slower.
 
-## Office documents (Word and PowerPoint in; Excel next)
+## Office documents and pictures (Word, PowerPoint, Excel, LightCraft photos in)
 
 Plan and status: PLAN.md "Office documents". How the Word bridge works:
 
@@ -35,12 +35,26 @@ Plan and status: PLAN.md "Office documents". How the Word bridge works:
   (Word's PDF export needs the suite's krilla, and Cargo ignores a dependency's own patches).
   Upstream draft (not filed, don't file without the owner): `docs/upstream/wordcraft-android.md`.
 - **Bridge**: `engine/mobile/src/office.rs` is the shared part: the `OfficeDoc` trait (info, render,
-  text layer, links, thumbnail, release_memory), `sniff` (zip part names / CFB streams / `{tf`),
+  text layer, links, thumbnail, release_memory), `sniff` (zip part names / CFB streams / `{
+tf`),
   `text_glyph` (a glyph box through an `Affine`), ids from `OFFICE_IDS` = 2^40. `word.rs` and
   `slides.rs` implement it; `MobileSession` keeps `office: HashMap<u64, Arc<dyn OfficeDoc>>`.
   Slides: `deckcraft_pptx::import`, `deckcraft_render::render_slide` (tiles via `RenderOpts.offset`
   and `size`, 2 threads), text from `place_slide(..).texts` (runs' glyphs + `cells` chars, through
   `PlacedText.transform`), links from `place_slide(..).links` (URL actions).
+- **Excel** (`sheets.rs`): `SheetBook` (an `OfficeDoc` whose `as_sheets()` is Some) opens through
+  `gridcraft_engine::io::open_bytes_with_password` then `Calc::recalc_all`; `MobileSession.sheets`,
+  `sheet_axes` (points; gridcraft keeps 96-dpi px), `sheet_cells` (≤ 20 000 cells a window; only cells
+  with text, fill or border), `sheet_merges`, `sheet_find`. The app's `ui/sheets/SheetViewer.kt` draws
+  it (ClearApp's `Viewer` picks it for `doc.isSheets`); `render_page` is only a fill/grid sketch for
+  thumbnails.
+- **Photos** (`photo.rs`): `PhotoEditor` object (not in the session): `render(path, settings_json,
+  max_side)` decodes once at ≤ 2048 px and re-develops; `export_jpeg` decodes full size. Settings are
+  LightCraft's `DevelopSettings` JSON (`{"light":{"exposure":1}}`, ranges in its `controls.rs`).
+  App: `ui/notes/PhotoEditor.kt`, opened by `vm.editingPhoto` from a note's picture.
+- **Selection lens and menu** (2026-11-07): `SelectionLens` in `ViewerScreen.kt` draws the pages
+  backdrop magnified in a glass capsule (the platform magnifier showed nothing over the backdrop
+  layer); `SelectionMenu` is a glass popover.
 - **Word** (`engine/mobile/src/word.rs`): `MobileSession.open(path)` sniffs the bytes
   (`word_extension`: zip with `word/document.xml`, ODF text, CFB `WordDocument`, `{
 tf`; an encrypted
@@ -217,5 +231,8 @@ still sees a flash on the Files/Pdf collection cards (a route change, not a docu
 ## Next up
 
 See PLAN.md "Office documents" and "Next". Immediate: when Artefact is in front on the phone,
-check Word and slides viewing (Files, Recent, Quick Preview with the samples), the desk flicker fix
-and the squircle Quick Preview card; then slides present mode, then Excel viewing (gridcraft).
+check on the phone (all built, none seen there yet; the phone dropped off adb): Word, slides and
+sheets (samples in Download: Artefact-Word-Sample.docx, Artefact-Slides-Sample.pptx,
+Artefact-Sheet-Sample.xlsx), the selection lens and glass menu, the photo editor (tap a note's
+picture), the desk flicker fix and the squircle Quick Preview. Then: slides present mode, sheet
+search UI, export to PDF for all three, editing.

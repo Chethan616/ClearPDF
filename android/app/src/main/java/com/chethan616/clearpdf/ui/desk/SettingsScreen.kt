@@ -447,6 +447,8 @@ private fun LicencesPage(onBack: () -> Unit) {
         Credit(stringResource(R.string.root_licence_pdfcraft), stringResource(R.string.root_licence_pdfcraft_terms)),
         Credit(stringResource(R.string.root_licence_wordcraft), stringResource(R.string.root_licence_wordcraft_terms)),
         Credit(stringResource(R.string.root_licence_deckcraft), stringResource(R.string.root_licence_wordcraft_terms)),
+        Credit(stringResource(R.string.root_licence_gridcraft), stringResource(R.string.root_licence_wordcraft_terms)),
+        Credit(stringResource(R.string.root_licence_lightcraft), stringResource(R.string.root_licence_wordcraft_terms)),
         Credit("Ubuntu Light", "Ubuntu Font Licence 1.0, Canonical Ltd. / Dalton Maag"),
         Credit("AndroidLiquidGlass (backdrop)", "Apache-2.0, Kyant0"),
         Credit("AndroidLiquidGlassView (LiquidTracker)", "MIT, Donny Yale (QmDeve)"),

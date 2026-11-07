@@ -243,7 +243,8 @@ fun NoteEditor(vm: AppViewModel, id: String) {
                     LazyRow(Modifier.padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(note.images, key = { it }) { name ->
                             Box {
-                                NoteImage(name, Modifier.size(150.dp, 120.dp).clip(RoundedRectangle(22.dp)))
+                                // a tap develops the picture with LightCraft (PhotoEditScreen)
+                                NoteImage(name, Modifier.size(150.dp, 120.dp).clip(RoundedRectangle(22.dp)).pressable({ vm.editingPhoto = id to name }))
                                 Box(
                                     Modifier.align(Alignment.TopEnd).padding(6.dp).size(28.dp)
                                         .pressable({ vm.notes.get(id)?.let { n -> vm.notes.put(n.copy(images = n.images - name)) } })

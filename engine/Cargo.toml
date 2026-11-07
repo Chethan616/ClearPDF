@@ -70,6 +70,13 @@ deckcraft-render = { git = "https://github.com/storytold/deckcraft", rev = "159e
 gridcraft-engine = { git = "https://github.com/storytold/gridcraft", rev = "6a8eb4ff42cfa88b5bdd3eec13c6db3874d95214", version = "0.16.0" }
 gridcraft-xlsx = { git = "https://github.com/storytold/gridcraft", rev = "6a8eb4ff42cfa88b5bdd3eec13c6db3874d95214", version = "0.16.0" }
 
+# Pictures (notes' photos): storytold/lightcraft's codecs, develop settings and CPU pipeline, pinned.
+# Not its engine (GPU, faces, catalog); no AVIF or JPEG XL encoders.
+lightcraft-codecs = { git = "https://github.com/storytold/lightcraft", rev = "8a0b91a95c30618b690374dd2db9d0684ebc9b23", version = "0.18.0", default-features = false, features = ["parallel"] }
+lightcraft-develop = { git = "https://github.com/storytold/lightcraft", rev = "8a0b91a95c30618b690374dd2db9d0684ebc9b23", version = "0.18.0" }
+lightcraft-pipeline = { git = "https://github.com/storytold/lightcraft", rev = "8a0b91a95c30618b690374dd2db9d0684ebc9b23", version = "0.18.0" }
+lightcraft-raster = { git = "https://github.com/storytold/lightcraft", rev = "8a0b91a95c30618b690374dd2db9d0684ebc9b23", version = "0.18.0" }
+
 # pdf
 hayro = "0.7.1"
 hayro-syntax = "0.7.2"

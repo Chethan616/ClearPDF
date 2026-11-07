@@ -607,3 +607,23 @@ fn opens_a_workbook_and_serves_its_cells() {
     let pdf = s.open(blank_pdf(1), None).unwrap();
     assert!(s.sheets(pdf.id).is_err());
 }
+
+#[test]
+fn develops_a_photo_and_saves_it() {
+    let (w, h) = (64usize, 48usize);
+    let img = lightcraft_raster::Rgba8 { width: w, height: h, data: vec![[90u8, 110, 130, 255]; w * h] };
+    let png = lightcraft_codecs::encode_png(&lightcraft_codecs::EncodeImage::rgba8(&img), &lightcraft_codecs::EncodeMeta::default()).unwrap();
+    let dir = scratch();
+    let path = dir.join("photo.png").to_string_lossy().into_owned();
+    std::fs::write(&path, png).unwrap();
+    let e = PhotoEditor::new();
+    let plain = e.render(path.clone(), String::new(), 32).unwrap();
+    assert_eq!((plain.width, plain.height), (32, 24));
+    let bright = e.render(path.clone(), r#"{"light":{"exposure":1.5}}"#.into(), 32).unwrap();
+    let mean = |r: &RenderedImage| r.rgba.iter().step_by(4).map(|v| u32::from(*v)).sum::<u32>() / (r.width * r.height);
+    assert!(mean(&bright) > mean(&plain) + 10, "{} vs {}", mean(&bright), mean(&plain));
+    assert!(e.render(path.clone(), "{not json".into(), 32).is_err());
+    let out = dir.join("out.jpg").to_string_lossy().into_owned();
+    e.export_jpeg(path, r#"{"light":{"exposure":0.5}}"#.into(), out.clone(), 90).unwrap();
+    assert!(std::fs::read(out).unwrap().starts_with(&[0xFF, 0xD8]));
+}

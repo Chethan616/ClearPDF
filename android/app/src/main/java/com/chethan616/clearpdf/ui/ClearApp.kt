@@ -207,6 +207,7 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
                 vm.toolScreen?.let { ToolScreenHost(vm, it) }
                 vm.signaturePad?.let { SignaturePadScreen(vm, it, onPickSignatureImage) }
                 vm.certSign?.let { CertSignScreen(vm, it) }
+                vm.editingPhoto?.let { (note, picture) -> com.chethan616.clearpdf.ui.notes.PhotoEditScreen(vm, note, picture) { vm.editingPhoto = null } }
                 if (vm.idCreate) CreateIdScreen(vm)
             }
         },

@@ -26,9 +26,11 @@ use serde_json::{Value, json};
 uniffi::setup_scaffolding!();
 
 mod office;
+mod photo;
 mod sheets;
 mod slides;
 
+pub use photo::PhotoEditor;
 pub use sheets::{CellEdge, CellSpan, CellView, SheetAxes, SheetInfo};
 #[cfg(test)]
 mod tests;

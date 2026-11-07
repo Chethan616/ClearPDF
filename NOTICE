@@ -22,6 +22,10 @@ by storytold and the DeckCraft contributors, MIT OR Apache-2.0, pinned by commit
 vendored with Artefact's Android patch (engine/vendor/deckcraft-fonts). Its last-resort face is
 Ubuntu Light (Canonical Ltd. / Dalton Maag, Ubuntu Font Licence 1.0), from epaint_default_fonts.
 
+Workbooks: the engine of GridCraft (https://github.com/storytold/gridcraft) and pictures: the
+codecs, develop settings and CPU pipeline of LightCraft (https://github.com/storytold/lightcraft),
+both by storytold and their contributors, MIT OR Apache-2.0, pinned by commit (engine/Cargo.toml).
+
 Liquid glass: the backdrop library from AndroidLiquidGlass by Kyant0
 (https://github.com/Kyant0/AndroidLiquidGlass), Apache-2.0, adapted. The velocity squash-and-stretch
 of glass thumbs follows LiquidTracker from AndroidLiquidGlassView by Donny Yale

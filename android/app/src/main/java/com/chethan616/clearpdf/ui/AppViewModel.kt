@@ -2381,6 +2381,9 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     /** The note open in the editor. */
     var openNote by mutableStateOf<String?>(null)
 
+    /** A note's picture being edited (note id, picture name), over everything. */
+    var editingPhoto by mutableStateOf<Pair<String, String>?>(null)
+
     /** The desk's dock is turning into the open note's toolbar: the toolbar waits, unseen, until it has. */
     var noteBarHidden by mutableStateOf(false)
 
