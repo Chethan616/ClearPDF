@@ -12,3 +12,6 @@
 *.keystore
 # local build logs
 /build-*.log
+
+# reference screenshots shared while working, never committed
+/t[0-9].png
