@@ -54,6 +54,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.AppViewModel
 import com.chethan616.clearpdf.ui.LucideIcons
@@ -167,8 +168,7 @@ private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit, openGlass: 
                 SettingRow(LucideIcons.Compass, Candy.Sky, stringResource(R.string.settings_show_welcome), { vm.showWelcomeAgain() }, first = true)
                 SettingRow(LucideIcons.MessageSquare, Candy.Tomato, stringResource(R.string.home_report_problem), { leaving = "$CLEARPDF_REPO/issues" }, chevron = true)
                 SettingRow(LucideIcons.CodeXml, Candy.Grape, stringResource(R.string.home_source_code), { uri.openUri(CLEARPDF_REPO) }, chevron = true)
-                SettingRow(LucideIcons.Wrench, Candy.Tangerine, stringResource(R.string.home_engine), { uri.openUri("https://github.com/storytold/pdfcraft") }, chevron = true)
-                SettingRow(LucideIcons.ScrollText, Candy.Mint, stringResource(R.string.home_licences), openLicences, chevron = true)
+                SettingRow(LucideIcons.ScrollText, Candy.Mint, stringResource(R.string.licences_row), openLicences, chevron = true)
             }
         }
         item(key = "credits") { AppFooter(vm) }
@@ -430,65 +430,107 @@ internal fun ToggleRow(icon: ImageVector, accent: Color, label: String, body: St
     }
 }
 
-/** One entry of the Licences page: what it is, and its licence and authors. */
-private class Credit(val name: String, val terms: String)
+/**
+ * One open-source work Artefact is built from: its name, what it does in the app, its licence and
+ * authors, where it lives, and the licence text the app carries for it (in `assets/licences`), if any.
+ */
+private class Credit(val name: String, val role: String, val terms: String, val url: String, val text: String? = null)
 
-/** The open-source licences of everything Artefact is built from, then their full texts. */
+/** A group of credits under a heading. */
+private class CreditGroup(val title: Int, val credits: List<Credit>)
+
+/**
+ * Open-source licences: what Artefact is built from, in groups (the document engines first), each
+ * entry its role, licence and authors; a tap opens its licence text, the arrow its source.
+ */
 @Composable
 private fun LicencesPage(onBack: () -> Unit) {
     val c = clear
     val context = LocalContext.current
-    val texts = remember {
-        listOf("LICENSE-lucide.txt", "OFL-PlusJakartaSans.txt", "OFL-Doto.txt", "OFL-DMSerifDisplay.txt", "OFL-BricolageGrotesque.txt", "OFL-Fraunces.txt", "OFL-DancingScript.txt", "OFL-SourceSans3.txt", "OFL-SourceSerif4.txt", "LICENSE-foxit.txt", "LICENSE-adobe-cmaps.txt").mapNotNull { name ->
-            runCatching { context.assets.open("licences/$name").bufferedReader().readText() }.getOrNull()?.takeIf { it.isNotBlank() }
-        }
-    }
-    val credits = listOf(
-        Credit(stringResource(R.string.root_licence_pdfcraft), stringResource(R.string.root_licence_pdfcraft_terms)),
-        Credit(stringResource(R.string.root_licence_wordcraft), stringResource(R.string.root_licence_wordcraft_terms)),
-        Credit(stringResource(R.string.root_licence_deckcraft), stringResource(R.string.root_licence_wordcraft_terms)),
-        Credit(stringResource(R.string.root_licence_gridcraft), stringResource(R.string.root_licence_wordcraft_terms)),
-        Credit(stringResource(R.string.root_licence_lightcraft), stringResource(R.string.root_licence_wordcraft_terms)),
-        Credit("Ubuntu Light", "Ubuntu Font Licence 1.0, Canonical Ltd. / Dalton Maag"),
-        Credit("AndroidLiquidGlass (backdrop)", "Apache-2.0, Kyant0"),
-        Credit("AndroidLiquidGlassView (LiquidTracker)", "MIT, Donny Yale (QmDeve)"),
-        Credit("UniFFI", "MPL-2.0, Mozilla"),
-        Credit("JNA", "Apache-2.0"),
-        Credit("AndroidX, Jetpack Compose, Kotlin coroutines", "Apache-2.0"),
-        Credit(stringResource(R.string.root_licence_lucide), "ISC, Lucide Contributors"),
-        Credit("Plus Jakarta Sans", "SIL Open Font License 1.1, The Plus Jakarta Sans Project Authors"),
-        Credit("Doto", "SIL Open Font License 1.1, The Doto Project Authors"),
-        Credit("DM Serif Display", "SIL Open Font License 1.1, Colophon Foundry"),
-        Credit("Bricolage Grotesque", "SIL Open Font License 1.1, The Bricolage Grotesque Project Authors"),
-        Credit("Fraunces", "SIL Open Font License 1.1, The Fraunces Project Authors"),
-        Credit("bot-avatars (the mascots)", "MIT, Jakub Antalik"),
-        Credit(stringResource(R.string.root_licence_dancing_script), "SIL Open Font License 1.1, The Dancing Script Project Authors"),
-        Credit("Source Sans 3, Source Serif 4", "SIL Open Font License 1.1, Adobe"),
-        Credit(stringResource(R.string.root_licence_foxit), "BSD-3-Clause, Foxit Software Inc. and the PDFium Authors"),
-        Credit(stringResource(R.string.root_licence_cmaps), "BSD-3-Clause, Adobe"),
-        Credit(stringResource(R.string.root_licence_ocrs), stringResource(R.string.root_licence_ocrs_terms)),
-        Credit(stringResource(R.string.root_licence_rust), stringResource(R.string.root_licence_rust_terms)),
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    val mitApache = "MIT OR Apache-2.0"
+    val groups = listOf(
+        CreditGroup(R.string.licences_engines, listOf(
+            Credit("PdfCraft", stringResource(R.string.licences_role_pdf), "$mitApache · storytold, the ArtCraft Team and contributors", "https://github.com/storytold/pdfcraft"),
+            Credit("WordCraft", stringResource(R.string.licences_role_word), "$mitApache · storytold and contributors", "https://github.com/storytold/wordcraft"),
+            Credit("DeckCraft", stringResource(R.string.licences_role_slides), "$mitApache · storytold and contributors", "https://github.com/storytold/deckcraft"),
+            Credit("GridCraft", stringResource(R.string.licences_role_sheets), "$mitApache · storytold and contributors", "https://github.com/storytold/gridcraft"),
+            Credit("LightCraft", stringResource(R.string.licences_role_photos), "$mitApache · storytold and contributors", "https://github.com/storytold/lightcraft"),
+            Credit("Ocrs", stringResource(R.string.licences_role_ocr), "$mitApache · Robert Knight; models CC-BY-SA-4.0", "https://github.com/robertknight/ocrs"),
+        )),
+        CreditGroup(R.string.licences_interface, listOf(
+            Credit("PdfCraft for Android", stringResource(R.string.licences_role_app), "$mitApache · the ArtCraft Team", "https://github.com/artcraft-android/pdfcraft-android"),
+            Credit("AndroidLiquidGlass", stringResource(R.string.licences_role_glass), "Apache-2.0 · Kyant0", "https://github.com/Kyant0/AndroidLiquidGlass"),
+            Credit("AndroidLiquidGlassView", stringResource(R.string.licences_role_tracker), "MIT · Donny Yale (QmDeve)", "https://github.com/QmDeve/AndroidLiquidGlassView"),
+            Credit("Jetpack Compose, AndroidX, Kotlin coroutines", stringResource(R.string.licences_role_toolkit), "Apache-2.0 · Google, JetBrains", "https://developer.android.com/jetpack"),
+            Credit("UniFFI", stringResource(R.string.licences_role_bridge), "MPL-2.0 · Mozilla", "https://github.com/mozilla/uniffi-rs"),
+            Credit("JNA", stringResource(R.string.licences_role_bridge), "Apache-2.0 · the JNA authors", "https://github.com/java-native-access/jna"),
+        )),
+        CreditGroup(R.string.licences_type, listOf(
+            Credit("Plus Jakarta Sans", stringResource(R.string.licences_role_ui_font), "OFL-1.1 · The Plus Jakarta Sans Project Authors", "https://github.com/tokotype/PlusJakartaSans", "OFL-PlusJakartaSans.txt"),
+            Credit("Bricolage Grotesque", stringResource(R.string.licences_role_titles), "OFL-1.1 · The Bricolage Grotesque Project Authors", "https://github.com/ateliertriay/bricolage", "OFL-BricolageGrotesque.txt"),
+            Credit("Fraunces", stringResource(R.string.licences_role_titles), "OFL-1.1 · The Fraunces Project Authors", "https://github.com/undercasetype/Fraunces", "OFL-Fraunces.txt"),
+            Credit("DM Serif Display", stringResource(R.string.licences_role_titles), "OFL-1.1 · Colophon Foundry", "https://github.com/googlefonts/dm-fonts", "OFL-DMSerifDisplay.txt"),
+            Credit("Doto", stringResource(R.string.licences_role_lists), "OFL-1.1 · The Doto Project Authors", "https://github.com/oliverlalan/Doto", "OFL-Doto.txt"),
+            Credit("Dancing Script", stringResource(R.string.licences_role_signatures), "OFL-1.1 · The Dancing Script Project Authors", "https://github.com/googlefonts/DancingScript", "OFL-DancingScript.txt"),
+            Credit("Source Sans 3, Source Serif 4", stringResource(R.string.licences_role_doc_fonts), "OFL-1.1 · Adobe", "https://github.com/adobe-fonts", "OFL-SourceSans3.txt"),
+            Credit("Inter, JetBrains Mono", stringResource(R.string.licences_role_doc_fonts), "OFL-1.1 · The Inter and JetBrains Mono Project Authors", "https://github.com/rsms/inter"),
+            Credit("Ubuntu Light", stringResource(R.string.licences_role_slide_font), "Ubuntu Font Licence 1.0 · Canonical Ltd., Dalton Maag", "https://design.ubuntu.com/font"),
+        )),
+        CreditGroup(R.string.licences_art, listOf(
+            Credit("Lucide", stringResource(R.string.licences_role_icons), "ISC · Lucide Contributors", "https://lucide.dev", "LICENSE-lucide.txt"),
+            Credit("bot-avatars", stringResource(R.string.licences_role_mascots), "MIT · Jakub Antalik", "https://github.com/jakubantalik"),
+        )),
+        CreditGroup(R.string.licences_data, listOf(
+            Credit("PDFium font data", stringResource(R.string.licences_role_pdf_fonts), "BSD-3-Clause · Foxit Software Inc. and the PDFium Authors", "https://pdfium.googlesource.com/pdfium", "LICENSE-foxit.txt"),
+            Credit("Adobe CMaps", stringResource(R.string.licences_role_cmaps), "BSD-3-Clause · Adobe", "https://github.com/adobe-type-tools/cmap-resources", "LICENSE-adobe-cmaps.txt"),
+        )),
+        CreditGroup(R.string.licences_platform, listOf(
+            Credit("Rust and its crates", stringResource(R.string.licences_role_rust), stringResource(R.string.root_licence_rust_terms), "https://www.rust-lang.org"),
+        )),
     )
+    var open by remember { mutableStateOf<String?>(null) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         item { Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars)) }
         item {
             Spacer(Modifier.height(14.dp))
             ScreenHeader(null, stringResource(R.string.home_licences), onBack = onBack)
-            Spacer(Modifier.height(16.dp))
+            Text(
+                stringResource(R.string.licences_intro), style = ClearType.Body, color = c.inkSoft,
+                modifier = Modifier.padding(horizontal = 30.dp, vertical = 10.dp),
+            )
         }
-        item {
-            Panel {
-                credits.forEach { k ->
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp)) {
-                        Text(k.name, style = ClearType.BodyStrong, color = c.ink)
-                        Text(k.terms, style = ClearType.Caption, color = c.inkSoft)
+        for (g in groups) {
+            item(key = "h${g.title}") { Section(stringResource(g.title)) }
+            item(key = "p${g.title}") {
+                Panel {
+                    g.credits.forEachIndexed { i, k ->
+                        if (i > 0) Box(Modifier.fillMaxWidth().padding(start = 18.dp).height(0.5.dp).background(c.ink.copy(alpha = 0.08f)))
+                        val expanded = open == k.name
+                        Column(Modifier.fillMaxWidth().pressable({ open = if (expanded) null else k.name }).padding(horizontal = 18.dp, vertical = 12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(k.name, style = ClearType.BodyStrong, color = c.ink)
+                                    Text(k.role, style = ClearType.Caption, color = c.inkSoft)
+                                }
+                                Box(Modifier.size(36.dp).pressable({ uri.openUri(k.url) }), contentAlignment = Alignment.Center) {
+                                    Icon(LucideIcons.ArrowUpRight, stringResource(R.string.licences_source, k.name), tint = c.inkSoft, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                            Text(k.terms, style = ClearType.Caption.copy(fontSize = 11.5.sp), color = c.inkFaint, modifier = Modifier.padding(top = 2.dp))
+                            if (expanded) {
+                                val text = remember(k.text) {
+                                    k.text?.let { f -> runCatching { context.assets.open("licences/$f").bufferedReader().readText() }.getOrNull() }
+                                }
+                                Text(
+                                    text ?: stringResource(R.string.licences_text_at_source),
+                                    style = ClearType.Caption.copy(fontSize = 11.sp, lineHeight = 15.sp), color = c.inkSoft,
+                                    modifier = Modifier.padding(top = 10.dp),
+                                )
+                            }
+                        }
                     }
                 }
-            }
-        }
-        items(texts.size) { i ->
-            WashPanel(Modifier.padding(horizontal = 16.dp, vertical = 6.dp).fillMaxWidth()) {
-                Text(texts[i], style = ClearType.Caption, color = c.inkSoft, modifier = Modifier.padding(18.dp))
             }
         }
         item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
