@@ -433,9 +433,9 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                 Column(barSides) {
                     if (ctl.tool == ViewerTool.None) {
                         QuickToolbar(
-                            tools = if (doc.isOffice) QuickTool.WORD else vm.quickToolbar.bar,
+                            tools = QuickTool.barFor(doc, vm.quickToolbar.bar),
                             onTool = { vm.runQuickTool(doc, it) },
-                            onMoreTools = { ctl.sheet = if (ctl.sheet == ViewerSheet.MoreTools) ViewerSheet.None else ViewerSheet.MoreTools },
+                            onMoreTools = if (doc.isOffice) null else ({ ctl.sheet = if (ctl.sheet == ViewerSheet.MoreTools) ViewerSheet.None else ViewerSheet.MoreTools }),
                             moreToolsOpen = ctl.sheet == ViewerSheet.MoreTools,
                         )
                     } else {
@@ -467,6 +467,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                 ViewerSheet.Attachments -> AttachmentsSheet(vm, doc)
                 ViewerSheet.Comments -> Unit
                 ViewerSheet.MoreTools -> MoreToolsSheet(vm, doc)
+                ViewerSheet.SaveAs -> SaveAsSheet(vm, doc)
                 ViewerSheet.Signatures -> SignaturesSheet(vm, doc)
                 ViewerSheet.None -> Unit
             }

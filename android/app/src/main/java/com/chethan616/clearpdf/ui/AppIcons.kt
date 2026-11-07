@@ -58,6 +58,9 @@ object LucideIcons {
     val FilePlus2: ImageVector get() = Icons.AutoMirrored.Rounded.NoteAdd
     val FileStack: ImageVector get() = Icons.Rounded.FileCopy
     val FileText: ImageVector get() = Icons.Rounded.Description
+    val Files: ImageVector get() = Icons.Rounded.FileCopy
+    val Presentation: ImageVector get() = Icons.Rounded.Slideshow
+    val Sheet: ImageVector get() = Icons.Rounded.TableChart
     val FolderOpen: ImageVector get() = Icons.Rounded.FolderOpen
     val FolderPlus: ImageVector get() = Icons.Rounded.CreateNewFolder
     val GalleryVerticalEnd: ImageVector get() = Icons.Rounded.ViewDay

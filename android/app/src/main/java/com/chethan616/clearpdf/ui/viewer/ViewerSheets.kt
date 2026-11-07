@@ -132,11 +132,9 @@ fun MoreSheet(vm: AppViewModel, doc: OpenDocument) {
                     stringResource(if (bookmarked) R.string.sheet_remove_bookmark else R.string.sheet_add_bookmark), Candy.Tangerine,
                 ) { close(); vm.toggleBookmark(doc) }
                 ActionTile(LucideIcons.Volume2, stringResource(R.string.common_tool_read_aloud), Candy.Sky) { close(); vm.startReadAloud(doc) }
-                // a Word document opens for reading: editing and printing it come later
-                if (!doc.isOffice) {
-                    ActionTile(LucideIcons.FilePenLine, stringResource(R.string.common_tool_edit_pdf), Candy.Bubblegum) { close(); vm.enterTool(doc, ViewerTool.Edit) }
-                    ActionTile(LucideIcons.Printer, stringResource(R.string.sheet_print), Candy.Grape) { close(); vm.print(doc) }
-                }
+                if (doc.isSlides) ActionTile(LucideIcons.Presentation, stringResource(R.string.office_present), Candy.Bubblegum) { close(); vm.presenting = doc }
+                else if (!doc.isOffice) ActionTile(LucideIcons.FilePenLine, stringResource(R.string.common_tool_edit_pdf), Candy.Bubblegum) { close(); vm.enterTool(doc, ViewerTool.Edit) }
+                ActionTile(LucideIcons.Printer, stringResource(R.string.sheet_print), Candy.Grape) { close(); vm.print(doc) }
             }
             Spacer(Modifier.height(8.dp))
             SheetSection {
@@ -148,6 +146,11 @@ fun MoreSheet(vm: AppViewModel, doc: OpenDocument) {
                     SheetRow(LucideIcons.MessagesSquare, stringResource(R.string.sheet_comment_list), { ctl.sheet = ViewerSheet.Comments }, chevron = true, tint = Candy.Bubblegum)
                     SheetRow(LucideIcons.ShieldCheck, stringResource(R.string.sign_signatures), { ctl.sheet = ViewerSheet.Signatures }, chevron = true, tint = Candy.Lime)
                 }
+            }
+            // an office document: written by its own engine as PDF or another format
+            if (doc.isOffice) SheetSection {
+                SheetRow(LucideIcons.FileOutput, stringResource(R.string.office_export_pdf), { close(); vm.exportOffice(doc, "pdf") }, tint = Candy.Tangerine)
+                SheetRow(LucideIcons.Copy, stringResource(R.string.office_save_as), { ctl.sheet = ViewerSheet.SaveAs }, chevron = true, tint = Candy.Lime)
             }
             if (!doc.isOffice) SheetSection {
                 SheetRow(LucideIcons.FileOutput, stringResource(R.string.sheet_export_as), { close(); vm.openExport(doc) }, tint = Candy.Tangerine)
@@ -577,3 +580,40 @@ fun MoreToolsSheet(vm: AppViewModel, doc: OpenDocument) {
         Spacer(Modifier.height(12.dp))
     }
 }
+
+
+/** Save as: the formats the document's engine writes, each saved to Downloads. */
+@Composable
+fun SaveAsSheet(vm: AppViewModel, doc: OpenDocument) {
+    val ctl = doc.controller
+    var formats by remember { mutableStateOf<List<String>>(emptyList()) }
+    LaunchedEffect(doc.id) { formats = vm.engine?.let { e -> runCatching { e.command { exportFormats(doc.id) } }.getOrNull() }.orEmpty() }
+    PdfSheet(onDismiss = { ctl.sheet = ViewerSheet.None }) {
+        SheetTitle(stringResource(R.string.office_save_as))
+        SheetSection {
+            for (f in formats) SheetRow(LucideIcons.FileOutput, stringResource(R.string.office_format, formatName(f), f.uppercase()), {
+                ctl.sheet = ViewerSheet.None
+                vm.exportOffice(doc, f)
+            }, tint = Candy.Sky)
+        }
+        Spacer(Modifier.height(10.dp))
+    }
+}
+
+/** A format's name as people know it. */
+@Composable
+private fun formatName(f: String): String = stringResource(
+    when (f) {
+        "pdf" -> R.string.format_pdf
+        "docx" -> R.string.format_docx
+        "odt" -> R.string.format_odt
+        "rtf" -> R.string.format_rtf
+        "html" -> R.string.format_html
+        "md" -> R.string.format_md
+        "txt" -> R.string.format_txt
+        "pptx" -> R.string.format_pptx
+        "xlsx" -> R.string.format_xlsx
+        "csv" -> R.string.format_csv
+        else -> R.string.format_other
+    },
+)

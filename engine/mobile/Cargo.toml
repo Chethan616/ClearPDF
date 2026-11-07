@@ -26,6 +26,7 @@ wordcraft-engine = { workspace = true }
 deckcraft-model = { workspace = true }
 deckcraft-pptx = { workspace = true }
 deckcraft-render = { workspace = true }
+deckcraft-pdf = { workspace = true }
 # Excel workbooks (src/sheets.rs): GridCraft's engine
 gridcraft-engine = { workspace = true }
 gridcraft-xlsx = { workspace = true }

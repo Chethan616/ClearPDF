@@ -43,6 +43,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -184,7 +185,8 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
         snapshotFlow { reveal.progress.value.let { it <= 0f || it >= 1f } }.collect { vm.deskStill = it }
     }
     // under an open document nothing of the desk shows: skip drawing it (and its glass) entirely
-    val underDoc = Modifier.drawWithContent { if (!reveal.covering) drawContent() }
+    // (nor while a document from Quick Preview opens: the desk is never seen on that way in)
+    val underDoc = Modifier.drawWithContent { if (!reveal.covering && !vm.expandingPreview) drawContent() }
     GlassStage(
         wallpaper = { Aurora(mood, underDoc) },
         screens = {
@@ -200,6 +202,17 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
                     }
                 }
             }
+            // from Quick Preview: the viewer's own ground instead of the desk while the document opens,
+            // so the window comes in on one quiet colour and the document rises as it does from the desk
+            if (vm.expandingPreview) {
+                Box(Modifier.fillMaxSize().background(pdfColors.desk))
+                LaunchedEffect(Unit) {
+                    // the card sat at the bottom of the screen: the document grows from there
+                    LastTouch.x = Float.NaN
+                    snapshotFlow { reveal.covering }.first { it }
+                    vm.expandingPreview = false
+                }
+            }
             // the document rises over the desk (translation and a cheap fade: no scaling, no layer)
             Reveal(doc, reveal) { Viewer(vm, it) }
             // a tool's own screen opens over whatever it was started from: the desk or a document
@@ -207,6 +220,7 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
                 vm.toolScreen?.let { ToolScreenHost(vm, it) }
                 vm.signaturePad?.let { SignaturePadScreen(vm, it, onPickSignatureImage) }
                 vm.certSign?.let { CertSignScreen(vm, it) }
+                vm.presenting?.let { d -> com.chethan616.clearpdf.ui.viewer.PresentMode(vm, d) { vm.presenting = null } }
                 vm.editingPhoto?.let { (note, picture) -> com.chethan616.clearpdf.ui.notes.PhotoEditScreen(vm, note, picture) { vm.editingPhoto = null } }
                 if (vm.idCreate) CreateIdScreen(vm)
             }

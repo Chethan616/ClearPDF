@@ -65,6 +65,8 @@ wordcraft-engine = { path = "vendor/wordcraft-engine", version = "0.15.1", defau
 deckcraft-model = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
 deckcraft-pptx = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
 deckcraft-render = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
+# slides to PDF (craft-pdf through the krilla fork patched in below)
+deckcraft-pdf = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
 
 # Excel (.xlsx, .xlsb, .ods, .csv): storytold/gridcraft's engine (formulas, number formats), pinned.
 gridcraft-engine = { git = "https://github.com/storytold/gridcraft", rev = "6a8eb4ff42cfa88b5bdd3eec13c6db3874d95214", version = "0.16.0" }

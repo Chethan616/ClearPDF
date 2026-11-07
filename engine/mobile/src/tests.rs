@@ -627,3 +627,30 @@ fn develops_a_photo_and_saves_it() {
     e.export_jpeg(path, r#"{"light":{"exposure":0.5}}"#.into(), out.clone(), 90).unwrap();
     assert!(std::fs::read(out).unwrap().starts_with(&[0xFF, 0xD8]));
 }
+
+#[test]
+fn office_documents_export_to_pdf_and_their_own_formats() {
+    let s = MobileSession::new();
+    let dir = scratch();
+    let cases = [
+        (word_file("Exported words.", "W.docx"), vec!["pdf", "docx", "odt", "rtf", "html", "md", "txt"]),
+        (deck_file("Exported slide", "S.pptx"), vec!["pdf", "pptx"]),
+        (book_file("a,b\n1,2\n", "B.xlsx"), vec!["pdf", "xlsx", "csv"]),
+    ];
+    for (path, formats) in cases {
+        let id = s.open(path.clone(), None).unwrap().id;
+        assert_eq!(s.export_formats(id), formats, "{path}");
+        for f in &formats {
+            let out = dir.join(format!("out.{f}")).to_string_lossy().into_owned();
+            s.export_office(id, f.to_string(), out.clone()).unwrap_or_else(|e| panic!("{path} as {f}: {e}"));
+            let bytes = std::fs::read(&out).unwrap();
+            assert!(!bytes.is_empty(), "{path} as {f}");
+            if *f == "pdf" {
+                assert!(bytes.starts_with(b"%PDF"), "{path} as pdf");
+                // and it opens in the PDF engine
+                assert!(!s.open(out.clone(), None).unwrap().pages.is_empty());
+            }
+        }
+        assert!(s.export_office(id, "exe".into(), dir.join("x").to_string_lossy().into_owned()).is_err());
+    }
+}

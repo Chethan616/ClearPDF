@@ -34,6 +34,9 @@ pub(crate) trait OfficeDoc: Send + Sync {
     /// Drop what can be built again (the system is short of memory).
     fn release_memory(&self);
 
+    /// The document written as `format` (`pdf`, or one its engine writes: see [`formats`]).
+    fn export(&self, format: &str) -> Result<Vec<u8>, MobileError>;
+
     /// A workbook, whose sheets the app draws as a grid of its own.
     fn as_sheets(&self) -> Option<&crate::sheets::SheetBook> {
         None
@@ -120,13 +123,18 @@ pub(crate) fn sniff(bytes: &[u8], path: &str) -> Option<OfficeFile> {
     if head.starts_with(b"{\\rtf") {
         return Some(OfficeFile::Word("rtf"));
     }
-    // plain-text tables are known by their name alone
-    if let Some(e @ ("csv" | "tsv")) = sheets_named
-        && !head.contains(&0)
-    {
+    // plain text is known by its name alone: tables, and prose the Word engine reads
+    if head.contains(&0) {
+        return None;
+    }
+    if let Some(e @ ("csv" | "tsv")) = sheets_named {
         return Some(OfficeFile::Sheets(e));
     }
-    None
+    match ext.as_deref() {
+        Some("txt") => Some(OfficeFile::Word("txt")),
+        Some("md" | "markdown") => Some(OfficeFile::Word("md")),
+        _ => None,
+    }
 }
 
 /// Read the file at `path` within the size bound.
@@ -146,8 +154,8 @@ pub(crate) fn file_at(path: &str) -> Result<Option<(OfficeFile, Vec<u8>)>, Mobil
     let n = std::fs::File::open(path).and_then(|mut f| f.read(&mut head)).map_err(|e| MobileError::Open(format!("{path}: {e}")))?;
     let head = head.get(..n).unwrap_or_default();
     let ext = std::path::Path::new(path).extension().and_then(|e| e.to_str()).unwrap_or_default();
-    let text_table = ext.eq_ignore_ascii_case("csv") || ext.eq_ignore_ascii_case("tsv");
-    if !(text_table || head.starts_with(b"PK\x03\x04") || head.starts_with(&[0xD0, 0xCF, 0x11, 0xE0]) || head.starts_with(b"{\\rtf")) {
+    let plain = ["csv", "tsv", "txt", "md", "markdown"].iter().any(|e| ext.eq_ignore_ascii_case(e));
+    if !(plain || head.starts_with(b"PK\x03\x04") || head.starts_with(&[0xD0, 0xCF, 0x11, 0xE0]) || head.starts_with(b"{\\rtf")) {
         return Ok(None);
     }
     let bytes = read(path)?;
@@ -167,6 +175,21 @@ pub(crate) fn open(
         OfficeFile::Slides => Arc::new(crate::slides::SlideDeck::open(path, bytes)?),
         OfficeFile::Sheets(ext) => Arc::new(crate::sheets::SheetBook::open(path, ext, bytes, password)?),
     })
+}
+
+/// The formats an office document of `kind` can be written as, PDF first.
+pub(crate) fn formats(kind: crate::DocumentKind) -> &'static [&'static str] {
+    match kind {
+        crate::DocumentKind::Word => &["pdf", "docx", "odt", "rtf", "html", "md", "txt"],
+        crate::DocumentKind::Slides => &["pdf", "pptx"],
+        crate::DocumentKind::Sheets => &["pdf", "xlsx", "csv"],
+        crate::DocumentKind::Pdf => &[],
+    }
+}
+
+/// A refusal of `format` for a document of `kind`.
+pub(crate) fn unknown_format(kind: crate::DocumentKind, format: &str) -> MobileError {
+    MobileError::Command(format!("a {kind:?} document can't be written as {format}: it can be {}", formats(kind).join(", ")))
 }
 
 /// The file name of `path`.
@@ -221,6 +244,8 @@ mod tests {
         assert_eq!(sniff(b"a,b\n1,2\n", "/a/t.csv"), Some(OfficeFile::Sheets("csv")));
         assert_eq!(sniff(b"{\\rtf1\\ansi hello}", "/a/x.txt"), Some(OfficeFile::Word("rtf")));
         assert_eq!(sniff(b"plain words", "/a/notes.docx"), None);
+        assert_eq!(sniff(b"plain words", "/a/notes.txt"), Some(OfficeFile::Word("txt")));
+        assert_eq!(sniff(b"# Title", "/a/Read me.md"), Some(OfficeFile::Word("md")));
     }
 
     #[test]

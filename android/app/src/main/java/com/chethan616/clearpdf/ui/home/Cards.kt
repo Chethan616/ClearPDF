@@ -251,8 +251,13 @@ fun NoteCard(note: Note, onOpen: () -> Unit, onLong: () -> Unit, modifier: Modif
 @Composable
 fun ThoughtCard(onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val tone = clear.tone(Tone.Paper)
+    // the day's quote on the card itself, so it reads as a thought before it is opened
+    val res = androidx.compose.ui.platform.LocalContext.current.resources
+    val quote = remember(res) { com.chethan616.clearpdf.notes.thoughtFor(res).quote }
     Column(modifier.heightIn(min = 188.dp).pressable(onOpen, pressedScale = 0.96f).cardPaint(tone, Offset(0.1f, 0.0f)).padding(18.dp)) {
         WordFitText(stringResource(R.string.thought_title), ClearType.CardTitle.copy(color = tone.accent), maxLines = 4)
+        Spacer(Modifier.height(10.dp))
+        Text("“$quote”", style = ClearType.Body.copy(fontSize = 14.sp, lineHeight = 19.sp, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic), color = tone.ink.copy(alpha = 0.8f), maxLines = 5, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         Spacer(Modifier.weight(1f))
         Spacer(Modifier.height(12.dp))
         Text(shortDate(System.currentTimeMillis()), style = ClearType.Caption.copy(fontSize = 10.5.sp), color = tone.ink.copy(alpha = 0.55f), modifier = Modifier.align(Alignment.End))

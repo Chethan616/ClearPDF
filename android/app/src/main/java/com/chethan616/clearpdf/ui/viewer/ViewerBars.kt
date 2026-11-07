@@ -319,7 +319,7 @@ private fun dockSlots(widthDp: Int): Int = when {
 fun QuickToolbar(
     tools: List<QuickTool>,
     onTool: (QuickTool) -> Unit,
-    onMoreTools: () -> Unit,
+    onMoreTools: (() -> Unit)?,
     moreToolsOpen: Boolean,
 ) {
     val slots = dockSlots(LocalConfiguration.current.screenWidthDp)
@@ -338,7 +338,8 @@ fun QuickToolbar(
                 for (t in shown) DockItem(t.icon, stringResource(t.label)) { onTool(t) }
             }
         }
-        GlassCircle(onClick = onMoreTools, size = 60.dp, label = stringResource(R.string.common_tool_more_tools)) {
+        // office documents have their own tools on the bar and no PDF More tools
+        if (onMoreTools != null) GlassCircle(onClick = onMoreTools, size = 60.dp, label = stringResource(R.string.common_tool_more_tools)) {
             GlassIcon(LucideIcons.LayoutGrid, null, Modifier.size(23.dp).androidxRotate(turn))
         }
     }

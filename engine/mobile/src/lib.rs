@@ -878,6 +878,19 @@ impl MobileSession {
         })
     }
 
+    /// Write office document `doc` (Word, slides or a workbook) as `format` to absolute path `path`:
+    /// `pdf`, or another format its engine writes ([`MobileSession::export_formats`]).
+    pub fn export_office(&self, doc: u64, format: String, path: String) -> Result<(), MobileError> {
+        let d = self.office(doc).ok_or(MobileError::NoDocument(doc))?;
+        let bytes = d.export(&format.to_ascii_lowercase())?;
+        std::fs::write(&path, bytes).map_err(|e| MobileError::Command(format!("{path}: {e}")))
+    }
+
+    /// The formats office document `doc` can be written as, PDF first (empty for a PDF).
+    pub fn export_formats(&self, doc: u64) -> Vec<String> {
+        self.office(doc).map(|d| office::formats(d.info(doc).kind).iter().map(|f| f.to_string()).collect()).unwrap_or_default()
+    }
+
     /// The sheets of workbook `doc`, in tab order.
     pub fn sheets(&self, doc: u64) -> Result<Vec<SheetInfo>, MobileError> {
         self.with_sheets(doc, |b| Ok(b.sheets()))

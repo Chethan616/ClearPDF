@@ -134,8 +134,10 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
      * [fromOtherApp]: another app opened it, so closing it goes back to that app rather than Home,
      * as the reference does (#47).
      */
-    fun open(uri: Uri, password: String? = null, fromOtherApp: Boolean = false) {
+    fun open(uri: Uri, password: String? = null, fromOtherApp: Boolean = false, copy: File? = null, fromPreview: Boolean = false) {
         otherAppUri = uri.takeIf { fromOtherApp }
+        // from Quick Preview the desk never shows: a plain ground until the document rises over it
+        if (fromPreview) expandingPreview = true
         // a file opened from another app comes to the front, not under Settings
         settingsOpen = false
         showLicences = false
@@ -145,7 +147,8 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             try {
                 val file = withContext(Dispatchers.IO) {
                     files.keepAccess(uri)
-                    files.workingCopy(uri)
+                    // Quick Preview has just copied it in: no second copy of the same bytes
+                    copy ?: files.workingCopy(uri)
                 }
                 openFile(eng, uri, file, password)
             } catch (e: java.io.FileNotFoundException) {
@@ -177,9 +180,14 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
                 tell(e.userMessage)
             } finally {
                 opening = false
+                // a document that didn't open (or asked for its password) shows the desk after all
+                if (document == null) expandingPreview = false
             }
         }
     }
+
+    /** Opening a document from Quick Preview: the desk stays hidden until the document covers it. */
+    var expandingPreview by mutableStateOf(false)
 
     /** The password dialog's answer: try again with [password], or give up (null). */
     fun answerPassword(password: String?) {
@@ -598,6 +606,15 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             return
         }
         viewModelScope.launch {
+            // an office document prints as the PDF its engine writes
+            if (doc.isOffice) {
+                val eng = engine ?: return@launch
+                val out = tempFile("pdf")
+                runCatching { eng.command { exportOffice(doc.id, "pdf", out.absolutePath) } }
+                    .onSuccess { prints.trySend(out to "${doc.title}.pdf") }
+                    .onFailure { tell(it.userMessage) }
+                return@launch
+            }
             save(doc)
             // the system's printing can't open a password-protected file: print an unlocked copy
             val file = if (doc.info.encrypted) unlockedCopy(doc) ?: doc.file else doc.file
@@ -2381,6 +2398,24 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     /** The note open in the editor. */
     var openNote by mutableStateOf<String?>(null)
 
+    /** A presentation shown full screen, slide by slide. */
+    var presenting by mutableStateOf<OpenDocument?>(null)
+
+    /**
+     * Write office document [doc] as [format] (`pdf`, `docx`, …) with its own engine and save it to
+     * Downloads, offering to open it.
+     */
+    fun exportOffice(doc: OpenDocument, format: String) {
+        val eng = engine ?: return
+        viewModelScope.launch {
+            val out = tempFile(format)
+            val name = "${doc.title}.$format"
+            runCatching { eng.command { exportOffice(doc.id, format, out.absolutePath) } }
+                .onSuccess { deliver(out, name, DocumentTypes.mimeOf(name)) }
+                .onFailure { tell(it.userMessage) }
+        }
+    }
+
     /** A note's picture being edited (note id, picture name), over everything. */
     var editingPhoto by mutableStateOf<Pair<String, String>?>(null)
 
@@ -3013,6 +3048,19 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     // Last in the class: initializers and init blocks run in source order, and this coroutine can run
     // straight away (a started engine) or on another thread, so every property must exist first.
     init {
+        // a past day's thought that was only read, never written on, leaves the desk (it showed as a
+        // second "Thought of the day"); one written on stays as the note it became
+        viewModelScope.launch {
+            snapshotFlow { notes.loaded }.first { it }
+            val res = getApplication<Application>().resources
+            val today = com.chethan616.clearpdf.notes.today()
+            val heading = text(R.string.thought_title)
+            notes.all.filter { it.thought != 0L && it.thought != today }.forEach { n ->
+                val seed = com.chethan616.clearpdf.notes.thoughtFor(res, n.thought)
+                val untouched = (n.title == seed.quote && n.body == seed.reflection) || n.title == heading || (n.title.isBlank() && n.body.isBlank())
+                if (untouched && n.images.isEmpty() && n.audio == null) notes.delete(n.id)
+            }
+        }
         viewModelScope.launch {
             application.engine.await().onSuccess { engine = it }.onFailure { engineProblem = it.userMessage }
             refreshRecents()

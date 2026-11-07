@@ -82,6 +82,8 @@ fun FilesScreen(vm: AppViewModel, onBrowse: () -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var query by rememberSaveable { mutableStateOf("") }
     var sortByName by rememberSaveable { mutableStateOf(false) }
+    // narrowed to one kind of file from the ⋯ menu
+    var kind by rememberSaveable { mutableStateOf(com.chethan616.clearpdf.engine.DocumentTypes.Kind.All) }
     var menuAnchor by remember { mutableStateOf<Rect?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
@@ -102,6 +104,7 @@ fun FilesScreen(vm: AppViewModel, onBrowse: () -> Unit) {
         tab == 1 -> vm.starredRows()
         else -> vm.localRows()
     }.let { if (sortByName && query.isBlank()) it.sortedBy { r -> r.name.lowercase() } else it }
+        .let { if (kind == com.chethan616.clearpdf.engine.DocumentTypes.Kind.All) it else it.filter { r -> com.chethan616.clearpdf.engine.DocumentTypes.kindOf(r.name) == kind } }
 
     // a search left alone for a moment counts as one made
     LaunchedEffect(query) {
@@ -189,6 +192,10 @@ fun FilesScreen(vm: AppViewModel, onBrowse: () -> Unit) {
         val anchor = menuAnchor ?: Rect.Zero
         val items = buildList {
             add(GlassMenuItem(stringResource(if (sortByName) R.string.home_sort_by_date else R.string.home_sort_by_name), LucideIcons.ArrowUpDown) { sortByName = !sortByName })
+            // show one kind of file: the one shown has a tick
+            for (k in com.chethan616.clearpdf.engine.DocumentTypes.Kind.entries) {
+                add(GlassMenuItem(stringResource(k.label), if (k == kind) LucideIcons.Check else k.icon) { kind = k })
+            }
             if (tab == 0 && vm.recentList.isNotEmpty()) add(GlassMenuItem(stringResource(R.string.home_clear_recent), LucideIcons.BrushCleaning) { confirmClear = true })
             if (tab == 2) {
                 add(GlassMenuItem(stringResource(R.string.home_refresh), LucideIcons.RotateCw) { vm.scanLocal(force = true) })

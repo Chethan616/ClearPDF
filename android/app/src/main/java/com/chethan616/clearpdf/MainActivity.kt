@@ -197,9 +197,10 @@ class MainActivity : ComponentActivity() {
         }
         // from Quick Preview: its own copy when Android didn't pass the original on
         val local = intent?.getStringExtra(EXTRA_LOCAL_COPY)?.let(::File)?.takeIf { it.isFile && it.canonicalPath.startsWith(filesDir.canonicalPath) }
+        val fromPreview = intent?.getBooleanExtra(EXTRA_FROM_PREVIEW, false) == true
         when {
-            uri != null -> vm.open(uri, fromOtherApp = true)
-            local != null -> vm.open(Uri.fromFile(local), fromOtherApp = true)
+            uri != null -> vm.open(uri, fromOtherApp = true, copy = local, fromPreview = fromPreview)
+            local != null -> vm.open(Uri.fromFile(local), fromOtherApp = true, fromPreview = fromPreview)
         }
     }
 

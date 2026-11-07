@@ -389,6 +389,25 @@ impl OfficeDoc for SheetBook {
 
     fn release_memory(&self) {}
 
+    fn export(&self, format: &str) -> Result<Vec<u8>, MobileError> {
+        match format {
+            "pdf" => {
+                // the engine's own export: each sheet's page setup, every visible sheet
+                let mut s = gridcraft_engine::Session::new();
+                let doc = gridcraft_engine::DocState::new((*self.wb).clone(), None, self.name.clone(), gridcraft_engine::Trust::FromFile);
+                let i = s.add_document(doc);
+                s.set_active(i);
+                let out = s.execute("file.exportPdf", serde_json::json!({ "sheets": "all" })).map_err(|e| MobileError::Command(e.to_string()))?;
+                let b64 = out.get("base64").and_then(serde_json::Value::as_str).unwrap_or_default();
+                gridcraft_engine::io::base64_decode(b64).ok_or_else(|| MobileError::Command("the workbook could not be written as PDF".into()))
+            }
+            "xlsx" | "csv" => {
+                gridcraft_engine::io::save_bytes(&self.wb, &format!("workbook.{format}")).map_err(|e| MobileError::Command(e.to_string()))
+            }
+            _ => Err(crate::office::unknown_format(DocumentKind::Sheets, format)),
+        }
+    }
+
     fn as_sheets(&self) -> Option<&SheetBook> {
         Some(self)
     }

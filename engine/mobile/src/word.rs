@@ -170,6 +170,15 @@ impl OfficeDoc for WordDocument {
         Ok(out)
     }
 
+    fn export(&self, format: &str) -> Result<Vec<u8>, MobileError> {
+        if !crate::office::formats(DocumentKind::Word).contains(&format) {
+            return Err(crate::office::unknown_format(DocumentKind::Word, format));
+        }
+        let s = self.lock();
+        // the engine picks its writer by the name's extension
+        wordcraft_engine::io::save_bytes(&format!("document.{format}"), &s.session.doc).map_err(MobileError::Command)
+    }
+
     /// The text layers go; they are built again when needed.
     fn release_memory(&self) {
         *self.texts.lock().unwrap_or_else(PoisonError::into_inner) = (0, Vec::new());

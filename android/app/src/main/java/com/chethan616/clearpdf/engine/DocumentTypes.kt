@@ -40,23 +40,46 @@ object DocumentTypes {
         "text/tab-separated-values",
     )
 
+    /** Plain text and Markdown, read by the Word engine. */
+    val TEXT = arrayOf("text/plain", "text/markdown", "text/x-markdown")
+
     /** Everything the viewer opens. */
-    val OPENABLE = arrayOf(PDF) + WORD + SLIDES + SHEETS
+    val OPENABLE = arrayOf(PDF) + WORD + SLIDES + SHEETS + TEXT
 
     private val WORD_EXTENSIONS = setOf("docx", "docm", "dotx", "dotm", "doc", "dot", "odt", "ott", "rtf")
     private val SLIDE_EXTENSIONS = setOf("pptx", "pptm", "ppsx", "ppsm", "potx", "potm")
     private val SHEET_EXTENSIONS = setOf("xlsx", "xlsm", "xltx", "xltm", "xlsb", "ods", "csv", "tsv")
+    private val TEXT_EXTENSIONS = setOf("txt", "md", "markdown")
+
+    /** The kinds a file list can be narrowed to (Files ▸ ⋯). */
+    enum class Kind(val label: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+        All(com.chethan616.clearpdf.R.string.files_kind_all, com.chethan616.clearpdf.ui.LucideIcons.Files),
+        Pdf(com.chethan616.clearpdf.R.string.files_kind_pdf, com.chethan616.clearpdf.ui.LucideIcons.FileText),
+        Word(com.chethan616.clearpdf.R.string.files_kind_word, com.chethan616.clearpdf.ui.LucideIcons.FilePenLine),
+        Slides(com.chethan616.clearpdf.R.string.files_kind_slides, com.chethan616.clearpdf.ui.LucideIcons.Presentation),
+        Sheets(com.chethan616.clearpdf.R.string.files_kind_sheets, com.chethan616.clearpdf.ui.LucideIcons.Sheet),
+        Text(com.chethan616.clearpdf.R.string.files_kind_text, com.chethan616.clearpdf.ui.LucideIcons.Type),
+    }
+
+    /** The kind a file named [name] is. */
+    fun kindOf(name: String): Kind = when (extension(name)) {
+        in WORD_EXTENSIONS -> Kind.Word
+        in SLIDE_EXTENSIONS -> Kind.Slides
+        in SHEET_EXTENSIONS -> Kind.Sheets
+        in TEXT_EXTENSIONS -> Kind.Text
+        else -> Kind.Pdf
+    }
 
     private fun extension(name: String) = name.substringAfterLast('.', "").lowercase()
 
     fun isWordName(name: String) = extension(name) in WORD_EXTENSIONS
 
     /** An office document's name (Word, slides or a workbook): it keeps its own extension. */
-    fun isOfficeName(name: String) = extension(name).let { it in WORD_EXTENSIONS || it in SLIDE_EXTENSIONS || it in SHEET_EXTENSIONS }
+    fun isOfficeName(name: String) = extension(name).let { it in WORD_EXTENSIONS || it in SLIDE_EXTENSIONS || it in SHEET_EXTENSIONS || it in TEXT_EXTENSIONS }
 
     /** Whether a file of type [mime] named [name] is one the viewer opens. */
     fun isOpenable(mime: String?, name: String) =
-        mime == PDF || mime in WORD || mime in SLIDES || mime in SHEETS || extension(name) == "pdf" || isOfficeName(name)
+        mime == PDF || mime in WORD || mime in SLIDES || mime in SHEETS || mime in TEXT || extension(name) == "pdf" || isOfficeName(name)
 
     /** A file name without its extension, as documents are titled (`Report.docx` → `Report`). */
     fun title(name: String): String =
@@ -79,6 +102,8 @@ object DocumentTypes {
         "ods" -> SHEETS[4]
         "csv" -> "text/csv"
         "tsv" -> "text/tab-separated-values"
+        "txt" -> "text/plain"
+        "md", "markdown" -> "text/markdown"
         else -> PDF
     }
 }

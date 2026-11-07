@@ -64,6 +64,8 @@
                 <data android:mimeType="application/vnd.oasis.opendocument.spreadsheet" />
                 <data android:mimeType="text/csv" />
                 <data android:mimeType="text/comma-separated-values" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/markdown" />
             </intent-filter>
         </activity>
 
@@ -109,6 +111,8 @@
                 <data android:mimeType="application/vnd.oasis.opendocument.spreadsheet" />
                 <data android:mimeType="text/csv" />
                 <data android:mimeType="text/comma-separated-values" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/markdown" />
             </intent-filter>
         </activity>
 

@@ -149,6 +149,14 @@ impl OfficeDoc for SlideDeck {
             .collect())
     }
 
+    fn export(&self, format: &str) -> Result<Vec<u8>, MobileError> {
+        match format {
+            "pdf" => deckcraft_pdf::export(&self.pres, &deckcraft_pdf::PdfOptions::default()).map_err(|e| MobileError::Command(e.to_string())),
+            "pptx" => deckcraft_pptx::export(&self.pres).map_err(|e| MobileError::Command(e.to_string())),
+            _ => Err(crate::office::unknown_format(DocumentKind::Slides, format)),
+        }
+    }
+
     fn release_memory(&self) {
         let mut texts = self.texts.lock().unwrap_or_else(PoisonError::into_inner);
         texts.iter_mut().for_each(|t| *t = None);

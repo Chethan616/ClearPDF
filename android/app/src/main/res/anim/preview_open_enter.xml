@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The full viewer, coming in over Quick Preview's card: it rises from where the card is while it fades in -->
+<!-- The app, coming in over Quick Preview's card: a short fade onto the viewer's plain ground; the
+     document then rises over it as it does when opened from the desk -->
 <set xmlns:android="http://schemas.android.com/apk/res/android"
     android:interpolator="@interpolator/ui_curve">
-    <translate
-        android:fromYDelta="9%p"
-        android:toYDelta="0"
-        android:duration="420" />
     <alpha
         android:fromAlpha="0"
         android:toAlpha="1"
-        android:duration="300" />
+        android:duration="180" />
 </set>

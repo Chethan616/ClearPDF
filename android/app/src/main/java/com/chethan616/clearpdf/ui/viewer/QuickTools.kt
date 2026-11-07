@@ -87,14 +87,30 @@ enum class QuickTool(val id: String, @StringRes val label: Int, @StringRes val t
     Create("create", R.string.common_tool_create_pdf, R.string.common_tool_create_pdf, LucideIcons.FilePlus2, ToolHues.create),
     Text("text", R.string.toolbar_label_add_text, R.string.toolbar_tool_text, LucideIcons.Type, ToolHues.text),
     Scan("scan", R.string.common_tool_scan, R.string.common_tool_scan, LucideIcons.Camera, ToolHues.scan),
-    ReadAloud("readaloud", R.string.common_tool_read_aloud, R.string.common_tool_read_aloud, LucideIcons.Volume2, ToolHues.read);
+    ReadAloud("readaloud", R.string.common_tool_read_aloud, R.string.common_tool_read_aloud, LucideIcons.Volume2, ToolHues.read),
+
+    // office documents' own tools (their engines: WordCraft, DeckCraft)
+    Present("present", R.string.office_present, R.string.office_present, LucideIcons.Presentation, ToolHues.read),
+    ExportPdf("exportpdf", R.string.office_export_pdf, R.string.office_export_pdf, LucideIcons.FileOutput, ToolHues.export),
+    SaveAs("saveas", R.string.office_save_as, R.string.office_save_as, LucideIcons.Copy, ToolHues.export),
+    Print("print", R.string.sheet_print, R.string.sheet_print, LucideIcons.Printer, ToolHues.export);
 
     companion object {
         /** The bar as it comes: the reference's default tools and order. */
         val DEFAULT_BAR = listOf(Edit, Comment, Highlight, Draw, FillSign, Export)
 
-        /** The tools that work on a Word document or a presentation (they open for reading: the PDF tools don't apply). */
-        val WORD = listOf(ReadAloud)
+        /** A Word document's bar: its engine reads it aloud, exports and converts it, and prints it. */
+        val WORD = listOf(ReadAloud, ExportPdf, SaveAs, Print)
+
+        /** A presentation's bar: a full-screen show first. */
+        val SLIDES = listOf(Present, ReadAloud, ExportPdf, SaveAs, Print)
+
+        /** The bar for [doc]: an office document's own tools, else the PDF bar as arranged. */
+        fun barFor(doc: com.chethan616.clearpdf.ui.OpenDocument, arranged: List<QuickTool>): List<QuickTool> = when {
+            doc.isSlides -> SLIDES
+            doc.isOffice -> WORD
+            else -> arranged
+        }
 
         fun of(id: String): QuickTool? = entries.firstOrNull { it.id == id }
     }
@@ -139,7 +155,7 @@ class QuickToolbarPrefs(context: Context) {
 
 /** Do what [tool] does on the bar or in More tools. */
 fun AppViewModel.runQuickTool(doc: OpenDocument, tool: QuickTool) {
-    if (doc.isOffice && tool !in QuickTool.WORD) {
+    if (doc.isOffice && tool !in QuickTool.barFor(doc, emptyList())) {
         tell(com.chethan616.clearpdf.text(com.chethan616.clearpdf.R.string.msg_word_reading_only))
         return
     }
@@ -163,6 +179,10 @@ fun AppViewModel.runQuickTool(doc: OpenDocument, tool: QuickTool) {
         QuickTool.Create -> openCreate()
         QuickTool.Scan -> startScan()
         QuickTool.ReadAloud -> startReadAloud(doc)
+        QuickTool.Present -> presenting = doc
+        QuickTool.ExportPdf -> exportOffice(doc, "pdf")
+        QuickTool.SaveAs -> doc.controller.sheet = ViewerSheet.SaveAs
+        QuickTool.Print -> print(doc)
     }
 }
 
