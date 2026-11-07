@@ -44,7 +44,15 @@ Read, sign and edit PDFs, open and edit Word, Excel and PowerPoint files, and ke
 
 ClearPDF / Artefact was featured by HowToMen — [watch from 9:08 →](https://www.youtube.com/watch?v=TYNzg59ke30&t=548s)
 
-## Screenshots
+## Screenshots & Demo
+
+<p align="center">
+  <a href="docs/media/artefact-demo.mp4">
+    <img src="docs/media/artefact-demo.gif" width="70%" alt="Artefact walkthrough demo">
+  </a>
+  <br>
+  <sub>▶ Click animation to open full MP4 video (or view <a href="docs/media/artefact-demo.mp4">artefact-demo.mp4</a>)</sub>
+</p>
 
 <table align="center">
   <tr>
@@ -58,18 +66,6 @@ ClearPDF / Artefact was featured by HowToMen — [watch from 9:08 →](https://w
     <td align="center"><img src="docs/media/05-tools.png" width="200" alt="PDF tools"></td>
   </tr>
 </table>
-
-<p align="center">
-  <video src="https://raw.githubusercontent.com/Chethan616/ClearPDF/artefact/docs/media/artefact-demo.mp4"
-         controls
-         autoplay
-         loop
-         muted
-         width="600"
-         style="border-radius:16px">
-    <a href="https://raw.githubusercontent.com/Chethan616/ClearPDF/artefact/docs/media/artefact-demo.mp4">Watch the Artefact demo</a>
-  </video>
-</p>
 
 ## What you can do
 
