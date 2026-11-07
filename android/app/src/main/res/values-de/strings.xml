@@ -427,13 +427,10 @@
 
     <!-- Read Aloud: the player -->
     <string name="read_aloud_no_voice">Zum Vorlesen wird eine Text-in-Sprache-Stimme auf diesem Smartphone benötigt.</string>
-    <string name="read_aloud_open_player">Player öffnen</string>
-    <string name="read_aloud_close_player">Player schließen</string>
     <string name="read_aloud_read_again">Erneut vorlesen</string>
     <string name="read_aloud_back_15">15 Sekunden zurück</string>
     <string name="read_aloud_forward_15">15 Sekunden vor</string>
     <!-- Translator note: opens the choice of the language the voice reads in. -->
-    <string name="read_aloud_voice">Stimme</string>
     <string name="read_aloud_choose_language">Sprache auswählen</string>
     <string name="read_aloud_voice_settings">Spracheinstellungen</string>
 

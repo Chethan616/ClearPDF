@@ -432,12 +432,9 @@
     <!-- ================================================================ -->
 
     <string name="read_aloud_no_voice">Per la lettura ad alta voce è necessaria una voce di sintesi vocale installata sul telefono.</string>
-    <string name="read_aloud_open_player">Apri il lettore</string>
-    <string name="read_aloud_close_player">Chiudi il lettore</string>
     <string name="read_aloud_read_again">Rileggi</string>
     <string name="read_aloud_back_15">Indietro di 15 secondi</string>
     <string name="read_aloud_forward_15">Avanti di 15 secondi</string>
-    <string name="read_aloud_voice">Voce</string>
     <string name="read_aloud_choose_language">Scegli lingua</string>
     <string name="read_aloud_voice_settings">Impostazioni vocali</string>
 

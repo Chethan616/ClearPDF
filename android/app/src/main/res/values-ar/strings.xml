@@ -295,12 +295,9 @@
     <string name="viewer_reading_hint">باعد بين إصبعين أو اضغط مرتين لتكبير النص.</string>
     <string name="viewer_reading_no_text">لا يوجد نص في هذه الصفحة لإعادة تنسيقه.</string>
     <string name="read_aloud_no_voice">تتطلب القراءة بصوت عالٍ تثبيت صوت لتحويل النص إلى كلام على هذا الهاتف.</string>
-    <string name="read_aloud_open_player">فتح المشغّل</string>
-    <string name="read_aloud_close_player">إغلاق المشغّل</string>
     <string name="read_aloud_read_again">قراءة مجددًا</string>
     <string name="read_aloud_back_15">رجوع ١٥ ثانية</string>
     <string name="read_aloud_forward_15">تقديم ١٥ ثانية</string>
-    <string name="read_aloud_voice">الصوت</string>
     <string name="read_aloud_choose_language">اختيار اللغة</string>
     <string name="read_aloud_voice_settings">إعدادات الصوت</string>
     <string name="voice_record_comment">تسجيل تعليق صوتي</string>

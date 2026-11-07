@@ -434,13 +434,10 @@
 
     <!-- Read Aloud: the player -->
     <string name="read_aloud_no_voice">Leer en voz alta necesita una voz de texto a voz en este teléfono.</string>
-    <string name="read_aloud_open_player">Abrir el reproductor</string>
-    <string name="read_aloud_close_player">Cerrar el reproductor</string>
     <string name="read_aloud_read_again">Leer de nuevo</string>
     <string name="read_aloud_back_15">Retroceder 15 segundos</string>
     <string name="read_aloud_forward_15">Avanzar 15 segundos</string>
     <!-- Translator note: opens the choice of the language the voice reads in. -->
-    <string name="read_aloud_voice">Voz</string>
     <string name="read_aloud_choose_language">Elegir idioma</string>
     <string name="read_aloud_voice_settings">Ajustes de voz</string>
 

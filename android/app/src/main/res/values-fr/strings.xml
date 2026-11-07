@@ -413,12 +413,9 @@
 
     <!-- Read Aloud: the player -->
     <string name="read_aloud_no_voice">La lecture à voix haute nécessite une voix de synthèse vocale sur ce téléphone.</string>
-    <string name="read_aloud_open_player">Ouvrir le lecteur</string>
-    <string name="read_aloud_close_player">Fermer le lecteur</string>
     <string name="read_aloud_read_again">Relire</string>
     <string name="read_aloud_back_15">Reculer de 15 secondes</string>
     <string name="read_aloud_forward_15">Avancer de 15 secondes</string>
-    <string name="read_aloud_voice">Voix</string>
     <string name="read_aloud_choose_language">Choisir la langue</string>
     <string name="read_aloud_voice_settings">Réglages de la voix</string>
 

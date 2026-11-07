@@ -274,12 +274,9 @@
     <string name="viewer_reading_hint">Aproxime os dedos ou toque duas vezes para aumentar o texto.</string>
     <string name="viewer_reading_no_text">Não há texto para reorganizar nesta página.</string>
     <string name="read_aloud_no_voice">A leitura em voz alta precisa de uma voz de conversão de texto em fala neste celular.</string>
-    <string name="read_aloud_open_player">Abrir o reprodutor</string>
-    <string name="read_aloud_close_player">Fechar o reprodutor</string>
     <string name="read_aloud_read_again">Ler novamente</string>
     <string name="read_aloud_back_15">Voltar 15 segundos</string>
     <string name="read_aloud_forward_15">Avançar 15 segundos</string>
-    <string name="read_aloud_voice">Voz</string>
     <string name="read_aloud_choose_language">Escolher idioma</string>
     <string name="read_aloud_voice_settings">Configurações de voz</string>
     <string name="voice_record_comment">Gravar comentário de voz</string>

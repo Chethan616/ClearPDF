@@ -283,12 +283,9 @@
     <string name="viewer_reading_hint">Сведите пальцы или нажмите дважды, чтобы увеличить текст.</string>
     <string name="viewer_reading_no_text">На этой странице нет текста для перекомпоновки.</string>
     <string name="read_aloud_no_voice">Для чтения вслух нужен голос синтеза речи на этом телефоне.</string>
-    <string name="read_aloud_open_player">Открыть плеер</string>
-    <string name="read_aloud_close_player">Закрыть плеер</string>
     <string name="read_aloud_read_again">Прочитать снова</string>
     <string name="read_aloud_back_15">Назад на 15 секунд</string>
     <string name="read_aloud_forward_15">Вперёд на 15 секунд</string>
-    <string name="read_aloud_voice">Голос</string>
     <string name="read_aloud_choose_language">Выберите язык</string>
     <string name="read_aloud_voice_settings">Настройки голоса</string>
     <string name="voice_record_comment">Записать голосовой комментарий</string>

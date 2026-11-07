@@ -275,12 +275,9 @@
     <string name="viewer_reading_hint">Afaste os dedos ou toque duas vezes para aumentar o texto.</string>
     <string name="viewer_reading_no_text">Esta página não tem texto para refluir.</string>
     <string name="read_aloud_no_voice">Ler em voz alta precisa de uma voz de síntese de fala neste telemóvel.</string>
-    <string name="read_aloud_open_player">Abrir o leitor</string>
-    <string name="read_aloud_close_player">Fechar o leitor</string>
     <string name="read_aloud_read_again">Ler de novo</string>
     <string name="read_aloud_back_15">Recuar 15 segundos</string>
     <string name="read_aloud_forward_15">Avançar 15 segundos</string>
-    <string name="read_aloud_voice">Voz</string>
     <string name="read_aloud_choose_language">Escolher idioma</string>
     <string name="read_aloud_voice_settings">Definições de voz</string>
     <string name="voice_record_comment">Gravar comentário de voz</string>
