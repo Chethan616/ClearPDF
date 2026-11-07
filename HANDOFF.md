@@ -217,6 +217,20 @@ The card is a `Squircle` (new in `ui/glass/Shapes.kt`: kyant's continuous corner
 content clipped inside its own moving layer) with a radius concentric with the screen's corners
 (`RoundedCorner` bottom-left radius minus the 10 dp inset, 24..48 dp; 34 dp without it).
 
+## NEXT: port the old ClearPDF xlsx viewer (owner's request, 2026-11-07)
+
+The owner wants the spreadsheet viewer of `D:\ClearPDF-latest` ("goated"): copy its viewer, keep its
+editor's behaviour but restyle its editing controls to Artefact's glass UI. Files there
+(`app/src/main/java/com/chethan616/clearpdf/`): `ui/screen/SpreadsheetGrid.kt` (617 lines: grid,
+`GridSelection`, `GridColors`, row drawing), `ui/screen/SpreadsheetScrolling.kt` (row scrubber,
+stacking fling), `ui/screen/SpreadsheetViewerScreen.kt` (1244: content, `FormulaBar`, `SheetTabs`,
+`EditToolbar`, Align/Borders/Number/RowsCols panels, validation dropdown), `ui/viewmodel/
+SpreadsheetViewModel.kt`, `utils/SpreadsheetParser.kt` + `ExcelCellFormat.kt` (its own model).
+Plan: bring the grid + scrolling + formula bar + tabs over as `ui/sheets/*`, feed them from the
+gridcraft bridge (`sheets`, `sheet_axes`, `sheet_cells`, `sheet_merges`, `sheet_input`,
+`sheet_set_cell`, `sheet_command`) instead of its parser, and swap its panels' look for our
+`GlassChip`/`GlassCircle`/`glassBar`/`GlassMenu`. Replace today's `SheetViewer.kt` grid with it.
+
 ## Editing (2026-11-07, later): the owner now shares screenshots; don't drive the phone
 
 - Word: `MobileSession.word_command(doc, cmd, json)` (WordCraft `Session::run`; caret/select/
