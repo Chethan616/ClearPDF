@@ -17,6 +17,11 @@ network code; engine/vendor/wordcraft-fonts: Android's font folders), keeping th
 Its bundled faces Source Sans 3 and Source Serif 4 (Adobe, SIL Open Font License 1.1) are in
 engine/assets/fonts with their licences.
 
+Presentations: the slide reader and renderer of DeckCraft (https://github.com/storytold/deckcraft)
+by storytold and the DeckCraft contributors, MIT OR Apache-2.0, pinned by commit; its fonts crate is
+vendored with Artefact's Android patch (engine/vendor/deckcraft-fonts). Its last-resort face is
+Ubuntu Light (Canonical Ltd. / Dalton Maag, Ubuntu Font Licence 1.0), from epaint_default_fonts.
+
 Liquid glass: the backdrop library from AndroidLiquidGlass by Kyant0
 (https://github.com/Kyant0/AndroidLiquidGlass), Apache-2.0, adapted. The velocity squash-and-stretch
 of glass thumbs follows LiquidTracker from AndroidLiquidGlassView by Donny Yale

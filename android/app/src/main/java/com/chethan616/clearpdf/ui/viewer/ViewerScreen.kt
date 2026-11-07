@@ -439,7 +439,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                 Column(barSides) {
                     if (ctl.tool == ViewerTool.None) {
                         QuickToolbar(
-                            tools = if (doc.isWord) QuickTool.WORD else vm.quickToolbar.bar,
+                            tools = if (doc.isOffice) QuickTool.WORD else vm.quickToolbar.bar,
                             onTool = { vm.runQuickTool(doc, it) },
                             onMoreTools = { ctl.sheet = if (ctl.sheet == ViewerSheet.MoreTools) ViewerSheet.None else ViewerSheet.MoreTools },
                             moreToolsOpen = ctl.sheet == ViewerSheet.MoreTools,

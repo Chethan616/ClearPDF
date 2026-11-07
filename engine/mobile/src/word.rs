@@ -1,74 +1,20 @@
 //! Word documents (.docx and the other word-processor formats) through storytold/wordcraft's
-//! engine: opened, laid out into pages, drawn and read the way the viewer reads a PDF.
-//!
-//! A Word document lives in the same [`MobileSession`](crate::MobileSession) as the PDFs, under a
-//! document id of its own ([`WORD_IDS`] and up), so the viewer's page, thumbnail, search,
-//! selection and Read Aloud paths work unchanged: the session sends each call for a Word id here.
-//! Its text layer is built from the layout's glyph runs into the PDF engine's [`PageText`], whose
-//! search, word and line logic is then shared.
+//! engine: opened, laid out into pages, drawn and read the way the viewer reads a PDF (see
+//! [`crate::office`]).
 
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use kurbo::Affine;
 use pdfcraft_render::{PageText, TextGlyph};
+
 use wordcraft_engine::Session;
 use wordcraft_engine::doc::Document;
 use wordcraft_engine::layout::display::{DisplayOptions, Draw, page_display};
 use wordcraft_engine::layout::{DocLayout, Page};
 use wordcraft_engine::render::RenderOptions;
 
+use crate::office::{ASCENT, DESCENT, OfficeDoc, is_web_link, text_glyph};
 use crate::{DocumentInfo, DocumentKind, LinkInfo, MobileError, PageInfo, RenderedImage, TileRect};
-
-/// The first document id given to a Word document: far above the PDF engine's ids (which count up
-/// from 1), so the two never meet.
-pub(crate) const WORD_IDS: u64 = 1 << 40;
-
-/// The extensions read as Word documents when the bytes alone don't say (an encrypted package is
-/// a compound file whatever the application).
-const WORD_EXTENSIONS: &[&str] = &["docx", "docm", "dotx", "dotm", "doc", "dot", "odt", "ott", "rtf"];
-
-/// The largest file opened (the PDF side has the same 2 GB bound in its reader).
-const MAX_FILE: u64 = 2 << 30;
-
-/// What the bytes of a file are, as far as Word documents go: the extension wordcraft reads it
-/// by, or `None` when it is not a Word document (a PDF, or anything else).
-pub(crate) fn word_extension(bytes: &[u8], path: &str) -> Option<&'static str> {
-    let head = bytes.get(..bytes.len().min(1024)).unwrap_or_default();
-    if head.windows(5).any(|w| w == b"%PDF-") {
-        return None;
-    }
-    let ext = std::path::Path::new(path).extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
-    let named = ext.as_deref().and_then(|e| WORD_EXTENSIONS.iter().find(|w| **w == e).copied());
-    let contains = |needle: &[u8]| bytes.windows(needle.len()).any(|w| w == needle);
-    if bytes.starts_with(b"PK\x03\x04") {
-        // a zip package: its part names are plain text in the local headers and the directory
-        if contains(b"word/document.xml") {
-            return Some(match named {
-                Some(e @ ("docm" | "dotx" | "dotm")) => e,
-                _ => "docx",
-            });
-        }
-        if contains(b"application/vnd.oasis.opendocument.text") {
-            return Some(if named == Some("ott") { "ott" } else { "odt" });
-        }
-        return None;
-    }
-    if bytes.starts_with(&[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]) {
-        // a compound file: a Word 97-2003 document, or a password-protected package
-        let utf16 = |s: &str| s.encode_utf16().flat_map(u16::to_le_bytes).collect::<Vec<u8>>();
-        if contains(&utf16("WordDocument")) {
-            return Some(if named == Some("dot") { "dot" } else { "doc" });
-        }
-        if contains(&utf16("EncryptedPackage")) {
-            return named.filter(|e| matches!(*e, "docx" | "docm" | "dotx" | "dotm"));
-        }
-        return None;
-    }
-    if head.starts_with(b"{\\rtf") {
-        return Some("rtf");
-    }
-    None
-}
 
 /// One open Word document: the engine's session (document, layout, history) and its text layers.
 pub(crate) struct WordDocument {
@@ -108,11 +54,11 @@ fn display_options() -> DisplayOptions {
 }
 
 impl WordDocument {
-    /// Open the Word document at absolute path `path` (`ext` is what [`word_extension`] found),
+    /// Open the Word document at absolute path `path` (`ext` is what [`crate::office::sniff`] found),
     /// with `password` if it needs one. `locale` (a BCP 47 tag) picks the paper of formats that
     /// give none.
     pub(crate) fn open(path: &str, ext: &str, bytes: &[u8], password: Option<&str>, locale: Option<&str>) -> Result<WordDocument, MobileError> {
-        let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_string());
+        let name = crate::office::file_name(path);
         let region = wordcraft_engine::Region::from_locale_vars(|_| None, || locale.map(str::to_string));
         // wordcraft picks its reader by the name's extension
         let stem = std::path::Path::new(&name).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
@@ -129,15 +75,6 @@ impl WordDocument {
         Ok(WordDocument { state: Mutex::new(state), texts: Mutex::new((0, Vec::new())) })
     }
 
-    /// Read the file at `path` within the size bound.
-    pub(crate) fn read(path: &str) -> Result<Vec<u8>, MobileError> {
-        let size = std::fs::metadata(path).map_err(|e| MobileError::Open(format!("{path}: {e}")))?.len();
-        if size > MAX_FILE {
-            return Err(MobileError::Open(format!("{path}: the file is larger than 2 GB")));
-        }
-        std::fs::read(path).map_err(|e| MobileError::Open(format!("{path}: {e}")))
-    }
-
     fn lock(&self) -> MutexGuard<'_, WordState> {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
@@ -149,9 +86,10 @@ impl WordDocument {
         let layout = s.session.layout();
         (s.session.doc.clone(), layout, s.generation)
     }
+}
 
-    /// The document as the viewer's title, menus and properties show it.
-    pub(crate) fn info(&self, id: u64) -> DocumentInfo {
+impl OfficeDoc for WordDocument {
+    fn info(&self, id: u64) -> DocumentInfo {
         let (doc, layout, generation) = self.snapshot();
         let s = self.lock();
         let some = |v: &str| (!v.trim().is_empty()).then(|| v.to_string());
@@ -189,8 +127,7 @@ impl WordDocument {
         }
     }
 
-    /// Draw page `page` at `scale` pixels per point: all of it, or `tile` of it (pixels at that scale).
-    pub(crate) fn render_page(&self, page: u32, scale: f32, tile: Option<TileRect>) -> Result<RenderedImage, MobileError> {
+    fn render_page(&self, page: u32, scale: f32, tile: Option<TileRect>) -> Result<RenderedImage, MobileError> {
         let (doc, layout, _) = self.snapshot();
         let p = page_of(&layout, page)?;
         let opts = render_options();
@@ -204,8 +141,8 @@ impl WordDocument {
         Ok(RenderedImage { width: out.width, height: out.height, rgba: out.pixels })
     }
 
-    /// Page `page`'s text layer (built once per document version).
-    pub(crate) fn page_text(&self, page: u32) -> Result<Arc<PageText>, MobileError> {
+    /// Built once per document version.
+    fn page_text(&self, page: u32) -> Result<Arc<PageText>, MobileError> {
         let (doc, layout, generation) = self.snapshot();
         let p = page_of(&layout, page)?;
         let mut texts = self.texts.lock().unwrap_or_else(PoisonError::into_inner);
@@ -224,8 +161,8 @@ impl WordDocument {
         Ok(text)
     }
 
-    /// The web and mail links on page `page`: one rectangle per run of linked text.
-    pub(crate) fn links(&self, page: u32) -> Result<Vec<LinkInfo>, MobileError> {
+    /// One rectangle per run of linked text.
+    fn links(&self, page: u32) -> Result<Vec<LinkInfo>, MobileError> {
         let (doc, layout, _) = self.snapshot();
         let p = page_of(&layout, page)?;
         let mut out = Vec::new();
@@ -233,17 +170,9 @@ impl WordDocument {
         Ok(out)
     }
 
-    /// Drop the text layers (the system is short of memory); they are built again when needed.
-    pub(crate) fn release_memory(&self) {
+    /// The text layers go; they are built again when needed.
+    fn release_memory(&self) {
         *self.texts.lock().unwrap_or_else(PoisonError::into_inner) = (0, Vec::new());
-    }
-
-    /// Page 1 drawn to fit `max_side` pixels, for file lists.
-    pub(crate) fn thumbnail(&self, max_side: u32) -> Result<RenderedImage, MobileError> {
-        let (_, layout, _) = self.snapshot();
-        let p = layout.pages.first().ok_or_else(|| MobileError::Open("the document has no pages".into()))?;
-        let scale = (max_side.clamp(16, 2048) as f32 / p.w.max(p.h).max(1.0)).max(0.01);
-        self.render_page(0, scale, None)
     }
 }
 
@@ -254,11 +183,6 @@ fn page_of(layout: &DocLayout, page: u32) -> Result<&Page, MobileError> {
         .get(page as usize)
         .ok_or_else(|| MobileError::Render(format!("page {} is out of range: the document has {n} pages", u64::from(page) + 1)))
 }
-
-/// How far above its baseline a glyph's box reaches, and how far below, in ems: the usual
-/// ascent and descent of text faces (the box is for highlighting and hit testing, not drawing).
-const ASCENT: f32 = 0.8;
-const DESCENT: f32 = 0.22;
 
 /// The glyphs of `draws` (and of the groups in them) as text glyphs, in page points. Glyphs that
 /// show only white space are left out: the text layer puts word spaces back from the gaps.
@@ -312,8 +236,7 @@ fn run_glyphs(size: f32, glyphs: &[(u32, f32, f32)], text: &str, ranges: &[std::
         }
         let next = glyphs.get(i + 1).map(|g| g.1).filter(|n| *n > *x);
         let x1 = next.unwrap_or(x + average.min(size));
-        let (y0, y1) = (baseline - size * ASCENT, baseline + size * DESCENT);
-        out.push(TextGlyph { text: t, rect: [*x, y0, x1, y1], quad: [[*x, y1], [x1, y1], [x1, y0], [*x, y0]], direction: [1.0, 0.0] });
+        out.push(text_glyph(t, f64::from(*x), f64::from(x1), f64::from(*baseline), f64::from(size), Affine::IDENTITY));
     }
 }
 
@@ -336,33 +259,9 @@ fn collect_links(draws: &[Draw], out: &mut Vec<LinkInfo>) {
     }
 }
 
-fn is_web_link(uri: &str) -> bool {
-    let lower = uri.trim_start().to_ascii_lowercase();
-    lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("mailto:")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn word_documents_are_told_from_pdfs_by_their_bytes() {
-        assert_eq!(word_extension(b"%PDF-1.7\n", "/a/Report.docx"), None);
-        assert_eq!(word_extension(b"PK\x03\x04....word/document.xml....", "/a/Report.pdf"), Some("docx"));
-        assert_eq!(word_extension(b"PK\x03\x04....word/document.xml....", "/a/Letter.dotx"), Some("dotx"));
-        assert_eq!(word_extension(b"PK\x03\x04mimetypeapplication/vnd.oasis.opendocument.text", "/a/x"), Some("odt"));
-        assert_eq!(word_extension(b"PK\x03\x04xl/workbook.xml", "/a/Book.xlsx"), None);
-        assert_eq!(word_extension(b"{\\rtf1\\ansi hello}", "/a/x.txt"), Some("rtf"));
-        assert_eq!(word_extension(b"plain words", "/a/notes.docx"), None);
-    }
-
-    #[test]
-    fn an_encrypted_package_is_word_only_when_named_so() {
-        let mut cfb = vec![0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
-        cfb.extend("EncryptedPackage".encode_utf16().flat_map(u16::to_le_bytes));
-        assert_eq!(word_extension(&cfb, "/a/Locked.docx"), Some("docx"));
-        assert_eq!(word_extension(&cfb, "/a/Locked.xlsx"), None);
-    }
 
     #[test]
     fn glyph_texts_follow_the_byte_ranges() {

@@ -123,3 +123,12 @@ is pinned to (`engine/Cargo.toml`). Their upstream manifests are kept as `Cargo.
   code. Without it `packs::Cancel` is the flag the web build already used and `use_font_store` is
   gone. Covered by the dependency tree: `cargo tree -p artefact-mobile --target aarch64-linux-android`
   lists no `ureq`, `rustls` or `ring`.
+
+## DeckCraft (presentations)
+
+`deckcraft-fonts` is storytold/deckcraft's `crates/fonts` at
+`159ed07eb3f0522a5dc97d7cf1858242a6638659` (the revision `deckcraft-model`, `-pptx` and `-render` are
+pinned to), with the same Android font-folder patch as `wordcraft-fonts` in `system_font_dirs()`
+(marked `Artefact patch:`; drafted in `docs/upstream/wordcraft-android.md`). It is a
+`[patch."https://github.com/storytold/deckcraft"]` entry. Its last-resort face is Ubuntu Light from
+`epaint_default_fonts` 0.37 (crates.io). No deckcraft engine, media or PDF crate is in the build.

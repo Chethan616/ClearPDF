@@ -243,7 +243,7 @@ class DocumentFiles(private val context: Context) {
          */
         fun safeName(name: String): String {
             val clean = name.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_").trim().trimStart('.').ifEmpty { "Document" }
-            return if (clean.lowercase().endsWith(".pdf") || DocumentTypes.isWordName(clean)) clean else "$clean.pdf"
+            return if (clean.lowercase().endsWith(".pdf") || DocumentTypes.isOfficeName(clean)) clean else "$clean.pdf"
         }
 
         private fun sha(s: String): String =

@@ -60,6 +60,12 @@ pdfcraft-automation = { path = "crates/automation", version = "0.14.0", default-
 # code, out: `default-features = false` turns off its `font-store` feature.
 wordcraft-engine = { path = "vendor/wordcraft-engine", version = "0.15.1", default-features = false }
 
+# PowerPoint (.pptx): storytold/deckcraft's reader, model and slide renderer, pinned to one revision.
+# Viewing needs no deckcraft-engine (and so none of its video codecs).
+deckcraft-model = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
+deckcraft-pptx = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
+deckcraft-render = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
+
 # pdf
 hayro = "0.7.1"
 hayro-syntax = "0.7.2"
@@ -131,3 +137,7 @@ krilla = { git = "https://github.com/storytold/craft-libs", rev = "c5a1cbfb5f904
 # wordcraft crates we carry a patch for (see vendor/README.md).
 [patch."https://github.com/storytold/wordcraft"]
 wordcraft-fonts = { path = "vendor/wordcraft-fonts" }
+
+# deckcraft crates we carry a patch for (see vendor/README.md).
+[patch."https://github.com/storytold/deckcraft"]
+deckcraft-fonts = { path = "vendor/deckcraft-fonts" }

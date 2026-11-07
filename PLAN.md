@@ -128,8 +128,13 @@ all three → editing, one format at a time, each built and run on the phone bef
         comments/signatures/PDF tools); names keep their Word extension.
       - Installed on the phone (fast build, 2026-11-06); [ ] seen there: open the sample .docx from
         Files, Recent and Quick Preview (the owner was using the phone).
-- [ ] PowerPoint viewing (deckcraft): slides in the viewer, present mode; vendor deckcraft-fonts
-      with the same Android font-folder patch (drafted in the upstream doc).
+- [x] **PowerPoint viewing** (deckcraft `159ed07`), built and host-tested (2026-11-07): `slides.rs`
+      opens .pptx with `deckcraft-pptx` and draws slides with `deckcraft-render` (no deckcraft engine,
+      so no video codecs or krilla); slides are pages (`DocumentKind.Slides`), with text layer and links;
+      `deckcraft-fonts` vendored with the Android font folders. App: pptx types in pickers, folder
+      lists and filters; same reading-only viewer as Word. [ ] seen on the phone; [ ] present mode
+      (full-screen slides, tap/swipe to advance; transitions from `deckcraft-render::render_transition`).
+      Password-protected decks are refused with a message (deckcraft can't decrypt).
 - [ ] Excel viewing (gridcraft): pannable Compose grid with frozen headers from cell text, styles,
       column widths and row heights; charts rendered by gridcraft-chart.
 - [ ] Export to PDF for all three (wordcraft-pdf / deckcraft-pdf through craft-pdf + krilla, already

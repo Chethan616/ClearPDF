@@ -112,7 +112,7 @@ fun MoreSheet(vm: AppViewModel, doc: OpenDocument) {
                 Text(doc.title, style = ClearType.Title.copy(fontSize = 17.sp), color = clear.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    (if (doc.isWord) stringResource(R.string.sheet_kind_word) else "PDF") + " · ${modifiedLabel(doc.file.lastModified(), stringResource(R.string.common_yesterday))}" + if (!doc.writable) " · " + stringResource(R.string.sheet_read_only) else "",
+                    (if (doc.isSlides) stringResource(R.string.sheet_kind_slides) else if (doc.isOffice) stringResource(R.string.sheet_kind_word) else "PDF") + " · ${modifiedLabel(doc.file.lastModified(), stringResource(R.string.common_yesterday))}" + if (!doc.writable) " · " + stringResource(R.string.sheet_read_only) else "",
                     style = ClearType.Caption.copy(fontSize = 12.sp), color = clear.inkSoft, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -133,7 +133,7 @@ fun MoreSheet(vm: AppViewModel, doc: OpenDocument) {
                 ) { close(); vm.toggleBookmark(doc) }
                 ActionTile(LucideIcons.Volume2, stringResource(R.string.common_tool_read_aloud), Candy.Sky) { close(); vm.startReadAloud(doc) }
                 // a Word document opens for reading: editing and printing it come later
-                if (!doc.isWord) {
+                if (!doc.isOffice) {
                     ActionTile(LucideIcons.FilePenLine, stringResource(R.string.common_tool_edit_pdf), Candy.Bubblegum) { close(); vm.enterTool(doc, ViewerTool.Edit) }
                     ActionTile(LucideIcons.Printer, stringResource(R.string.sheet_print), Candy.Grape) { close(); vm.print(doc) }
                 }
@@ -144,12 +144,12 @@ fun MoreSheet(vm: AppViewModel, doc: OpenDocument) {
                 SheetRow(LucideIcons.LayoutGrid, stringResource(R.string.sheet_pages), { close(); ctl.pagesOpen = true }, chevron = true, tint = Candy.Mint)
                 SheetRow(LucideIcons.Bookmark, stringResource(R.string.sheet_bookmarks_contents), { ctl.sheet = ViewerSheet.Bookmarks }, chevron = true, tint = Candy.Tangerine)
                 if (doc.info.attachments > 0u) SheetRow(LucideIcons.Paperclip, stringResource(R.string.sheet_attachments), { ctl.sheet = ViewerSheet.Attachments }, chevron = true, tint = Candy.Grape)
-                if (!doc.isWord) {
+                if (!doc.isOffice) {
                     SheetRow(LucideIcons.MessagesSquare, stringResource(R.string.sheet_comment_list), { ctl.sheet = ViewerSheet.Comments }, chevron = true, tint = Candy.Bubblegum)
                     SheetRow(LucideIcons.ShieldCheck, stringResource(R.string.sign_signatures), { ctl.sheet = ViewerSheet.Signatures }, chevron = true, tint = Candy.Lime)
                 }
             }
-            if (!doc.isWord) SheetSection {
+            if (!doc.isOffice) SheetSection {
                 SheetRow(LucideIcons.FileOutput, stringResource(R.string.sheet_export_as), { close(); vm.openExport(doc) }, tint = Candy.Tangerine)
                 SheetRow(LucideIcons.FileArchive, stringResource(R.string.common_tool_compress), { close(); vm.openCompress(doc) }, tint = Candy.Mint)
                 SheetRow(LucideIcons.Combine, stringResource(R.string.common_tool_combine), { close(); vm.openCombine(doc) }, tint = Candy.Grape)
@@ -548,7 +548,7 @@ fun MoreToolsSheet(vm: AppViewModel, doc: OpenDocument) {
         SheetTitle(stringResource(R.string.common_tool_more_tools))
         val slots = toolbarSlots(androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp)
         val prefs = vm.quickToolbar
-        val tools = if (doc.isWord) emptyList() else prefs.bar.drop(slots) + prefs.grid
+        val tools = if (doc.isOffice) emptyList() else prefs.bar.drop(slots) + prefs.grid
         // a grid of app-icon tiles: four to a row on a phone, more on wider screens
         androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 2.dp)) {
             val perRow = if (maxWidth >= 560.dp) 6 else if (maxWidth >= 400.dp) 5 else 4

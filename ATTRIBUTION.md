@@ -267,10 +267,11 @@ Every asset Artefact's engine includes, bundles or uses to build its published m
 | `engine/assets/icons/pilcrow.svg` | Lucide icon "pilcrow" | Lucide Contributors (portions Cole Bemis, Feather) | ISC | https://github.com/lucide-icons/lucide (npm lucide-static 1.49.0, icons/pilcrow.svg) | UI icon, embedded via engine/crates/ui-egui/src/icon_data.rs |
 | `engine/assets/icons/move-horizontal.svg` | Lucide icon "move-horizontal" | Lucide Contributors (portions Cole Bemis, Feather) | ISC | https://github.com/lucide-icons/lucide (npm lucide-static 1.49.0, icons/move-horizontal.svg) | UI icon, embedded via engine/crates/ui-egui/src/icon_data.rs |
 
-## Compiled in through dependencies (5)
+## Compiled in through dependencies (6)
 
 | Crate | File | Title | Author | Licence | Source | Used for |
 |---|---|---|---|---|---|---|
+| `epaint_default_fonts` 0.37.0 | `fonts/Ubuntu-Light.ttf` | Ubuntu Light | Canonical Ltd. / Dalton Maag | Ubuntu-font-1.0 | https://design.ubuntu.com/font | Presentations: the last-resort face of deckcraft-fonts (engine/vendor/deckcraft-fonts) |
 | `epaint_default_fonts` 0.36.2 | `fonts/Ubuntu-Light.ttf` | Ubuntu Light | Canonical Ltd. / Dalton Maag | Ubuntu-font-1.0 | https://design.ubuntu.com/font | egui fallback fonts (eframe feature default_fonts) |
 | `epaint_default_fonts` 0.36.2 | `fonts/Hack-Regular.ttf` | Hack Regular | Source Foundry Authors (derived from Bitstream Vera / DejaVu) | MIT AND Bitstream-Vera | https://github.com/source-foundry/Hack | egui fallback fonts (eframe feature default_fonts) |
 | `epaint_default_fonts` 0.36.2 | `fonts/NotoEmoji-Regular.ttf` | Noto Emoji (monochrome) | Google Inc. | OFL-1.1 | https://github.com/googlefonts/noto-emoji | egui fallback fonts (eframe feature default_fonts) |

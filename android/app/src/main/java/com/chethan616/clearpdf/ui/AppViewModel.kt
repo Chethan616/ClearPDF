@@ -2766,10 +2766,10 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
 
     fun renameFile(row: com.chethan616.clearpdf.ui.home.FileRow, newName: String) {
         viewModelScope.launch {
-            // a Word document keeps its extension when the new name leaves it out
+            // an office document keeps its extension when the new name leaves it out
             val typed = newName.trim()
-            val wordExt = row.name.substringAfterLast('.', "").takeIf { DocumentTypes.isWordName(row.name) }
-            val name = DocumentFiles.safeName(if (wordExt != null && !DocumentTypes.isWordName(typed)) "$typed.$wordExt" else typed)
+            val wordExt = row.name.substringAfterLast('.', "").takeIf { DocumentTypes.isOfficeName(row.name) }
+            val name = DocumentFiles.safeName(if (wordExt != null && !DocumentTypes.isOfficeName(typed)) "$typed.$wordExt" else typed)
             val u = Uri.parse(row.key)
             val ok = withContext(Dispatchers.IO) {
                 runCatching {

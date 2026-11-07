@@ -25,11 +25,13 @@ use serde_json::{Value, json};
 
 uniffi::setup_scaffolding!();
 
+mod office;
+mod slides;
 #[cfg(test)]
 mod tests;
 mod word;
 
-use word::WordDocument;
+use office::OfficeDoc;
 
 /// What went wrong, as a message the user can act on.
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -72,6 +74,8 @@ pub enum DocumentKind {
     Pdf,
     /// A word-processor document (.docx, .doc, .odt, .rtf), read by WordCraft's engine.
     Word,
+    /// A presentation (.pptx), read by DeckCraft: each slide is a page.
+    Slides,
 }
 
 /// An open document as the viewer's title, menus and properties show it.
@@ -156,14 +160,13 @@ pub struct ToolInfo {
     pub read_only: bool,
 }
 
-/// Page 1 of the document (a PDF or a Word document) at absolute path `path` drawn to fit
+/// Page 1 of the document (a PDF, a Word document or a presentation) at absolute path `path` drawn to fit
 /// `max_side` pixels, for file lists. The file is read but not opened in any session; a protected
 /// or unreadable file is an error.
 #[uniffi::export]
 pub fn file_thumbnail(path: String, max_side: u32) -> Result<RenderedImage, MobileError> {
-    if let Some(ext) = word_file(&path)? {
-        let bytes = WordDocument::read(&path)?;
-        return WordDocument::open(&path, ext, &bytes, None, None)?.thumbnail(max_side);
+    if let Some((kind, bytes)) = office::file_at(&path)? {
+        return office::open(&path, kind, &bytes, None, None)?.thumbnail(max_side);
     }
     let bytes = std::fs::read(&path).map_err(|e| MobileError::Open(format!("{path}: {e}")))?;
     let mut r = PageRenderer::new(Arc::new(bytes), RenderConfig::default());
@@ -440,29 +443,15 @@ struct TextCache {
     pages: Vec<Option<Arc<PageText>>>,
 }
 
-/// The Word document at `path`, if it is one: the extension WordCraft reads it by. Only the
-/// first bytes are read of a file that can't be one (a PDF).
-fn word_file(path: &str) -> Result<Option<&'static str>, MobileError> {
-    use std::io::Read;
-    let mut head = [0u8; 8];
-    let n = std::fs::File::open(path).and_then(|mut f| f.read(&mut head)).map_err(|e| MobileError::Open(format!("{path}: {e}")))?;
-    let head = head.get(..n).unwrap_or_default();
-    let maybe = head.starts_with(b"PK\x03\x04") || head.starts_with(&[0xD0, 0xCF, 0x11, 0xE0]) || head.starts_with(b"{\\rtf");
-    if !maybe {
-        return Ok(None);
-    }
-    Ok(word::word_extension(&WordDocument::read(path)?, path))
-}
-
 /// The engine's session: the open documents, their edit history and the tools that act on them.
-/// PDFs are the PDF engine's; Word documents are kept beside them under ids of their own.
+/// PDFs are the PDF engine's; office documents are kept beside them under ids of their own.
 #[derive(uniffi::Object)]
 pub struct MobileSession {
     auto: Mutex<Automation>,
     renderers: Mutex<RendererCache>,
     texts: Mutex<HashMap<u64, TextCache>>,
-    words: Mutex<HashMap<u64, Arc<WordDocument>>>,
-    next_word: AtomicU64,
+    office: Mutex<HashMap<u64, Arc<dyn OfficeDoc>>>,
+    next_office: AtomicU64,
     /// The reader's language (BCP 47), for the paper of documents that give none.
     locale: Mutex<Option<String>>,
 }
@@ -505,9 +494,9 @@ impl MobileSession {
         }
     }
 
-    /// The Word document `doc`, if it is one.
-    fn word(&self, doc: u64) -> Option<Arc<WordDocument>> {
-        self.words.lock().unwrap_or_else(PoisonError::into_inner).get(&doc).cloned()
+    /// The office document `doc`, if it is one.
+    fn office(&self, doc: u64) -> Option<Arc<dyn OfficeDoc>> {
+        self.office.lock().unwrap_or_else(PoisonError::into_inner).get(&doc).cloned()
     }
 
     fn with_doc<T>(&self, doc: u64, f: impl FnOnce(&Document) -> T) -> Result<T, MobileError> {
@@ -518,7 +507,7 @@ impl MobileSession {
 
     /// The text layer of page `page` of `doc` as it is now (extracted once per document version).
     fn page_text(&self, doc: u64, page: u32) -> Result<Arc<PageText>, MobileError> {
-        if let Some(w) = self.word(doc) {
+        if let Some(w) = self.office(doc) {
             return w.page_text(page);
         }
         let (bytes, password, pages) = self.with_doc(doc, |d| (d.bytes.clone(), d.password.clone(), d.info.pages.len()))?;
@@ -574,8 +563,8 @@ impl MobileSession {
             auto: Mutex::new(Automation::new()),
             renderers: Mutex::new(HashMap::new()),
             texts: Mutex::new(HashMap::new()),
-            words: Mutex::new(HashMap::new()),
-            next_word: AtomicU64::new(word::WORD_IDS),
+            office: Mutex::new(HashMap::new()),
+            next_office: AtomicU64::new(office::OFFICE_IDS),
             locale: Mutex::new(None),
         })
     }
@@ -586,19 +575,18 @@ impl MobileSession {
         *self.locale.lock().unwrap_or_else(PoisonError::into_inner) = Some(tag);
     }
 
-    /// Open the document at absolute path `path` (with `password` if it needs one): a PDF, or a
-    /// Word document (.docx, .doc, .odt, .rtf), told apart by its bytes.
+    /// Open the document at absolute path `path` (with `password` if it needs one): a PDF, a Word
+    /// document (.docx, .doc, .odt, .rtf) or a presentation (.pptx), told apart by its bytes.
     pub fn open(&self, path: String, password: Option<String>) -> Result<DocumentInfo, MobileError> {
         if !std::path::Path::new(&path).is_absolute() {
             return Err(MobileError::Open(format!("the path must be absolute, not `{path}`")));
         }
-        if let Some(ext) = word_file(&path)? {
-            let bytes = WordDocument::read(&path)?;
+        if let Some((kind, bytes)) = office::file_at(&path)? {
             let locale = self.locale.lock().unwrap_or_else(PoisonError::into_inner).clone();
-            let w = Arc::new(WordDocument::open(&path, ext, &bytes, password.as_deref(), locale.as_deref())?);
-            let id = self.next_word.fetch_add(1, Ordering::Relaxed);
-            self.words.lock().unwrap_or_else(PoisonError::into_inner).insert(id, w.clone());
-            return Ok(w.info(id));
+            let d = office::open(&path, kind, &bytes, password.as_deref(), locale.as_deref())?;
+            let id = self.next_office.fetch_add(1, Ordering::Relaxed);
+            self.office.lock().unwrap_or_else(PoisonError::into_inner).insert(id, d.clone());
+            return Ok(d.info(id));
         }
         let mut args = json!({ "path": path });
         if let (Some(p), Some(o)) = (password, args.as_object_mut()) {
@@ -611,7 +599,7 @@ impl MobileSession {
 
     /// Close document `doc`. Unsaved edits are refused unless `discard_changes` is set.
     pub fn close(&self, doc: u64, discard_changes: bool) -> Result<(), MobileError> {
-        if self.words.lock().unwrap_or_else(PoisonError::into_inner).remove(&doc).is_some() {
+        if self.office.lock().unwrap_or_else(PoisonError::into_inner).remove(&doc).is_some() {
             return Ok(());
         }
         self.call("doc_close", &json!({ "doc": doc, "discard_changes": discard_changes }))?;
@@ -623,15 +611,15 @@ impl MobileSession {
     /// The ids of the open documents.
     pub fn documents(&self) -> Vec<u64> {
         let mut ids: Vec<u64> = self.lock().session().docs().iter().map(|d| d.id.0).collect();
-        let mut words: Vec<u64> = self.words.lock().unwrap_or_else(PoisonError::into_inner).keys().copied().collect();
-        words.sort_unstable();
-        ids.extend(words);
+        let mut office: Vec<u64> = self.office.lock().unwrap_or_else(PoisonError::into_inner).keys().copied().collect();
+        office.sort_unstable();
+        ids.extend(office);
         ids
     }
 
     /// Document `doc` as it is now.
     pub fn document(&self, doc: u64) -> Result<DocumentInfo, MobileError> {
-        if let Some(w) = self.word(doc) {
+        if let Some(w) = self.office(doc) {
             return Ok(w.info(doc));
         }
         self.with_doc(doc, document_info)
@@ -639,7 +627,7 @@ impl MobileSession {
 
     /// Document `doc`'s bookmarks, flattened in reading order (at most as many as the engine reads).
     pub fn outline(&self, doc: u64) -> Result<Vec<OutlineEntry>, MobileError> {
-        if self.word(doc).is_some() {
+        if self.office(doc).is_some() {
             return Ok(Vec::new());
         }
         self.with_doc(doc, |d| {
@@ -657,7 +645,7 @@ impl MobileSession {
         if !(scale.is_finite() && scale > 0.0) {
             return Err(MobileError::Render(format!("the scale must be a positive number, not {scale}")));
         }
-        if let Some(w) = self.word(doc) {
+        if let Some(w) = self.office(doc) {
             return w.render_page(page, scale, tile);
         }
         let (bytes, config, pages) = self.with_doc(doc, |d| {
@@ -711,7 +699,7 @@ impl MobileSession {
 
     /// The links on page `page`.
     pub fn links(&self, doc: u64, page: u32) -> Result<Vec<LinkInfo>, MobileError> {
-        if let Some(w) = self.word(doc) {
+        if let Some(w) = self.office(doc) {
             return w.links(page);
         }
         self.with_doc(doc, |d| {
@@ -742,7 +730,7 @@ impl MobileSession {
 
     /// Every comment of the document, page by page (replies included; see `reply_to`).
     pub fn comments(&self, doc: u64) -> Result<Vec<CommentInfo>, MobileError> {
-        if self.word(doc).is_some() {
+        if self.office(doc).is_some() {
             return Ok(Vec::new());
         }
         self.with_doc(doc, |d| {
@@ -774,7 +762,7 @@ impl MobileSession {
 
     /// The files embedded in the document.
     pub fn attachments(&self, doc: u64) -> Result<Vec<AttachmentInfo>, MobileError> {
-        if self.word(doc).is_some() {
+        if self.office(doc).is_some() {
             return Ok(Vec::new());
         }
         self.with_doc(doc, |d| {
@@ -819,7 +807,7 @@ impl MobileSession {
     /// The certificate (DER) that signed signature field `field`, if it is signed: what the app
     /// saves when the reader chooses to trust that signer.
     pub fn signer_certificate(&self, doc: u64, field: String) -> Result<Option<Vec<u8>>, MobileError> {
-        if self.word(doc).is_some() {
+        if self.office(doc).is_some() {
             return Ok(None);
         }
         self.with_doc(doc, |d| d.signatures.iter().find(|s| s.signed && s.field == field).and_then(|s| s.certificate.as_ref()).map(|c| c.raw.clone()))
@@ -827,7 +815,7 @@ impl MobileSession {
 
     /// Every visible widget of the document's form fields, page by page.
     pub fn widgets(&self, doc: u64) -> Result<Vec<WidgetInfo>, MobileError> {
-        if self.word(doc).is_some() {
+        if self.office(doc).is_some() {
             return Ok(Vec::new());
         }
         use pdfcraft_engine::{FormFieldKind as K, field_flags as fl};
@@ -881,7 +869,7 @@ impl MobileSession {
     pub fn release_memory(&self) {
         self.cache().clear();
         self.texts.lock().unwrap_or_else(PoisonError::into_inner).clear();
-        for w in self.words.lock().unwrap_or_else(PoisonError::into_inner).values() {
+        for w in self.office.lock().unwrap_or_else(PoisonError::into_inner).values() {
             w.release_memory();
         }
     }

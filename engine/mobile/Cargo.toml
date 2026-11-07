@@ -22,6 +22,10 @@ pdfcraft-automation = { workspace = true }
 serde_json = { workspace = true }
 # Word documents (src/word.rs): WordCraft's engine, which re-exports its model, layout and renderer
 wordcraft-engine = { workspace = true }
+# PowerPoint presentations (src/slides.rs): DeckCraft's reader, model and slide renderer
+deckcraft-model = { workspace = true }
+deckcraft-pptx = { workspace = true }
+deckcraft-render = { workspace = true }
 kurbo = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }

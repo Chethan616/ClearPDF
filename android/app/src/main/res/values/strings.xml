@@ -336,6 +336,7 @@
     <string name="root_licence_pdfcraft">PdfCraft (engine and app)</string>
     <string name="root_licence_pdfcraft_terms">MIT OR Apache-2.0, by storytold, the ArtCraft Team and contributors</string>
     <string name="root_licence_wordcraft">WordCraft (Word engine)</string>
+    <string name="root_licence_deckcraft">DeckCraft (slides engine)</string>
     <string name="root_licence_wordcraft_terms">MIT OR Apache-2.0, by storytold and contributors</string>
     <string name="root_licence_lucide">Lucide icons</string>
     <string name="root_licence_dancing_script">Dancing Script typeface (typed signatures)</string>
@@ -952,8 +953,9 @@
 
     <!-- Messages: viewer tools -->
     <string name="msg_tool_blocked_security">This tool is not available due to the document\'s security settings.</string>
-    <string name="msg_word_reading_only">Word documents open for reading for now. Editing them is coming.</string>
+    <string name="msg_word_reading_only">Word documents and presentations open for reading for now. Editing them is coming.</string>
     <string name="sheet_kind_word">Word</string>
+    <string name="sheet_kind_slides">Slides</string>
     <!-- Draw tool: lines drawn are turned into neat shapes. -->
     <string name="msg_snap_to_shape_on">Snap to shape on</string>
 

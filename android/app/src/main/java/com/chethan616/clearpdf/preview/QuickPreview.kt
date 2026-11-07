@@ -85,7 +85,6 @@ import com.chethan616.clearpdf.ui.viewer.CanvasLook
 import com.chethan616.clearpdf.ui.viewer.PageCanvas
 import com.chethan616.clearpdf.ui.viewer.formatSize
 import com.chethan616.clearpdf.ui.glass.Capsule
-import com.chethan616.clearpdf.ui.glass.RoundedRectangle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -195,6 +194,15 @@ private fun Preview(
         )
         val margin = with(density) { 10.dp.toPx() }
         val cardH = fullH * CardHeight - navPx
+        // Apple's way: continuous corners, concentric with the screen's own (its corner radius less
+        // the card's inset), the same on all four corners; 34 dp where the screen doesn't say
+        val view = androidx.compose.ui.platform.LocalView.current
+        val corner = remember(view, density) {
+            val screen = if (android.os.Build.VERSION.SDK_INT >= 31) {
+                view.rootWindowInsets?.getRoundedCorner(android.view.RoundedCorner.POSITION_BOTTOM_LEFT)?.radius ?: 0
+            } else 0
+            with(density) { if (screen > 0) (screen.toDp() - 10.dp).coerceIn(24.dp, 48.dp) else 34.dp }
+        }
         Box(
             Modifier
                 .align(Alignment.BottomCenter)
@@ -208,7 +216,7 @@ private fun Preview(
                 .padding(start = 10.dp, end = 10.dp, bottom = with(density) { (margin + navPx).toDp() })
                 .fillMaxWidth()
                 .height(with(density) { cardH.toDp() })
-                .clip(RoundedRectangle(34.dp))
+                .clip(com.chethan616.clearpdf.ui.glass.Squircle(corner))
                 .background(paper)
                 .clickable(remember { MutableInteractionSource() }, null) {},
         ) {

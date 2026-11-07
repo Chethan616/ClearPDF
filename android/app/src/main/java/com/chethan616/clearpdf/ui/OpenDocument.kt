@@ -77,8 +77,11 @@ class OpenDocument(
      */
     var localUndo by mutableStateOf<LocalUndo?>(null)
 
-    /** A Word document (read by the Word engine): it opens for reading, the PDF tools don't apply. */
-    val isWord: Boolean get() = info.kind == DocumentKind.WORD
+    /** A Word document or a presentation: it opens for reading, the PDF tools don't apply. */
+    val isOffice: Boolean get() = info.kind != DocumentKind.PDF
+
+    /** A presentation: each page is a slide. */
+    val isSlides: Boolean get() = info.kind == DocumentKind.SLIDES
 
     /** The file name without its extension, as the reference titles documents. */
     val title: String get() = com.chethan616.clearpdf.engine.DocumentTypes.title(info.name)

@@ -128,6 +128,9 @@ name = "artefact-mobile"
 version = "0.14.0"
 dependencies = [
  "android_logger",
+ "deckcraft-model",
+ "deckcraft-pptx",
+ "deckcraft-render",
  "kurbo",
  "log",
  "pdfcraft-automation",
@@ -1209,6 +1212,117 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckcraft-anim"
+version = "0.15.0"
+source = "git+https://github.com/storytold/deckcraft?rev=159ed07eb3f0522a5dc97d7cf1858242a6638659#159ed07eb3f0522a5dc97d7cf1858242a6638659"
+dependencies = [
+ "deckcraft-geom",
+ "deckcraft-model",
+ "serde",
+]
+
+[[package]]
+name = "deckcraft-color"
+version = "0.15.0"
+source = "git+https://github.com/storytold/deckcraft?rev=159ed07eb3f0522a5dc97d7cf1858242a6638659#159ed07eb3f0522a5dc97d7cf1858242a6638659"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "deckcraft-fonts"
+version = "0.15.0"
+dependencies = [
+ "epaint_default_fonts",
+ "harfrust 0.13.3",
+ "kurbo",
+ "log",
+ "skrifa 0.47.0",
+ "unicode-bidi",
+]
+
+[[package]]
+name = "deckcraft-geom"
+version = "0.15.0"
+source = "git+https://github.com/storytold/deckcraft?rev=159ed07eb3f0522a5dc97d7cf1858242a6638659#159ed07eb3f0522a5dc97d7cf1858242a6638659"
+dependencies = [
+ "kurbo",
+ "serde",
+]
+
+[[package]]
+name = "deckcraft-metafile"
+version = "0.15.0"
+source = "git+https://github.com/storytold/deckcraft?rev=159ed07eb3f0522a5dc97d7cf1858242a6638659#159ed07eb3f0522a5dc97d7cf1858242a6638659"
+dependencies = [
+ "image",
+ "kurbo",
+ "thiserror",
+]
+
+[[package]]
+name = "deckcraft-model"
+version = "0.15.0"
+source = "git+https://github.com/storytold/deckcraft?rev=159ed07eb3f0522a5dc97d7cf1858242a6638659#159ed07eb3f0522a5dc97d7cf1858242a6638659"
+dependencies = [
+ "deckcraft-color",
+ "deckcraft-geom",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "deckcraft-pptx"
+version = "0.15.0"
+source = "git+https://github.com/storytold/deckcraft?rev=159ed07eb3f0522a5dc97d7cf1858242a6638659#159ed07eb3f0522a5dc97d7cf1858242a6638659"
+dependencies = [
+ "deckcraft-color",
+ "deckcraft-geom",
+ "deckcraft-model",
+ "log",
+ "quick-xml",
+ "thiserror",
+ "zip",
+]
+
+[[package]]
+name = "deckcraft-render"
+version = "0.15.0"
+source = "git+https://github.com/storytold/deckcraft?rev=159ed07eb3f0522a5dc97d7cf1858242a6638659#159ed07eb3f0522a5dc97d7cf1858242a6638659"
+dependencies = [
+ "deckcraft-anim",
+ "deckcraft-color",
+ "deckcraft-fonts",
+ "deckcraft-geom",
+ "deckcraft-metafile",
+ "deckcraft-model",
+ "deckcraft-text",
+ "image",
+ "kurbo",
+ "log",
+ "skrifa 0.47.0",
+ "vello_common 0.2.0",
+ "vello_cpu 0.2.0",
+]
+
+[[package]]
+name = "deckcraft-text"
+version = "0.15.0"
+source = "git+https://github.com/storytold/deckcraft?rev=159ed07eb3f0522a5dc97d7cf1858242a6638659#159ed07eb3f0522a5dc97d7cf1858242a6638659"
+dependencies = [
+ "chrono",
+ "deckcraft-color",
+ "deckcraft-fonts",
+ "deckcraft-geom",
+ "deckcraft-model",
+ "unicode-bidi",
+ "unicode-linebreak",
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1449,6 +1563,12 @@ checksum = "1bf3c259d255ca70051b30e2e95b5446cdb8949ac4cd22c0d7fd634d89f568e2"
 dependencies = [
  "log",
 ]
+
+[[package]]
+name = "epaint_default_fonts"
+version = "0.37.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfc1cc505827f4c23eedc297975a0fd038268d41293f389dd8ff3b574aefab19"
 
 [[package]]
 name = "equator"

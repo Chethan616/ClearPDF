@@ -12,3 +12,10 @@ val Capsule = com.kyant.shapes.Capsule(RoundedCornerStyle.Circular)
 
 /** A rounded rectangle with circular corners of [radius]. */
 fun RoundedRectangle(radius: Dp) = com.kyant.shapes.RoundedRectangle(radius, RoundedCornerStyle.Circular)
+
+/**
+ * A rounded rectangle with Apple's continuous ("squircle") corners of [radius]. Only for content
+ * clipped inside a layer of its own that moves by its layer's transform (a card in a
+ * `graphicsLayer`): there the mask is recorded once. Never on content that scrolls or resizes.
+ */
+fun Squircle(radius: Dp) = com.kyant.shapes.RoundedRectangle(radius, RoundedCornerStyle.Continuous)

@@ -537,3 +537,32 @@ fn render_sample() {
         eprintln!("links {:?}", s.links(info.id, p).unwrap());
     }
 }
+
+/// A presentation (.pptx) whose title slide reads `title`, written by DeckCraft into a fresh folder.
+fn deck_file(title: &str, name: &str) -> String {
+    let mut p = deckcraft_model::defaults::new_presentation(None);
+    let slide = std::sync::Arc::make_mut(p.slides.first_mut().unwrap());
+    let shape = slide.shapes.iter_mut().find(|s| s.ph.is_some()).unwrap();
+    shape.text = Some(deckcraft_model::text::TextBody::from_text(title));
+    let path = scratch().join(name);
+    std::fs::write(&path, deckcraft_pptx::export(&p).unwrap()).unwrap();
+    path.to_string_lossy().into_owned()
+}
+
+#[test]
+fn opens_a_presentation_as_slides() {
+    let s = MobileSession::new();
+    let info = s.open(deck_file("Quarterly results", "Deck.pptx"), None).unwrap();
+    assert_eq!(info.kind, DocumentKind::Slides);
+    assert_eq!(info.pages.len(), 1);
+    assert!(info.pages[0].width > info.pages[0].height, "a slide is wide: {:?}", info.pages[0]);
+    let page = s.render_page(info.id, 0, 0.5, None).unwrap();
+    assert_eq!(page.rgba.len() as u32, page.width * page.height * 4);
+    let tile = s.render_page(info.id, 0, 1.0, Some(TileRect { x: 10, y: 10, width: 40, height: 20 })).unwrap();
+    assert_eq!((tile.width, tile.height), (40, 20));
+    assert!(s.render_page(info.id, 1, 1.0, None).is_err());
+    let hits = s.find_in_page(info.id, 0, "results".into(), false, false).unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(s.text_of(info.id, hits[0].range).unwrap(), "results");
+    assert_eq!(file_thumbnail(deck_file("Thumb", "T.pptx"), 100).unwrap().width, 100);
+}

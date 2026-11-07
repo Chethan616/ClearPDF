@@ -93,7 +93,7 @@ enum class QuickTool(val id: String, @StringRes val label: Int, @StringRes val t
         /** The bar as it comes: the reference's default tools and order. */
         val DEFAULT_BAR = listOf(Edit, Comment, Highlight, Draw, FillSign, Export)
 
-        /** The tools that work on a Word document (it opens for reading: the PDF tools don't apply). */
+        /** The tools that work on a Word document or a presentation (they open for reading: the PDF tools don't apply). */
         val WORD = listOf(ReadAloud)
 
         fun of(id: String): QuickTool? = entries.firstOrNull { it.id == id }
@@ -139,7 +139,7 @@ class QuickToolbarPrefs(context: Context) {
 
 /** Do what [tool] does on the bar or in More tools. */
 fun AppViewModel.runQuickTool(doc: OpenDocument, tool: QuickTool) {
-    if (doc.isWord && tool !in QuickTool.WORD) {
+    if (doc.isOffice && tool !in QuickTool.WORD) {
         tell(com.chethan616.clearpdf.text(com.chethan616.clearpdf.R.string.msg_word_reading_only))
         return
     }

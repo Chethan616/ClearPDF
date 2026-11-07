@@ -446,6 +446,8 @@ private fun LicencesPage(onBack: () -> Unit) {
     val credits = listOf(
         Credit(stringResource(R.string.root_licence_pdfcraft), stringResource(R.string.root_licence_pdfcraft_terms)),
         Credit(stringResource(R.string.root_licence_wordcraft), stringResource(R.string.root_licence_wordcraft_terms)),
+        Credit(stringResource(R.string.root_licence_deckcraft), stringResource(R.string.root_licence_wordcraft_terms)),
+        Credit("Ubuntu Light", "Ubuntu Font Licence 1.0, Canonical Ltd. / Dalton Maag"),
         Credit("AndroidLiquidGlass (backdrop)", "Apache-2.0, Kyant0"),
         Credit("AndroidLiquidGlassView (LiquidTracker)", "MIT, Donny Yale (QmDeve)"),
         Credit("UniFFI", "MPL-2.0, Mozilla"),

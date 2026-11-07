@@ -22,7 +22,7 @@ Read this first after a `/clear`. The roadmap is `PLAN.md`.
   `adb shell cmd package compile -f -m speed-profile com.chethan616.clearpdf.debug` to compile the
   profile at once. A debuggable build runs Compose several times slower.
 
-## Office documents (Word in; PowerPoint and Excel next)
+## Office documents (Word and PowerPoint in; Excel next)
 
 Plan and status: PLAN.md "Office documents". How the Word bridge works:
 
@@ -34,7 +34,14 @@ Plan and status: PLAN.md "Office documents". How the Word bridge works:
   Source Sans 3 / Source Serif 4 live there). `[patch.crates-io] krilla` = craft-libs `c5a1cbf`
   (Word's PDF export needs the suite's krilla, and Cargo ignores a dependency's own patches).
   Upstream draft (not filed, don't file without the owner): `docs/upstream/wordcraft-android.md`.
-- **Bridge** (`engine/mobile/src/word.rs`): `MobileSession.open(path)` sniffs the bytes
+- **Bridge**: `engine/mobile/src/office.rs` is the shared part: the `OfficeDoc` trait (info, render,
+  text layer, links, thumbnail, release_memory), `sniff` (zip part names / CFB streams / `{tf`),
+  `text_glyph` (a glyph box through an `Affine`), ids from `OFFICE_IDS` = 2^40. `word.rs` and
+  `slides.rs` implement it; `MobileSession` keeps `office: HashMap<u64, Arc<dyn OfficeDoc>>`.
+  Slides: `deckcraft_pptx::import`, `deckcraft_render::render_slide` (tiles via `RenderOpts.offset`
+  and `size`, 2 threads), text from `place_slide(..).texts` (runs' glyphs + `cells` chars, through
+  `PlacedText.transform`), links from `place_slide(..).links` (URL actions).
+- **Word** (`engine/mobile/src/word.rs`): `MobileSession.open(path)` sniffs the bytes
   (`word_extension`: zip with `word/document.xml`, ODF text, CFB `WordDocument`, `{
 tf`; an encrypted
   CFB only when the name says .docx) and opens a `WordDocument` (wordcraft `Session`) under an id
@@ -48,8 +55,8 @@ tf`; an encrypted
   (`session.view.proofing = false`: no spelling squiggles in a reader). `DocumentInfo.kind` tells the
   app; `read_only_reason` is set (no editing yet). Errors reuse `MobileError` (NeedsPassword /
   WrongPassword for protected .docx).
-- **Android**: `engine/DocumentTypes.kt` (types, Word extensions, `title`, `mimeOf`);
-  `OpenDocument.isWord`; `QuickTool.WORD` (Read Aloud only) on the bar, empty More tools, More sheet
+- **Android**: `engine/DocumentTypes.kt` (PDF/Word/slides types and extensions, `title`, `mimeOf`);
+  `OpenDocument.isOffice` / `isSlides`; `QuickTool.WORD` (Read Aloud only) on the bar, empty More tools, More sheet
   without Edit/Print/comments/signatures/PDF tools; `safeName` keeps Word extensions (the engine
   needs .docx for encrypted files); manifest SEND and Quick Preview VIEW filters list the Word types.
 - Tests: `cargo test -p artefact-mobile` (Word tests write a .docx with wordcraft, open, render,
@@ -190,6 +197,12 @@ tf`; an encrypted
   attached): check them first when it is. Fast APK: `android/app/build/outputs/apk/fast/app-fast.apk`.
   If gradle complains a backdrop class is "outside the root directory", run `./gradlew :backdrop:clean`.
 
+## Quick Preview corners (2026-11-07)
+
+The card is a `Squircle` (new in `ui/glass/Shapes.kt`: kyant's continuous corners, allowed only for
+content clipped inside its own moving layer) with a radius concentric with the screen's corners
+(`RoundedCorner` bottom-left radius minus the 10 dp inset, 24..48 dp; 34 dp without it).
+
 ## Desk flicker (2026-11-06, fix built, not yet seen on the phone)
 
 The owner saw the desk's cards "appear again for a second" after tapping a card. Cause found in
@@ -204,5 +217,5 @@ still sees a flash on the Files/Pdf collection cards (a route change, not a docu
 ## Next up
 
 See PLAN.md "Office documents" and "Next". Immediate: when Artefact is in front on the phone,
-check Word viewing (Files, Recent, Quick Preview with the sample above) and the desk flicker fix,
-then PowerPoint viewing (deckcraft).
+check Word and slides viewing (Files, Recent, Quick Preview with the samples), the desk flicker fix
+and the squircle Quick Preview card; then slides present mode, then Excel viewing (gridcraft).
