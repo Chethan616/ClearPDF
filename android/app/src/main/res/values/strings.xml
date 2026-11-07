@@ -445,6 +445,11 @@
     <string name="read_aloud_languages_loading">Loading available languages…</string>
     <string name="settings_read_aloud_language">Read aloud language</string>
     <string name="settings_read_aloud_language_body">Choose the language used when reading documents aloud.</string>
+    <string name="settings_language">App language</string>
+    <string name="settings_language_body">Choose the language used throughout Artefact.</string>
+    <string name="settings_language_system">System default (%1$s)</string>
+    <string name="settings_open_in_night_mode">Always open PDFs and documents in night mode</string>
+    <string name="settings_open_in_night_mode_body">Open each PDF and document with night mode enabled.</string>
     <string name="viewer_night_mode_on">Night mode on</string>
     <string name="viewer_night_mode_off">Night mode off</string>
     <!-- Translator note: opens the choice of the language the voice reads in. -->
@@ -1393,10 +1398,10 @@
     <string name="notes_remove_picture">Remove picture</string>
 
     <!-- What a fresh desk starts with -->
-    <string name="seed_list_title">Shopping List</string>
-    <string name="seed_list_1">Vegetables</string>
-    <string name="seed_list_2">Fruits</string>
-    <string name="seed_list_3">Grocery</string>
+    <string name="seed_list_title">Onboarding</string>
+    <string name="seed_list_1">Choose a theme</string>
+    <string name="seed_list_2">Customize your toolbar</string>
+    <string name="seed_list_3">Try Quick Look</string>
     <string name="seed_note_title">Thought of the day</string>
     <string name="seed_note_body">Every day is a fresh start. Embrace it with **hope and courage**, and let each moment inspire you to grow and shine **brighter** than before.</string>
 

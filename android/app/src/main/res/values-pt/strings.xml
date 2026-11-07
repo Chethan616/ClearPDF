@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_language">Idioma da aplicação</string>
+    <string name="settings_language_body">Escolha o idioma do Artefact.</string>
+    <string name="settings_language_system">Idioma do sistema (%1$s)</string>
+    <string name="settings_open_in_night_mode">Abrir sempre PDFs e documentos no modo noturno</string>
+    <string name="settings_open_in_night_mode_body">Abrir cada PDF e documento com o modo noturno ativado.</string>
     <string name="open_with">Abrir no Artefact</string>
     <string name="common_ok">OK</string>
     <string name="common_cancel">Cancelar</string>
@@ -805,10 +810,10 @@
     <string name="notes_take_photo">Tirar uma foto</string>
     <string name="notes_add_photo">Adicionar uma foto</string>
     <string name="notes_remove_picture">Remover imagem</string>
-    <string name="seed_list_title">Lista de compras</string>
-    <string name="seed_list_1">Legumes</string>
-    <string name="seed_list_2">Fruta</string>
-    <string name="seed_list_3">Mercearia</string>
+    <string name="seed_list_title">Primeiros passos</string>
+    <string name="seed_list_1">Escolher um tema</string>
+    <string name="seed_list_2">Personalizar a barra de ferramentas</string>
+    <string name="seed_list_3">Experimentar a Pré-visualização rápida</string>
     <string name="seed_note_title">Pensamento do dia</string>
     <string name="seed_note_body">Cada dia é um novo começo. Receba-o com **esperança e coragem**, e deixe que cada momento o inspire a crescer e a brilhar **mais** do que antes.</string>
     <string name="welcome_skip">Ignorar</string>

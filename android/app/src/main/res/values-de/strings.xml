@@ -3,6 +3,11 @@
   Artefact's text, in German. The English original is values/strings.xml.
 -->
 <resources>
+    <string name="settings_language">App-Sprache</string>
+    <string name="settings_language_body">Wähle die Sprache für Artefact.</string>
+    <string name="settings_language_system">Systemstandard (%1$s)</string>
+    <string name="settings_open_in_night_mode">PDFs und Dokumente immer im Nachtmodus öffnen</string>
+    <string name="settings_open_in_night_mode_body">PDFs und Dokumente standardmäßig im Nachtmodus öffnen.</string>
     <string name="open_with">In Artefact öffnen</string>
 
     <!-- Shared: buttons and words used on many screens -->
@@ -1220,10 +1225,10 @@
     <string name="notes_take_photo">Foto aufnehmen</string>
     <string name="notes_add_photo">Foto hinzufügen</string>
     <string name="notes_remove_picture">Bild entfernen</string>
-    <string name="seed_list_title">Einkaufsliste</string>
-    <string name="seed_list_1">Gemüse</string>
-    <string name="seed_list_2">Obst</string>
-    <string name="seed_list_3">Lebensmittel</string>
+    <string name="seed_list_title">Erste Schritte</string>
+    <string name="seed_list_1">Design auswählen</string>
+    <string name="seed_list_2">Symbolleiste anpassen</string>
+    <string name="seed_list_3">Quick Look ausprobieren</string>
     <string name="seed_note_title">Gedanke des Tages</string>
     <string name="seed_note_body">Jeder Tag ist ein Neuanfang. Begegne ihm mit **Hoffnung und Mut**, und lass dich von jedem Moment inspirieren, zu wachsen und **heller** zu strahlen als zuvor.</string>
     <string name="welcome_skip">Überspringen</string>

@@ -850,7 +850,14 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
 
     fun setNightMode(doc: OpenDocument, on: Boolean) {
         doc.controller.nightMode = on
+        setNightModeDefault(on)
+    }
+
+    /** PDFs and documents use this choice as soon as they open, and the current reader follows it. */
+    fun setNightModeDefault(on: Boolean) {
         appPrefs.edit().putBoolean("nightMode", on).apply()
+        prefsChanged++
+        document?.controller?.nightMode = on
     }
 
     fun openReadingMode(doc: OpenDocument) {
@@ -2560,7 +2567,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             notes.create(
                 com.chethan616.clearpdf.notes.NoteKind.List, text(R.string.seed_list_title),
                 items = listOf(
-                    com.chethan616.clearpdf.notes.checkItem(text(R.string.seed_list_1), done = true),
+                    com.chethan616.clearpdf.notes.checkItem(text(R.string.seed_list_1)),
                     com.chethan616.clearpdf.notes.checkItem(text(R.string.seed_list_2)),
                     com.chethan616.clearpdf.notes.checkItem(text(R.string.seed_list_3)),
                 ),
@@ -2572,15 +2579,6 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     fun newNote(kind: com.chethan616.clearpdf.notes.NoteKind) {
         val items = if (kind == com.chethan616.clearpdf.notes.NoteKind.List) listOf(com.chethan616.clearpdf.notes.checkItem("")) else emptyList()
         openNote = notes.create(kind, items = items).id
-    }
-
-    /** Today's "Thought of the day" straight into the editor: its note is made the first time it's opened. */
-    fun openThought() {
-        val day = com.chethan616.clearpdf.notes.today()
-        val note = notes.all.firstOrNull { it.thought == day } ?: com.chethan616.clearpdf.notes.thoughtFor(getApplication<Application>().resources, day).let {
-            notes.create(com.chethan616.clearpdf.notes.NoteKind.Text, it.quote, it.reflection, thought = day)
-        }
-        openNote = note.id
     }
 
     fun closeNote() {
@@ -3145,16 +3143,14 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     // Last in the class: initializers and init blocks run in source order, and this coroutine can run
     // straight away (a started engine) or on another thread, so every property must exist first.
     init {
-        // a past day's thought that was only read, never written on, leaves the desk (it showed as a
-        // second "Thought of the day"); one written on stays as the note it became
+        // Remove generated quote notes that were never edited. The editable starter note remains.
         viewModelScope.launch {
             snapshotFlow { notes.loaded }.first { it }
+            migrateStarterList()
             val res = getApplication<Application>().resources
-            val today = com.chethan616.clearpdf.notes.today()
-            val heading = text(R.string.thought_title)
-            notes.all.filter { it.thought != 0L && it.thought != today }.forEach { n ->
+            notes.all.filter { it.thought != 0L }.forEach { n ->
                 val seed = com.chethan616.clearpdf.notes.thoughtFor(res, n.thought)
-                val untouched = (n.title == seed.quote && n.body == seed.reflection) || n.title == heading || (n.title.isBlank() && n.body.isBlank())
+                val untouched = (n.title == seed.quote && n.body == seed.reflection) || (n.title.isBlank() && n.body.isBlank())
                 if (untouched && n.images.isEmpty() && n.audio == null) notes.delete(n.id)
             }
         }
@@ -3170,6 +3166,29 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
                 }
             }
         }
+    }
+
+    /** Upgrade only the untouched demo checklist from older installs, leaving user lists alone. */
+    private fun migrateStarterList() {
+        if (appPrefs.getBoolean("starterListMigrated", false)) return
+        val legacy = listOf(
+            listOf("Shopping List", "Vegetables", "Fruits", "Grocery"),
+            listOf("قائمة التسوق", "خضروات", "فواكه", "بقالة"),
+            listOf("Einkaufsliste", "Gemüse", "Obst", "Lebensmittel"),
+            listOf("Lista de la compra", "Verduras", "Fruta", "Despensa"),
+            listOf("Liste de courses", "Légumes", "Fruits", "Épicerie"),
+            listOf("Lista della spesa", "Verdure", "Frutta", "Dispensa"),
+            listOf("Lista de compras", "Legumes", "Fruta", "Mercearia"),
+            listOf("Lista de compras", "Legumes", "Frutas", "Mercado"),
+            listOf("Список покупок", "Овощи", "Фрукты", "Продукты"),
+        )
+        val title = text(R.string.seed_list_title)
+        val taskLabels = listOf(text(R.string.seed_list_1), text(R.string.seed_list_2), text(R.string.seed_list_3))
+        notes.all.filter { it.kind == com.chethan616.clearpdf.notes.NoteKind.List && it.items.size == 3 && it.body.isBlank() && it.images.isEmpty() }.forEach { note ->
+            val old = legacy.firstOrNull { seed -> note.title == seed[0] && note.items.map { it.text } == seed.drop(1) }
+            if (old != null) notes.put(note.copy(title = title, items = note.items.mapIndexed { index, item -> item.copy(text = taskLabels[index], done = false) }))
+        }
+        appPrefs.edit().putBoolean("starterListMigrated", true).apply()
     }
 }
 

@@ -74,6 +74,7 @@ object LucideIcons {
     val SaveAs: ImageVector get() = Icons.Rounded.SaveAs
     val ArrowUpRight: ImageVector get() = Icons.AutoMirrored.Rounded.OpenInNew
     val Files: ImageVector get() = Icons.Rounded.FileCopy
+    val Globe: ImageVector get() = Icons.Rounded.Language
     val Presentation: ImageVector get() = Icons.Rounded.Slideshow
     val Sheet: ImageVector get() = Icons.Rounded.TableChart
     val FolderOpen: ImageVector get() = Icons.Rounded.FolderOpen

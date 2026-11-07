@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_language">Язык приложения</string>
+    <string name="settings_language_body">Выберите язык Artefact.</string>
+    <string name="settings_language_system">Язык системы (%1$s)</string>
+    <string name="settings_open_in_night_mode">Всегда открывать PDF и документы в ночном режиме</string>
+    <string name="settings_open_in_night_mode_body">Открывать каждый PDF и документ с включённым ночным режимом.</string>
     <string name="open_with">Открыть в Artefact</string>
     <string name="common_ok">ОК</string>
     <string name="common_cancel">Отмена</string>
@@ -831,10 +836,10 @@
     <string name="notes_take_photo">Сделать фото</string>
     <string name="notes_add_photo">Добавить фото</string>
     <string name="notes_remove_picture">Убрать фото</string>
-    <string name="seed_list_title">Список покупок</string>
-    <string name="seed_list_1">Овощи</string>
-    <string name="seed_list_2">Фрукты</string>
-    <string name="seed_list_3">Продукты</string>
+    <string name="seed_list_title">Начало работы</string>
+    <string name="seed_list_1">Выберите тему</string>
+    <string name="seed_list_2">Настройте панель инструментов</string>
+    <string name="seed_list_3">Попробуйте быстрый просмотр</string>
     <string name="seed_note_title">Мысль дня</string>
     <string name="seed_note_body">Каждый день — это новое начало. Встречайте его с **надеждой и смелостью**, и пусть каждый миг вдохновляет вас расти и сиять **ярче**, чем прежде.</string>
     <string name="welcome_skip">Пропустить</string>

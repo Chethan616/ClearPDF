@@ -10,6 +10,11 @@
   few, many). A string left out shows in English.
 -->
 <resources>
+    <string name="settings_language">Idioma de la aplicación</string>
+    <string name="settings_language_body">Elige el idioma de Artefact.</string>
+    <string name="settings_language_system">Idioma del sistema (%1$s)</string>
+    <string name="settings_open_in_night_mode">Abrir siempre archivos PDF y documentos en modo nocturno</string>
+    <string name="settings_open_in_night_mode_body">Abre cada PDF y documento con el modo nocturno activado.</string>
     <string name="open_with">Abrir con Artefact</string>
 
     <!-- Shared: buttons and words used on many screens -->
@@ -1228,10 +1233,10 @@
     <string name="notes_take_photo">Hacer una foto</string>
     <string name="notes_add_photo">Añadir una foto</string>
     <string name="notes_remove_picture">Quitar imagen</string>
-    <string name="seed_list_title">Lista de la compra</string>
-    <string name="seed_list_1">Verduras</string>
-    <string name="seed_list_2">Fruta</string>
-    <string name="seed_list_3">Despensa</string>
+    <string name="seed_list_title">Primeros pasos</string>
+    <string name="seed_list_1">Elige un tema</string>
+    <string name="seed_list_2">Personaliza la barra de herramientas</string>
+    <string name="seed_list_3">Prueba Vista rápida</string>
     <string name="seed_note_title">Pensamiento del día</string>
     <string name="seed_note_body">Cada día es un nuevo comienzo. Recíbelo con **esperanza y valor**, y deja que cada momento te inspire a crecer y brillar **más** que antes.</string>
     <string name="welcome_skip">Omitir</string>

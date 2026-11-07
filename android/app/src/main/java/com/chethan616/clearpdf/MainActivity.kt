@@ -36,6 +36,10 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(com.chethan616.clearpdf.ui.utils.AppLocale.wrap(newBase))
+    }
+
     // where the last touch went down: a document opened by it zooms out of that spot
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
         if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
@@ -80,6 +84,7 @@ class MainActivity : ComponentActivity() {
         )
         window.isNavigationBarContrastEnforced = false
         super.onCreate(savedInstanceState)
+        com.chethan616.clearpdf.ui.utils.AppLocale.migrateLegacyLocale(this)
         if (savedInstanceState == null) openFromIntent(intent)
         collectRequests()
         GlassSettings.load(this)

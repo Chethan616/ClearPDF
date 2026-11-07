@@ -3,6 +3,11 @@
   Textes de Artefact, en français (France).
 -->
 <resources>
+    <string name="settings_language">Langue de l’application</string>
+    <string name="settings_language_body">Choisissez la langue d’Artefact.</string>
+    <string name="settings_language_system">Langue du système (%1$s)</string>
+    <string name="settings_open_in_night_mode">Toujours ouvrir les PDF et documents en mode nuit</string>
+    <string name="settings_open_in_night_mode_body">Ouvrir chaque PDF et document avec le mode nuit activé.</string>
     <string name="open_with">Ouvrir dans Artefact</string>
 
     <!-- Shared: buttons and words used on many screens -->
@@ -1100,10 +1105,10 @@
     <string name="notes_take_photo">Prendre une photo</string>
     <string name="notes_add_photo">Ajouter une photo</string>
     <string name="notes_remove_picture">Retirer l\'image</string>
-    <string name="seed_list_title">Liste de courses</string>
-    <string name="seed_list_1">Légumes</string>
-    <string name="seed_list_2">Fruits</string>
-    <string name="seed_list_3">Épicerie</string>
+    <string name="seed_list_title">Premiers pas</string>
+    <string name="seed_list_1">Choisir un thème</string>
+    <string name="seed_list_2">Personnaliser la barre d’outils</string>
+    <string name="seed_list_3">Essayer Aperçu rapide</string>
     <string name="seed_note_title">Pensée du jour</string>
     <string name="seed_note_body">Chaque jour est un nouveau départ. Accueillez-le avec **espoir et courage**, et laissez chaque instant vous inspirer à grandir et à briller **plus fort** qu\'avant.</string>
     <string name="welcome_skip">Passer</string>

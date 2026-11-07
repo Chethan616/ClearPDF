@@ -114,10 +114,6 @@ sealed interface DeskItem {
         override val key get() = "p-" + note.id
     }
 
-    data object Thought : DeskItem {
-        override val key get() = "thought"
-    }
-
     data object Files : DeskItem {
         override val key get() = "files"
     }
@@ -135,22 +131,18 @@ sealed interface DeskItem {
     }
 }
 
-/**
- * The desk's cards for [filter]: notes newest first, with the collections set in among them, and
- * [day]'s "Thought of the day" second (its note, once written on, is that card, not a second one).
- */
-fun deskItems(filter: DeskFilter, notes: List<Note>, recents: List<FileRow>, day: Long): List<DeskItem> {
-    val sorted = notes.filter { it.thought != day }.sortedWith(compareByDescending<Note> { it.pinned }.thenByDescending { it.updated })
+/** The desk's cards for [filter]: notes newest first, with the collections set in among them. */
+fun deskItems(filter: DeskFilter, notes: List<Note>, recents: List<FileRow>): List<DeskItem> {
+    val sorted = notes.sortedWith(compareByDescending<Note> { it.pinned }.thenByDescending { it.updated })
     return when (filter) {
         DeskFilter.All -> {
             val out = sorted.map<Note, DeskItem> { DeskItem.Of(it) }.toMutableList()
             if (recents.isNotEmpty()) out.add(minOf(1, out.size), DeskItem.Recent(recents))
             out.add(minOf(3, out.size), DeskItem.Files)
             out.add(minOf(6, out.size), DeskItem.Pdfs(recents.size))
-            out.add(minOf(1, out.size), DeskItem.Thought)
             out
         }
-        DeskFilter.Notes -> sorted.filter { it.kind == NoteKind.Text }.map<Note, DeskItem> { DeskItem.Of(it) }.toMutableList().apply { add(minOf(1, size), DeskItem.Thought) }
+        DeskFilter.Notes -> sorted.filter { it.kind == NoteKind.Text }.map { DeskItem.Of(it) }
         DeskFilter.Todo -> sorted.filter { it.kind == NoteKind.List }.map { DeskItem.Of(it) }
         DeskFilter.Audio -> sorted.filter { it.kind == NoteKind.Voice }.map { DeskItem.Of(it) }
         DeskFilter.Images -> sorted.filter { it.images.isNotEmpty() }.map { DeskItem.Picture(it) }
@@ -179,7 +171,7 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
     var actionsAnchor by remember { mutableStateOf(Rect.Zero) }
     val notes = vm.notes.all
     val recents = vm.recentRows()
-    val fresh = remember(filter, notes, vm.recentList) { deskItems(filter, notes, recents, com.chethan616.clearpdf.notes.today()) }
+    val fresh = remember(filter, notes, vm.recentList) { deskItems(filter, notes, recents) }
     // Opening a document moves it to the front of Recent while the page is still rising out of its
     // card; re-sorting the cards then (their tones and tilts follow their places) flashed them behind
     // it. They hold their order while a document moves over the desk and take the new one once it
@@ -252,7 +244,6 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
                             },
                         ) { NoteImage(n.images.first(), Modifier.matchParentSize(), maxPx = 900) }
                     }
-                    DeskItem.Thought -> ThoughtCard({ vm.openThought() }, m)
                     DeskItem.Files -> CollectionCard(stringResource(R.string.desk_word_files), clear.tone(Tone.Butter), { vm.filesShowLocal = true; vm.homeTab = HomeTab.Files }, m)
                     is DeskItem.Pdfs -> CollectionCard(stringResource(R.string.desk_word_pdf), clear.tone(Tone.Orchid), { vm.homeTab = HomeTab.Files }, m, height = 136.dp)
                     is DeskItem.Recent -> RecentCard(vm, item.rows, { vm.homeTab = HomeTab.Files }, m)

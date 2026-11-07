@@ -9,6 +9,11 @@
   mantenuti compatibili con le risorse Android.
 -->
 <resources>
+    <string name="settings_language">Lingua dell’app</string>
+    <string name="settings_language_body">Scegli la lingua di Artefact.</string>
+    <string name="settings_language_system">Lingua di sistema (%1$s)</string>
+    <string name="settings_open_in_night_mode">Apri sempre PDF e documenti in modalità notturna</string>
+    <string name="settings_open_in_night_mode_body">Apri ogni PDF e documento con la modalità notturna attiva.</string>
     <string name="open_with">Apri in Artefact</string>
 
     <!-- ================================================================ -->
@@ -1210,10 +1215,10 @@
     <string name="notes_take_photo">Scatta una foto</string>
     <string name="notes_add_photo">Aggiungi una foto</string>
     <string name="notes_remove_picture">Rimuovi immagine</string>
-    <string name="seed_list_title">Lista della spesa</string>
-    <string name="seed_list_1">Verdure</string>
-    <string name="seed_list_2">Frutta</string>
-    <string name="seed_list_3">Dispensa</string>
+    <string name="seed_list_title">Per iniziare</string>
+    <string name="seed_list_1">Scegli un tema</string>
+    <string name="seed_list_2">Personalizza la barra degli strumenti</string>
+    <string name="seed_list_3">Prova Anteprima rapida</string>
     <string name="seed_note_title">Pensiero del giorno</string>
     <string name="seed_note_body">Ogni giorno è un nuovo inizio. Accoglilo con **speranza e coraggio**, e lascia che ogni momento ti ispiri a crescere e a brillare **più** di prima.</string>
     <string name="welcome_skip">Salta</string>

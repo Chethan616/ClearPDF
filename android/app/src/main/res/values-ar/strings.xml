@@ -5,6 +5,11 @@
   Arabic plurals include zero, one, two, few, many and other.
 -->
 <resources>
+    <string name="settings_language">لغة التطبيق</string>
+    <string name="settings_language_body">اختر اللغة المستخدمة في Artefact.</string>
+    <string name="settings_language_system">لغة النظام (%1$s)</string>
+    <string name="settings_open_in_night_mode">افتح ملفات PDF والمستندات دائمًا بالوضع الليلي</string>
+    <string name="settings_open_in_night_mode_body">افتح كل ملف PDF ومستند مع تفعيل الوضع الليلي.</string>
     <string name="open_with">فتح باستخدام Artefact</string>
     <string name="common_ok">موافق</string>
     <string name="common_cancel">إلغاء</string>
@@ -862,10 +867,10 @@
     <string name="notes_take_photo">التقط صورة</string>
     <string name="notes_add_photo">أضف صورة</string>
     <string name="notes_remove_picture">إزالة الصورة</string>
-    <string name="seed_list_title">قائمة التسوق</string>
-    <string name="seed_list_1">خضروات</string>
-    <string name="seed_list_2">فواكه</string>
-    <string name="seed_list_3">بقالة</string>
+    <string name="seed_list_title">البدء</string>
+    <string name="seed_list_1">اختر سمة</string>
+    <string name="seed_list_2">خصص شريط الأدوات</string>
+    <string name="seed_list_3">جرّب النظرة السريعة</string>
     <string name="seed_note_title">فكرة اليوم</string>
     <string name="seed_note_body">كل يوم بداية جديدة. استقبله **بالأمل والشجاعة**، ودع كل لحظة تلهمك لتنمو وتتألق **أكثر** من قبل.</string>
     <string name="welcome_skip">تخطٍّ</string>
