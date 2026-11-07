@@ -239,9 +239,11 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
                     }
                     is DeskItem.Picture -> {
                         val n = item.note
+                        // on the Images shelf a picture opens in the editor; elsewhere its note opens
+                        val open = if (filter == DeskFilter.Images) ({ vm.editingPhoto = n.id to n.images.first() }) else ({ vm.openNote = n.id })
                         StackCard(
                             n.title.ifBlank { stringResource(R.string.desk_filter_images) }, shortDate(n.updated),
-                            listOf(clear.tone(Tone.Blush), clear.tone(Tone.Peach)), { vm.openNote = n.id }, m, onLong = { actionsFor = n },
+                            listOf(clear.tone(Tone.Blush), clear.tone(Tone.Peach)), open, m, onLong = { actionsFor = n },
                             chips = {
                                 if (n.images.size > 1) PhotoChip("+${n.images.size - 1}", { vm.openNote = n.id }, Modifier.align(Alignment.BottomEnd).padding(12.dp))
                             },
@@ -447,6 +449,7 @@ private fun NoteActions(vm: AppViewModel, n: Note, onRename: () -> Unit, onDismi
         if (voice) GlassRow(stringResource(R.string.notes_rename), { onDismiss(); onRename() }, icon = LucideIcons.PenLine, accent = Candy.Grape)
         GlassRow(stringResource(if (n.pinned) R.string.notes_unpin else R.string.notes_pin), { vm.notes.put(n.copy(pinned = !n.pinned)); onDismiss() }, icon = LucideIcons.Pin, accent = Candy.Tangerine)
         if (!voice) GlassRow(stringResource(R.string.notes_open), { vm.openNote = n.id; onDismiss() }, icon = LucideIcons.SquarePen, accent = Candy.Sky)
+        n.images.firstOrNull()?.let { pic -> GlassRow(stringResource(R.string.photo_edit), { onDismiss(); vm.editingPhoto = n.id to pic }, icon = LucideIcons.SlidersHorizontal, accent = Candy.Bubblegum) }
         val feel = com.chethan616.clearpdf.ui.glass.rememberFeel()
         GlassRow(stringResource(R.string.common_delete), { feel(com.chethan616.clearpdf.ui.glass.Feel.Reject); vm.notes.delete(n.id); onDismiss() }, icon = LucideIcons.Trash2, destructive = true)
     }

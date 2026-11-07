@@ -71,6 +71,7 @@ import com.chethan616.clearpdf.ui.theme.clear
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 
@@ -132,6 +133,12 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
     val blocks = remember { mutableStateMapOf<Triple<Int, Int, Int>, List<CellView>>() }
     var scale by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
+    // search: the cells showing the query, and the one shown
+    var searching by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    var hits by remember { mutableStateOf<List<CellSpan>>(emptyList()) }
+    var hit by remember { mutableIntStateOf(0) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val density = LocalDensity.current
     // the grid starts under the top row of glass (it runs on beneath it, for the glass to refract)
     val topPx = with(density) { WindowInsets.statusBars.getTop(this) + 64.dp.toPx() }
@@ -144,6 +151,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
         val info = sheets.getOrNull(current) ?: return@LaunchedEffect
         layout = null
         pan = Offset.Zero
+        hits = emptyList()
         val rows = min(info.rows.toInt() + SPARE_ROWS, 20_000)
         val cols = min(info.cols.toInt() + SPARE_COLS, 2_000)
         val l = runCatching {
@@ -188,6 +196,18 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                             }
                         }
                 }
+                // a hit brought into view: its cell near the top left, under the heading strips
+                LaunchedEffect(hit, hits) {
+                    val h = hits.getOrNull(hit) ?: return@LaunchedEffect
+                    val k = px * scale
+                    val r = h.row0.toInt().coerceIn(0, l.rows - 1)
+                    val col = h.col0.toInt().coerceIn(0, l.cols - 1)
+                    val fr = l.info.frozenRows.toInt()
+                    val fc = l.info.frozenCols.toInt()
+                    val x = if (col < fc) pan.x else -(l.colX[col] - l.colX[minOf(fc, l.cols)]) * k + 24 * px
+                    val y = if (r < fr) pan.y else -(l.rowY[r] - l.rowY[minOf(fr, l.rows)]) * k + 24 * px
+                    pan = Offset(x.coerceAtMost(0f), y.coerceAtMost(0f))
+                }
                 Canvas(
                     Modifier
                         .fillMaxSize()
@@ -207,7 +227,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                         .pointerInput(Unit) { detectTapGestures(onDoubleTap = { scale = if (scale > 1.2f) 1f else 2f; pan = Offset.Zero }) },
                 ) {
                     drawRect(Color.White)
-                    translate(top = topPx) { drawSheet(l, blocks, sheetIndex, px * scale, pan, measurer, c.ink) }
+                    translate(top = topPx) { drawSheet(l, blocks, sheetIndex, px * scale, pan, measurer, c.ink, hits.getOrNull(hit)) }
                 }
             }
         }
@@ -223,7 +243,28 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                         sheets.getOrNull(current)?.let { Text(it.name, style = ClearType.Caption, color = c.inkSoft, maxLines = 1) }
                     }
                     Spacer(Modifier.size(10.dp))
+                    GlassCircle(onClick = { searching = !searching; if (!searching) hits = emptyList() }, label = stringResource(R.string.viewer_find_in_document)) { GlassIcon(LucideIcons.Search, null, Modifier.size(20.dp)) }
+                    Spacer(Modifier.size(10.dp))
                     GlassCircle(onClick = { vm.share(doc) }, label = stringResource(R.string.common_share)) { GlassIcon(LucideIcons.Share2, null, Modifier.size(20.dp)) }
+                }
+                // the search row: the query, how many cells show it, and the way through them
+                if (searching) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.weight(1f).glassBar().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        com.chethan616.clearpdf.ui.glass.GlassTextField(query, { query = it }, stringResource(R.string.viewer_find_in_document), Modifier.weight(1f), keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = {
+                            val q = query.trim()
+                            scope.launch {
+                                hits = if (q.isEmpty()) emptyList() else runCatching { eng.command { sheetFind(doc.id, current.toUInt(), q, false, 1000u) } }.getOrDefault(emptyList())
+                                hit = 0
+                            }
+                        }), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done))
+                        if (hits.isNotEmpty()) Text("${hit + 1}/${hits.size}", style = ClearType.Caption, color = c.inkSoft)
+                    }
+                    if (hits.size > 1) {
+                        Spacer(Modifier.size(8.dp))
+                        GlassCircle(onClick = { hit = (hit - 1 + hits.size) % hits.size }, size = 40.dp, label = stringResource(R.string.viewer_find_previous)) { GlassIcon(LucideIcons.ChevronUp, null, Modifier.size(18.dp)) }
+                        Spacer(Modifier.size(6.dp))
+                        GlassCircle(onClick = { hit = (hit + 1) % hits.size }, size = 40.dp, label = stringResource(R.string.viewer_find_next)) { GlassIcon(LucideIcons.ChevronDown, null, Modifier.size(18.dp)) }
+                    }
                 }
             }
             // the sheet tabs
@@ -260,6 +301,7 @@ private fun DrawScope.drawSheet(
     pan: Offset,
     measurer: TextMeasurer,
     ink: Color,
+    found: CellSpan?,
 ) {
     val head = Offset(HEAD_W * k.coerceAtMost(density * 1.5f), HEAD_H * k.coerceAtMost(density * 1.5f))
     val fr = min(l.info.frozenRows.toInt(), l.rows)
@@ -309,6 +351,16 @@ private fun DrawScope.drawSheet(
                 edge(v.top, r.topLeft, r.topRight)
                 edge(v.right, r.topRight, r.bottomRight)
                 edge(v.bottom, r.bottomLeft, r.bottomRight)
+            }
+            // the search hit in this region: an accent ring round its cell
+            found?.let { f ->
+                val r = f.row0.toInt()
+                val col = f.col0.toInt()
+                if (r in r0 until r1 && col in c0 until c1) {
+                    val box = cell(r, col)
+                    drawRect(Color(0x330A84FF), box.topLeft, box.size)
+                    drawRect(Color(0xFF0A84FF), box.topLeft, box.size, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f * density))
+                }
             }
             for (v in shown) {
                 if (v.text.isEmpty()) continue

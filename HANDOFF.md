@@ -217,6 +217,23 @@ The card is a `Squircle` (new in `ui/glass/Shapes.kt`: kyant's continuous corner
 content clipped inside its own moving layer) with a radius concentric with the screen's corners
 (`RoundedCorner` bottom-left radius minus the 10 dp inset, 24..48 dp; 34 dp without it).
 
+## 2026-11-07 pass (built and installed; not driven on the phone: owner was using it)
+
+- Office bars: `QuickTool.barFor(doc, arranged)` (Word / slides lists), `QuickToolbar(onMoreTools =
+  null)` hides More tools; `ViewerSheet.SaveAs` → `SaveAsSheet` (formats from `exportFormats`);
+  `vm.exportOffice(doc, format)` delivers to Downloads; `vm.print` prints office docs via their PDF.
+- Present: `ui/viewer/PresentMode.kt`, `vm.presenting`, hosted in ClearApp's tool-screen box.
+- Sheet search: in `SheetViewer` (search circle in the top row).
+- Files ▸ ⋯: `DocumentTypes.Kind` filter; `.txt`/`.md` open (Word engine: `office::sniff` by name).
+- Thought of the day: the card shows the day's quote; past thoughts never written on are deleted at
+  start (AppViewModel init).
+- Quick Preview → app: `vm.open(copy = …, fromPreview = true)` reuses the preview's copy;
+  `vm.expandingPreview` paints the viewer ground over a desk that isn't drawn until the reveal covers;
+  window animation is an 180 ms fade (`res/anim/preview_open_*`).
+- Licences page rewritten (groups, roles, tap for licence text, arrow for source); About has one
+  "Built with open source" row.
+- Images shelf: a picture card opens the LightCraft editor; long press ▸ Edit picture.
+
 ## Desk flicker (2026-11-06, fix built, not yet seen on the phone)
 
 The owner saw the desk's cards "appear again for a second" after tapping a card. Cause found in

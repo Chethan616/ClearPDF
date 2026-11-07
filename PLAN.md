@@ -145,8 +145,16 @@ all three → editing, one format at a time, each built and run on the phone bef
       develop, pipeline only: no GPU, faces or catalog). Tap a note's picture: glass editor with
       Exposure, Contrast, Highlights, Shadows, Vibrance, Saturation and rotate; Done saves a new JPEG.
       [ ] seen on the phone; [ ] crop; [ ] markup.
-- [ ] Export to PDF for all three (wordcraft-pdf / deckcraft-pdf through craft-pdf + krilla, already
-      patched in; gridcraft's own writer: check non-Latin text).
+- [x] **Export and print for all three** (2026-11-07): `export_office(doc, format, path)` /
+      `export_formats(doc)`: Word → pdf, docx, odt, rtf, html, md, txt; slides → pdf, pptx; sheets →
+      pdf (gridcraft's `file.exportPdf`, every sheet), xlsx, csv. Office bars: Word = Read aloud ·
+      Export PDF · Save as · Print; slides add **Present** (full screen, swipe/tap, bars hidden);
+      sheets: **search** (glass field, hits ringed, ↑↓). No PDF More tools for office documents.
+      [ ] check gridcraft's PDF with non-Latin text.
+- [ ] Map each engine's remaining features into the UI, one format at a time (they are large: Word
+      422 commands, slides 320, sheets 313, LightCraft's develop panel): next are Word's navigation
+      pane (headings), slide notes and thumbnails, sheet charts and pictures, LightCraft crop,
+      presets and auto, then editing (typing, formatting) per format.
 - [ ] Editing, one format at a time (wordcraft's 422 commands through `Session::run`, then deckcraft's
       and gridcraft's registries).
 
