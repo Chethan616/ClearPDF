@@ -66,8 +66,10 @@ import com.chethan616.clearpdf.ui.glass.GlassIcon
 import com.chethan616.clearpdf.ui.glass.GlassLoader
 import com.chethan616.clearpdf.ui.glass.LocalBackdrop
 import com.chethan616.clearpdf.ui.glass.glassBar
+import com.chethan616.clearpdf.ui.glass.ChromeCapsule
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
+import kotlinx.coroutines.delay
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -342,6 +344,20 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
         val s = grid.selected ?: return@LaunchedEffect
         input = runCatching { eng.command { sheetInput(doc.id, grid.current.toUInt(), s.row0, s.col0) } }.getOrDefault("")
     }
+    // live debounced search across the active sheet
+    LaunchedEffect(query, grid.current, searching) {
+        if (!searching || query.isBlank()) {
+            grid.hits = emptyList()
+            grid.hit = 0
+        } else {
+            delay(180)
+            val q = query.trim()
+            if (q.isNotEmpty()) {
+                grid.hits = runCatching { eng.command { sheetFind(doc.id, grid.current.toUInt(), q, false, 1000u) } }.getOrDefault(emptyList())
+                grid.hit = 0
+            }
+        }
+    }
     fun after() {
         grid.changed()
         scope.launch { vm.refresh(doc) }
@@ -390,7 +406,19 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                         grid.sheets.getOrNull(grid.current)?.let { Text(it.name + if (doc.info.dirty) " · " + stringResource(R.string.sheet_edited) else "", style = ClearType.Caption, color = c.inkSoft, maxLines = 1) }
                     }
                     Spacer(Modifier.size(10.dp))
-                    GlassCircle(onClick = { searching = !searching; if (!searching) grid.hits = emptyList() }, label = stringResource(R.string.viewer_find_in_document)) { GlassIcon(LucideIcons.Search, null, Modifier.size(20.dp)) }
+                    GlassCircle(
+                        onClick = {
+                            searching = !searching
+                            if (!searching) {
+                                grid.hits = emptyList()
+                                query = ""
+                            }
+                        },
+                        label = stringResource(R.string.viewer_find_in_document),
+                        surface = if (searching) Candy.Sky.copy(alpha = 0.22f) else Color.Unspecified,
+                    ) {
+                        GlassIcon(if (searching) LucideIcons.X else LucideIcons.Search, null, Modifier.size(20.dp), tint = if (searching) Candy.Sky else c.ink)
+                    }
                     Spacer(Modifier.size(10.dp))
                     var moreRect by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
                     GlassCircle(
@@ -398,27 +426,126 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                         modifier = Modifier.onGloballyPositioned { moreRect = it.boundsInWindow() },
                     ) { GlassIcon(LucideIcons.MoreHorizontal, null, Modifier.size(20.dp)) }
                 }
-                if (searching) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Row(Modifier.weight(1f).height(48.dp).background(c.frost, com.chethan616.clearpdf.ui.glass.Capsule).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        GlassTextField(
-                            query, { query = it }, stringResource(R.string.viewer_find_in_document), Modifier.weight(1f),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(onSearch = {
-                                val q = query.trim()
-                                scope.launch {
-                                    grid.hits = if (q.isEmpty()) emptyList() else runCatching { eng.command { sheetFind(doc.id, grid.current.toUInt(), q, false, 1000u) } }.getOrDefault(emptyList())
-                                    grid.hit = 0
-                                    if (q.isNotEmpty() && grid.hits.isEmpty()) vm.tell(com.chethan616.clearpdf.text(R.string.msg_search_no_matches, q))
+                if (searching) {
+                    val searchFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+                    LaunchedEffect(Unit) { searchFocus.requestFocus() }
+                    val qTrim = query.trim()
+                    val notFound = qTrim.isNotEmpty() && grid.hits.isEmpty()
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp)
+                            .height(48.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(
+                            Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .glassBar(
+                                    shape = ChromeCapsule,
+                                    surface = if (notFound) Candy.Tomato.copy(alpha = 0.15f) else Color.Unspecified,
+                                )
+                                .padding(start = 14.dp, end = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            androidx.compose.material3.Icon(
+                                LucideIcons.Search,
+                                null,
+                                tint = if (notFound) Candy.Tomato else c.inkSoft,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.size(10.dp))
+                            androidx.compose.foundation.text.BasicTextField(
+                                value = query,
+                                onValueChange = { query = it },
+                                singleLine = true,
+                                textStyle = ClearType.Body.copy(color = if (notFound) Candy.Tomato else c.ink),
+                                cursorBrush = androidx.compose.ui.graphics.SolidColor(if (notFound) Candy.Tomato else Candy.Sky),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = {
+                                    val q = query.trim()
+                                    scope.launch {
+                                        grid.hits = if (q.isEmpty()) emptyList() else runCatching {
+                                            eng.command { sheetFind(doc.id, grid.current.toUInt(), q, false, 1000u) }
+                                        }.getOrDefault(emptyList())
+                                        grid.hit = 0
+                                    }
+                                }),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .androidx.compose.ui.focus.focusRequester(searchFocus)
+                                    .androidx.compose.ui.semantics.semantics {
+                                        androidx.compose.ui.semantics.contentDescription = stringResource(R.string.viewer_find_in_document)
+                                    },
+                                decorationBox = { inner ->
+                                    Box(contentAlignment = Alignment.CenterStart) {
+                                        if (query.isEmpty()) {
+                                            Text(
+                                                stringResource(R.string.viewer_find_in_document),
+                                                style = ClearType.Body,
+                                                color = c.inkFaint,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                        inner()
+                                    }
+                                },
+                            )
+                            if (notFound) {
+                                Text(
+                                    "Not found",
+                                    style = ClearType.Label.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp),
+                                    color = Candy.Tomato,
+                                    maxLines = 1,
+                                    modifier = Modifier.padding(start = 6.dp, end = 4.dp),
+                                )
+                            } else if (grid.hits.isNotEmpty()) {
+                                Text(
+                                    "${grid.hit + 1}/${grid.hits.size}",
+                                    style = ClearType.Label.copy(fontWeight = FontWeight.SemiBold, fontSize = 12.sp),
+                                    color = c.inkSoft,
+                                    maxLines = 1,
+                                    modifier = Modifier.padding(start = 6.dp, end = 4.dp),
+                                )
+                            }
+                            if (query.isNotEmpty()) {
+                                Box(
+                                    Modifier
+                                        .size(24.dp)
+                                        .androidx.compose.ui.draw.clip(androidx.compose.foundation.shape.CircleShape)
+                                        .androidx.compose.foundation.clickable {
+                                            query = ""
+                                            grid.hits = emptyList()
+                                        },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    androidx.compose.material3.Icon(
+                                        LucideIcons.X,
+                                        stringResource(R.string.common_clear),
+                                        tint = if (notFound) Candy.Tomato else c.inkSoft,
+                                        modifier = Modifier.size(15.dp),
+                                    )
                                 }
-                            }),
-                        )
-                        if (grid.hits.isNotEmpty()) Text("${grid.hit + 1}/${grid.hits.size}", style = ClearType.Caption, color = c.inkSoft)
-                    }
-                    if (grid.hits.size > 1) {
-                        Spacer(Modifier.size(8.dp))
-                        GlassCircle(onClick = { grid.hit = (grid.hit - 1 + grid.hits.size) % grid.hits.size }, size = 44.dp, label = stringResource(R.string.viewer_find_previous)) { GlassIcon(LucideIcons.ChevronUp, null, Modifier.size(18.dp)) }
-                        Spacer(Modifier.size(6.dp))
-                        GlassCircle(onClick = { grid.hit = (grid.hit + 1) % grid.hits.size }, size = 44.dp, label = stringResource(R.string.viewer_find_next)) { GlassIcon(LucideIcons.ChevronDown, null, Modifier.size(18.dp)) }
+                            }
+                        }
+                        if (grid.hits.size > 1) {
+                            GlassCircle(
+                                onClick = { grid.hit = (grid.hit - 1 + grid.hits.size) % grid.hits.size },
+                                size = 44.dp,
+                                label = stringResource(R.string.viewer_find_previous),
+                            ) {
+                                GlassIcon(LucideIcons.ChevronUp, null, Modifier.size(18.dp))
+                            }
+                            GlassCircle(
+                                onClick = { grid.hit = (grid.hit + 1) % grid.hits.size },
+                                size = 44.dp,
+                                label = stringResource(R.string.viewer_find_next),
+                            ) {
+                                GlassIcon(LucideIcons.ChevronDown, null, Modifier.size(18.dp))
+                            }
+                        }
                     }
                 }
                 if (searching) Spacer(Modifier.height(8.dp))
