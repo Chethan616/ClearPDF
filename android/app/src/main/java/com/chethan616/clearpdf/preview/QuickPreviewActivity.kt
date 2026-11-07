@@ -127,7 +127,7 @@ class QuickPreviewActivity : ComponentActivity() {
                 val images = PageImages(eng, info.id, lifecycleScope, 48 * 1024 * 1024)
                 val view = ViewerState(info.pages.map { PageSize(it.width, it.height) })
                 (state as? PreviewState.Ready)?.close(eng)
-                state = PreviewState.Ready(info, images, view, name, size)
+                state = PreviewState.Ready(info, images, view, name, size, eng)
             } catch (e: MobileException.NeedsPassword) {
                 state = PreviewState.Password(wrong = false)
             } catch (e: MobileException.WrongPassword) {
@@ -239,7 +239,7 @@ internal sealed interface PreviewState {
 
     class Failed(val message: String) : PreviewState
 
-    class Ready(val info: DocumentInfo, val images: PageImages, val view: ViewerState, val name: String, val size: Long) : PreviewState {
+    class Ready(val info: DocumentInfo, val images: PageImages, val view: ViewerState, val name: String, val size: Long, val engine: Engine) : PreviewState {
         suspend fun close(eng: Engine) {
             images.close()
             runCatching { eng.tool("doc_close", mapOf("doc" to info.id, "discard_changes" to true)) }

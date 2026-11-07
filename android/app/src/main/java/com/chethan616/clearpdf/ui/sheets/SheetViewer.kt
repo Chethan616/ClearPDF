@@ -71,6 +71,25 @@ import com.chethan616.clearpdf.ui.theme.clear
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.flow.distinctUntilChanged
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.text.input.ImeAction
+import com.chethan616.clearpdf.engine.Engine
+import com.chethan616.clearpdf.engine.userMessage
+import com.chethan616.clearpdf.ui.glass.GlassMenu
+import com.chethan616.clearpdf.ui.glass.GlassMenuItem
+import com.chethan616.clearpdf.ui.glass.GlassTextField
+import com.chethan616.clearpdf.ui.glass.pressable
+import com.chethan616.clearpdf.ui.theme.Candy
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
@@ -88,7 +107,7 @@ private const val HEAD_H = 20f
 private const val HEAD_W = 36f
 
 /** One sheet's layout: where every row and column starts (points from A1), its merges and freeze. */
-private class SheetLayout(val info: SheetInfo, val colX: FloatArray, val rowY: FloatArray, val merges: List<CellSpan>) {
+internal class SheetLayout(val info: SheetInfo, val colX: FloatArray, val rowY: FloatArray, val merges: List<CellSpan>) {
     val cols get() = colX.size - 1
     val rows get() = rowY.size - 1
 
@@ -119,120 +138,230 @@ private fun columnName(c: Int): String {
 private fun rgb(c: UInt): Color = Color(0xFF000000.toInt() or c.toInt())
 
 /**
- * A workbook: its sheets as a grid that pans and zooms under glass bars, the heading strips and
- * the frozen panes held in place, a sheet chosen from the tabs at the bottom.
+ * One workbook's grid as the screen holds it: the sheets, the one shown, its layout and the cells
+ * fetched so far (in blocks), the zoom and scroll, the chosen cell and the search hits.
+ */
+@androidx.compose.runtime.Stable
+class SheetGridState internal constructor(private val eng: Engine, private val docId: ULong) {
+    var sheets by mutableStateOf<List<SheetInfo>>(emptyList())
+        internal set
+    var current by mutableIntStateOf(0)
+    internal var layout by mutableStateOf<SheetLayout?>(null)
+    internal val blocks = mutableStateMapOf<Triple<Int, Int, Int>, List<CellView>>()
+    var scale by mutableStateOf(1f)
+    var pan by mutableStateOf(Offset.Zero)
+    /** The chosen cell, if one is. */
+    var selected by mutableStateOf<CellSpan?>(null)
+    var hits by mutableStateOf<List<CellSpan>>(emptyList())
+    var hit by mutableIntStateOf(0)
+    /** Bumped when the workbook changed: the layout and cells are fetched again. */
+    var version by mutableIntStateOf(0)
+
+    internal suspend fun loadSheets() {
+        sheets = runCatching { eng.command { sheets(docId) } }.getOrDefault(emptyList())
+        if (sheets.getOrNull(current)?.hidden != false) current = sheets.indexOfFirst { !it.hidden }.coerceAtLeast(0)
+    }
+
+    internal suspend fun loadLayout() {
+        val info = sheets.getOrNull(current) ?: return
+        val sheet = current
+        val rows = min(info.rows.toInt() + SPARE_ROWS, 20_000)
+        val cols = min(info.cols.toInt() + SPARE_COLS, 2_000)
+        layout = runCatching {
+            eng.command {
+                val axes = sheetAxes(docId, sheet.toUInt(), 0u, rows.toUInt(), 0u, cols.toUInt())
+                val colX = FloatArray(cols + 1).also { a -> axes.colWidths.forEachIndexed { i, w -> a[i + 1] = a[i] + w } }
+                val rowY = FloatArray(rows + 1).also { a -> axes.rowHeights.forEachIndexed { i, h -> a[i + 1] = a[i] + h } }
+                SheetLayout(info, colX, rowY, sheetMerges(docId, sheet.toUInt()))
+            }
+        }.getOrNull()
+    }
+
+    internal suspend fun loadBlock(br: Int, bc: Int) {
+        val key = Triple(current, br, bc)
+        if (key in blocks) return
+        blocks[key] = emptyList()
+        blocks[key] = runCatching {
+            eng.command { sheetCells(docId, current.toUInt(), (br * BLOCK_ROWS).toUInt(), BLOCK_ROWS.toUInt(), (bc * BLOCK_COLS).toUInt(), BLOCK_COLS.toUInt()) }
+        }.getOrDefault(emptyList())
+    }
+
+    /** After an edit: everything shown is fetched again (sizes and values may all have moved). */
+    fun changed() {
+        blocks.clear()
+        version++
+    }
+}
+
+@Composable
+fun rememberSheetGrid(eng: Engine, docId: ULong): SheetGridState {
+    val state = remember(docId) { SheetGridState(eng, docId) }
+    LaunchedEffect(state, state.version) { state.loadSheets() }
+    LaunchedEffect(state, state.sheets, state.current, state.version) {
+        if (state.sheets.isEmpty()) return@LaunchedEffect
+        state.loadLayout()
+    }
+    return state
+}
+
+/**
+ * The grid itself: pans and pinch-zooms, a tap chooses a cell ([onCell]; [onDoubleTapCell] for
+ * the editor), the heading strips and frozen panes held in place. [top] and [bottom] are the
+ * room the bars over it take (pixels): the grid runs on beneath them for their glass to refract.
+ */
+@Composable
+fun SheetGrid(
+    state: SheetGridState,
+    modifier: Modifier = Modifier,
+    top: Float = 0f,
+    onCell: ((CellSpan?) -> Unit)? = null,
+    onDoubleTapCell: ((CellSpan) -> Unit)? = null,
+) {
+    val c = clear
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer(cacheSize = 256)
+    val l = state.layout
+    Box(modifier.fillMaxSize().background(Color.White)) {
+        if (l == null) {
+            Box(Modifier.fillMaxSize().padding(top = with(density) { top.toDp() } + 40.dp), contentAlignment = Alignment.TopCenter) { GlassLoader(size = 64.dp) }
+            return@Box
+        }
+        val px = density.density
+        // the blocks in view, asked for as the grid moves
+        LaunchedEffect(l) {
+            snapshotFlow { Triple(state.pan, state.scale, l) }.distinctUntilChanged().collect { (p, s, lay) ->
+                val k = px * s
+                val c0 = lay.indexAt(lay.colX, (-p.x / k).coerceAtLeast(0f)) / BLOCK_COLS
+                val r0 = lay.indexAt(lay.rowY, (-p.y / k).coerceAtLeast(0f)) / BLOCK_ROWS
+                for (br in r0..r0 + 1) for (bc in c0..c0 + 1) {
+                    if (br * BLOCK_ROWS < lay.rows && bc * BLOCK_COLS < lay.cols) state.loadBlock(br, bc)
+                }
+            }
+        }
+        // a hit brought into view: its cell near the top left, under the heading strips
+        LaunchedEffect(state.hit, state.hits) {
+            val h = state.hits.getOrNull(state.hit) ?: return@LaunchedEffect
+            val k = px * state.scale
+            val r = h.row0.toInt().coerceIn(0, l.rows - 1)
+            val col = h.col0.toInt().coerceIn(0, l.cols - 1)
+            val fr = l.info.frozenRows.toInt()
+            val fc = l.info.frozenCols.toInt()
+            val x = if (col < fc) state.pan.x else -(l.colX[col] - l.colX[minOf(fc, l.cols)]) * k + 24 * px
+            val y = if (r < fr) state.pan.y else -(l.rowY[r] - l.rowY[minOf(fr, l.rows)]) * k + 24 * px
+            state.pan = Offset(x.coerceAtMost(0f), y.coerceAtMost(0f))
+            state.selected = h
+        }
+        // the cell under a point of the canvas (null: a heading strip)
+        fun cellAt(p: Offset): CellSpan? {
+            val k = px * state.scale
+            val head = Offset(HEAD_W * k.coerceAtMost(px * 1.5f), HEAD_H * k.coerceAtMost(px * 1.5f))
+            val y = p.y - top
+            if (p.x < head.x || y < head.y) return null
+            val fr = minOf(l.info.frozenRows.toInt(), l.rows)
+            val fc = minOf(l.info.frozenCols.toInt(), l.cols)
+            val gx = p.x - head.x
+            val gy = y - head.y
+            val col = if (gx < l.colX[fc] * k) l.indexAt(l.colX, gx / k) else l.indexAt(l.colX, (gx - state.pan.x) / k)
+            val row = if (gy < l.rowY[fr] * k) l.indexAt(l.rowY, gy / k) else l.indexAt(l.rowY, (gy - state.pan.y) / k)
+            val m = l.merges.firstOrNull { row.toUInt() in it.row0..it.row1 && col.toUInt() in it.col0..it.col1 }
+            return m ?: CellSpan(row.toUInt(), col.toUInt(), row.toUInt(), col.toUInt())
+        }
+        Canvas(
+            Modifier
+                .fillMaxSize()
+                .pointerInput(l) {
+                    detectTransformGestures { centroid, move, zoom, _ ->
+                        val s = (state.scale * zoom).coerceIn(0.4f, 4f)
+                        val f = s / state.scale
+                        val k = px * s
+                        val maxX = (l.colX.last() * k - size.width / 2f).coerceAtLeast(0f)
+                        val maxY = (l.rowY.last() * k - size.height / 2f).coerceAtLeast(0f)
+                        // zoom about the fingers, then follow them
+                        val p = (state.pan - centroid) * f + centroid + move
+                        state.pan = Offset(p.x.coerceIn(-maxX, 0f), p.y.coerceIn(-maxY, 0f))
+                        state.scale = s
+                    }
+                }
+                .pointerInput(l, onCell, onDoubleTapCell) {
+                    detectTapGestures(
+                        onTap = { p -> onCell?.invoke(cellAt(p)) },
+                        onDoubleTap = { p ->
+                            val cell = cellAt(p)
+                            if (cell != null && onDoubleTapCell != null) onDoubleTapCell(cell)
+                            else {
+                                state.scale = if (state.scale > 1.2f) 1f else 2f
+                                state.pan = Offset.Zero
+                            }
+                        },
+                    )
+                },
+        ) {
+            translate(top = top) {
+                drawSheet(l, state.blocks, state.current, px * state.scale, state.pan, measurer, c.ink, state.hits.getOrNull(state.hit), state.selected)
+            }
+        }
+    }
+}
+
+/**
+ * A workbook in the app: its grid under liquid glass. The top row has Back, the title and sheet,
+ * Find and More (Export as PDF, Save as, Print, Share). A tap chooses a cell: the formula bar shows
+ * what it holds and takes a new value (a double tap edits at once), and the dock formats it with
+ * GridCraft's Home commands. The sheet tabs ride above the dock.
  */
 @Composable
 fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
     val eng = vm.engine ?: return
     val c = clear
-    var sheets by remember { mutableStateOf<List<SheetInfo>>(emptyList()) }
-    var current by remember { mutableIntStateOf(0) }
-    var layout by remember { mutableStateOf<SheetLayout?>(null) }
-    // blocks of cells by (sheet, block row, block column), filled in as they come into view
-    val blocks = remember { mutableStateMapOf<Triple<Int, Int, Int>, List<CellView>>() }
-    var scale by remember { mutableStateOf(1f) }
-    var pan by remember { mutableStateOf(Offset.Zero) }
-    // search: the cells showing the query, and the one shown
+    val grid = rememberSheetGrid(eng, doc.id)
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
-    var hits by remember { mutableStateOf<List<CellSpan>>(emptyList()) }
-    var hit by remember { mutableIntStateOf(0) }
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val density = LocalDensity.current
-    // the grid starts under the top row of glass (it runs on beneath it, for the glass to refract)
-    val topPx = with(density) { WindowInsets.statusBars.getTop(this) + 64.dp.toPx() }
+    var editing by remember { mutableStateOf(false) }
+    var input by remember { mutableStateOf("") }
+    var menuAt by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    var fillMenuAt by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val topPx = with(density) { WindowInsets.statusBars.getTop(this) + 64.dp.toPx() } +
+        with(density) { (if (searching || grid.selected != null) 56.dp else 0.dp).toPx() }
 
-    LaunchedEffect(doc.id) {
-        sheets = runCatching { eng.command { sheets(doc.id) } }.getOrDefault(emptyList())
-        current = sheets.indexOfFirst { !it.hidden }.coerceAtLeast(0)
+    // the chosen cell's contents, for the formula bar
+    LaunchedEffect(grid.selected, grid.version) {
+        val s = grid.selected ?: return@LaunchedEffect
+        input = runCatching { eng.command { sheetInput(doc.id, grid.current.toUInt(), s.row0, s.col0) } }.getOrDefault("")
     }
-    LaunchedEffect(sheets, current) {
-        val info = sheets.getOrNull(current) ?: return@LaunchedEffect
-        layout = null
-        pan = Offset.Zero
-        hits = emptyList()
-        val rows = min(info.rows.toInt() + SPARE_ROWS, 20_000)
-        val cols = min(info.cols.toInt() + SPARE_COLS, 2_000)
-        val l = runCatching {
-            eng.command {
-                val axes = sheetAxes(doc.id, current.toUInt(), 0u, rows.toUInt(), 0u, cols.toUInt())
-                val colX = FloatArray(cols + 1).also { a -> axes.colWidths.forEachIndexed { i, w -> a[i + 1] = a[i] + w } }
-                val rowY = FloatArray(rows + 1).also { a -> axes.rowHeights.forEachIndexed { i, h -> a[i + 1] = a[i] + h } }
-                SheetLayout(info, colX, rowY, sheetMerges(doc.id, current.toUInt()))
-            }
-        }.getOrNull()
-        layout = l
+    fun after() {
+        grid.changed()
+        scope.launch { vm.refresh(doc) }
+    }
+    fun run(command: String, params: Map<String, Any?> = emptyMap()) {
+        val area = grid.selected ?: CellSpan(0u, 0u, 0u, 0u)
+        scope.launch {
+            runCatching { eng.command { sheetCommand(doc.id, grid.current.toUInt(), area, command, Engine.toJson(params).toString()) } }
+                .onSuccess { after() }
+                .onFailure { vm.tell(it.userMessage) }
+        }
+    }
+    fun commit() {
+        val s = grid.selected ?: return
+        editing = false
+        scope.launch {
+            runCatching { eng.command { sheetSetCell(doc.id, grid.current.toUInt(), s.row0, s.col0, input) } }
+                .onSuccess { after() }
+                .onFailure { vm.tell(it.userMessage) }
+        }
     }
 
     val backdrop = rememberLayerBackdrop()
-    val measurer = rememberTextMeasurer(cacheSize = 256)
-    val sheetIndex = current
     Box(Modifier.fillMaxSize()) {
-        // the grid, recorded as the bars' backdrop: their glass refracts the cells
         Box(Modifier.fillMaxSize().layerBackdrop(backdrop)) {
-            val l = layout
-            if (l == null) {
-                Box(Modifier.fillMaxSize().padding(top = 120.dp), contentAlignment = Alignment.TopCenter) { GlassLoader(size = 64.dp) }
-            } else {
-                val px = density.density
-                // the blocks in view, asked for as the grid moves
-                LaunchedEffect(l) {
-                    snapshotFlow { Triple(pan, scale, l) }
-                        .distinctUntilChanged()
-                        .collect { (p, s, lay) ->
-                            val k = px * s
-                            val x0 = (-p.x / k).coerceAtLeast(0f)
-                            val y0 = (-p.y / k).coerceAtLeast(0f)
-                            val c0 = lay.indexAt(lay.colX, x0) / BLOCK_COLS
-                            val r0 = lay.indexAt(lay.rowY, y0) / BLOCK_ROWS
-                            for (br in r0..r0 + 1) for (bc in c0..c0 + 1) {
-                                val key = Triple(sheetIndex, br, bc)
-                                if (key in blocks || br * BLOCK_ROWS >= lay.rows || bc * BLOCK_COLS >= lay.cols) continue
-                                blocks[key] = emptyList()
-                                blocks[key] = runCatching {
-                                    eng.command { sheetCells(doc.id, sheetIndex.toUInt(), (br * BLOCK_ROWS).toUInt(), BLOCK_ROWS.toUInt(), (bc * BLOCK_COLS).toUInt(), BLOCK_COLS.toUInt()) }
-                                }.getOrDefault(emptyList())
-                            }
-                        }
-                }
-                // a hit brought into view: its cell near the top left, under the heading strips
-                LaunchedEffect(hit, hits) {
-                    val h = hits.getOrNull(hit) ?: return@LaunchedEffect
-                    val k = px * scale
-                    val r = h.row0.toInt().coerceIn(0, l.rows - 1)
-                    val col = h.col0.toInt().coerceIn(0, l.cols - 1)
-                    val fr = l.info.frozenRows.toInt()
-                    val fc = l.info.frozenCols.toInt()
-                    val x = if (col < fc) pan.x else -(l.colX[col] - l.colX[minOf(fc, l.cols)]) * k + 24 * px
-                    val y = if (r < fr) pan.y else -(l.rowY[r] - l.rowY[minOf(fr, l.rows)]) * k + 24 * px
-                    pan = Offset(x.coerceAtMost(0f), y.coerceAtMost(0f))
-                }
-                Canvas(
-                    Modifier
-                        .fillMaxSize()
-                        .pointerInput(l) {
-                            detectTransformGestures { centroid, move, zoom, _ ->
-                                val s = (scale * zoom).coerceIn(0.4f, 4f)
-                                val f = s / scale
-                                val k = px * s
-                                val maxX = (l.colX.last() * k - size.width / 2f).coerceAtLeast(0f)
-                                val maxY = (l.rowY.last() * k - size.height / 2f).coerceAtLeast(0f)
-                                // zoom about the fingers, then follow them
-                                val p = (pan - centroid) * f + centroid + move
-                                pan = Offset(p.x.coerceIn(-maxX, 0f), p.y.coerceIn(-maxY, 0f))
-                                scale = s
-                            }
-                        }
-                        .pointerInput(Unit) { detectTapGestures(onDoubleTap = { scale = if (scale > 1.2f) 1f else 2f; pan = Offset.Zero }) },
-                ) {
-                    drawRect(Color.White)
-                    translate(top = topPx) { drawSheet(l, blocks, sheetIndex, px * scale, pan, measurer, c.ink, hits.getOrNull(hit)) }
-                }
-            }
+            SheetGrid(
+                grid, top = topPx,
+                onCell = { cell -> grid.selected = cell; editing = false },
+                onDoubleTapCell = { cell -> grid.selected = cell; editing = true },
+            )
         }
         CompositionLocalProvider(LocalBackdrop provides backdrop) {
-            // the top row: back, the workbook's title and the sheet shown, share
             Column(Modifier.fillMaxWidth().align(Alignment.TopCenter)) {
                 Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -240,52 +369,149 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                     Spacer(Modifier.size(10.dp))
                     Column(Modifier.weight(1f).glassBar().padding(horizontal = 16.dp, vertical = 6.dp)) {
                         Text(doc.title, style = ClearType.BodyStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        sheets.getOrNull(current)?.let { Text(it.name, style = ClearType.Caption, color = c.inkSoft, maxLines = 1) }
+                        grid.sheets.getOrNull(grid.current)?.let { Text(it.name + if (doc.info.dirty) " · " + stringResource(R.string.sheet_edited) else "", style = ClearType.Caption, color = c.inkSoft, maxLines = 1) }
                     }
                     Spacer(Modifier.size(10.dp))
-                    GlassCircle(onClick = { searching = !searching; if (!searching) hits = emptyList() }, label = stringResource(R.string.viewer_find_in_document)) { GlassIcon(LucideIcons.Search, null, Modifier.size(20.dp)) }
+                    GlassCircle(onClick = { searching = !searching; if (!searching) grid.hits = emptyList() }, label = stringResource(R.string.viewer_find_in_document)) { GlassIcon(LucideIcons.Search, null, Modifier.size(20.dp)) }
                     Spacer(Modifier.size(10.dp))
-                    GlassCircle(onClick = { vm.share(doc) }, label = stringResource(R.string.common_share)) { GlassIcon(LucideIcons.Share2, null, Modifier.size(20.dp)) }
+                    var moreRect by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+                    GlassCircle(
+                        onClick = { menuAt = moreRect }, label = stringResource(R.string.common_more_options),
+                        modifier = Modifier.onGloballyPositioned { moreRect = it.boundsInWindow() },
+                    ) { GlassIcon(LucideIcons.MoreHorizontal, null, Modifier.size(20.dp)) }
                 }
-                // the search row: the query, how many cells show it, and the way through them
                 if (searching) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Row(Modifier.weight(1f).glassBar().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        com.chethan616.clearpdf.ui.glass.GlassTextField(query, { query = it }, stringResource(R.string.viewer_find_in_document), Modifier.weight(1f), keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = {
-                            val q = query.trim()
-                            scope.launch {
-                                hits = if (q.isEmpty()) emptyList() else runCatching { eng.command { sheetFind(doc.id, current.toUInt(), q, false, 1000u) } }.getOrDefault(emptyList())
-                                hit = 0
-                            }
-                        }), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done))
-                        if (hits.isNotEmpty()) Text("${hit + 1}/${hits.size}", style = ClearType.Caption, color = c.inkSoft)
+                    Row(Modifier.weight(1f).height(48.dp).glassBar().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        GlassTextField(
+                            query, { query = it }, stringResource(R.string.viewer_find_in_document), Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = {
+                                val q = query.trim()
+                                scope.launch {
+                                    grid.hits = if (q.isEmpty()) emptyList() else runCatching { eng.command { sheetFind(doc.id, grid.current.toUInt(), q, false, 1000u) } }.getOrDefault(emptyList())
+                                    grid.hit = 0
+                                    if (q.isNotEmpty() && grid.hits.isEmpty()) vm.tell(com.chethan616.clearpdf.text(R.string.msg_search_no_matches, q))
+                                }
+                            }),
+                        )
+                        if (grid.hits.isNotEmpty()) Text("${grid.hit + 1}/${grid.hits.size}", style = ClearType.Caption, color = c.inkSoft)
                     }
-                    if (hits.size > 1) {
+                    if (grid.hits.size > 1) {
                         Spacer(Modifier.size(8.dp))
-                        GlassCircle(onClick = { hit = (hit - 1 + hits.size) % hits.size }, size = 40.dp, label = stringResource(R.string.viewer_find_previous)) { GlassIcon(LucideIcons.ChevronUp, null, Modifier.size(18.dp)) }
+                        GlassCircle(onClick = { grid.hit = (grid.hit - 1 + grid.hits.size) % grid.hits.size }, size = 44.dp, label = stringResource(R.string.viewer_find_previous)) { GlassIcon(LucideIcons.ChevronUp, null, Modifier.size(18.dp)) }
                         Spacer(Modifier.size(6.dp))
-                        GlassCircle(onClick = { hit = (hit + 1) % hits.size }, size = 40.dp, label = stringResource(R.string.viewer_find_next)) { GlassIcon(LucideIcons.ChevronDown, null, Modifier.size(18.dp)) }
+                        GlassCircle(onClick = { grid.hit = (grid.hit + 1) % grid.hits.size }, size = 44.dp, label = stringResource(R.string.viewer_find_next)) { GlassIcon(LucideIcons.ChevronDown, null, Modifier.size(18.dp)) }
+                    }
+                } else grid.selected?.let { cell ->
+                    // the formula bar: the cell's name, what it holds, and a field to change it
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(48.dp).glassBar().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.padding(4.dp).glassBar(surface = Candy.Sky.copy(alpha = 0.22f)).padding(horizontal = 10.dp, vertical = 6.dp)) {
+                            Text(columnName(cell.col0.toInt()) + (cell.row0.toInt() + 1), style = ClearType.Label, color = c.ink)
+                        }
+                        if (editing) {
+                            val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+                            LaunchedEffect(Unit) { focus.requestFocus() }
+                            GlassTextField(
+                                input, { input = it }, "", Modifier.weight(1f).padding(horizontal = 6.dp), focus = focus,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = { commit() }),
+                            )
+                            Box(Modifier.size(40.dp).pressable({ commit() }), contentAlignment = Alignment.Center) { GlassIcon(LucideIcons.Check, stringResource(R.string.common_done), Modifier.size(20.dp), tint = Candy.Sky) }
+                        } else {
+                            Text(
+                                input.ifEmpty { stringResource(R.string.sheet_tap_to_type) }, style = ClearType.Body, color = if (input.isEmpty()) c.inkFaint else c.ink,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f).padding(horizontal = 8.dp).pressable({ editing = true }),
+                            )
+                        }
                     }
                 }
             }
-            // the sheet tabs
-            val visible = sheets.withIndex().filter { !it.value.hidden }
-            if (visible.size > 1) Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter)) {
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
+
+            Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).imePadding()) {
+                // the sheet tabs
+                val visible = grid.sheets.withIndex().filter { !it.value.hidden }
+                if (visible.size > 1) Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     for ((i, s) in visible) {
-                        val chosen = i == current
+                        val chosen = i == grid.current
                         GlassChip(
-                            onClick = { current = i },
-                            fill = if (chosen) ({ com.chethan616.clearpdf.ui.theme.Candy.Lemon }) else s.tabColor?.let { t -> { rgb(t).copy(alpha = 0.35f) } },
+                            onClick = { grid.current = i; grid.selected = null; grid.hits = emptyList(); grid.pan = Offset.Zero },
+                            fill = if (chosen) ({ Candy.Lemon }) else s.tabColor?.let { t -> { rgb(t).copy(alpha = 0.35f) } },
                             ink = if (chosen) Color(0xFF172033) else c.ink,
                         ) { Text(s.name, style = ClearType.Body.copy(fontSize = 14.sp), maxLines = 1) }
+                    }
+                }
+                // the dock: the chosen cell's formatting, else the workbook's tools
+                Row(
+                    Modifier.fillMaxWidth().height(76.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    val cell = grid.selected
+                    Row(
+                        Modifier.weight(1f).fillMaxHeight().glassBar().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (cell == null) {
+                            DockKey(LucideIcons.Search, stringResource(R.string.viewer_find_in_document)) { searching = true }
+                            DockKey(LucideIcons.FilePdf, stringResource(R.string.office_export_pdf)) { vm.exportOffice(doc, "pdf") }
+                            var saveRect by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+                            DockKey(LucideIcons.SaveAs, stringResource(R.string.office_save_as), modifier = Modifier.onGloballyPositioned { saveRect = it.boundsInWindow() }) { menuAt = saveRect }
+                            DockKey(LucideIcons.Printer, stringResource(R.string.sheet_print)) { vm.print(doc) }
+                            DockKey(LucideIcons.Share2, stringResource(R.string.common_share)) { vm.share(doc) }
+                            DockKey(LucideIcons.Undo2, stringResource(R.string.word_undo), doc.info.undo != null) { run("edit.undo") }
+                            DockKey(LucideIcons.Redo2, stringResource(R.string.word_redo), doc.info.redo != null) { run("edit.redo") }
+                        } else {
+                            DockKey(LucideIcons.Undo2, stringResource(R.string.word_undo), doc.info.undo != null) { run("edit.undo") }
+                            DockKey(LucideIcons.Redo2, stringResource(R.string.word_redo), doc.info.redo != null) { run("edit.redo") }
+                            DockKey(LucideIcons.Bold, stringResource(R.string.word_bold)) { run("home.bold") }
+                            DockKey(LucideIcons.Italic, stringResource(R.string.word_italic)) { run("home.italic") }
+                            var fillRect by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+                            DockKey(LucideIcons.PaintBucket, stringResource(R.string.sheet_fill), modifier = Modifier.onGloballyPositioned { fillRect = it.boundsInWindow() }) { fillMenuAt = fillRect }
+                            DockKey(LucideIcons.AlignLeft, stringResource(R.string.word_align_left)) { run("home.alignLeft") }
+                            DockKey(LucideIcons.AlignCenter, stringResource(R.string.word_align_center)) { run("home.alignCenter") }
+                            DockKey(LucideIcons.AlignRight, stringResource(R.string.word_align_right)) { run("home.alignRight") }
+                            DockKey(LucideIcons.WrapText, stringResource(R.string.sheet_wrap)) { run("home.wrapText") }
+                            DockKey(LucideIcons.Percent, stringResource(R.string.sheet_percent)) { run("home.percent") }
+                            DockKey(LucideIcons.Hash, stringResource(R.string.sheet_comma)) { run("home.comma") }
+                            DockKey(LucideIcons.RowsAdd, stringResource(R.string.sheet_insert_row)) { run("home.insertRows") }
+                            DockKey(LucideIcons.ColumnsAdd, stringResource(R.string.sheet_insert_column)) { run("home.insertColumns") }
+                            DockKey(LucideIcons.Trash2, stringResource(R.string.sheet_clear)) { run("edit.clearContents") }
+                        }
+                    }
+                    if (cell != null) GlassCircle(onClick = { grid.selected = null; editing = false }, size = 60.dp, tint = Candy.Sky, label = stringResource(R.string.common_done)) {
+                        GlassIcon(LucideIcons.Check, null, Modifier.size(22.dp))
                     }
                 }
                 Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             }
         }
+    }
+
+    menuAt?.let { at ->
+        val formats = remember { mutableStateOf<List<String>>(emptyList()) }
+        LaunchedEffect(Unit) { formats.value = runCatching { eng.command { exportFormats(doc.id) } }.getOrDefault(emptyList()) }
+        GlassMenu(at, { menuAt = null }, buildList {
+            add(GlassMenuItem(stringResource(R.string.office_export_pdf), LucideIcons.FilePdf) { vm.exportOffice(doc, "pdf") })
+            for (f in formats.value.filter { it != "pdf" }) add(GlassMenuItem(stringResource(R.string.office_save_as_format, f.uppercase()), LucideIcons.SaveAs) { vm.exportOffice(doc, f) })
+            add(GlassMenuItem(stringResource(R.string.sheet_print), LucideIcons.Printer) { vm.print(doc) })
+            add(GlassMenuItem(stringResource(R.string.common_share), LucideIcons.Share2) { vm.share(doc) })
+        })
+    }
+    fillMenuAt?.let { at ->
+        val fills = listOf(R.string.sheet_fill_yellow to "#FFF2A8", R.string.sheet_fill_green to "#C9F2D0", R.string.sheet_fill_blue to "#CFE3FF", R.string.sheet_fill_pink to "#FFD3E0", R.string.sheet_fill_none to "none")
+        GlassMenu(at, { fillMenuAt = null }, fills.map { (label, hex) -> GlassMenuItem(stringResource(label), LucideIcons.PaintBucket) { run("home.fillColor", mapOf("color" to hex)) } })
+    }
+}
+
+/** One glyph of a dock, in the glass's ink. */
+@Composable
+private fun DockKey(icon: ImageVector, label: String, enabled: Boolean = true, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(modifier.size(46.dp).pressable({ if (enabled) onClick() }), contentAlignment = Alignment.Center) {
+        GlassIcon(icon, label, Modifier.size(21.dp).graphicsLayer { alpha = if (enabled) 1f else 0.35f })
     }
 }
 
@@ -302,6 +528,7 @@ private fun DrawScope.drawSheet(
     measurer: TextMeasurer,
     ink: Color,
     found: CellSpan?,
+    selected: CellSpan?,
 ) {
     val head = Offset(HEAD_W * k.coerceAtMost(density * 1.5f), HEAD_H * k.coerceAtMost(density * 1.5f))
     val fr = min(l.info.frozenRows.toInt(), l.rows)
@@ -351,6 +578,17 @@ private fun DrawScope.drawSheet(
                 edge(v.top, r.topLeft, r.topRight)
                 edge(v.right, r.topRight, r.bottomRight)
                 edge(v.bottom, r.bottomLeft, r.bottomRight)
+            }
+            // the chosen cell (or its merged area): a ring in the accent, as a spreadsheet marks it
+            selected?.let { f ->
+                val r = f.row0.toInt()
+                val col = f.col0.toInt()
+                if (r in r0 until r1 && col in c0 until c1) {
+                    val a = cell(r, col)
+                    val b = cell(minOf(f.row1.toInt(), l.rows - 1), minOf(f.col1.toInt(), l.cols - 1))
+                    val box = Rect(a.left, a.top, b.right, b.bottom)
+                    drawRect(Color(0xFF0A84FF), box.topLeft, box.size, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f * density))
+                }
             }
             // the search hit in this region: an accent ring round its cell
             found?.let { f ->

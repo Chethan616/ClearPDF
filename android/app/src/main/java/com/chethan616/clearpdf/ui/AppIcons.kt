@@ -58,6 +58,12 @@ object LucideIcons {
     val FilePlus2: ImageVector get() = Icons.AutoMirrored.Rounded.NoteAdd
     val FileStack: ImageVector get() = Icons.Rounded.FileCopy
     val FileText: ImageVector get() = Icons.Rounded.Description
+    val MoreHorizontal: ImageVector get() = Icons.Rounded.MoreHoriz
+    val PaintBucket: ImageVector get() = Icons.Rounded.FormatColorFill
+    val WrapText: ImageVector get() = Icons.AutoMirrored.Rounded.WrapText
+    val Percent: ImageVector get() = Icons.Rounded.Percent
+    val RowsAdd: ImageVector get() = Icons.Rounded.TableRows
+    val ColumnsAdd: ImageVector get() = Icons.Rounded.ViewColumn
     val Italic: ImageVector get() = Icons.Rounded.FormatItalic
     val ListOrdered: ImageVector get() = Icons.Rounded.FormatListNumbered
     val FilePdf: ImageVector get() = Icons.Rounded.PictureAsPdf

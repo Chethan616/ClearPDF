@@ -217,6 +217,19 @@ The card is a `Squircle` (new in `ui/glass/Shapes.kt`: kyant's continuous corner
 content clipped inside its own moving layer) with a radius concentric with the screen's corners
 (`RoundedCorner` bottom-left radius minus the 10 dp inset, 24..48 dp; 34 dp without it).
 
+## Editing (2026-11-07, later): the owner now shares screenshots; don't drive the phone
+
+- Word: `MobileSession.word_command(doc, cmd, json)` (WordCraft `Session::run`; caret/select/
+  format.state don't bump the generation), `word_caret(doc)` (caret + selection rects from the
+  layout). App: `vm.wordEditing`, `ui/viewer/WordEdit.kt` (`WordEditLayer`: caret, selection, a
+  hidden sentinel field for the keyboard; `WordEditDock`). Taps go to `vm.wordTap` (ViewerScreen onTap).
+- Sheets: `SheetBook` keeps a GridCraft `Session` (DocState: undo, recalc). `sheet_command(doc,
+  sheet, area, cmd, json)` selects `area` then runs the command; `sheet_set_cell`, `sheet_input`.
+  App: `ui/sheets/SheetViewer.kt` = `SheetGridState` + `SheetGrid` (reused by Quick Preview) +
+  `SheetViewer` (formula bar, format dock, ⋯ menu, tabs).
+- Saving: `vm.save` calls `save_office(doc, workingCopy)` for office documents (their own format),
+  then the usual write-back.
+
 ## 2026-11-07 pass (built and installed; not driven on the phone: owner was using it)
 
 - Office bars: `QuickTool.barFor(doc, arranged)` (Word / slides lists), `QuickToolbar(onMoreTools =

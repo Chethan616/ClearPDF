@@ -151,6 +151,13 @@ all three → editing, one format at a time, each built and run on the phone bef
       Export PDF · Save as · Print; slides add **Present** (full screen, swipe/tap, bars hidden);
       sheets: **search** (glass field, hits ringed, ↑↓). No PDF More tools for office documents.
       [ ] check gridcraft's PDF with non-Latin text.
+- [x] **Editing, first pass** (2026-11-07, built, host-tested, not yet seen on the phone):
+      Word: Edit → tap places the caret, the keyboard types, glass dock (undo, redo, bold, italic,
+      underline, bullets, numbering, align, heading, body); saved in its own format. Sheets: tap a
+      cell → glass formula bar (type a value or =formula; double tap edits at once) and a format dock
+      (bold, italic, fill, align, wrap, %, thousands, insert row/column, clear, undo, redo); ⋯ menu:
+      Export PDF, Save as, Print, Share; Quick Preview shows the real grid. `.xls` opens; `.ppt`
+      explains itself (DeckCraft has no 97-2003 reader). Selection menu = the desk menu's frosted glass.
 - [ ] Map each engine's remaining features into the UI, one format at a time (they are large: Word
       422 commands, slides 320, sheets 313, LightCraft's develop panel): next are Word's navigation
       pane (headings), slide notes and thumbnails, sheet charts and pictures, LightCraft crop,

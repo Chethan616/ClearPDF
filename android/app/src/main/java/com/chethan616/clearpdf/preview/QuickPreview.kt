@@ -280,6 +280,12 @@ private val HeaderHeight = 84.dp
 @Composable
 private fun Pages(s: PreviewState.Ready, paper: Color) {
     val density = LocalDensity.current
+    // a workbook shows as its grid, read-only, under the header (its cells readable at their size)
+    if (s.info.kind == com.chethan616.clearpdf.core.DocumentKind.SHEETS) {
+        val grid = com.chethan616.clearpdf.ui.sheets.rememberSheetGrid(s.engine, s.info.id)
+        com.chethan616.clearpdf.ui.sheets.SheetGrid(grid, top = with(density) { HeaderHeight.toPx() }, onCell = { grid.selected = it })
+        return
+    }
     LaunchedEffect(s) {
         with(density) { s.view.setPadding(HeaderHeight.toPx(), 92.dp.toPx()) }
     }

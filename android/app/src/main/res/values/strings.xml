@@ -959,6 +959,21 @@
     <string name="sheet_kind_word">Word</string>
     <string name="sheet_kind_slides">Slides</string>
     <string name="office_present">Present</string>
+    <string name="office_save_as_format">Save as %1$s</string>
+    <string name="sheet_edited">edited</string>
+    <string name="sheet_tap_to_type">Tap to type a value or =formula</string>
+    <string name="sheet_fill">Fill colour</string>
+    <string name="sheet_fill_yellow">Yellow</string>
+    <string name="sheet_fill_green">Green</string>
+    <string name="sheet_fill_blue">Blue</string>
+    <string name="sheet_fill_pink">Pink</string>
+    <string name="sheet_fill_none">No fill</string>
+    <string name="sheet_wrap">Wrap text</string>
+    <string name="sheet_percent">Percent</string>
+    <string name="sheet_comma">Thousands separator</string>
+    <string name="sheet_insert_row">Insert row</string>
+    <string name="sheet_insert_column">Insert column</string>
+    <string name="sheet_clear">Clear contents</string>
     <string name="word_undo">Undo</string>
     <string name="word_redo">Redo</string>
     <string name="word_bold">Bold</string>
