@@ -281,14 +281,11 @@ val BackArrow: ImageVector by lazy {
 @Composable
 fun GlassBackButton(onBack: () -> Unit, modifier: Modifier = Modifier, label: String? = null, immediate: Boolean = false) {
     val beat = rememberBeat(onBack)
-    val barSurface = if (clear.dark) Color(0xFF151828).copy(alpha = 0.65f) else Color.White.copy(alpha = 0.75f)
     GlassCircle(
         onClick = if (immediate) onBack else beat,
         modifier = modifier,
         size = HeaderButtonSize,
-        surface = barSurface,
         label = label ?: androidx.compose.ui.res.stringResource(com.chethan616.clearpdf.R.string.common_back),
-        ink = clear.ink,
     ) {
         GlassIcon(BackArrow, null, Modifier.size(16.dp))
     }

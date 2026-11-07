@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
@@ -32,6 +33,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,8 +65,11 @@ import com.chethan616.clearpdf.ui.LucideIcons
 import com.chethan616.clearpdf.ui.OpenDocument
 import com.chethan616.clearpdf.ui.glass.GlassCircle
 import com.chethan616.clearpdf.ui.glass.GlassIcon
+import com.chethan616.clearpdf.ui.glass.InkOnLight
+import com.chethan616.clearpdf.ui.glass.LocalGlassInk
 import com.chethan616.clearpdf.ui.glass.glassBar
 import com.chethan616.clearpdf.ui.glass.pressable
+import com.chethan616.clearpdf.ui.glass.rememberGlassInk
 import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.clear
 
@@ -131,30 +136,32 @@ fun WordEditDock(vm: AppViewModel, doc: OpenDocument) {
         GlassCircle(onClick = { vm.stopWordEdit() }, size = 48.dp, tint = Candy.Sky, label = stringResource(R.string.common_done)) {
             GlassIcon(LucideIcons.Check, null, Modifier.size(19.dp))
         }
-        Row(
-            Modifier
-                .weight(1f)
-                .height(48.dp)
-                .glassBar(
-                    surface = if (clear.dark) Color(0xFF1B1E2E).copy(alpha = 0.85f) else Color.White.copy(alpha = 0.90f)
-                )
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            EditKey(LucideIcons.Undo2, stringResource(R.string.word_undo), doc.info.undo != null) { vm.wordRun(doc, "edit.undo") }
-            EditKey(LucideIcons.Redo2, stringResource(R.string.word_redo), doc.info.redo != null) { vm.wordRun(doc, "edit.redo") }
-            EditKey(LucideIcons.Bold, stringResource(R.string.word_bold), on = f.optBoolean("bold")) { vm.wordRun(doc, "format.bold") }
-            EditKey(LucideIcons.Italic, stringResource(R.string.word_italic), on = f.optBoolean("italic")) { vm.wordRun(doc, "format.italic") }
-            EditKey(LucideIcons.Underline, stringResource(R.string.common_tool_underline), on = f.opt("underline").let { it != null && it != false && it != "none" && it != org.json.JSONObject.NULL }) { vm.wordRun(doc, "format.underline") }
-            EditKey(LucideIcons.List, stringResource(R.string.word_bullets)) { vm.wordRun(doc, "para.bullets") }
-            EditKey(LucideIcons.ListOrdered, stringResource(R.string.word_numbering)) { vm.wordRun(doc, "para.numbering") }
-            EditKey(LucideIcons.AlignLeft, stringResource(R.string.word_align_left)) { vm.wordRun(doc, "para.alignLeft") }
-            EditKey(LucideIcons.AlignCenter, stringResource(R.string.word_align_center)) { vm.wordRun(doc, "para.alignCenter") }
-            EditKey(LucideIcons.AlignRight, stringResource(R.string.word_align_right)) { vm.wordRun(doc, "para.alignRight") }
-            EditKey(LucideIcons.Heading, stringResource(R.string.word_heading)) { vm.wordRun(doc, "para.style", mapOf("style" to "Heading1")) }
-            EditKey(LucideIcons.Type, stringResource(R.string.word_body_text)) { vm.wordRun(doc, "para.normal") }
+        val probe = rememberGlassInk(InkOnLight)
+        CompositionLocalProvider(LocalGlassInk provides probe.color) {
+            Row(
+                Modifier
+                    .weight(1f)
+                    .height(48.dp)
+                    .then(probe.modifier)
+                    .glassBar()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                EditKey(LucideIcons.Undo2, stringResource(R.string.word_undo), doc.info.undo != null) { vm.wordRun(doc, "edit.undo") }
+                EditKey(LucideIcons.Redo2, stringResource(R.string.word_redo), doc.info.redo != null) { vm.wordRun(doc, "edit.redo") }
+                EditKey(LucideIcons.Bold, stringResource(R.string.word_bold), on = f.optBoolean("bold")) { vm.wordRun(doc, "format.bold") }
+                EditKey(LucideIcons.Italic, stringResource(R.string.word_italic), on = f.optBoolean("italic")) { vm.wordRun(doc, "format.italic") }
+                EditKey(LucideIcons.Underline, stringResource(R.string.common_tool_underline), on = f.opt("underline").let { it != null && it != false && it != "none" && it != org.json.JSONObject.NULL }) { vm.wordRun(doc, "format.underline") }
+                EditKey(LucideIcons.List, stringResource(R.string.word_bullets)) { vm.wordRun(doc, "para.bullets") }
+                EditKey(LucideIcons.ListOrdered, stringResource(R.string.word_numbering)) { vm.wordRun(doc, "para.numbering") }
+                EditKey(LucideIcons.AlignLeft, stringResource(R.string.word_align_left)) { vm.wordRun(doc, "para.alignLeft") }
+                EditKey(LucideIcons.AlignCenter, stringResource(R.string.word_align_center)) { vm.wordRun(doc, "para.alignCenter") }
+                EditKey(LucideIcons.AlignRight, stringResource(R.string.word_align_right)) { vm.wordRun(doc, "para.alignRight") }
+                EditKey(LucideIcons.Heading, stringResource(R.string.word_heading)) { vm.wordRun(doc, "para.style", mapOf("style" to "Heading1")) }
+                EditKey(LucideIcons.Type, stringResource(R.string.word_body_text)) { vm.wordRun(doc, "para.normal") }
+            }
         }
     }
 }
@@ -162,7 +169,7 @@ fun WordEditDock(vm: AppViewModel, doc: OpenDocument) {
 /** One glyph of the dock: in the glass's ink, lit by a soft accent while its formatting is on. */
 @Composable
 private fun EditKey(icon: ImageVector, label: String, enabled: Boolean = true, on: Boolean = false, onClick: () -> Unit) {
-    val inkColor = if (on) Candy.Sky else if (clear.dark) Color(0xFFF0F4FC) else Color(0xFF1E222D)
+    val inkColor = if (on) Candy.Sky else LocalGlassInk.current.takeIf { it.isSpecified } ?: InkOnLight
     Box(
         Modifier
             .size(40.dp)

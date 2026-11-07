@@ -1,5 +1,7 @@
 package com.chethan616.clearpdf.ui.desk
 
+import android.content.Intent
+import android.speech.tts.TextToSpeech
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,6 +83,7 @@ import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
 import com.chethan616.clearpdf.ui.glass.RoundedRectangle
+import java.util.Locale
 
 /** Artefact's repository: help, issues and source. */
 const val CLEARPDF_REPO = "https://github.com/Chethan616/ClearPDF"
@@ -104,15 +108,24 @@ fun SettingsScreen(vm: AppViewModel) {
         when (p) {
             "licences" -> LicencesPage { page = "root" }
             "glass" -> GlassMotionPage { page = "root" }
-            else -> SettingsRoot(vm, openLicences = { page = "licences" }, openGlass = { page = "glass" })
+            "read-aloud-language" -> ReadAloudLanguagePage { page = "root" }
+            else -> SettingsRoot(
+                vm,
+                openLicences = { page = "licences" },
+                openGlass = { page = "glass" },
+                openReadAloudLanguage = { page = "read-aloud-language" },
+            )
         }
     }
 }
 
 @Composable
-private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit, openGlass: () -> Unit) {
+private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit, openGlass: () -> Unit, openReadAloudLanguage: () -> Unit) {
     val c = clear
     val context = LocalContext.current
+    val savedSpeechLanguage = context.getSharedPreferences("readAloud", 0).getString("lang", null)
+    val speechLanguage = savedSpeechLanguage?.let { Locale.forLanguageTag(it).getDisplayName(Locale.getDefault()) }
+        ?: stringResource(R.string.read_aloud_system_default, Locale.getDefault().getDisplayName(Locale.getDefault()))
     val uri = LocalUriHandler.current
     var leaving by remember { mutableStateOf<String?>(null) }
     var authorDialog by remember { mutableStateOf(false) }
@@ -142,6 +155,7 @@ private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit, openGlass: 
         item(key = "reading") { Section(stringResource(R.string.settings_reading)) }
         item(key = "readingpanel") {
             Panel {
+                SettingRow(LucideIcons.AudioLines, Candy.Grape, stringResource(R.string.settings_read_aloud_language), openReadAloudLanguage, value = speechLanguage, chevron = true, first = true)
                 ToggleRow(LucideIcons.PanelsTopLeft, Candy.Sky, stringResource(R.string.settings_quick_preview), stringResource(R.string.settings_quick_preview_body), vm.quickPreview, first = true) { vm.updateQuickPreview(it) }
                 ToggleRow(LucideIcons.Sun, Candy.Tangerine, stringResource(R.string.home_keep_screen_on), stringResource(R.string.home_keep_screen_on_body), vm.keepScreenOn) { vm.updateKeepScreenOn(it) }
                 ToggleRow(LucideIcons.Smartphone, Candy.Sky, stringResource(R.string.home_status_bar_in_documents), stringResource(R.string.home_status_bar_in_documents_body), vm.statusBarInDocuments) { vm.updateStatusBarInDocuments(it) }
@@ -187,6 +201,81 @@ private fun SettingsRoot(vm: AppViewModel, openLicences: () -> Unit, openGlass: 
             confirm = stringResource(R.string.common_ok), onConfirm = { vm.toolPrefs.author = name.trim(); authorDialog = false; vm.prefsChanged++ },
             dismiss = stringResource(R.string.common_cancel),
         ) { GlassTextField(name, { name = it }, stringResource(R.string.common_your_name)) }
+    }
+}
+
+/** Choose the TTS language used by the minimized reader player. */
+@Composable
+private fun ReadAloudLanguagePage(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("readAloud", 0) }
+    var selectedTag by remember { mutableStateOf(prefs.getString("lang", null).orEmpty()) }
+    var languages by remember { mutableStateOf<List<Locale>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var unavailable by remember { mutableStateOf(false) }
+
+    DisposableEffect(context) {
+        val ttsRef = arrayOfNulls<TextToSpeech>(1)
+        val tts = TextToSpeech(context.applicationContext) { status ->
+            loading = false
+            if (status == TextToSpeech.SUCCESS) {
+                languages = ttsRef[0]?.availableLanguages.orEmpty()
+                    .filter { it != Locale.ROOT && it.language.isNotBlank() && it.language != "und" }
+                    .distinctBy(Locale::toLanguageTag)
+                    .sortedBy { it.getDisplayName(Locale.getDefault()).lowercase(Locale.getDefault()) }
+            } else {
+                unavailable = true
+            }
+        }
+        ttsRef[0] = tts
+        onDispose { runCatching { tts.shutdown() } }
+    }
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
+        item { Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars)) }
+        item {
+            Spacer(Modifier.height(14.dp))
+            ScreenHeader(null, stringResource(R.string.settings_read_aloud_language), onBack = onBack)
+            Text(stringResource(R.string.settings_read_aloud_language_body), style = ClearType.Body, color = clear.inkSoft, modifier = Modifier.padding(horizontal = 30.dp, vertical = 10.dp))
+        }
+        item { Section(stringResource(R.string.common_tool_read_aloud)) }
+        item {
+            Panel {
+                val systemTag = Locale.getDefault().toLanguageTag()
+                SettingRow(
+                    LucideIcons.AudioLines,
+                    Candy.Sky,
+                    stringResource(R.string.read_aloud_system_default, Locale.getDefault().getDisplayName(Locale.getDefault())),
+                    onClick = { prefs.edit().remove("lang").apply(); selectedTag = "" },
+                    value = if (selectedTag.isEmpty()) stringResource(R.string.read_aloud_language_selected) else null,
+                    first = true,
+                )
+                if (loading) {
+                    Text(stringResource(R.string.read_aloud_languages_loading), style = ClearType.Caption, color = clear.inkSoft, modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp))
+                } else if (languages.isEmpty() || unavailable) {
+                    Text(stringResource(R.string.read_aloud_no_voice), style = ClearType.Caption, color = clear.inkSoft, modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp))
+                } else {
+                    languages.forEach { locale ->
+                        val tag = locale.toLanguageTag()
+                        val selected = selectedTag.ifEmpty { systemTag } == tag
+                        SettingRow(
+                            if (selected) LucideIcons.Check else LucideIcons.AudioLines,
+                            if (selected) Candy.Sky else Candy.Grape,
+                            locale.getDisplayName(Locale.getDefault()),
+                            onClick = { prefs.edit().putString("lang", tag).apply(); selectedTag = tag },
+                            value = if (selected) stringResource(R.string.read_aloud_language_selected) else null,
+                        )
+                    }
+                }
+                SettingRow(
+                    LucideIcons.Settings,
+                    Candy.Mint,
+                    stringResource(R.string.read_aloud_voice_settings),
+                    onClick = { runCatching { context.startActivity(Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } },
+                )
+            }
+        }
+        item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
     }
 }
 

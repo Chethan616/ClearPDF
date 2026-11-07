@@ -43,9 +43,10 @@ fun Modifier.glass(
     blur: Dp = 8.dp,
     lensHeight: Dp = 16.dp,
     lensAmount: Dp = 24.dp,
+    styleOverride: GlassStyle? = null,
 ): Modifier {
     val backdrop = LocalBackdrop.current
-    val style = GlassSettings.style
+    val style = styleOverride ?: GlassSettings.style
     return drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
@@ -66,13 +67,14 @@ fun GlassCard(
     shape: Shape = RoundedRectangle(28.dp),
     wash: Color = clear.glass,
     blur: Dp = 8.dp,
+    styleOverride: GlassStyle? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val below = LocalBackdrop.current
     val layer = rememberLayerBackdrop()
     val combined = rememberCombinedBackdrop(below, layer)
     Box(modifier) {
-        Box(Modifier.matchParentSize().layerBackdrop(layer).glass(shape, wash, blur))
+        Box(Modifier.matchParentSize().layerBackdrop(layer).glass(shape, wash, blur, styleOverride = styleOverride))
         CompositionLocalProvider(LocalBackdrop provides combined) { Column(content = content) }
     }
 }

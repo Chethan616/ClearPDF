@@ -41,6 +41,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,6 +69,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import com.chethan616.clearpdf.ui.theme.Candy
@@ -321,6 +323,48 @@ private const val MenuGoneMillis = 220L
 
 @Composable
 fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
+    var closing by remember { mutableStateOf(false) }
+    GlassMenuLayout(anchor, onDismiss) {
+        Spacer(Modifier.height(6.dp))
+        items.forEach { item ->
+            Row(
+                Modifier.fillMaxWidth().pressable({
+                    if (!closing) {
+                        closing = true
+                        onDismiss()
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ item.onClick() }, MenuGoneMillis)
+                    }
+                }).padding(horizontal = 16.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(item.label, style = ClearType.BodyStrong, color = if (item.destructive) Candy.Tomato else LocalGlassInk.current, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (item.icon != null) Icon(item.icon, null, tint = if (item.destructive) Candy.Tomato else LocalGlassInk.current.copy(alpha = 0.65f), modifier = Modifier.size(19.dp))
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+    }
+}
+
+/** Same anchored frost and rounded shape as [GlassMenu], with room for a preserved custom layout. */
+@Composable
+fun GlassMenuLayout(
+    anchor: Rect,
+    onDismiss: () -> Unit,
+    width: Dp = 236.dp,
+    maxHeight: Dp = 480.dp,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    GlassMenuLayoutContent(anchor, onDismiss, width, maxHeight) { content() }
+}
+
+@Composable
+private fun GlassMenuLayoutContent(
+    anchor: Rect,
+    onDismiss: () -> Unit,
+    width: Dp,
+    maxHeight: Dp,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     val c = clear
     GlassOverlay(animatesOut = true) {
         val leaving = LocalOverlayPresence.current?.leaving == true
@@ -345,7 +389,7 @@ fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
             content = {
                 GlassCard(
                     Modifier
-                        .width(236.dp)
+                        .width(width)
                         .floatingLayer {
                             val p = appear.value
                             scaleX = lerp(0.5f, 1f, p).coerceAtLeast(0.2f)
@@ -354,26 +398,14 @@ fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
                             alpha = (p * 1.6f).coerceIn(0f, 1f)
                         },
                     shape = RoundedRectangle(24.dp),
+                    // Keep menus fully frosted even when the global glass setting is Lite or Crystal.
                     wash = c.frost,
                     blur = 16.dp,
+                    styleOverride = GlassStyle.MaximumFrost,
                 ) {
-                    Spacer(Modifier.height(6.dp))
-                    items.forEach { item ->
-                        Row(
-                            // the menu folds away first; what was chosen happens once it has gone
-                            Modifier.fillMaxWidth().pressable({
-                                if (!leaving) {
-                                    onDismiss()
-                                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ item.onClick() }, MenuGoneMillis)
-                                }
-                            }).padding(horizontal = 16.dp, vertical = 11.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(item.label, style = ClearType.BodyStrong, color = if (item.destructive) Candy.Tomato else c.ink, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            if (item.icon != null) Icon(item.icon, null, tint = if (item.destructive) Candy.Tomato else c.inkSoft, modifier = Modifier.size(19.dp))
-                        }
+                    CompositionLocalProvider(LocalGlassInk provides c.ink) {
+                        Column(Modifier.heightIn(max = maxHeight).verticalScroll(rememberScrollState()), content = content)
                     }
-                    Spacer(Modifier.height(6.dp))
                 }
             },
             modifier = Modifier.fillMaxSize(),
@@ -396,7 +428,9 @@ fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
                 val y = if (below) local.bottom + 6f else local.top - 6f - p.height
                 val minX = barLeft + margin
                 val maxX = (constraints.maxWidth - barRight - p.width - margin).coerceAtLeast(minX)
-                p.place(IntOffset(x.coerceIn(minX, maxX).roundToInt(), y.coerceAtLeast(barTop + margin).roundToInt()))
+                val minY = barTop + margin
+                val maxY = (constraints.maxHeight - barBottom - p.height - margin).coerceAtLeast(minY)
+                p.place(IntOffset(x.coerceIn(minX, maxX).roundToInt(), y.coerceIn(minY, maxY).roundToInt()))
             }
         }
     }

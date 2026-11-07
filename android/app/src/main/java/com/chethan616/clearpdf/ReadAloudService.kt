@@ -8,7 +8,9 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
+import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Build
@@ -63,10 +65,16 @@ class ReadAloudService : Service() {
                 return START_NOT_STICKY
             }
         }
-        val title = intent?.getStringExtra(EXTRA_TITLE) ?: lastTitle
+        val title = (intent?.getStringExtra(EXTRA_TITLE) ?: lastTitle).ifBlank { getString(R.string.app_name) }
         val playing = intent?.getBooleanExtra(EXTRA_PLAYING, lastPlaying) ?: lastPlaying
         lastTitle = title
         lastPlaying = playing
+        session?.setMetadata(
+            MediaMetadata.Builder()
+                .putString(MediaMetadata.METADATA_KEY_TITLE, title)
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, getString(R.string.common_tool_read_aloud))
+                .build(),
+        )
         session?.setPlaybackState(
             PlaybackState.Builder()
                 .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_REWIND or PlaybackState.ACTION_FAST_FORWARD or PlaybackState.ACTION_STOP)
@@ -95,6 +103,11 @@ class ReadAloudService : Service() {
             .setSmallIcon(R.drawable.ic_stat_read_aloud)
             .setContentTitle(title)
             .setContentText(getString(if (playing) R.string.service_notification_reading else R.string.service_notification_paused))
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+            .setCategory(Notification.CATEGORY_TRANSPORT)
+            .setColor(0xFF1683FF.toInt())
+            .setOnlyAlertOnce(true)
+            .setShowWhen(false)
             .setContentIntent(open)
             .setOngoing(playing)
             .setDeleteIntent(PendingIntent.getService(this, 1, Intent(this, ReadAloudService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE))

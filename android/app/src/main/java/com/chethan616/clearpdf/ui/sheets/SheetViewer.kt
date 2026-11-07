@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -102,8 +103,13 @@ import com.chethan616.clearpdf.ui.glass.GlassTab
 import com.chethan616.clearpdf.ui.glass.GlassTabs
 import com.chethan616.clearpdf.ui.glass.GlassMenuItem
 import com.chethan616.clearpdf.ui.glass.GlassTextField
+import com.chethan616.clearpdf.ui.glass.LocalGlassInk
+import com.chethan616.clearpdf.ui.glass.Capsule
+import com.chethan616.clearpdf.ui.glass.glass
 import com.chethan616.clearpdf.ui.glass.pressable
+import com.chethan616.clearpdf.ui.glass.rememberGlassInk
 import com.chethan616.clearpdf.ui.theme.Candy
+import com.chethan616.clearpdf.ui.pdfColors
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.contentDescription
@@ -253,11 +259,12 @@ fun SheetGrid(
     onCell: ((CellSpan?) -> Unit)? = null,
     onDoubleTapCell: ((CellSpan) -> Unit)? = null,
 ) {
-    val c = clear
+    val c = pdfColors
+    val sheetSurface = if (c.dark) Color(0xFF18192F) else Color.White
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer(cacheSize = 256)
     val l = state.layout
-    Box(modifier.fillMaxSize().background(Color.White)) {
+    Box(modifier.fillMaxSize().background(c.surface)) {
         if (l == null) {
             Box(Modifier.fillMaxSize().padding(top = with(density) { top.toDp() } + 40.dp), contentAlignment = Alignment.TopCenter) { GlassLoader(size = 64.dp) }
             return@Box
@@ -323,7 +330,7 @@ fun SheetGrid(
                 },
         ) {
             translate(top = top) {
-                drawSheet(l, state.blocks, state.current, px * state.scale, state.pan, measurer, c.ink, state.hits.getOrNull(state.hit), state.selected)
+                drawSheet(l, state.blocks, state.current, px * state.scale, state.pan, measurer, sheetSurface, c.text, c.dark, state.hits.getOrNull(state.hit), state.selected)
             }
         }
     }
@@ -339,6 +346,8 @@ fun SheetGrid(
 fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
     val eng = vm.engine ?: return
     val c = clear
+    // The sheet is themed with the app; floating controls sample its actual pixels for contrast.
+    val chrome = rememberGlassInk(c.ink)
     val grid = rememberSheetGrid(eng, doc.id)
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -407,15 +416,15 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                 onDoubleTapCell = { cell -> grid.selected = cell; editing = true },
             )
         }
-        CompositionLocalProvider(LocalBackdrop provides backdrop) {
+        CompositionLocalProvider(LocalBackdrop provides backdrop, LocalGlassInk provides chrome.color) {
             Column(Modifier.fillMaxWidth().align(Alignment.TopCenter)) {
                 Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     GlassCircle(onClick = { vm.closeDocument() }, label = stringResource(R.string.common_back)) { GlassIcon(LucideIcons.ChevronLeft, null, Modifier.size(22.dp)) }
                     Spacer(Modifier.size(10.dp))
-                    Column(Modifier.weight(1f).glassBar().padding(horizontal = 16.dp, vertical = 6.dp)) {
-                        Text(doc.title, style = ClearType.BodyStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        grid.sheets.getOrNull(grid.current)?.let { Text(it.name + if (doc.info.dirty) " · " + stringResource(R.string.sheet_edited) else "", style = ClearType.Caption, color = c.inkSoft, maxLines = 1) }
+                    Column(Modifier.weight(1f).then(chrome.modifier).glassBar().padding(horizontal = 16.dp, vertical = 6.dp)) {
+                        Text(doc.title, style = ClearType.BodyStrong, color = LocalGlassInk.current, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        grid.sheets.getOrNull(grid.current)?.let { Text(it.name + if (doc.info.dirty) " · " + stringResource(R.string.sheet_edited) else "", style = ClearType.Caption, color = LocalGlassInk.current.copy(alpha = 0.62f), maxLines = 1) }
                     }
                     Spacer(Modifier.size(10.dp))
                     GlassCircle(
@@ -429,7 +438,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                         label = stringResource(R.string.viewer_find_in_document),
                         surface = if (searching) Candy.Sky.copy(alpha = 0.22f) else Color.Unspecified,
                     ) {
-                        GlassIcon(if (searching) LucideIcons.X else LucideIcons.Search, null, Modifier.size(20.dp), tint = if (searching) Candy.Sky else c.ink)
+                        GlassIcon(if (searching) LucideIcons.X else LucideIcons.Search, null, Modifier.size(20.dp), tint = if (searching) Candy.Sky else LocalGlassInk.current)
                     }
                     Spacer(Modifier.size(10.dp))
                     var moreRect by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
@@ -467,7 +476,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                             Icon(
                                 LucideIcons.Search,
                                 null,
-                                tint = if (notFound) Candy.Tomato else c.inkSoft,
+                                tint = if (notFound) Candy.Tomato else LocalGlassInk.current.copy(alpha = 0.62f),
                                 modifier = Modifier.size(18.dp),
                             )
                             Spacer(Modifier.size(10.dp))
@@ -475,7 +484,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                                 value = query,
                                 onValueChange = { query = it },
                                 singleLine = true,
-                                textStyle = ClearType.Body.copy(color = if (notFound) Candy.Tomato else c.ink),
+                                textStyle = ClearType.Body.copy(color = if (notFound) Candy.Tomato else LocalGlassInk.current),
                                 cursorBrush = SolidColor(if (notFound) Candy.Tomato else Candy.Sky),
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                 keyboardActions = KeyboardActions(onSearch = {
@@ -499,7 +508,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                                             Text(
                                                 findLabel,
                                                 style = ClearType.Body,
-                                                color = c.inkFaint,
+                                                color = LocalGlassInk.current.copy(alpha = 0.42f),
                                                 maxLines = 1,
                                             )
                                         }
@@ -509,7 +518,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                             )
                             if (notFound) {
                                 Text(
-                                    "Not found",
+                                    stringResource(R.string.sheet_not_found),
                                     style = ClearType.Label.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp),
                                     color = Candy.Tomato,
                                     maxLines = 1,
@@ -519,7 +528,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                                 Text(
                                     "${grid.hit + 1}/${grid.hits.size}",
                                     style = ClearType.Label.copy(fontWeight = FontWeight.SemiBold, fontSize = 12.sp),
-                                    color = c.inkSoft,
+                                    color = LocalGlassInk.current.copy(alpha = 0.62f),
                                     maxLines = 1,
                                     modifier = Modifier.padding(start = 6.dp, end = 4.dp),
                                 )
@@ -538,7 +547,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                                     Icon(
                                         LucideIcons.X,
                                         clearLabel,
-                                        tint = if (notFound) Candy.Tomato else c.inkSoft,
+                                        tint = if (notFound) Candy.Tomato else LocalGlassInk.current.copy(alpha = 0.62f),
                                         modifier = Modifier.size(15.dp),
                                     )
                                 }
@@ -565,9 +574,14 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                 if (searching) Spacer(Modifier.height(8.dp))
                 grid.selected?.let { cell ->
                     // the formula bar: the cell's name, what it holds, and a field to change it
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(48.dp).background(c.frost, com.chethan616.clearpdf.ui.glass.Capsule).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(48.dp)
+                            .glass(Capsule, wash = Color.White.copy(alpha = 0.12f), blur = 14.dp)
+                            .padding(horizontal = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Box(Modifier.padding(4.dp).glassBar(surface = Candy.Sky.copy(alpha = 0.22f)).padding(horizontal = 10.dp, vertical = 6.dp)) {
-                            Text(columnName(cell.col0.toInt()) + (cell.row0.toInt() + 1), style = ClearType.Label, color = c.ink)
+                            Text(columnName(cell.col0.toInt()) + (cell.row0.toInt() + 1), style = ClearType.Label, color = LocalGlassInk.current)
                         }
                         if (editing) {
                             val focus = remember { androidx.compose.ui.focus.FocusRequester() }
@@ -580,7 +594,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                             Box(Modifier.size(40.dp).pressable({ commit() }), contentAlignment = Alignment.Center) { GlassIcon(LucideIcons.Check, stringResource(R.string.common_done), Modifier.size(20.dp), tint = Candy.Sky) }
                         } else {
                             Text(
-                                input.ifEmpty { stringResource(R.string.sheet_tap_to_type) }, style = ClearType.Body, color = if (input.isEmpty()) c.inkFaint else c.ink,
+                                input.ifEmpty { stringResource(R.string.sheet_tap_to_type) }, style = ClearType.Body, color = if (input.isEmpty()) LocalGlassInk.current.copy(alpha = 0.42f) else LocalGlassInk.current,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f).padding(horizontal = 8.dp).pressable({ editing = true }),
                             )
@@ -610,9 +624,9 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                         ) {
                             GlassIcon(LucideIcons.Sheet, null, Modifier.size(17.dp))
                             Spacer(Modifier.size(8.dp))
-                            Text(grid.sheets.getOrNull(grid.current)?.name.orEmpty(), style = ClearType.Label.copy(fontSize = 14.sp), color = c.ink, maxLines = 1)
+                            Text(grid.sheets.getOrNull(grid.current)?.name.orEmpty(), style = ClearType.Label.copy(fontSize = 14.sp), color = LocalGlassInk.current, maxLines = 1)
                             Spacer(Modifier.size(6.dp))
-                            Text(stringResource(R.string.sheet_of, visible.indexOfFirst { it.index == grid.current } + 1, visible.size), style = ClearType.Caption, color = c.inkSoft)
+                            Text(stringResource(R.string.sheet_of, visible.indexOfFirst { it.index == grid.current } + 1, visible.size), style = ClearType.Caption, color = LocalGlassInk.current.copy(alpha = 0.62f))
                             GlassIcon(LucideIcons.ChevronDown, null, Modifier.size(16.dp))
                         }
                     }
@@ -703,10 +717,13 @@ private fun DrawScope.drawSheet(
     k: Float,
     pan: Offset,
     measurer: TextMeasurer,
+    sheetSurface: Color,
     ink: Color,
+    dark: Boolean,
     found: CellSpan?,
     selected: CellSpan?,
 ) {
+    drawRect(sheetSurface)
     val head = Offset(HEAD_W * k.coerceAtMost(density * 1.5f), HEAD_H * k.coerceAtMost(density * 1.5f))
     val fr = min(l.info.frozenRows.toInt(), l.rows)
     val fc = min(l.info.frozenCols.toInt(), l.cols)
@@ -728,7 +745,7 @@ private fun DrawScope.drawSheet(
             val cell = { r: Int, c: Int -> Rect(ox + l.colX[c] * k, oy + l.rowY[r] * k, ox + l.colX[c + 1] * k, oy + l.rowY[r + 1] * k) }
             // grid lines
             if (l.info.gridlines) {
-                val line = Color(0xFFE1E4EA)
+                val line = if (dark) Color(0xFF343650) else Color(0xFFE1E4EA)
                 for (c in c0..c1) drawLine(line, Offset(ox + l.colX[c] * k, clip.top), Offset(ox + l.colX[c] * k, clip.bottom), 1f)
                 for (r in r0..r1) drawLine(line, Offset(clip.left, oy + l.rowY[r] * k), Offset(clip.right, oy + l.rowY[r] * k), 1f)
             }
@@ -784,7 +801,10 @@ private fun DrawScope.drawSheet(
                 val maxW = (r.width - 2 * pad).toInt()
                 if (maxW <= 0) continue
                 val style = TextStyle(
-                    color = rgb(v.ink),
+                    color = if (v.ink == 0u) {
+                        val cellSurface = v.fill?.let(::rgb) ?: sheetSurface
+                        if (cellSurface.luminance() > 0.5f) Color(0xFF15171C) else ink
+                    } else rgb(v.ink),
                     fontSize = (v.size * k / density / fontScale).sp,
                     fontWeight = if (v.bold) FontWeight.Bold else FontWeight.Normal,
                     fontStyle = if (v.italic) FontStyle.Italic else FontStyle.Normal,
@@ -822,14 +842,15 @@ private fun DrawScope.drawSheet(
     region(Rect(head.x + frozenW, head.y, size.width, head.y + frozenH), head, 0, fr, fc, l.cols, scrollX = true, scrollY = false)
     region(Rect(head.x, head.y + frozenH, head.x + frozenW, size.height), head, fr, l.rows, 0, fc, scrollX = false, scrollY = true)
     region(Rect(head.x, head.y, head.x + frozenW, head.y + frozenH), head, 0, fr, 0, fc, scrollX = false, scrollY = false)
-    if (fr > 0) drawLine(Color(0xFF9AA3B2), Offset(head.x, head.y + frozenH), Offset(size.width, head.y + frozenH), density)
-    if (fc > 0) drawLine(Color(0xFF9AA3B2), Offset(head.x + frozenW, head.y), Offset(head.x + frozenW, size.height), density)
+    val frozenDivider = if (dark) Color(0xFF777D9A) else Color(0xFF9AA3B2)
+    if (fr > 0) drawLine(frozenDivider, Offset(head.x, head.y + frozenH), Offset(size.width, head.y + frozenH), density)
+    if (fc > 0) drawLine(frozenDivider, Offset(head.x + frozenW, head.y), Offset(head.x + frozenW, size.height), density)
     // the heading strips
-    val strip = Color(0xFFF2F4F8)
+    val strip = if (dark) Color(0xFF20213B) else Color(0xFFF2F4F8)
     val label = TextStyle(color = ink.copy(alpha = 0.6f), fontSize = (11 * min(k / density, 1.5f) / fontScale).sp)
     drawRect(strip, Offset(0f, 0f), Size(size.width, head.y))
     drawRect(strip, Offset(0f, 0f), Size(head.x, size.height))
-    val lineC = Color(0xFFD5D9E0)
+    val lineC = if (dark) Color(0xFF343650) else Color(0xFFD5D9E0)
     clipRect(head.x, 0f, size.width, head.y) {
         for (c in 0 until l.cols) {
             val x0 = head.x + l.colX[c] * k + (if (c >= fc) pan.x else 0f)

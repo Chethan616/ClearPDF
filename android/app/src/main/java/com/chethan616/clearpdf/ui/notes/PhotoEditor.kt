@@ -37,6 +37,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -82,11 +83,14 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /** One adjustment of LightCraft's develop settings: where it lives, its name, glyph and range. */
 private enum class Adjust(
@@ -126,6 +130,7 @@ private fun shown(a: Adjust, v: Float): String {
  * - Deep integration with GlassSettings & MotionSettings
  * - Proper BackHandler ensuring swipe-back never closes the app
  */
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 @Composable
 fun PhotoEditScreen(vm: AppViewModel, noteId: String, name: String, onClose: () -> Unit) {
     val source = remember(name) { vm.notes.file(name) }
@@ -187,8 +192,13 @@ fun PhotoEditScreen(vm: AppViewModel, noteId: String, name: String, onClose: () 
 
     // Re-develop as the ruler moves; a newer value cancels the render still running
     LaunchedEffect(Unit) {
-        snapshotFlow { values.toMap() to turn }.collectLatest {
-            val json = settings()
+        // Rendering a 1600 px photo for every pointer event starved the ruler of frames. Coalesce
+        // values for two display frames; the ruler remains immediate while the preview catches up
+        // fluidly and always renders the final value.
+        snapshotFlow { settings() }
+            .distinctUntilChanged()
+            .debounce(48)
+            .collectLatest { json ->
             shown = withContext(Dispatchers.Default) {
                 runCatching {
                     editor.render(source.absolutePath, json, 1600u).toBitmap().asImageBitmap()
@@ -486,7 +496,25 @@ private fun Ruler(a: Adjust, value: Float, onChange: (Float) -> Unit) {
     val haptics = LocalHaptics.current
     val range = a.max - a.min
     var drag by remember(a) { mutableStateOf(value) }
-    LaunchedEffect(value) { drag = value }
+    var dragging by remember(a) { mutableStateOf(false) }
+    // A meaningful tick per adjustment type: fractions for exposure, five-point steps for tone,
+    // quarter turns for geometry. It feels deliberate without vibrating continuously.
+    val tickSize = remember(a) {
+        when {
+            range <= 8f -> 0.1f
+            range <= 12f -> 0.25f
+            range <= 40f -> 1f
+            else -> 5f
+        }
+    }
+    fun tickAt(v: Float) = (v / tickSize).roundToInt()
+    var lastTick by remember(a) { mutableIntStateOf(tickAt(value)) }
+    LaunchedEffect(value) {
+        if (!dragging) {
+            drag = value
+            lastTick = tickAt(value)
+        }
+    }
 
     Canvas(
         Modifier
@@ -494,13 +522,24 @@ private fun Ruler(a: Adjust, value: Float, onChange: (Float) -> Unit) {
             .height(44.dp)
             .pointerInput(a) {
                 val perPx = range / (size.width * 3f)
-                detectHorizontalDragGestures { change, dx ->
+                detectHorizontalDragGestures(
+                    onDragStart = {
+                        dragging = true
+                        lastTick = tickAt(drag)
+                        haptics?.play(Feel.Rise)
+                    },
+                    onDragEnd = { dragging = false },
+                    onDragCancel = { dragging = false },
+                ) { change, dx ->
                     change.consume()
-                    val before = drag
                     var next = (drag - dx * perPx).coerceIn(a.min, a.max)
-                    // catch at zero
+                    // Catch zero precisely; it is the natural resting point for every adjustment.
                     if (abs(next) < range * 0.012f) next = 0f
-                    if (before != 0f && next == 0f) haptics?.play(Feel.Tick)
+                    val nextTick = tickAt(next)
+                    if (nextTick != lastTick) {
+                        haptics?.play(Feel.Tick)
+                        lastTick = nextTick
+                    }
                     drag = next
                     onChange(next)
                 }

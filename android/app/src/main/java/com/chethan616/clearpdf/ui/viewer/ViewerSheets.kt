@@ -37,6 +37,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -83,92 +84,44 @@ import java.util.Date
  * reference's order. Drill-in rows (with a chevron) open their own sheet.
  */
 @Composable
-fun MoreSheet(vm: AppViewModel, doc: OpenDocument) {
-    val c = pdfColors
+fun MoreSheet(vm: AppViewModel, doc: OpenDocument, anchor: Rect) {
     val ctl = doc.controller
-    fun close() {
-        ctl.sheet = ViewerSheet.None
-    }
     val bookmarked = vm.bookmarks.isBookmarked(doc, doc.viewer.currentPage)
     val starred = vm.isStarred(doc)
-    // like the reference, the sheet opens part way and rises to full height once its list scrolls
-    val scroll = rememberScrollState()
-    var expanded by remember { mutableStateOf(false) }
-    LaunchedEffect(scroll.value > 0) { if (scroll.value > 0) expanded = true }
-    val fraction by androidx.compose.animation.core.animateFloatAsState(if (expanded) 1f else 0.69f, label = "sheet")
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val top = with(density) {
-        maxOf(
-            androidx.compose.foundation.layout.WindowInsets.statusBars.getTop(density),
-            androidx.compose.foundation.layout.WindowInsets.displayCutout.getTop(density),
-        ).toDp()
-    } + TopBarHeight
-    PdfSheet(onDismiss = ::close, maxHeightFraction = fraction, topReserve = top) {
-        // the document: a small paper, its name and what it is, then Star and Print
-        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 14.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            DocGlyph()
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(doc.title, style = ClearType.Title.copy(fontSize = 17.sp), color = clear.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    (if (doc.isSlides) stringResource(R.string.sheet_kind_slides) else if (doc.isOffice) stringResource(R.string.sheet_kind_word) else "PDF") + " · ${modifiedLabel(doc.file.lastModified(), stringResource(R.string.common_yesterday))}" + if (!doc.writable) " · " + stringResource(R.string.sheet_read_only) else "",
-                    style = ClearType.Caption.copy(fontSize = 12.sp), color = clear.inkSoft, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            SheetCircleButton(
-                LucideIcons.Star, stringResource(if (starred) R.string.sheet_remove_star else R.string.sheet_add_star), { vm.toggleStar(doc) },
-                tint = if (starred) Candy.Lemon else Color.Unspecified,
-            )
-            Spacer(Modifier.width(8.dp))
-            SheetCircleButton(LucideIcons.X, stringResource(R.string.ui_close_sheet), ::close)
+    val items = buildList {
+        add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(if (starred) R.string.sheet_remove_star else R.string.sheet_add_star), LucideIcons.Star) { vm.toggleStar(doc) })
+        add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(if (bookmarked) R.string.sheet_remove_bookmark else R.string.sheet_add_bookmark), if (bookmarked) LucideIcons.BookmarkMinus else LucideIcons.BookmarkPlus) { vm.toggleBookmark(doc) })
+        add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.common_tool_read_aloud), LucideIcons.Volume2) { vm.startReadAloud(doc) })
+        if (doc.isSlides) add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.office_present), LucideIcons.Presentation) { vm.presenting = doc })
+        else if (!doc.isOffice) add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.common_tool_edit_pdf), LucideIcons.FilePenLine) { vm.enterTool(doc, ViewerTool.Edit) })
+        add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.sheet_print), LucideIcons.Printer) { vm.print(doc) })
+        add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.sheet_view_settings), LucideIcons.Glasses) { ctl.sheet = ViewerSheet.ViewSettings })
+        add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(
+            stringResource(if (ctl.nightMode) R.string.viewer_night_mode_on else R.string.viewer_night_mode_off),
+            if (ctl.nightMode) LucideIcons.Check else LucideIcons.Moon,
+        ) { vm.setNightMode(doc, !ctl.nightMode) })
+        add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.sheet_pages), LucideIcons.LayoutGrid) { ctl.pagesOpen = true })
+        add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.sheet_bookmarks_contents), LucideIcons.Bookmark) { ctl.sheet = ViewerSheet.Bookmarks })
+        if (doc.info.attachments > 0u) add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.sheet_attachments), LucideIcons.Paperclip) { ctl.sheet = ViewerSheet.Attachments })
+        if (!doc.isOffice) {
+            add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.sheet_comment_list), LucideIcons.MessagesSquare) { ctl.sheet = ViewerSheet.Comments })
+            add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.sign_signatures), LucideIcons.ShieldCheck) { ctl.sheet = ViewerSheet.Signatures })
         }
-        Column(Modifier.verticalScroll(scroll)) {
-            // the four things done most, as big tiles
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionTile(
-                    if (bookmarked) LucideIcons.BookmarkMinus else LucideIcons.BookmarkPlus,
-                    stringResource(if (bookmarked) R.string.sheet_remove_bookmark else R.string.sheet_add_bookmark), Candy.Tangerine,
-                ) { close(); vm.toggleBookmark(doc) }
-                ActionTile(LucideIcons.Volume2, stringResource(R.string.common_tool_read_aloud), Candy.Sky) { close(); vm.startReadAloud(doc) }
-                if (doc.isSlides) ActionTile(LucideIcons.Presentation, stringResource(R.string.office_present), Candy.Bubblegum) { close(); vm.presenting = doc }
-                else if (!doc.isOffice) ActionTile(LucideIcons.FilePenLine, stringResource(R.string.common_tool_edit_pdf), Candy.Bubblegum) { close(); vm.enterTool(doc, ViewerTool.Edit) }
-                ActionTile(LucideIcons.Printer, stringResource(R.string.sheet_print), Candy.Grape) { close(); vm.print(doc) }
-            }
-            Spacer(Modifier.height(8.dp))
-            SheetSection {
-                SheetRow(LucideIcons.Glasses, stringResource(R.string.sheet_view_settings), { ctl.sheet = ViewerSheet.ViewSettings }, chevron = true, tint = Candy.Sky)
-                SheetRow(LucideIcons.LayoutGrid, stringResource(R.string.sheet_pages), { close(); ctl.pagesOpen = true }, chevron = true, tint = Candy.Mint)
-                SheetRow(LucideIcons.Bookmark, stringResource(R.string.sheet_bookmarks_contents), { ctl.sheet = ViewerSheet.Bookmarks }, chevron = true, tint = Candy.Tangerine)
-                if (doc.info.attachments > 0u) SheetRow(LucideIcons.Paperclip, stringResource(R.string.sheet_attachments), { ctl.sheet = ViewerSheet.Attachments }, chevron = true, tint = Candy.Grape)
-                if (!doc.isOffice) {
-                    SheetRow(LucideIcons.MessagesSquare, stringResource(R.string.sheet_comment_list), { ctl.sheet = ViewerSheet.Comments }, chevron = true, tint = Candy.Bubblegum)
-                    SheetRow(LucideIcons.ShieldCheck, stringResource(R.string.sign_signatures), { ctl.sheet = ViewerSheet.Signatures }, chevron = true, tint = Candy.Lime)
-                }
-            }
-            // an office document: written by its own engine as PDF or another format
-            if (doc.isOffice) SheetSection {
-                SheetRow(LucideIcons.FilePdf, stringResource(R.string.office_export_pdf), { close(); vm.exportOffice(doc, "pdf") }, tint = Candy.Tangerine)
-                SheetRow(LucideIcons.SaveAs, stringResource(R.string.office_save_as), { ctl.sheet = ViewerSheet.SaveAs }, chevron = true, tint = Candy.Lime)
-            }
-            if (!doc.isOffice) SheetSection {
-                SheetRow(LucideIcons.FileOutput, stringResource(R.string.sheet_export_as), { close(); vm.openExport(doc) }, tint = Candy.Tangerine)
-                SheetRow(LucideIcons.FileArchive, stringResource(R.string.common_tool_compress), { close(); vm.openCompress(doc) }, tint = Candy.Mint)
-                SheetRow(LucideIcons.Combine, stringResource(R.string.common_tool_combine), { close(); vm.openCombine(doc) }, tint = Candy.Grape)
-                SheetRow(LucideIcons.FileLock2, stringResource(R.string.common_tool_set_password), { close(); vm.openProtect(doc) }, tint = Candy.Sky)
-                SheetRow(LucideIcons.FilePlus2, stringResource(R.string.common_tool_create_pdf), { close(); vm.openCreate() }, tint = Candy.Bubblegum)
-                SheetRow(LucideIcons.Copy, stringResource(R.string.common_save_copy), { close(); vm.saveCopyAs(doc) }, tint = Candy.Lime)
-            }
-            if (doc.info.undo != null || doc.info.redo != null) {
-                SheetSection {
-                    doc.info.undo?.let { SheetRow(LucideIcons.Undo2, stringResource(R.string.sheet_undo_action, it), { close(); vm.undo(doc) }, tint = Candy.Grape) }
-                    doc.info.redo?.let { SheetRow(LucideIcons.Redo2, stringResource(R.string.sheet_redo_action, it), { close(); vm.redo(doc) }, tint = Candy.Grape) }
-                }
-            }
-            Spacer(Modifier.height(6.dp))
+        if (doc.isOffice) {
+            add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.office_export_pdf), LucideIcons.FilePdf) { vm.exportOffice(doc, "pdf") })
+            add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.office_save_as), LucideIcons.SaveAs) { ctl.sheet = ViewerSheet.SaveAs })
+        } else {
+            add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.sheet_export_as), LucideIcons.FileOutput) { vm.openExport(doc) })
+            add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.common_tool_compress), LucideIcons.FileArchive) { vm.openCompress(doc) })
+            add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.common_tool_combine), LucideIcons.Combine) { vm.openCombine(doc) })
+            add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.common_tool_set_password), LucideIcons.FileLock2) { vm.openProtect(doc) })
+            add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.common_tool_create_pdf), LucideIcons.FilePlus2) { vm.openCreate() })
+            add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.common_save_copy), LucideIcons.Copy) { vm.saveCopyAs(doc) })
         }
+        doc.info.undo?.let { label -> add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.sheet_undo_action, label), LucideIcons.Undo2) { vm.undo(doc) }) }
+        doc.info.redo?.let { label -> add(com.chethan616.clearpdf.ui.glass.GlassMenuItem(stringResource(R.string.sheet_redo_action, label), LucideIcons.Redo2) { vm.redo(doc) }) }
     }
+    com.chethan616.clearpdf.ui.glass.GlassMenu(anchor, { ctl.sheet = ViewerSheet.None }, items)
 }
 
 /** A PDF as a little paper in a sheet's header: grey lines and the red PDF corner. */
@@ -240,8 +193,10 @@ fun ViewSettingsSheet(vm: AppViewModel, doc: OpenDocument) {
         }
         Spacer(Modifier.height(6.dp))
         SheetSection {
-            SheetRow(LucideIcons.Moon, stringResource(R.string.sheet_night_mode), { vm.setNightMode(doc, !ctl.nightMode); ctl.sheet = ViewerSheet.None }, tint = Candy.Grape) {
-                PdfSwitch(ctl.nightMode, { vm.setNightMode(doc, it); ctl.sheet = ViewerSheet.None })
+            // Keep this sheet mounted while the page inversion changes so the switch's touch
+            // sequence cannot race a disappearing parent surface.
+            SheetRow(LucideIcons.Moon, stringResource(R.string.sheet_night_mode), { vm.setNightMode(doc, !ctl.nightMode) }, tint = Candy.Grape) {
+                PdfSwitch(ctl.nightMode, { vm.setNightMode(doc, it) })
             }
         }
         Spacer(Modifier.height(14.dp))
@@ -540,44 +495,58 @@ object ToolHues {
 
 /** More tools: the tools that aren't on the bar, as a grid of tiles, and Customize toolbar. */
 @Composable
-fun MoreToolsSheet(vm: AppViewModel, doc: OpenDocument) {
+fun MoreToolsSheet(vm: AppViewModel, doc: OpenDocument, anchor: Rect) {
     val ctl = doc.controller
     var customizing by remember { mutableStateOf(false) }
-    PdfSheet(onDismiss = { if (customizing) customizing = false else ctl.sheet = ViewerSheet.None }) {
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
+    val width = (config.screenWidthDp.dp - 24.dp).coerceAtLeast(236.dp).coerceAtMost(480.dp)
+    val maxHeight = (config.screenHeightDp.dp - 112.dp).coerceAtLeast(400.dp)
+    val slots = toolbarSlots(config.screenWidthDp)
+    val prefs = vm.quickToolbar
+    val tools = if (doc.isOffice) emptyList() else prefs.bar.drop(slots) + prefs.grid
+    com.chethan616.clearpdf.ui.glass.GlassMenuLayout(
+        anchor = anchor,
+        onDismiss = { if (customizing) customizing = false else ctl.sheet = ViewerSheet.None },
+        width = width,
+        maxHeight = maxHeight,
+    ) {
         if (customizing) {
             CustomizeToolbar(vm) { customizing = false }
-            return@PdfSheet
-        }
-        SheetTitle(stringResource(R.string.common_tool_more_tools))
-        val slots = toolbarSlots(androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp)
-        val prefs = vm.quickToolbar
-        val tools = if (doc.isOffice) emptyList() else prefs.bar.drop(slots) + prefs.grid
-        // a grid of app-icon tiles: four to a row on a phone, more on wider screens
-        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 2.dp)) {
-            val perRow = if (maxWidth >= 560.dp) 6 else if (maxWidth >= 400.dp) 5 else 4
-            val cell = maxWidth / perRow
-            Column {
-                tools.chunked(perRow).forEach { row ->
-                    Row(verticalAlignment = Alignment.Top) {
-                        row.forEach { t ->
-                            ToolTile(t.icon, stringResource(t.title), t.hue, Modifier.width(cell)) {
-                                ctl.sheet = ViewerSheet.None
-                                vm.runQuickTool(doc, t)
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(10.dp))
+        } else {
+            Spacer(Modifier.height(6.dp))
+            Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 14.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.common_tool_more_tools), style = ClearType.Title.copy(fontSize = 18.sp), color = clear.ink, modifier = Modifier.weight(1f))
+                com.chethan616.clearpdf.ui.glass.GlassCircle(onClick = { ctl.sheet = ViewerSheet.None }, size = 36.dp, label = stringResource(R.string.ui_close_sheet)) {
+                    com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.X, null, Modifier.size(18.dp))
                 }
             }
+            // Preserve the existing toolbar's four-column tool grid inside the same frosted menu card.
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 2.dp)) {
+                val perRow = if (maxWidth >= 560.dp) 6 else if (maxWidth >= 400.dp) 5 else 4
+                val cell = maxWidth / perRow
+                Column {
+                    tools.chunked(perRow).forEach { row ->
+                        Row(verticalAlignment = Alignment.Top) {
+                            row.forEach { t ->
+                                ToolTile(t.icon, stringResource(t.title), t.hue, Modifier.width(cell)) {
+                                    ctl.sheet = ViewerSheet.None
+                                    vm.runQuickTool(doc, t)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                    }
+                }
+            }
+            com.chethan616.clearpdf.ui.glass.GlassPill(
+                onClick = { customizing = true }, modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(), height = 48.dp,
+                label = stringResource(R.string.sheet_customize_toolbar),
+            ) {
+                Icon(LucideIcons.SlidersHorizontal, null, tint = clear.ink, modifier = Modifier.size(18.dp))
+                Text(stringResource(R.string.sheet_customize_toolbar), style = ClearType.BodyStrong, color = clear.ink)
+            }
+            Spacer(Modifier.height(12.dp))
         }
-        // Customize toolbar: a plain glass capsule across the sheet
-        com.chethan616.clearpdf.ui.glass.GlassPill(
-            onClick = { customizing = true }, modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(), height = 48.dp,
-        ) {
-            Icon(LucideIcons.SlidersHorizontal, null, tint = clear.ink, modifier = Modifier.size(18.dp))
-            Text(stringResource(R.string.sheet_customize_toolbar), style = ClearType.BodyStrong, color = clear.ink)
-        }
-        Spacer(Modifier.height(12.dp))
     }
 }
 

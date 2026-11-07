@@ -34,6 +34,8 @@ data class GlassStyle(
         val Default = GlassStyle()
         /** Heavier frost and wash: text stays legible over busy pages. */
         val Frosted = GlassStyle(blur = 2.4f, tint = 1.8f, refractionAmount = 0.7f, saturation = 1.3f)
+        /** Menu frost stays at the top of the app's blur range, independent of the user's glass preset. */
+        val MaximumFrost = Frosted.copy(blur = 3f, refractionHeight = 0f, refractionAmount = 0f, tint = 1f)
         /** Clear, strongly bent glass with a prismatic rim. */
         val Crystal = GlassStyle(blur = 0.3f, refractionHeight = 1.5f, refractionAmount = 1.6f, depthEffect = true, chromaticAberration = true, tint = 0.6f, saturation = 1.7f)
         /** No blur or lens at all, for slower phones. */

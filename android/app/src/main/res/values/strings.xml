@@ -436,13 +436,20 @@
 
     <!-- Read Aloud: the player -->
     <string name="read_aloud_no_voice">Read aloud needs a text-to-speech voice on this phone.</string>
-    <string name="read_aloud_open_player">Open the player</string>
-    <string name="read_aloud_close_player">Close the player</string>
     <string name="read_aloud_read_again">Read again</string>
     <string name="read_aloud_back_15">Back 15 seconds</string>
     <string name="read_aloud_forward_15">Forward 15 seconds</string>
+    <string name="read_aloud_stop_reading">Stop reading</string>
+    <string name="read_aloud_system_default">System default (%1$s)</string>
+    <string name="read_aloud_language_selected">Selected</string>
+    <string name="read_aloud_languages_loading">Loading available languages…</string>
+    <string name="settings_read_aloud_language">Read aloud language</string>
+    <string name="settings_read_aloud_language_body">Choose the language used when reading documents aloud.</string>
+    <string name="viewer_night_mode_on">Night mode on</string>
+    <string name="viewer_night_mode_off">Night mode off</string>
     <!-- Translator note: opens the choice of the language the voice reads in. -->
-    <string name="read_aloud_voice">Voice</string>
+    <string name="read_aloud_speed">Playback speed</string>
+    <string name="sheet_not_found">Not found</string>
     <string name="read_aloud_choose_language">Choose language</string>
     <string name="read_aloud_voice_settings">Voice settings</string>
 
