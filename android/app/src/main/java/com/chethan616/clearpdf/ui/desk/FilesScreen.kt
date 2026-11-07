@@ -55,7 +55,6 @@ import com.chethan616.clearpdf.ui.glass.GlassMenu
 import com.chethan616.clearpdf.ui.glass.GlassMenuItem
 import com.chethan616.clearpdf.ui.glass.GlassPill
 import com.chethan616.clearpdf.ui.glass.GlassRow
-import com.chethan616.clearpdf.ui.glass.GlassSheet
 import com.chethan616.clearpdf.ui.glass.GlassTab
 import com.chethan616.clearpdf.ui.glass.GlassTabs
 import com.chethan616.clearpdf.ui.glass.WashPanel
@@ -192,105 +191,21 @@ fun FilesScreen(vm: AppViewModel, onBrowse: () -> Unit) {
     }
 
     if (menuOpen) {
-        GlassSheet(
-            onDismiss = { menuOpen = false },
-            title = stringResource(R.string.home_tab_files),
-            subtitle = pluralStringResource(R.plurals.files_count, rows.size, rows.size),
-            maxHeightFraction = 0.85f,
-        ) {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                // Sort
-                GlassRow(
-                    label = stringResource(if (sortByName) R.string.home_sort_by_date else R.string.home_sort_by_name),
-                    onClick = {
-                        sortByName = !sortByName
-                        menuOpen = false
-                    },
-                    icon = LucideIcons.ArrowUpDown,
-                    accent = Candy.Sky,
-                )
-
-                // Filter by Kind (All, PDFs, Word, Presentations, Spreadsheets, Text)
-                for (k in com.chethan616.clearpdf.engine.DocumentTypes.Kind.entries) {
-                    val isSelected = k == kind
-                    val accent = when (k) {
-                        com.chethan616.clearpdf.engine.DocumentTypes.Kind.All -> Candy.Sky
-                        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Pdf -> Candy.Tomato
-                        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Word -> Candy.InkBlue
-                        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Slides -> Candy.Tangerine
-                        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Sheets -> Candy.Lime
-                        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Text -> Candy.Grape
-                    }
-                    GlassRow(
-                        label = stringResource(k.label),
-                        onClick = {
-                            kind = k
-                            menuOpen = false
-                        },
-                        icon = k.icon,
-                        accent = accent,
-                        trailing = if (isSelected) {
-                            {
-                                Icon(
-                                    LucideIcons.Check,
-                                    null,
-                                    tint = Candy.Sky,
-                                    modifier = Modifier.size(20.dp).padding(end = 4.dp),
-                                )
-                            }
-                        } else null,
-                    )
-                }
-
-                if (tab == 0 && vm.recentList.isNotEmpty()) {
-                    GlassRow(
-                        label = stringResource(R.string.home_clear_recent),
-                        onClick = {
-                            menuOpen = false
-                            confirmClear = true
-                        },
-                        icon = LucideIcons.BrushCleaning,
-                        destructive = true,
-                    )
-                }
-
-                if (tab == 2) {
-                    GlassRow(
-                        label = stringResource(R.string.home_refresh),
-                        onClick = {
-                            menuOpen = false
-                            vm.scanLocal(force = true)
-                        },
-                        icon = LucideIcons.RotateCw,
-                        accent = Candy.Sky,
-                    )
-                    GlassRow(
-                        label = stringResource(R.string.home_add_folder),
-                        onClick = {
-                            menuOpen = false
-                            vm.requestFileAccess()
-                        },
-                        icon = LucideIcons.FolderPlus,
-                        accent = Candy.Grape,
-                    )
-                    for ((tree, name) in vm.localFolders()) {
-                        GlassRow(
-                            label = stringResource(R.string.home_stop_listing, name),
-                            onClick = {
-                                menuOpen = false
-                                vm.removeLocalFolder(tree)
-                            },
-                            icon = LucideIcons.FolderOpen,
-                            destructive = true,
-                        )
-                    }
-                }
+        val anchor = menuAnchor ?: Rect.Zero
+        val items = buildList {
+            add(GlassMenuItem(stringResource(if (sortByName) R.string.home_sort_by_date else R.string.home_sort_by_name), LucideIcons.ArrowUpDown) { sortByName = !sortByName })
+            // show one kind of file: the one shown has a tick
+            for (k in com.chethan616.clearpdf.engine.DocumentTypes.Kind.entries) {
+                add(GlassMenuItem(stringResource(k.label), if (k == kind) LucideIcons.Check else k.icon) { kind = k })
+            }
+            if (tab == 0 && vm.recentList.isNotEmpty()) add(GlassMenuItem(stringResource(R.string.home_clear_recent), LucideIcons.BrushCleaning) { confirmClear = true })
+            if (tab == 2) {
+                add(GlassMenuItem(stringResource(R.string.home_refresh), LucideIcons.RotateCw) { vm.scanLocal(force = true) })
+                add(GlassMenuItem(stringResource(R.string.home_add_folder), LucideIcons.FolderPlus) { vm.requestFileAccess() })
+                for ((tree, name) in vm.localFolders()) add(GlassMenuItem(stringResource(R.string.home_stop_listing, name), LucideIcons.FolderOpen) { vm.removeLocalFolder(tree) })
             }
         }
+        GlassMenu(anchor = anchor, onDismiss = { menuOpen = false }, items = items)
     }
     if (confirmClear) {
         GlassDialog(

@@ -451,15 +451,15 @@ private fun Dial(
             onClick = onClick,
             size = 50.dp,
             label = stringResource(a.label),
-            ink = if (chosen) Candy.Lemon else Color.White,
-            tint = if (chosen) Candy.Lemon.copy(alpha = 0.28f) else Color.Unspecified,
-            surface = if (chosen) Candy.Lemon.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.10f),
+            ink = if (chosen) Color(0xFF141202) else Color.White,
+            tint = if (chosen) Candy.Lemon else Color.Unspecified,
+            surface = if (chosen) Candy.Lemon else Color.White.copy(alpha = 0.10f),
         ) {
             GlassIcon(
                 a.icon,
                 null,
                 Modifier.size(22.dp),
-                tint = if (chosen) Candy.Lemon else Color.White,
+                tint = if (chosen) Color(0xFF141202) else Color.White,
             )
         }
         Spacer(Modifier.height(6.dp))

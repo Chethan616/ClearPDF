@@ -131,7 +131,14 @@ fun ViewerTopBar(
         } else {
             com.chethan616.clearpdf.ui.glass.GlassBackButton(onBack)
         }
-        GlassPill(onClick = onTitle, modifier = Modifier.weight(1f), height = 48.dp, horizontalPadding = 16.dp) {
+        val barSurface = if (clear.dark) Color(0xFF151828).copy(alpha = 0.65f) else Color.White.copy(alpha = 0.75f)
+        GlassPill(
+            onClick = onTitle,
+            modifier = Modifier.weight(1f),
+            height = 48.dp,
+            horizontalPadding = 16.dp,
+            surface = barSurface,
+        ) {
             if (toolTitle != null) Box(Modifier.size(9.dp).clip(CircleShape).background(Candy.Sky))
             Column(Modifier.weight(1f)) {
                 Text(toolTitle ?: title, style = ClearType.Title.copy(fontSize = 15.5.sp, lineHeight = 19.sp), color = com.chethan616.clearpdf.ui.glass.LocalGlassInk.current, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -197,8 +204,9 @@ fun GlassBars(visible: Boolean, fromTop: Boolean, content: @Composable () -> Uni
 @Composable
 private fun BarGroup(content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
     val probe = com.chethan616.clearpdf.ui.glass.rememberGlassInk(clear.ink)
+    val barSurface = if (clear.dark) Color(0xFF151828).copy(alpha = 0.65f) else Color.White.copy(alpha = 0.75f)
     Row(
-        Modifier.then(probe.modifier).height(48.dp).glassBar().padding(horizontal = 4.dp),
+        Modifier.then(probe.modifier).height(48.dp).glassBar(surface = barSurface).padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) { CompositionLocalProvider(com.chethan616.clearpdf.ui.glass.LocalGlassInk provides probe.color) { content() } }
 }

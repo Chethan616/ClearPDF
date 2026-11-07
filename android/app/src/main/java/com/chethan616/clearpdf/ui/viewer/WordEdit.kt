@@ -132,7 +132,14 @@ fun WordEditDock(vm: AppViewModel, doc: OpenDocument) {
             GlassIcon(LucideIcons.Check, null, Modifier.size(19.dp))
         }
         Row(
-            Modifier.weight(1f).height(48.dp).glassBar().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
+            Modifier
+                .weight(1f)
+                .height(48.dp)
+                .glassBar(
+                    surface = if (clear.dark) Color(0xFF1B1E2E).copy(alpha = 0.85f) else Color.White.copy(alpha = 0.90f)
+                )
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -155,13 +162,21 @@ fun WordEditDock(vm: AppViewModel, doc: OpenDocument) {
 /** One glyph of the dock: in the glass's ink, lit by a soft accent while its formatting is on. */
 @Composable
 private fun EditKey(icon: ImageVector, label: String, enabled: Boolean = true, on: Boolean = false, onClick: () -> Unit) {
-    val c = clear
+    val inkColor = if (on) Candy.Sky else if (clear.dark) Color(0xFFF0F4FC) else Color(0xFF1E222D)
     Box(
-        Modifier.size(40.dp).pressable({ if (enabled) onClick() }).then(
-            if (on) Modifier.padding(4.dp).glassBar(surface = Candy.Sky.copy(alpha = 0.28f)) else Modifier,
-        ),
+        Modifier
+            .size(40.dp)
+            .pressable({ if (enabled) onClick() })
+            .then(
+                if (on) Modifier.padding(4.dp).glassBar(surface = Candy.Sky.copy(alpha = 0.28f)) else Modifier,
+            ),
         contentAlignment = Alignment.Center,
     ) {
-        GlassIcon(icon, label, Modifier.size(21.dp).graphicsLayer { alpha = if (enabled) 1f else 0.35f }, tint = if (on) Candy.Sky else c.ink)
+        GlassIcon(
+            icon,
+            label,
+            Modifier.size(21.dp).graphicsLayer { alpha = if (enabled) 1f else 0.38f },
+            tint = inkColor,
+        )
     }
 }
