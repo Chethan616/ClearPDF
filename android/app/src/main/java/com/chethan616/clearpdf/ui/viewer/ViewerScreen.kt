@@ -44,7 +44,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.magnifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.imePadding
 import com.chethan616.clearpdf.ui.LucideIcons
@@ -60,7 +59,11 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.layout.layout
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.lens
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -202,18 +205,9 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
     // The pages are recorded as the viewer's own backdrop: every glass control over them (the top
     // row, the dock, a tool's bar) refracts the document, never the desk's wallpaper beneath it.
     val pagesBackdrop = com.kyant.backdrop.backdrops.rememberLayerBackdrop()
-    // a magnifier over the text while a selection handle is dragged, as the reference shows one
     // no fill of its own: the page canvas paints the desk (every full-screen fill under the pages
     // costs bandwidth on every frame of a scroll)
-    Box(
-        Modifier.fillMaxSize().magnifier(
-            sourceCenter = { selection.magnifierAt ?: Offset.Unspecified },
-            magnifierCenter = { selection.magnifierAt?.let { it - Offset(0f, with(density) { 56.dp.toPx() }) } ?: Offset.Unspecified },
-            zoom = 1.25f,
-            size = androidx.compose.ui.unit.DpSize(120.dp, 44.dp),
-            cornerRadius = 22.dp,
-        ),
-    ) {
+    Box(Modifier.fillMaxSize()) {
         val gesturesForTool = ctl.tool == ViewerTool.None || ctl.tool == ViewerTool.Edit
         // (Reading Mode's text has no ground of its own: the desk goes in under it, inside the backdrop)
         Box(Modifier.fillMaxSize().layerBackdrop(pagesBackdrop).then(if (vm.readingMode) Modifier.background(c.desk) else Modifier)) {
@@ -456,9 +450,10 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         // The active tool's sheets, over everything.
         ToolSheets(vm, doc)
 
-        // Text selection's menu.
+        // Text selection's menu, and the glass lens over the text while a handle is dragged.
         selection.selection?.let { sel ->
             SelectionHandles(doc, sel)
+            selection.magnifierAt?.let { at -> SelectionLens(pagesBackdrop, at) }
             // out of the way while a handle is dragged; back where the selection ends
             if (selection.magnifierAt == null) SelectionMenu(vm, doc, sel)
         }
@@ -701,4 +696,42 @@ private fun SuccessBannerView(b: com.chethan616.clearpdf.ui.SuccessBanner, onClo
             )
         }
     }
+}
+
+
+/**
+ * The magnifier over the text while a selection handle is dragged: a liquid-glass capsule above the
+ * finger that shows the pages under it enlarged, refracted at its rim (the platform magnifier
+ * copies the window, where the pages are a backdrop layer: it showed nothing).
+ */
+@Composable
+private fun SelectionLens(pages: com.kyant.backdrop.Backdrop, at: Offset) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val (w, h, lift) = with(density) { Triple(132.dp.toPx(), 52.dp.toPx(), 64.dp.toPx()) }
+    val zoom = 1.4f
+    Box(
+        Modifier
+            .layout { m, _ ->
+                val p = m.measure(androidx.compose.ui.unit.Constraints.fixed(w.toInt(), h.toInt()))
+                layout(p.width, p.height) { p.place(0, 0) }
+            }
+            .graphicsLayer {
+                translationX = at.x - w / 2f
+                translationY = at.y - lift - h / 2f
+            }
+            .drawBackdrop(
+                backdrop = pages,
+                shape = { com.chethan616.clearpdf.ui.glass.Capsule },
+                effects = { lens(10.dp.toPx(), 18.dp.toPx()) },
+                highlight = { com.chethan616.clearpdf.ui.glass.glassHighlight(com.chethan616.clearpdf.ui.glass.GlassSettings.style) },
+                onDrawBackdrop = { draw ->
+                    // the finger's point (lift below the centre) drawn at the centre, enlarged
+                    translate(size.width / 2f, size.height / 2f) {
+                        scale(zoom, zoom, pivot = Offset.Zero) {
+                            translate(-size.width / 2f, -size.height / 2f - lift) { draw() }
+                        }
+                    }
+                },
+            ),
+    )
 }
