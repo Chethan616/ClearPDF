@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- the wallpaper's sky, so nothing flashes before the first frame -->
+    <color name="window_background">#FFA9BFE2</color>
+    <!-- the adaptive icon's field: the logo was drawn on white -->
+    <color name="ic_launcher_background">#FFFFFFFF</color>
+
+    <style name="Theme.Artefact" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowSplashScreenBackground">@color/window_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/white</item>
+    </style>
+
+    <!--
+      Quick Preview: a floating window over the app that opened the file. Translucent, so that app
+      stays drawn behind it; no dim of the system's (the preview draws its own scrim and animates it).
+    -->
+    <style name="Theme.Artefact.Preview" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+</resources>

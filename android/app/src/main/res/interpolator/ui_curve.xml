@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- UIKit's sheet curve, cubic-bezier(0.32, 0.72, 0, 1): fast off the mark, long soft landing -->
+<pathInterpolator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:controlX1="0.32"
+    android:controlY1="0.72"
+    android:controlX2="0"
+    android:controlY2="1" />

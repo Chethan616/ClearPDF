@@ -1,0 +1,5 @@
+# UniFFI bindings of the `artefact` library (libartefact.so).
+
+[bindings.kotlin]
+package_name = "com.chethan616.clearpdf.core"
+cdylib_name = "artefact"

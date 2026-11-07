@@ -1,65 +1,22 @@
-# Contributing to ClearPDF
+# Contributing to Artefact
 
-Thanks for helping improve ClearPDF. Bug reports, usability feedback, documentation fixes, and focused code changes are welcome.
-
-## Project principles
-
-- Keep selected documents and extracted content on-device; do not add a ClearPDF upload service.
-- Make network features explicit, user-initiated, and documented. Keep core PDF workflows usable offline where practical.
-- Prefer small changes with clear user value.
-- Preserve accessibility, light and dark themes, and performance across a range of Android devices.
-- Respect the licenses and notices for dependencies and assets.
+Thanks for helping! Bug reports, ideas and focused pull requests are all welcome.
 
 ## Before you start
 
-1. Search existing issues and pull requests so work is not duplicated.
-2. For a larger feature, open a feature request first to agree on scope.
-3. Do not include private documents, signing keys, <code>key.properties</code>, APKs, build outputs, or generated IDE files.
+- Look through [issues](https://github.com/Chethan616/ClearPDF/issues) and [Discussions](https://github.com/Chethan616/ClearPDF/discussions) first; for anything big, open an issue or a discussion so we can agree on the approach.
+- Keep a pull request to one change, with a clear description and screenshots or a short video for anything visible.
 
-## Local setup
+## Building
 
-Requirements:
+See [Build from source](README.md#build-from-source). The app is in `android/` (Kotlin, Jetpack Compose); the engine is in `engine/` (Rust). Run `cargo test -p artefact-mobile` in `engine/` after engine changes, and fix every warning (`cargo clippy`).
 
-- Android Studio with JDK 17 or newer.
-- Android SDK Platform 36 and Android Build Tools 36.1.0.
-- An Android device or emulator for UI changes.
+## Style
 
-Clone the repository, then build the FOSS debug app:
+- Match the code around your change: naming, comment density and idiom.
+- UI uses the glass components in `android/app/src/main/java/com/chethan616/clearpdf/ui/glass/` and strings in `res/values/strings.xml`.
+- Every third-party asset or library is credited in `ATTRIBUTION.toml` / `ATTRIBUTION.md` and the app's licences page.
 
-~~~bash
-git clone https://github.com/Chethan616/ClearPDF.git
-cd ClearPDF
-./gradlew :app:assembleFossDebug
-~~~
+## Licence
 
-On Windows, run <code>gradlew.bat :app:assembleFossDebug</code>.
-
-For the sideload release variant, run <code>./gradlew :app:assembleFossRelease</code>. Release signing is local-only. Copy <code>key.properties.example</code> to <code>key.properties</code> only if you have your own signing credentials; never commit the copied file or a keystore. Without credentials, Gradle uses the debug signing key, which is for local checks only.
-
-## Project layout
-
-- <code>app/</code> — Android UI, navigation, viewers, PDF tools, image editor, and spreadsheet editor.
-- <code>pdf-core/</code> — PDF operations and rendering support.
-- <code>ocr-core/</code> — on-device OCR.
-- <code>backdrop/</code> — shared liquid-glass backdrop effects.
-- <code>office_engine/</code> — optional Play on-demand feature, included for bundle builds.
-
-## Pull requests
-
-Please include:
-
-- What changed and why.
-- The related issue, if one exists.
-- How you checked the change, including device and Android version for UI work.
-- Screenshots or a short recording for UI changes.
-- Any known limitations or follow-up work.
-
-Keep the pull request focused. Update docs, notices, or tests when they are affected. New dependencies need a clear justification, compatible licensing, and an offline/network behavior review.
-
-## Reporting bugs
-
-Use the [bug report form](https://github.com/Chethan616/ClearPDF/issues/new?template=bug_report.yml). Include the app version, distribution source, device, Android version, reproduction steps, and expected and actual behavior. Remove personal data and private document content from any logs or screenshots.
-
-## Code style and conduct
-
-Follow the existing Kotlin patterns and use descriptive names. Avoid unrelated formatting churn. Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). For security issues, use the private reporting process in [SECURITY.md](SECURITY.md).
+By contributing you agree that your contribution is licensed under MIT OR Apache-2.0, like the rest of the project.

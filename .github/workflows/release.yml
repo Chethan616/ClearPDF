@@ -1,0 +1,149 @@
+# Release pipeline: pushing a version tag (v0.0.1-beta, v0.2.0, v1.0.0-rc.1, …) builds the APKs
+# (one for 64-bit ARM phones, one for 32-bit ARM ones) signed with the release key and makes them a
+# draft GitHub release named after the tag, with an empty "What's Changed" section. Fill that in on
+# GitHub and publish the draft: it becomes the latest release (betas too: while the app is in beta,
+# every release is one).
+#
+# A manual run (Actions › Release › Run workflow) is a dry run: it builds the APKs at the version in
+# gradle.properties and keeps them as the run's artifact, and releases nothing.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  # never cancel a release halfway; a newer push waits its turn
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  apk:
+    name: APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: v
+        name: Resolve version
+        run: |
+          listed="$(sed -n 's/^artefact\.version=//p' android/gradle.properties)"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then v="${GITHUB_REF_NAME#v}"; else v="$listed"; fi
+          if ! printf '%s' "$v" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'; then
+            echo "::error::'$v' is not a version like 1.2.3 or 1.2.3-beta"
+            exit 1
+          fi
+          # the tag must be the version gradle.properties names (F-Droid builds from that file)
+          if [ "$v" != "$listed" ]; then
+            echo "::error::the tag is v$v but gradle.properties says artefact.version=$listed: set it (and artefact.versionCode) before tagging"
+            exit 1
+          fi
+          echo "version=$v" >>"$GITHUB_OUTPUT"
+          echo "### v$v (\`${GITHUB_SHA::9}\`)" >>"$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # the Rust release and targets rust-toolchain.toml names
+      - name: Install Rust
+        working-directory: engine
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-android
+          workspaces: engine -> target
+
+      - name: Install cargo-ndk and the Android NDK
+        run: |
+          cargo install cargo-ndk --version 4.1.2 --locked
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;29.0.14206865" >/dev/null
+
+      - name: Release key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.CLEARPDF_UPLOAD_STORE_FILE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d >"$RUNNER_TEMP/clearpdf-upload-key.jks"
+            echo "CLEARPDF_UPLOAD_STORE_FILE=$RUNNER_TEMP/clearpdf-upload-key.jks" >>"$GITHUB_ENV"
+          elif [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "::error::No release key: a release is never signed with the debug key"
+            exit 1
+          else
+            echo "::warning::No release key: this dry run is signed with the debug key"
+          fi
+
+      # one APK per ABI (each about half the size of one holding both): 64-bit ARM for most
+      # phones (Artefact-v<version>.apk), 32-bit ARM for older and low-end ones
+      # (Artefact-v<version>-armeabi-v7a.apk)
+      - name: Build
+        working-directory: android
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          CLEARPDF_UPLOAD_STORE_PASSWORD: ${{ secrets.CLEARPDF_UPLOAD_STORE_PASSWORD }}
+          CLEARPDF_UPLOAD_KEY_ALIAS: ${{ secrets.CLEARPDF_UPLOAD_KEY_ALIAS }}
+          CLEARPDF_UPLOAD_KEY_PASSWORD: ${{ secrets.CLEARPDF_UPLOAD_KEY_PASSWORD }}
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          for abi in arm64-v8a armeabi-v7a; do
+            ./gradlew assembleRelease "-Partefact.abis=$abi" "-Partefact.version=$VERSION" --no-daemon
+            suffix=""; [ "$abi" = arm64-v8a ] || suffix="-$abi"
+            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/dist/Artefact-v$VERSION$suffix.apk"
+          done
+
+      - name: APK
+        run: |
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
+          echo >>"$GITHUB_STEP_SUMMARY"
+          for apk in dist/*.apk; do
+            certs="$("$apksigner" verify --print-certs "$apk")"
+            if [ "$GITHUB_REF_TYPE" = tag ] && grep -q "CN=Android Debug" <<<"$certs"; then
+              echo "::error::$apk is signed with the debug key"
+              exit 1
+            fi
+            {
+              echo "    $(basename "$apk")"
+              grep "certificate SHA-256" <<<"$certs" | sed 's/^/      /'
+            } >>"$GITHUB_STEP_SUMMARY"
+          done
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-apk
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Remove the release key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/clearpdf-upload-key.jks"
+
+  release:
+    name: GitHub Release
+    needs: apk
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-apk
+          path: dist
+
+      - name: Draft the release
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "$GITHUB_REF_NAME" --notes "## What's Changed" -- dist/*
+          echo "Draft **$GITHUB_REF_NAME** is ready: fill in What's Changed and publish it." >>"$GITHUB_STEP_SUMMARY"

@@ -1,32 +1,23 @@
-<p><b>ClearPDF</b> is a free, open-source PDF reader and editor for Android with a Liquid Glass interface. Your documents are processed on your device: there are no ads, no accounts and no uploads.</p>
+Artefact puts your PDFs, notes, to-do lists, photos and voice notes on one beautiful desk. It is free and open source, has no ads and no accounts, and nothing ever leaves your phone.
 
-<p><b>Read and edit PDFs</b></p>
-<ul>
-<li>Fast continuous reading, search, page bookmarks, auto-scroll and a dark mode for pages</li>
-<li>Sharp text at any zoom level</li>
-<li>Edit a PDF's own text in place, in its original font</li>
-<li>Fill PDF forms right on the page: text fields, checkboxes, radio buttons, dropdowns and list boxes</li>
-<li>Highlight, underline, strike through, draw, add shapes, text boxes, notes, images and signatures</li>
-<li>Select and copy text, with a loupe; OCR for scanned pages</li>
-</ul>
+One desk for everything
+* PDFs, notes, to-do lists, photos and voice notes side by side as cards
+* Tick list items right on their card, play voice notes in place
+* Filter by kind, pin what matters
 
-<p><b>PDF tools</b></p>
-<ul>
-<li>Merge, split, extract and organize pages; compress; add page numbers and watermarks</li>
-<li>Encrypt and decrypt; flatten forms; export pages as images or text</li>
-<li>Create PDFs from images, text, web pages and scans</li>
-</ul>
+Real PDF tools
+* Read: continuous or single page, Reading Mode, Night Mode, find, bookmarks, read aloud
+* Comment: highlight, underline, strike through, draw, text and voice comments
+* Fill and sign: form fields, Fill & Sign, digital IDs with live validation
+* Edit text and pictures, organise, crop, compress, combine, protect with a password
+* Export to Word, Excel, PowerPoint or images; scan paper and recognise its text
 
-<p><b>Office and images</b></p>
-<ul>
-<li>Open Word, PowerPoint and text documents; edit Excel (XLSX) spreadsheets and save them back</li>
-<li>Image editor: crop, adjust, filters and drawing</li>
-</ul>
+Quick Preview
+* "Open with Artefact" from a chat or a file manager shows the PDF in a floating card over that app. Pull it up for the full viewer, close it to be right back where you were.
 
-<p><b>Make it yours</b></p>
-<ul>
-<li>Tune the Liquid Glass look (blur, refraction, tint and more) or pick a preset</li>
-<li>Haptics you can switch off; English, Spanish, Italian, Portuguese and Russian</li>
-</ul>
+Notes and voice
+* Light Markdown notes with photos, to-do lists, voice notes recorded from the desk
 
-<p>Files opened from other apps open in their own ClearPDF window. The only network use is converting a web address you enter to PDF.</p>
+Liquid glass and expressive motion, in English, Arabic, German, Spanish, French, Italian, Portuguese and Russian.
+
+Artefact is the next version of ClearPDF. Artefact is not affiliated with or endorsed by Adobe. Acrobat is a trademark of Adobe Inc.
