@@ -248,7 +248,7 @@ fun PhotoEditScreen(vm: AppViewModel, noteId: String, name: String, onClose: () 
                 }
 
                 // "ORIGINAL" indicator when user holds down on the photo
-                AnimatedVisibility(
+                androidx.compose.animation.AnimatedVisibility(
                     visible = comparing,
                     enter = fadeIn(Fluid.fade()),
                     exit = fadeOut(Fluid.fade()),

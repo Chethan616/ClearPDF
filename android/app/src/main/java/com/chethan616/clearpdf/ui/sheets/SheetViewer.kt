@@ -104,6 +104,16 @@ import com.chethan616.clearpdf.ui.glass.GlassMenuItem
 import com.chethan616.clearpdf.ui.glass.GlassTextField
 import com.chethan616.clearpdf.ui.glass.pressable
 import com.chethan616.clearpdf.ui.theme.Candy
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
@@ -427,8 +437,10 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                     ) { GlassIcon(LucideIcons.MoreHorizontal, null, Modifier.size(20.dp)) }
                 }
                 if (searching) {
-                    val searchFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+                    val searchFocus = remember { FocusRequester() }
                     LaunchedEffect(Unit) { searchFocus.requestFocus() }
+                    val findLabel = stringResource(R.string.viewer_find_in_document)
+                    val clearLabel = stringResource(R.string.common_clear)
                     val qTrim = query.trim()
                     val notFound = qTrim.isNotEmpty() && grid.hits.isEmpty()
                     Row(
@@ -450,19 +462,19 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                                 .padding(start = 14.dp, end = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            androidx.compose.material3.Icon(
+                            Icon(
                                 LucideIcons.Search,
                                 null,
                                 tint = if (notFound) Candy.Tomato else c.inkSoft,
                                 modifier = Modifier.size(18.dp),
                             )
                             Spacer(Modifier.size(10.dp))
-                            androidx.compose.foundation.text.BasicTextField(
+                            BasicTextField(
                                 value = query,
                                 onValueChange = { query = it },
                                 singleLine = true,
                                 textStyle = ClearType.Body.copy(color = if (notFound) Candy.Tomato else c.ink),
-                                cursorBrush = androidx.compose.ui.graphics.SolidColor(if (notFound) Candy.Tomato else Candy.Sky),
+                                cursorBrush = SolidColor(if (notFound) Candy.Tomato else Candy.Sky),
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                 keyboardActions = KeyboardActions(onSearch = {
                                     val q = query.trim()
@@ -475,15 +487,15 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                                 }),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .androidx.compose.ui.focus.focusRequester(searchFocus)
-                                    .androidx.compose.ui.semantics.semantics {
-                                        androidx.compose.ui.semantics.contentDescription = stringResource(R.string.viewer_find_in_document)
+                                    .focusRequester(searchFocus)
+                                    .semantics {
+                                        contentDescription = findLabel
                                     },
                                 decorationBox = { inner ->
                                     Box(contentAlignment = Alignment.CenterStart) {
                                         if (query.isEmpty()) {
                                             Text(
-                                                stringResource(R.string.viewer_find_in_document),
+                                                findLabel,
                                                 style = ClearType.Body,
                                                 color = c.inkFaint,
                                                 maxLines = 1,
@@ -514,16 +526,16 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                                 Box(
                                     Modifier
                                         .size(24.dp)
-                                        .androidx.compose.ui.draw.clip(androidx.compose.foundation.shape.CircleShape)
-                                        .androidx.compose.foundation.clickable {
+                                        .clip(CircleShape)
+                                        .clickable {
                                             query = ""
                                             grid.hits = emptyList()
                                         },
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    androidx.compose.material3.Icon(
+                                    Icon(
                                         LucideIcons.X,
-                                        stringResource(R.string.common_clear),
+                                        clearLabel,
                                         tint = if (notFound) Candy.Tomato else c.inkSoft,
                                         modifier = Modifier.size(15.dp),
                                     )

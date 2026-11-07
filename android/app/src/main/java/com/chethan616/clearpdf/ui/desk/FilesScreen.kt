@@ -220,7 +220,7 @@ fun FilesScreen(vm: AppViewModel, onBrowse: () -> Unit) {
                     val accent = when (k) {
                         com.chethan616.clearpdf.engine.DocumentTypes.Kind.All -> Candy.Sky
                         com.chethan616.clearpdf.engine.DocumentTypes.Kind.Pdf -> Candy.Tomato
-                        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Word -> Candy.Cobalt
+                        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Word -> Candy.InkBlue
                         com.chethan616.clearpdf.engine.DocumentTypes.Kind.Slides -> Candy.Tangerine
                         com.chethan616.clearpdf.engine.DocumentTypes.Kind.Sheets -> Candy.Lime
                         com.chethan616.clearpdf.engine.DocumentTypes.Kind.Text -> Candy.Grape
