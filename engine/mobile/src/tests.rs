@@ -566,3 +566,44 @@ fn opens_a_presentation_as_slides() {
     assert_eq!(s.text_of(info.id, hits[0].range).unwrap(), "results");
     assert_eq!(file_thumbnail(deck_file("Thumb", "T.pptx"), 100).unwrap().width, 100);
 }
+
+/// A workbook: `csv` read by GridCraft and written as `name` (.csv as it is, .xlsx by its writer).
+fn book_file(csv: &str, name: &str) -> String {
+    let path = scratch().join(name);
+    let bytes = if name.ends_with(".csv") {
+        csv.as_bytes().to_vec()
+    } else {
+        let (wb, _) = gridcraft_engine::io::open_bytes("t.csv", csv.as_bytes()).unwrap();
+        gridcraft_engine::io::save_bytes(&wb, name).unwrap()
+    };
+    std::fs::write(&path, bytes).unwrap();
+    path.to_string_lossy().into_owned()
+}
+
+#[test]
+fn opens_a_workbook_and_serves_its_cells() {
+    let s = MobileSession::new();
+    for name in ["Prices.xlsx", "Prices.csv"] {
+        let info = s.open(book_file("Fruit,Price\nApples,3\nPears,4.5\n", name), None).unwrap();
+        assert_eq!(info.kind, DocumentKind::Sheets, "{name}");
+        let sheets = s.sheets(info.id).unwrap();
+        assert_eq!(sheets.len(), 1);
+        assert_eq!((sheets[0].rows, sheets[0].cols), (3, 2));
+        let cells = s.sheet_cells(info.id, 0, 0, 10, 0, 5).unwrap();
+        let text = |r: u32, c: u32| cells.iter().find(|x| x.row == r && x.col == c).map(|x| x.text.clone());
+        assert_eq!(text(1, 0).as_deref(), Some("Apples"));
+        assert_eq!(text(2, 1).as_deref(), Some("4.5"));
+        // General: numbers right, text left
+        assert_eq!(cells.iter().find(|x| x.text == "3").map(|x| x.align.as_str()), Some("r"));
+        assert_eq!(cells.iter().find(|x| x.text == "Pears").map(|x| x.align.as_str()), Some("l"));
+        let axes = s.sheet_axes(info.id, 0, 0, 3, 0, 2).unwrap();
+        assert!(axes.col_widths.iter().all(|w| *w > 20.0) && axes.row_heights.iter().all(|h| *h > 8.0), "{axes:?}");
+        let hits = s.sheet_find(info.id, 0, "pear".into(), false, 10).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!((hits[0].row0, hits[0].col0), (2, 0));
+        assert!(s.sheet_cells(info.id, 0, 0, 1000, 0, 1000).is_err(), "a window too large is refused");
+        assert!(s.render_page(info.id, 0, 0.5, None).is_ok());
+    }
+    let pdf = s.open(blank_pdf(1), None).unwrap();
+    assert!(s.sheets(pdf.id).is_err());
+}

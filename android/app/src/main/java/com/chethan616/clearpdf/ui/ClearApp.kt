@@ -261,7 +261,12 @@ private fun Viewer(vm: AppViewModel, doc: OpenDocument) {
             Modifier.fillMaxSize().windowInsetsPadding(
                 if (fullWidth) WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal) else WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
             ).then(if (fullWidth) Modifier else Modifier.background(pdfColors.surface)),
-        ) { com.chethan616.clearpdf.ui.glass.ProvideScreenInk { ViewerScreen(vm, doc) } }
+        ) {
+            com.chethan616.clearpdf.ui.glass.ProvideScreenInk {
+                // a workbook is a grid of its own, not pages
+                if (doc.isSheets) com.chethan616.clearpdf.ui.sheets.SheetViewer(vm, doc) else ViewerScreen(vm, doc)
+            }
+        }
     }
 }
 

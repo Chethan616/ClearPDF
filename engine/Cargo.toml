@@ -66,6 +66,10 @@ deckcraft-model = { git = "https://github.com/storytold/deckcraft", rev = "159ed
 deckcraft-pptx = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
 deckcraft-render = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
 
+# Excel (.xlsx, .xlsb, .ods, .csv): storytold/gridcraft's engine (formulas, number formats), pinned.
+gridcraft-engine = { git = "https://github.com/storytold/gridcraft", rev = "6a8eb4ff42cfa88b5bdd3eec13c6db3874d95214", version = "0.16.0" }
+gridcraft-xlsx = { git = "https://github.com/storytold/gridcraft", rev = "6a8eb4ff42cfa88b5bdd3eec13c6db3874d95214", version = "0.16.0" }
+
 # pdf
 hayro = "0.7.1"
 hayro-syntax = "0.7.2"

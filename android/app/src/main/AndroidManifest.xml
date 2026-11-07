@@ -58,6 +58,12 @@
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.slideshow" />
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.template" />
                 <data android:mimeType="application/vnd.ms-powerpoint.presentation.macroEnabled.12" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                <data android:mimeType="application/vnd.ms-excel.sheet.macroEnabled.12" />
+                <data android:mimeType="application/vnd.ms-excel.sheet.binary.macroEnabled.12" />
+                <data android:mimeType="application/vnd.oasis.opendocument.spreadsheet" />
+                <data android:mimeType="text/csv" />
+                <data android:mimeType="text/comma-separated-values" />
             </intent-filter>
         </activity>
 
@@ -97,6 +103,12 @@
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.slideshow" />
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.template" />
                 <data android:mimeType="application/vnd.ms-powerpoint.presentation.macroEnabled.12" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                <data android:mimeType="application/vnd.ms-excel.sheet.macroEnabled.12" />
+                <data android:mimeType="application/vnd.ms-excel.sheet.binary.macroEnabled.12" />
+                <data android:mimeType="application/vnd.oasis.opendocument.spreadsheet" />
+                <data android:mimeType="text/csv" />
+                <data android:mimeType="text/comma-separated-values" />
             </intent-filter>
         </activity>
 

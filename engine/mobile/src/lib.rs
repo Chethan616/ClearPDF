@@ -26,7 +26,10 @@ use serde_json::{Value, json};
 uniffi::setup_scaffolding!();
 
 mod office;
+mod sheets;
 mod slides;
+
+pub use sheets::{CellEdge, CellSpan, CellView, SheetAxes, SheetInfo};
 #[cfg(test)]
 mod tests;
 mod word;
@@ -76,6 +79,9 @@ pub enum DocumentKind {
     Word,
     /// A presentation (.pptx), read by DeckCraft: each slide is a page.
     Slides,
+    /// A workbook (.xlsx, .xlsb, .ods, .csv), read by GridCraft: each sheet is a page, drawn by the
+    /// app as a grid of its own (see [`MobileSession::sheets`]).
+    Sheets,
 }
 
 /// An open document as the viewer's title, menus and properties show it.
@@ -499,6 +505,12 @@ impl MobileSession {
         self.office.lock().unwrap_or_else(PoisonError::into_inner).get(&doc).cloned()
     }
 
+    /// Run `f` on workbook `doc`.
+    fn with_sheets<T>(&self, doc: u64, f: impl FnOnce(&sheets::SheetBook) -> Result<T, MobileError>) -> Result<T, MobileError> {
+        let d = self.office(doc).ok_or(MobileError::NoDocument(doc))?;
+        d.as_sheets().ok_or(MobileError::NoDocument(doc)).and_then(f)
+    }
+
     fn with_doc<T>(&self, doc: u64, f: impl FnOnce(&Document) -> T) -> Result<T, MobileError> {
         let a = self.lock();
         let d = a.session().get(DocId(doc)).ok_or(MobileError::NoDocument(doc))?;
@@ -862,6 +874,31 @@ impl MobileSession {
             }
             out
         })
+    }
+
+    /// The sheets of workbook `doc`, in tab order.
+    pub fn sheets(&self, doc: u64) -> Result<Vec<SheetInfo>, MobileError> {
+        self.with_sheets(doc, |b| Ok(b.sheets()))
+    }
+
+    /// Column widths and row heights (points) of a window of sheet `sheet`.
+    pub fn sheet_axes(&self, doc: u64, sheet: u32, row0: u32, rows: u32, col0: u32, cols: u32) -> Result<SheetAxes, MobileError> {
+        self.with_sheets(doc, |b| b.axes(sheet, row0, rows, col0, cols))
+    }
+
+    /// The cells of a window of sheet `sheet` that show something, with their looks.
+    pub fn sheet_cells(&self, doc: u64, sheet: u32, row0: u32, rows: u32, col0: u32, cols: u32) -> Result<Vec<CellView>, MobileError> {
+        self.with_sheets(doc, |b| b.cells(sheet, row0, rows, col0, cols))
+    }
+
+    /// The merged areas of sheet `sheet`.
+    pub fn sheet_merges(&self, doc: u64, sheet: u32) -> Result<Vec<CellSpan>, MobileError> {
+        self.with_sheets(doc, |b| b.merges(sheet))
+    }
+
+    /// The cells of sheet `sheet` showing `query`, at most `limit`, in reading order.
+    pub fn sheet_find(&self, doc: u64, sheet: u32, query: String, case_sensitive: bool, limit: u32) -> Result<Vec<CellSpan>, MobileError> {
+        self.with_sheets(doc, |b| b.find(sheet, &query, case_sensitive, limit))
     }
 
     /// Drop the idle renderers and text layers (the system is short of memory); the next render

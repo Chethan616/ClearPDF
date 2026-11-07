@@ -34,6 +34,11 @@ pub(crate) trait OfficeDoc: Send + Sync {
     /// Drop what can be built again (the system is short of memory).
     fn release_memory(&self);
 
+    /// A workbook, whose sheets the app draws as a grid of its own.
+    fn as_sheets(&self) -> Option<&crate::sheets::SheetBook> {
+        None
+    }
+
     /// Page 1 drawn to fit `max_side` pixels, for file lists.
     fn thumbnail(&self, max_side: u32) -> Result<RenderedImage, MobileError> {
         let page = self.info(0).pages.into_iter().next().ok_or_else(|| MobileError::Open("the document has no pages".into()))?;
@@ -47,10 +52,12 @@ pub(crate) trait OfficeDoc: Send + Sync {
 pub(crate) enum OfficeFile {
     Word(&'static str),
     Slides,
+    Sheets(&'static str),
 }
 
 const WORD_EXTENSIONS: &[&str] = &["docx", "docm", "dotx", "dotm", "doc", "dot", "odt", "ott", "rtf"];
 const SLIDE_EXTENSIONS: &[&str] = &["pptx", "pptm", "ppsx", "ppsm", "potx", "potm"];
+const SHEET_EXTENSIONS: &[&str] = &["xlsx", "xlsm", "xltx", "xltm", "xlsb", "ods", "csv", "tsv"];
 
 /// What the bytes of a file are, as far as office documents go, or `None` when it is not one (a
 /// PDF, or anything else). An encrypted package is a compound file whatever the application: its
@@ -63,6 +70,7 @@ pub(crate) fn sniff(bytes: &[u8], path: &str) -> Option<OfficeFile> {
     let ext = std::path::Path::new(path).extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
     let word_named = ext.as_deref().and_then(|e| WORD_EXTENSIONS.iter().find(|w| **w == e).copied());
     let slides_named = ext.as_deref().is_some_and(|e| SLIDE_EXTENSIONS.contains(&e));
+    let sheets_named = ext.as_deref().and_then(|e| SHEET_EXTENSIONS.iter().find(|w| **w == e).copied());
     let contains = |needle: &[u8]| bytes.windows(needle.len()).any(|w| w == needle);
     if bytes.starts_with(b"PK\x03\x04") {
         // a zip package: its part names are plain text in the local headers and the directory
@@ -74,6 +82,18 @@ pub(crate) fn sniff(bytes: &[u8], path: &str) -> Option<OfficeFile> {
         }
         if contains(b"ppt/presentation.xml") {
             return Some(OfficeFile::Slides);
+        }
+        if contains(b"xl/workbook.xml") {
+            return Some(OfficeFile::Sheets(match sheets_named {
+                Some(e @ ("xlsm" | "xltx" | "xltm")) => e,
+                _ => "xlsx",
+            }));
+        }
+        if contains(b"xl/workbook.bin") {
+            return Some(OfficeFile::Sheets("xlsb"));
+        }
+        if contains(b"application/vnd.oasis.opendocument.spreadsheet") {
+            return Some(OfficeFile::Sheets("ods"));
         }
         if contains(b"application/vnd.oasis.opendocument.text") {
             return Some(OfficeFile::Word(if word_named == Some("ott") { "ott" } else { "odt" }));
@@ -90,12 +110,21 @@ pub(crate) fn sniff(bytes: &[u8], path: &str) -> Option<OfficeFile> {
             if slides_named {
                 return Some(OfficeFile::Slides);
             }
+            if let Some(e @ ("xlsx" | "xlsm" | "xltx" | "xltm" | "xlsb")) = sheets_named {
+                return Some(OfficeFile::Sheets(e));
+            }
             return word_named.filter(|e| matches!(*e, "docx" | "docm" | "dotx" | "dotm")).map(OfficeFile::Word);
         }
         return None;
     }
     if head.starts_with(b"{\\rtf") {
         return Some(OfficeFile::Word("rtf"));
+    }
+    // plain-text tables are known by their name alone
+    if let Some(e @ ("csv" | "tsv")) = sheets_named
+        && !head.contains(&0)
+    {
+        return Some(OfficeFile::Sheets(e));
     }
     None
 }
@@ -116,7 +145,9 @@ pub(crate) fn file_at(path: &str) -> Result<Option<(OfficeFile, Vec<u8>)>, Mobil
     let mut head = [0u8; 8];
     let n = std::fs::File::open(path).and_then(|mut f| f.read(&mut head)).map_err(|e| MobileError::Open(format!("{path}: {e}")))?;
     let head = head.get(..n).unwrap_or_default();
-    if !(head.starts_with(b"PK\x03\x04") || head.starts_with(&[0xD0, 0xCF, 0x11, 0xE0]) || head.starts_with(b"{\\rtf")) {
+    let ext = std::path::Path::new(path).extension().and_then(|e| e.to_str()).unwrap_or_default();
+    let text_table = ext.eq_ignore_ascii_case("csv") || ext.eq_ignore_ascii_case("tsv");
+    if !(text_table || head.starts_with(b"PK\x03\x04") || head.starts_with(&[0xD0, 0xCF, 0x11, 0xE0]) || head.starts_with(b"{\\rtf")) {
         return Ok(None);
     }
     let bytes = read(path)?;
@@ -134,6 +165,7 @@ pub(crate) fn open(
     Ok(match kind {
         OfficeFile::Word(ext) => Arc::new(crate::word::WordDocument::open(path, ext, bytes, password, locale)?),
         OfficeFile::Slides => Arc::new(crate::slides::SlideDeck::open(path, bytes)?),
+        OfficeFile::Sheets(ext) => Arc::new(crate::sheets::SheetBook::open(path, ext, bytes, password)?),
     })
 }
 
@@ -185,7 +217,8 @@ mod tests {
         assert_eq!(sniff(b"PK\x03\x04....word/document.xml....", "/a/Letter.dotx"), Some(OfficeFile::Word("dotx")));
         assert_eq!(sniff(b"PK\x03\x04mimetypeapplication/vnd.oasis.opendocument.text", "/a/x"), Some(OfficeFile::Word("odt")));
         assert_eq!(sniff(b"PK\x03\x04....ppt/presentation.xml....", "/a/Deck.pdf"), Some(OfficeFile::Slides));
-        assert_eq!(sniff(b"PK\x03\x04xl/workbook.xml", "/a/Book.xlsx"), None);
+        assert_eq!(sniff(b"PK\x03\x04xl/workbook.xml", "/a/Book.pdf"), Some(OfficeFile::Sheets("xlsx")));
+        assert_eq!(sniff(b"a,b\n1,2\n", "/a/t.csv"), Some(OfficeFile::Sheets("csv")));
         assert_eq!(sniff(b"{\\rtf1\\ansi hello}", "/a/x.txt"), Some(OfficeFile::Word("rtf")));
         assert_eq!(sniff(b"plain words", "/a/notes.docx"), None);
     }
@@ -196,7 +229,8 @@ mod tests {
         cfb.extend("EncryptedPackage".encode_utf16().flat_map(u16::to_le_bytes));
         assert_eq!(sniff(&cfb, "/a/Locked.docx"), Some(OfficeFile::Word("docx")));
         assert_eq!(sniff(&cfb, "/a/Locked.pptx"), Some(OfficeFile::Slides));
-        assert_eq!(sniff(&cfb, "/a/Locked.xlsx"), None);
+        assert_eq!(sniff(&cfb, "/a/Locked.xlsx"), Some(OfficeFile::Sheets("xlsx")));
+        assert_eq!(sniff(&cfb, "/a/Locked.bin"), None);
     }
 
     #[test]

@@ -83,6 +83,9 @@ class OpenDocument(
     /** A presentation: each page is a slide. */
     val isSlides: Boolean get() = info.kind == DocumentKind.SLIDES
 
+    /** A workbook: drawn as a grid, not pages. */
+    val isSheets: Boolean get() = info.kind == DocumentKind.SHEETS
+
     /** The file name without its extension, as the reference titles documents. */
     val title: String get() = com.chethan616.clearpdf.engine.DocumentTypes.title(info.name)
     val name: String get() = info.name
