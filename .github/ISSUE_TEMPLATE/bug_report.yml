@@ -1,0 +1,66 @@
+name: Bug report
+description: Report a reproducible problem in ClearPDF.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve ClearPDF. Please remove private document content, personal data, and access tokens from screenshots or logs.
+  - type: input
+    id: version
+    attributes:
+      label: ClearPDF version
+      description: Find this in Settings → About, or on the release page.
+      placeholder: "2.0.0 (V4)"
+    validations:
+      required: true
+  - type: dropdown
+    id: distribution
+    attributes:
+      label: Where did you install ClearPDF from?
+      options:
+        - GitHub release APK
+        - Google Play
+        - Built from source
+        - Other / not sure
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device model
+      placeholder: "Samsung Galaxy S24 Ultra"
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android version
+      placeholder: "Android 16"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Open … 2. Tap … 3. …"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or logs
+      description: Optional. Redact names, file paths, document contents, and tokens before attaching.

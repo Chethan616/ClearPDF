@@ -1,0 +1,48 @@
+name: Feature request
+description: Describe a user problem and a change that could solve it.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What task or workflow is difficult or missing?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional. What workarounds or other approaches have you tried?
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Optional; choose the closest match.
+      multiple: true
+      options:
+        - PDF reading or annotations
+        - PDF tools
+        - Office documents or spreadsheets
+        - Image editor or scanner
+        - Performance or accessibility
+        - Other
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Include a mockup, example, or constraints if useful.
+  - type: checkboxes
+    id: prior_search
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked existing issues and pull requests for a similar request.
+          required: true
