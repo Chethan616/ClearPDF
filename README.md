@@ -42,13 +42,7 @@ Read, sign and edit PDFs, open and edit Word, Excel and PowerPoint files, and ke
 
 ## Featured by HowToMen
 
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=TYNzg59ke30&t=548s">
-    <img src="https://img.youtube.com/vi/TYNzg59ke30/maxresdefault.jpg" alt="▶ ClearPDF featured by HowToMen — watch from 9:08" width="600">
-  </a>
-  <br>
-  <sub>▶ Tap to watch · starts at 9:08</sub>
-</p>
+ClearPDF / Artefact was featured by HowToMen — [watch from 9:08 →](https://www.youtube.com/watch?v=TYNzg59ke30&t=548s)
 
 ## Screenshots
 
@@ -66,9 +60,15 @@ Read, sign and edit PDFs, open and edit Word, Excel and PowerPoint files, and ke
 </table>
 
 <p align="center">
-
-https://github.com/Chethan616/ClearPDF/assets/docs/media/artefact-demo.mp4
-
+  <video src="https://raw.githubusercontent.com/Chethan616/ClearPDF/artefact/docs/media/artefact-demo.mp4"
+         controls
+         autoplay
+         loop
+         muted
+         width="600"
+         style="border-radius:16px">
+    <a href="https://raw.githubusercontent.com/Chethan616/ClearPDF/artefact/docs/media/artefact-demo.mp4">Watch the Artefact demo</a>
+  </video>
 </p>
 
 ## What you can do
@@ -146,6 +146,35 @@ If the badge doesn't open the app, add it manually:
 1. Open Obtainium → **Add App**.
 2. Paste `https://github.com/Chethan616/ClearPDF`.
 3. Pick the APK suffix for your device from the table above when prompted.
+
+### Install the latest APK via ADB
+
+Useful for quick sideloading from a PC or emulator testing:
+
+```bash
+# 1 — download the arm64 APK from the latest release
+curl -L -o artefact.apk \
+  "$(curl -s https://api.github.com/repos/Chethan616/ClearPDF/releases/latest \
+     | grep browser_download_url | grep arm64-v8a | cut -d '"' -f 4)"
+
+# 2 — install over USB (or use -s <device-serial> to target a specific device)
+adb install -r artefact.apk
+```
+
+On Windows (PowerShell):
+
+```powershell
+# 1 — download
+$url = (Invoke-RestMethod "https://api.github.com/repos/Chethan616/ClearPDF/releases/latest").assets |
+       Where-Object { $_.name -like "*arm64*" } |
+       Select-Object -ExpandProperty browser_download_url
+Invoke-WebRequest $url -OutFile artefact.apk
+
+# 2 — install
+adb install -r artefact.apk
+```
+
+> **Tip:** Use `adb install -r -d artefact.apk` if you are downgrading from a newer build. For emulators grab the `-x86_64.apk` instead.
 
 ## Privacy and network use
 
