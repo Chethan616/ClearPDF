@@ -54,20 +54,21 @@ Read, sign and edit PDFs, open and edit Word, Excel and PowerPoint files, and ke
 
 <table align="center">
   <tr>
-    <td align="center"><img src="docs/media/desk-light.jpg" width="200" alt="Desk – light mode"></td>
-    <td align="center"><img src="docs/media/pdf-viewer.jpg" width="200" alt="PDF viewer"></td>
-    <td align="center"><img src="docs/media/word.jpg" width="200" alt="Word editing"></td>
+    <td align="center"><img src="docs/media/01-home.png" width="200" alt="Artefact home desk"></td>
+    <td align="center"><img src="docs/media/02-shopping-list.png" width="200" alt="Shopping list on the desk"></td>
+    <td align="center"><img src="docs/media/03-files-menu.png" width="200" alt="Files and menu"></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/media/desk-dark.jpg" width="200" alt="Desk – dark mode"></td>
-    <td align="center"><img src="docs/media/slides.jpg" width="200" alt="PowerPoint slides"></td>
-    <td align="center"><img src="docs/media/photo-editor.jpg" width="200" alt="Photo editor"></td>
+    <td align="center"><img src="docs/media/04-pdf-viewer.png" width="200" alt="PDF viewer"></td>
+    <td align="center"><img src="docs/media/05-thought-note.png" width="200" alt="Thought of the day note"></td>
+    <td align="center"><img src="docs/media/05-tools.png" width="200" alt="PDF tools"></td>
   </tr>
 </table>
 
 <p align="center">
-  <img src="docs/media/pdf-scroll.gif" width="32%" alt="Scrolling a PDF">
-  <img src="docs/media/quick-preview.gif" width="32%" alt="Quick Preview over another app">
+
+https://github.com/Chethan616/ClearPDF/assets/docs/media/artefact-demo.mp4
+
 </p>
 
 ## What you can do
