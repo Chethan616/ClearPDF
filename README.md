@@ -51,7 +51,7 @@ ClearPDF / Artefact was featured by HowToMen — [watch from 9:08 →](https://w
     <img src="docs/media/artefact-demo.gif" width="70%" alt="Artefact walkthrough demo">
   </a>
   <br>
-  <sub>▶ Click animation to open full MP4 video (or view <a href="docs/media/artefact-demo.mp4">artefact-demo.mp4</a>)</sub>
+  <sub>No need to open the app — tap a PDF, Word doc or spreadsheet in WhatsApp, Gmail or any app and it surfaces as a floating glass card, right over your chat. Like Apple's Quick Look on Android. Swipe up to open it fully in Artefact.</sub>
 </p>
 
 <table align="center">

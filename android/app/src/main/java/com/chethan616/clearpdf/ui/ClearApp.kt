@@ -159,6 +159,7 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
     }
     BackHandler(enabled = doc != null && vm.toolScreen == null) { vm.closeDocument() }
     BackHandler(enabled = doc == null && vm.onboarded && !vm.settingsOpen && vm.openNote == null && vm.homeTab != HomeTab.Home && vm.toolScreen == null) { vm.homeTab = HomeTab.Home }
+    BackHandler(enabled = vm.editingPhoto != null) { vm.editingPhoto = null }
 
     val route = when {
         !vm.onboarded -> "welcome"
@@ -166,7 +167,7 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
         vm.openNote != null -> "note:" + vm.openNote
         else -> vm.homeTab.name
     }
-    val onDesk = doc == null && route == HomeTab.Home.name && vm.toolScreen == null && vm.signaturePad == null && vm.certSign == null && !vm.idCreate
+    val onDesk = doc == null && route == HomeTab.Home.name && vm.toolScreen == null && vm.signaturePad == null && vm.certSign == null && !vm.idCreate && vm.editingPhoto == null && vm.presenting == null
     val desk = remember { DeskState(scope) }
     var dockIntoNote by remember { mutableStateOf(false) }
     var dockFromNote by remember { mutableStateOf(false) }
@@ -237,7 +238,7 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
                 if (vm.noteBarHidden != (intoNote || fromNote)) vm.noteBarHidden = intoNote || fromNote
                 lastRoute[0] = route
             }
-            if (onDesk || dockIntoNote) {
+            if ((onDesk || dockIntoNote) && vm.editingPhoto == null && vm.presenting == null) {
                 CreateDock(vm, desk, onBrowse, intoNote = !onDesk, fromNote = onDesk && dockFromNote) {
                     dockIntoNote = false
                     dockFromNote = false
