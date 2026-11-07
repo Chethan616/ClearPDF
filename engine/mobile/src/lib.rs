@@ -32,6 +32,7 @@ mod slides;
 
 pub use photo::PhotoEditor;
 pub use sheets::{CellEdge, CellSpan, CellView, SheetAxes, SheetInfo};
+pub use word::WordCaret;
 #[cfg(test)]
 mod tests;
 mod word;
@@ -889,6 +890,55 @@ impl MobileSession {
     /// The formats office document `doc` can be written as, PDF first (empty for a PDF).
     pub fn export_formats(&self, doc: u64) -> Vec<String> {
         self.office(doc).map(|d| office::formats(d.info(doc).kind).iter().map(|f| f.to_string()).collect()).unwrap_or_default()
+    }
+
+    /// Save office document `doc`'s edits to absolute path `path` (its working copy), in its own format.
+    pub fn save_office(&self, doc: u64, path: String) -> Result<(), MobileError> {
+        self.office(doc).ok_or(MobileError::NoDocument(doc))?.save(&path)
+    }
+
+    /// Run GridCraft command `command` (JSON `params_json`, `""` = none) on `area` of sheet `sheet`
+    /// of workbook `doc`, the area selected first: formatting (`home.bold`, `home.fillColor`,
+    /// `home.alignCenter`, `home.percent`, ...), `cell.set`, `home.insertRows`, `edit.undo`, ...
+    /// Its JSON result.
+    pub fn sheet_command(&self, doc: u64, sheet: u32, area: CellSpan, command: String, params_json: String) -> Result<String, MobileError> {
+        let params = if params_json.trim().is_empty() {
+            serde_json::json!({})
+        } else {
+            serde_json::from_str(&params_json).map_err(|e| MobileError::Command(format!("`{command}`: the arguments are not valid JSON: {e}")))?
+        };
+        self.with_sheets(doc, |b| b.command(sheet, area, &command, params)).map(|v| v.to_string())
+    }
+
+    /// Run WordCraft command `command` (JSON `params_json`, `""` = none) on Word document `doc`:
+    /// `caret.set {page, x, y, extend?}`, `text.insert {text}`, `text.backspace`, `text.newParagraph`,
+    /// `format.bold`, `para.alignCenter`, `para.bullets`, `para.style {style}`, `edit.undo`, ...
+    /// Its JSON result.
+    pub fn word_command(&self, doc: u64, command: String, params_json: String) -> Result<String, MobileError> {
+        let params = if params_json.trim().is_empty() {
+            serde_json::json!({})
+        } else {
+            serde_json::from_str(&params_json).map_err(|e| MobileError::Command(format!("`{command}`: the arguments are not valid JSON: {e}")))?
+        };
+        let d = self.office(doc).ok_or(MobileError::NoDocument(doc))?;
+        let w = d.as_word().ok_or(MobileError::NoDocument(doc))?;
+        w.run(&command, &params).map(|v| v.to_string())
+    }
+
+    /// Where Word document `doc`'s caret is, and its selection.
+    pub fn word_caret(&self, doc: u64) -> Option<WordCaret> {
+        self.office(doc).and_then(|d| d.as_word().and_then(|w| w.caret()))
+    }
+
+    /// Put `input` (text, a number or `=formula`) in a cell, as typing it in the formula bar does.
+    pub fn sheet_set_cell(&self, doc: u64, sheet: u32, row: u32, col: u32, input: String) -> Result<(), MobileError> {
+        let cell = CellSpan { row0: row, col0: col, row1: row, col1: col };
+        self.with_sheets(doc, |b| b.command(sheet, cell, "cell.set", serde_json::json!({ "input": input }))).map(|_| ())
+    }
+
+    /// What the formula bar shows for a cell: its formula, else its value as typed.
+    pub fn sheet_input(&self, doc: u64, sheet: u32, row: u32, col: u32) -> Result<String, MobileError> {
+        self.with_sheets(doc, |b| b.input(sheet, row, col))
     }
 
     /// The sheets of workbook `doc`, in tab order.

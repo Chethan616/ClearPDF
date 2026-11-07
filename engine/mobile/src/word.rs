@@ -16,6 +16,22 @@ use wordcraft_engine::render::RenderOptions;
 use crate::office::{ASCENT, DESCENT, OfficeDoc, is_web_link, text_glyph};
 use crate::{DocumentInfo, DocumentKind, LinkInfo, MobileError, PageInfo, RenderedImage, TileRect};
 
+/// Where the caret is on a page (points), and the selection's rectangles when there is one.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct WordCaret {
+    pub page: u32,
+    pub x: f32,
+    pub top: f32,
+    pub height: f32,
+    /// The selected text's rectangles, five numbers each: page, x0, y0, x1, y1 (empty for a caret).
+    pub selection: Vec<f32>,
+}
+
+/// Commands that only move the caret or read: the document's version stays.
+fn changes_nothing(command: &str) -> bool {
+    command.starts_with("caret.") || command.starts_with("select.") || command == "format.state" || command == "list.get"
+}
+
 /// One open Word document: the engine's session (document, layout, history) and its text layers.
 pub(crate) struct WordDocument {
     state: Mutex<WordState>,
@@ -88,6 +104,37 @@ impl WordDocument {
     }
 }
 
+impl WordDocument {
+    /// Run WordCraft command `command` with `params` (`text.insert {text}`, `format.bold`,
+    /// `para.alignCenter`, `caret.set {page, x, y}`, `edit.undo`, ...); its JSON result.
+    pub(crate) fn run(&self, command: &str, params: &serde_json::Value) -> Result<serde_json::Value, MobileError> {
+        let mut s = self.lock();
+        let out = s.session.run(command, params).map_err(|e| MobileError::Command(e.to_string()))?;
+        if !changes_nothing(command) {
+            s.generation = s.generation.wrapping_add(1);
+        }
+        Ok(out)
+    }
+
+    /// The caret (or the selection) as it is drawn.
+    pub(crate) fn caret(&self) -> Option<WordCaret> {
+        let mut s = self.lock();
+        let layout = s.session.layout();
+        let sel = s.session.sel.clone();
+        let c = layout.caret(&sel.focus)?;
+        let selection = if sel.anchor == sel.focus {
+            Vec::new()
+        } else {
+            layout
+                .selection_rects(&s.session.doc, &sel.anchor, &sel.focus, c.page)
+                .into_iter()
+                .flat_map(|(page, r)| [page as f32, r.x, r.y, r.x + r.w, r.y + r.h])
+                .collect()
+        };
+        Some(WordCaret { page: u32::try_from(c.page).unwrap_or(u32::MAX), x: c.x, top: c.top, height: c.height, selection })
+    }
+}
+
 impl OfficeDoc for WordDocument {
     fn info(&self, id: u64) -> DocumentInfo {
         let (doc, layout, generation) = self.snapshot();
@@ -109,15 +156,15 @@ impl OfficeDoc for WordDocument {
             file_size: s.file_size,
             encrypted: s.encrypted,
             tagged: false,
-            read_only_reason: Some("Word documents open for reading in this version".into()),
+            read_only_reason: None,
             allows_printing: true,
             allows_copying: true,
             allows_annotation: false,
             allows_form_filling: false,
             allows_assembly: false,
             dirty: s.session.dirty,
-            undo: None,
-            redo: None,
+            undo: s.session.undo_label().map(str::to_string),
+            redo: s.session.redo_label().map(str::to_string),
             fields: 0,
             has_outline: false,
             attachments: 0,
@@ -177,6 +224,19 @@ impl OfficeDoc for WordDocument {
         let s = self.lock();
         // the engine picks its writer by the name's extension
         wordcraft_engine::io::save_bytes(&format!("document.{format}"), &s.session.doc).map_err(MobileError::Command)
+    }
+
+    fn save(&self, path: &str) -> Result<(), MobileError> {
+        let mut s = self.lock();
+        let password = s.session.password.as_ref().map(|p| p.as_str().to_string());
+        let opts = wordcraft_engine::io::ExportOptions::default();
+        wordcraft_engine::io::save_path_with(std::path::Path::new(path), &s.session.doc, password.as_deref(), &opts).map_err(MobileError::Command)?;
+        s.session.dirty = false;
+        Ok(())
+    }
+
+    fn as_word(&self) -> Option<&WordDocument> {
+        Some(self)
     }
 
     /// The text layers go; they are built again when needed.

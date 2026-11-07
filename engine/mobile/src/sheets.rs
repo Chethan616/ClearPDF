@@ -3,7 +3,7 @@
 //! cells of a window with their looks, column widths and row heights, merges, frozen panes). Its
 //! sheets still count as the document's pages, for titles, Recent and thumbnails.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use gridcraft_engine::core::CellRef;
 use gridcraft_engine::model::{BorderLine, BorderStyle, Color, HAlign, PatternType, Sheet, VAlign, Visibility, Workbook};
@@ -82,9 +82,9 @@ pub struct CellSpan {
     pub col1: u32,
 }
 
-/// One open workbook, its formulas computed.
+/// One open workbook, held by GridCraft's session (its formulas computed, its edits undoable).
 pub(crate) struct SheetBook {
-    wb: Arc<Workbook>,
+    session: Mutex<gridcraft_engine::Session>,
     name: String,
     path: String,
     file_size: u64,
@@ -110,17 +110,69 @@ impl SheetBook {
         let name = crate::office::file_name(path);
         let stem = std::path::Path::new(&name).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         let encrypted = gridcraft_xlsx::sniff(bytes) == gridcraft_xlsx::Format::Encrypted;
-        let (mut wb, _warnings) =
+        let (wb, _warnings) =
             gridcraft_engine::io::open_bytes_with_password(&format!("{stem}.{ext}"), bytes, password).map_err(|e| open_error(e.to_string()))?;
-        // computed as the desktop app does on open: values the file left stale are brought up to date
-        gridcraft_engine::calc::Calc::new().recalc_all(&mut wb);
-        Ok(SheetBook { wb: Arc::new(wb), name, path: path.to_string(), file_size: bytes.len() as u64, encrypted })
+        // the desktop app's document: computed on open (values the file left stale are brought up to
+        // date), with its selection and undo history
+        let mut session = gridcraft_engine::Session::new();
+        let doc = gridcraft_engine::DocState::new(wb, Some(path.to_string()), stem, gridcraft_engine::Trust::FromFile);
+        let i = session.add_document(doc);
+        session.set_active(i);
+        Ok(SheetBook { session: Mutex::new(session), name, path: path.to_string(), file_size: bytes.len() as u64, encrypted })
     }
 
-    fn sheet(&self, index: u32) -> Result<&Sheet, MobileError> {
-        let n = self.wb.sheets.len();
-        self.wb
-            .sheets
+    fn lock(&self) -> MutexGuard<'_, gridcraft_engine::Session> {
+        self.session.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// The workbook as it is now (shared: reading it never holds the session).
+    fn wb(&self) -> Arc<Workbook> {
+        self.lock().active().map(|d| d.wb.clone()).unwrap_or_default()
+    }
+
+    /// Run GridCraft command `command` with `params` on the cells of `area` on sheet `sheet` (they
+    /// are selected first, as a tap selects them in the app): the Home tab's formatting, `cell.set`,
+    /// inserting and deleting rows and columns, `edit.undo` and `edit.redo`, and the rest.
+    pub(crate) fn command(&self, sheet: u32, area: CellSpan, command: &str, params: serde_json::Value) -> Result<serde_json::Value, MobileError> {
+        let name = self.sheet(sheet)?.name.clone();
+        let range = gridcraft_engine::core::RangeRef::new(CellRef::new(area.row0, area.col0), CellRef::new(area.row1, area.col1));
+        let mut s = self.lock();
+        let err = |e: gridcraft_engine::EngineError| MobileError::Command(e.to_string());
+        s.execute("sheet.activate", serde_json::json!({ "sheet": name })).map_err(err)?;
+        s.execute("selection.set", serde_json::json!({ "range": range.a1(), "active": range.start.a1() })).map_err(err)?;
+        s.execute(command, params).map_err(err)
+    }
+
+    /// What the formula bar shows for a cell: its formula (`=SUM(A1:A3)`), else its value as typed.
+    pub(crate) fn input(&self, sheet: u32, row: u32, col: u32) -> Result<String, MobileError> {
+        let wb = self.wb();
+        let s = self.sheet_in(&wb, sheet)?;
+        let c = CellRef::new(row, col);
+        if let Some(f) = s.cell(c).and_then(|x| x.formula.as_ref()) {
+            return Ok(format!("={}", f.text));
+        }
+        Ok(gridcraft_engine::display::value_text(&wb, s, c))
+    }
+
+    /// Write the workbook to `path` in the format its name says (.xlsx, .xls, .ods, .csv, ...): a save.
+    pub(crate) fn save_to(&self, path: &str) -> Result<(), MobileError> {
+        let mut s = self.lock();
+        let d = s.active_mut().ok_or_else(|| MobileError::Command("no workbook".into()))?;
+        let bytes = gridcraft_engine::io::save_bytes(&d.wb, path).map_err(|e| MobileError::Command(e.to_string()))?;
+        std::fs::write(path, bytes).map_err(|e| MobileError::Command(format!("{path}: {e}")))?;
+        d.saved = d.wb.clone();
+        Ok(())
+    }
+
+    fn sheet(&self, index: u32) -> Result<Arc<Sheet>, MobileError> {
+        let wb = self.wb();
+        self.sheet_in(&wb, index)?;
+        wb.sheets.get(index as usize).cloned().ok_or(MobileError::NoDocument(0))
+    }
+
+    fn sheet_in<'a>(&self, wb: &'a Workbook, index: u32) -> Result<&'a Sheet, MobileError> {
+        let n = wb.sheets.len();
+        wb.sheets
             .get(index as usize)
             .map(|s| &**s)
             .ok_or_else(|| MobileError::Command(format!("sheet {} is out of range: the workbook has {n} sheets", u64::from(index) + 1)))
@@ -128,8 +180,8 @@ impl SheetBook {
 
     /// The sheets in tab order.
     pub(crate) fn sheets(&self) -> Vec<SheetInfo> {
-        self.wb
-            .sheets
+        let wb = self.wb();
+        wb.sheets
             .iter()
             .map(|s| {
                 let (rows, cols) = s.used_range().map_or((0, 0), |r| (r.end.row.saturating_add(1), r.end.col.saturating_add(1)));
@@ -141,7 +193,7 @@ impl SheetBook {
                     frozen_cols: s.freeze.map_or(0, |f| f.1),
                     gridlines: s.show_gridlines,
                     hidden: s.visibility != Visibility::Visible,
-                    tab_color: s.tab_color.and_then(|c| rgb(c.resolve(&self.wb.theme))),
+                    tab_color: s.tab_color.and_then(|c| rgb(c.resolve(&wb.theme))),
                 }
             })
             .collect()
@@ -149,7 +201,8 @@ impl SheetBook {
 
     /// Widths of columns `col0..col0+cols` and heights of rows `row0..row0+rows` of sheet `sheet`.
     pub(crate) fn axes(&self, sheet: u32, row0: u32, rows: u32, col0: u32, cols: u32) -> Result<SheetAxes, MobileError> {
-        let s = self.sheet(sheet)?;
+        let wb = self.wb();
+        let s = self.sheet_in(&wb, sheet)?;
         let cols = cols.min(16_384);
         let rows = rows.min(1_048_576).min(100_000);
         Ok(SheetAxes {
@@ -160,11 +213,12 @@ impl SheetBook {
 
     /// The cells of the window that show something (text, a fill or a border).
     pub(crate) fn cells(&self, sheet: u32, row0: u32, rows: u32, col0: u32, cols: u32) -> Result<Vec<CellView>, MobileError> {
-        let s = self.sheet(sheet)?;
+        let book = self.wb();
+        let s = self.sheet_in(&book, sheet)?;
         if u64::from(rows) * u64::from(cols) > MAX_WINDOW {
             return Err(MobileError::Command(format!("a window of {rows} × {cols} cells is too large")));
         }
-        let wb = &*self.wb;
+        let wb = &*book;
         let theme = &wb.theme;
         let edge = |b: &BorderLine| CellEdge {
             weight: match b.style {
@@ -233,12 +287,19 @@ impl SheetBook {
 
     /// The merged areas of sheet `sheet`.
     pub(crate) fn merges(&self, sheet: u32) -> Result<Vec<CellSpan>, MobileError> {
-        Ok(self.sheet(sheet)?.merges.iter().map(|m| CellSpan { row0: m.start.row, col0: m.start.col, row1: m.end.row, col1: m.end.col }).collect())
+        let wb = self.wb();
+        Ok(self
+            .sheet_in(&wb, sheet)?
+            .merges
+            .iter()
+            .map(|m| CellSpan { row0: m.start.row, col0: m.start.col, row1: m.end.row, col1: m.end.col })
+            .collect())
     }
 
     /// The cells of sheet `sheet` whose shown text holds `query` (at most `limit`), in reading order.
     pub(crate) fn find(&self, sheet: u32, query: &str, case_sensitive: bool, limit: u32) -> Result<Vec<CellSpan>, MobileError> {
-        let s = self.sheet(sheet)?;
+        let wb = self.wb();
+        let s = self.sheet_in(&wb, sheet)?;
         let q = if case_sensitive { query.to_string() } else { query.to_lowercase() };
         if q.trim().is_empty() {
             return Ok(Vec::new());
@@ -247,7 +308,7 @@ impl SheetBook {
         let mut out = Vec::new();
         for row in 0..=used.end.row {
             for col in 0..=used.end.col {
-                let t = gridcraft_engine::display::cell_text(&self.wb, s, CellRef::new(row, col));
+                let t = gridcraft_engine::display::cell_text(&wb, s, CellRef::new(row, col));
                 let hit = if case_sensitive { t.contains(&q) } else { t.to_lowercase().contains(&q) };
                 if hit {
                     out.push(CellSpan { row0: row, col0: col, row1: row, col1: col });
@@ -271,7 +332,17 @@ impl SheetBook {
 
 impl OfficeDoc for SheetBook {
     fn info(&self, id: u64) -> DocumentInfo {
-        let p = &self.wb;
+        let (p, dirty, generation, undo, redo) = {
+            let s = self.lock();
+            let d = s.active();
+            (
+                d.map(|d| d.wb.clone()).unwrap_or_default(),
+                d.is_some_and(|d| d.is_dirty()),
+                d.map_or(0, |d| d.revision),
+                d.and_then(|d| d.undo.last()).map(|h| h.label.clone()),
+                d.and_then(|d| d.redo.last()).map(|h| h.label.clone()),
+            )
+        };
         DocumentInfo {
             id,
             kind: DocumentKind::Sheets,
@@ -295,21 +366,21 @@ impl OfficeDoc for SheetBook {
             file_size: self.file_size,
             encrypted: self.encrypted,
             tagged: false,
-            read_only_reason: Some("Workbooks open for viewing in this version".into()),
+            read_only_reason: None,
             allows_printing: true,
             allows_copying: true,
             allows_annotation: false,
             allows_form_filling: false,
             allows_assembly: false,
-            dirty: false,
-            undo: None,
-            redo: None,
+            dirty,
+            undo,
+            redo,
             fields: 0,
             has_outline: false,
             attachments: 0,
             signed: false,
             comments_hidden: false,
-            generation: 0,
+            generation,
         }
     }
 
@@ -317,6 +388,7 @@ impl OfficeDoc for SheetBook {
     /// the real grid itself).
     fn render_page(&self, page: u32, scale: f32, tile: Option<TileRect>) -> Result<RenderedImage, MobileError> {
         let s = self.sheet(page)?;
+        let s = &*s;
         let (w, h) = Self::extent(s);
         let scale = scale.clamp(0.01, 4.0);
         let (full_w, full_h) = (((w * scale).ceil() as u32).clamp(1, 2048), ((h * scale).ceil() as u32).clamp(1, 2048));
@@ -393,16 +465,13 @@ impl OfficeDoc for SheetBook {
         match format {
             "pdf" => {
                 // the engine's own export: each sheet's page setup, every visible sheet
-                let mut s = gridcraft_engine::Session::new();
-                let doc = gridcraft_engine::DocState::new((*self.wb).clone(), None, self.name.clone(), gridcraft_engine::Trust::FromFile);
-                let i = s.add_document(doc);
-                s.set_active(i);
-                let out = s.execute("file.exportPdf", serde_json::json!({ "sheets": "all" })).map_err(|e| MobileError::Command(e.to_string()))?;
+                let out =
+                    self.lock().execute("file.exportPdf", serde_json::json!({ "sheets": "all" })).map_err(|e| MobileError::Command(e.to_string()))?;
                 let b64 = out.get("base64").and_then(serde_json::Value::as_str).unwrap_or_default();
                 gridcraft_engine::io::base64_decode(b64).ok_or_else(|| MobileError::Command("the workbook could not be written as PDF".into()))
             }
             "xlsx" | "csv" => {
-                gridcraft_engine::io::save_bytes(&self.wb, &format!("workbook.{format}")).map_err(|e| MobileError::Command(e.to_string()))
+                gridcraft_engine::io::save_bytes(&self.wb(), &format!("workbook.{format}")).map_err(|e| MobileError::Command(e.to_string()))
             }
             _ => Err(crate::office::unknown_format(DocumentKind::Sheets, format)),
         }
@@ -410,5 +479,9 @@ impl OfficeDoc for SheetBook {
 
     fn as_sheets(&self) -> Option<&SheetBook> {
         Some(self)
+    }
+
+    fn save(&self, path: &str) -> Result<(), MobileError> {
+        self.save_to(path)
     }
 }

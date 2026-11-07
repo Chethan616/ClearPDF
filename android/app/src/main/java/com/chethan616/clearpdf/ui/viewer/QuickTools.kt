@@ -91,8 +91,8 @@ enum class QuickTool(val id: String, @StringRes val label: Int, @StringRes val t
 
     // office documents' own tools (their engines: WordCraft, DeckCraft)
     Present("present", R.string.office_present, R.string.office_present, LucideIcons.Presentation, ToolHues.read),
-    ExportPdf("exportpdf", R.string.office_export_pdf, R.string.office_export_pdf, LucideIcons.FileOutput, ToolHues.export),
-    SaveAs("saveas", R.string.office_save_as, R.string.office_save_as, LucideIcons.Copy, ToolHues.export),
+    ExportPdf("exportpdf", R.string.office_export_pdf, R.string.office_export_pdf, LucideIcons.FilePdf, ToolHues.export),
+    SaveAs("saveas", R.string.office_save_as, R.string.office_save_as, LucideIcons.SaveAs, ToolHues.export),
     Print("print", R.string.sheet_print, R.string.sheet_print, LucideIcons.Printer, ToolHues.export);
 
     companion object {
@@ -100,7 +100,7 @@ enum class QuickTool(val id: String, @StringRes val label: Int, @StringRes val t
         val DEFAULT_BAR = listOf(Edit, Comment, Highlight, Draw, FillSign, Export)
 
         /** A Word document's bar: its engine reads it aloud, exports and converts it, and prints it. */
-        val WORD = listOf(ReadAloud, ExportPdf, SaveAs, Print)
+        val WORD = listOf(Edit, ReadAloud, ExportPdf, SaveAs, Print)
 
         /** A presentation's bar: a full-screen show first. */
         val SLIDES = listOf(Present, ReadAloud, ExportPdf, SaveAs, Print)
@@ -160,7 +160,8 @@ fun AppViewModel.runQuickTool(doc: OpenDocument, tool: QuickTool) {
         return
     }
     when (tool) {
-        QuickTool.Edit -> enterTool(doc, ViewerTool.Edit)
+        // a Word document is edited by its own engine: typing and formatting, not PDF editing
+        QuickTool.Edit -> if (doc.isOffice) startWordEdit(doc) else enterTool(doc, ViewerTool.Edit)
         QuickTool.Comment -> enterTool(doc, ViewerTool.Comment)
         QuickTool.Highlight -> enterTool(doc, ViewerTool.Markup)
         QuickTool.Draw -> enterTool(doc, ViewerTool.Draw)

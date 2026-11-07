@@ -64,7 +64,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.chethan616.clearpdf.ui.glass.glass
+import com.chethan616.clearpdf.ui.glass.pressable
+import com.kyant.backdrop.floatingLayer
 import com.chethan616.clearpdf.ui.theme.clear
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.core.CommentInfo
@@ -206,14 +207,28 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
         vm.addMarkup(doc, m, page, sel.rects, prefs.color(m.styled), prefs.opacity(m.styled))
         doc.selection.clear()
     }
-    Column(
+    // the desk menu's glass and motion: frosted (the page never shows through the words), unfolding
+    // out of the selection on the glass spring
+    val appear = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(Unit) { appear.animateTo(1f, com.chethan616.clearpdf.ui.glass.GlassMotion.unfold()) }
+    val opensDown = y > top.y
+    com.chethan616.clearpdf.ui.glass.GlassCard(
         Modifier
             .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
             .onSizeChanged { menuSize = it }
-            .width(220.dp)
-            // a liquid-glass popover over the pages, as every menu in the app
-            .glass(com.chethan616.clearpdf.ui.glass.RoundedRectangle(26.dp)),
+            .width(236.dp)
+            .floatingLayer {
+                val p = appear.value
+                scaleX = 0.6f + 0.4f * p
+                scaleY = 0.4f + 0.6f * p
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, if (opensDown) 0f else 1f)
+                alpha = (p * 1.6f).coerceIn(0f, 1f)
+            },
+        shape = com.chethan616.clearpdf.ui.glass.RoundedRectangle(24.dp),
+        wash = clear.frost,
+        blur = 16.dp,
     ) {
+        Spacer(Modifier.height(6.dp))
         // a Word document or presentation opens for reading: no markup, no Edit text
         if (!doc.isOffice) Row(Modifier.fillMaxWidth().height(61.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
             MenuIcon(LucideIcons.MessageSquarePlus, stringResource(R.string.viewer_add_comment), allowed) { vm.notePrompt = NotePrompt(doc, null, sel) }
@@ -221,9 +236,9 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
             MenuIcon(LucideIcons.Underline, stringResource(R.string.common_tool_underline), allowed) { markup(TextMarkup.Underline) }
             MenuIcon(LucideIcons.Strikethrough, stringResource(R.string.viewer_strikethrough), allowed) { markup(TextMarkup.Strikethrough) }
         }
-        // an inset divider, then the rows with 8 dp above and below
+        // an inset divider, then the rows
         if (!doc.isOffice) Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(clear.ink.copy(alpha = 0.12f)))
-        Spacer(Modifier.height(8.dp))
+        if (!doc.isOffice) Spacer(Modifier.height(4.dp))
         if (!doc.isOffice && (doc.writable || doc.source == null)) MenuRow(LucideIcons.FilePenLine, stringResource(R.string.viewer_edit_text)) {
             doc.selection.clear()
             vm.enterTool(doc, ViewerTool.Edit)
@@ -234,7 +249,7 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
             vm.startReadAloud(doc, fromSelection = true)
             doc.selection.clear()
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(6.dp))
     }
 }
 
@@ -251,11 +266,11 @@ private fun MenuIcon(icon: ImageVector, label: String, enabled: Boolean, onClick
 
 @Composable
 private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
-    val ink = clear.ink
-    Row(Modifier.fillMaxWidth().height(44.dp).clickable(onClick = onClick).padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = ink, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(16.dp))
-        Text(label, color = ink, style = com.chethan616.clearpdf.ui.theme.ClearType.Body.copy(fontSize = 15.sp))
+    val c = clear
+    // as the desk menu's rows: the label, its glyph at the end
+    Row(Modifier.fillMaxWidth().pressable(onClick).padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = c.ink, style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, modifier = Modifier.weight(1f))
+        Icon(icon, null, tint = c.inkSoft, modifier = Modifier.size(19.dp))
     }
 }
 

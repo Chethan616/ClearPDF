@@ -462,7 +462,7 @@ fn opens_a_word_document_beside_the_pdfs() {
     assert_eq!(word.name, "Report.docx");
     assert_eq!(word.pages.len(), 1);
     assert!(word.pages[0].width > 500.0 && word.pages[0].height > 700.0, "{:?}", word.pages[0]);
-    assert!(word.read_only_reason.is_some());
+    assert!(word.read_only_reason.is_none(), "Word documents are editable");
     assert_eq!(s.documents(), vec![pdf.id, word.id]);
     assert_eq!(s.document(word.id).unwrap().pages.len(), 1);
     // the PDF-only lists are empty, not errors
@@ -653,4 +653,62 @@ fn office_documents_export_to_pdf_and_their_own_formats() {
         }
         assert!(s.export_office(id, "exe".into(), dir.join("x").to_string_lossy().into_owned()).is_err());
     }
+}
+
+#[test]
+fn a_workbook_is_edited_recalculated_undone_and_saved() {
+    let s = MobileSession::new();
+    let path = book_file("Item,Price\nApples,3\nPears,4\n", "Edit.xlsx");
+    let id = s.open(path.clone(), None).unwrap().id;
+    let text = |r: u32, c: u32| s.sheet_cells(id, 0, 0, 10, 0, 5).unwrap().into_iter().find(|x| x.row == r && x.col == c).map(|x| x.text);
+    s.sheet_set_cell(id, 0, 3, 1, "=SUM(B2:B3)".into()).unwrap();
+    assert_eq!(text(3, 1).as_deref(), Some("7"));
+    assert_eq!(s.sheet_input(id, 0, 3, 1).unwrap(), "=SUM(B2:B3)");
+    // a changed input recalculates what depends on it
+    s.sheet_set_cell(id, 0, 1, 1, "10".into()).unwrap();
+    assert_eq!(text(3, 1).as_deref(), Some("14"));
+    let b2 = CellSpan { row0: 1, col0: 1, row1: 1, col1: 1 };
+    s.sheet_command(id, 0, b2, "home.bold".into(), String::new()).unwrap();
+    assert!(s.sheet_cells(id, 0, 1, 1, 1, 1).unwrap()[0].bold);
+    let info = s.document(id).unwrap();
+    assert!(info.dirty && info.undo.is_some());
+    s.sheet_command(id, 0, b2, "edit.undo".into(), String::new()).unwrap();
+    assert!(!s.sheet_cells(id, 0, 1, 1, 1, 1).unwrap()[0].bold);
+    s.save_office(id, path.clone()).unwrap();
+    assert!(!s.document(id).unwrap().dirty);
+    let again = s.open(path, None).unwrap().id;
+    assert_eq!(s.sheet_input(again, 0, 3, 1).unwrap(), "=SUM(B2:B3)");
+    assert!(s.sheet_command(id, 0, b2, "no.such.command".into(), String::new()).is_err());
+}
+
+#[test]
+fn a_word_document_is_typed_in_formatted_undone_and_saved() {
+    let s = MobileSession::new();
+    let path = word_file("Hello world", "Typing.docx");
+    let id = s.open(path.clone(), None).unwrap().id;
+    let before = s.document(id).unwrap().generation;
+    // a tap at the end of the line puts the caret there; typing goes in where it is
+    let hits = s.find_in_page(id, 0, "world".into(), false, false).unwrap();
+    let r = &hits[0].rects;
+    s.word_command(id, "caret.set".into(), format!(r#"{{"page":0,"x":{},"y":{}}}"#, r[2] + 1.0, (r[1] + r[3]) / 2.0)).unwrap();
+    let caret = s.word_caret(id).unwrap();
+    assert_eq!(caret.page, 0);
+    assert!(caret.height > 4.0 && caret.selection.is_empty());
+    s.word_command(id, "text.insert".into(), r#"{"text":", again"}"#.into()).unwrap();
+    assert_eq!(s.page_plain_text(id, 0).unwrap().trim(), "Hello world, again");
+    let info = s.document(id).unwrap();
+    assert!(info.dirty && info.undo.is_some() && info.generation != before);
+    // select all and make it bold: the selection has rectangles
+    s.word_command(id, "select.all".into(), String::new()).unwrap();
+    assert!(!s.word_caret(id).unwrap().selection.is_empty());
+    s.word_command(id, "format.bold".into(), String::new()).unwrap();
+    s.word_command(id, "edit.undo".into(), String::new()).unwrap();
+    s.word_command(id, "edit.undo".into(), String::new()).unwrap();
+    assert_eq!(s.page_plain_text(id, 0).unwrap().trim(), "Hello world");
+    s.word_command(id, "edit.redo".into(), String::new()).unwrap();
+    s.save_office(id, path.clone()).unwrap();
+    assert!(!s.document(id).unwrap().dirty);
+    let again = s.open(path, None).unwrap().id;
+    assert_eq!(s.page_plain_text(again, 0).unwrap().trim(), "Hello world, again");
+    assert!(s.word_command(id, "no.such.command".into(), String::new()).is_err());
 }

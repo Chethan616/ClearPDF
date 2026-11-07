@@ -149,8 +149,8 @@ fun MoreSheet(vm: AppViewModel, doc: OpenDocument) {
             }
             // an office document: written by its own engine as PDF or another format
             if (doc.isOffice) SheetSection {
-                SheetRow(LucideIcons.FileOutput, stringResource(R.string.office_export_pdf), { close(); vm.exportOffice(doc, "pdf") }, tint = Candy.Tangerine)
-                SheetRow(LucideIcons.Copy, stringResource(R.string.office_save_as), { ctl.sheet = ViewerSheet.SaveAs }, chevron = true, tint = Candy.Lime)
+                SheetRow(LucideIcons.FilePdf, stringResource(R.string.office_export_pdf), { close(); vm.exportOffice(doc, "pdf") }, tint = Candy.Tangerine)
+                SheetRow(LucideIcons.SaveAs, stringResource(R.string.office_save_as), { ctl.sheet = ViewerSheet.SaveAs }, chevron = true, tint = Candy.Lime)
             }
             if (!doc.isOffice) SheetSection {
                 SheetRow(LucideIcons.FileOutput, stringResource(R.string.sheet_export_as), { close(); vm.openExport(doc) }, tint = Candy.Tangerine)
@@ -591,7 +591,7 @@ fun SaveAsSheet(vm: AppViewModel, doc: OpenDocument) {
     PdfSheet(onDismiss = { ctl.sheet = ViewerSheet.None }) {
         SheetTitle(stringResource(R.string.office_save_as))
         SheetSection {
-            for (f in formats) SheetRow(LucideIcons.FileOutput, stringResource(R.string.office_format, formatName(f), f.uppercase()), {
+            for (f in formats) SheetRow(if (f == "pdf") LucideIcons.FilePdf else LucideIcons.FileText, stringResource(R.string.office_format, formatName(f), f.uppercase()), {
                 ctl.sheet = ViewerSheet.None
                 vm.exportOffice(doc, f)
             }, tint = Candy.Sky)

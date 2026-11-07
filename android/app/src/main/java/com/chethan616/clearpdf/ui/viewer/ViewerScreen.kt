@@ -229,6 +229,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
             onScroll = { dy -> ctl.onUserScroll(dy / density.density, doc.viewer.scrollY <= 8f) },
             onTap = { p, at ->
                 when {
+                    vm.wordEditing == doc && at != null -> vm.wordTap(doc, at)
                     selection.selection != null -> selection.clear()
                     ctl.tool == ViewerTool.Edit -> vm.editTap(doc, at)
                     vm.tapField(doc, at) -> Unit
@@ -427,11 +428,13 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         }
         // the Read Aloud player takes the bottom bar's place
         // while typing on the page, the bar (with its formatting) rides above the keyboard
-        if (vm.readAloud == null && vm.fieldActions == null) Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).then(if (vm.editing != null) Modifier.imePadding() else Modifier)) {
+        if (vm.readAloud == null && vm.fieldActions == null) Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).then(if (vm.editing != null || vm.wordEditing == doc) Modifier.imePadding() else Modifier)) {
             vm.success?.let { SuccessBannerView(it, onClose = { vm.success = null }) }
             GlassBars(ctl.barsVisible && !ctl.searching && !vm.readingMode, fromTop = false) {
                 Column(barSides) {
-                    if (ctl.tool == ViewerTool.None) {
+                    if (vm.wordEditing == doc) {
+                        WordEditDock(vm, doc)
+                    } else if (ctl.tool == ViewerTool.None) {
                         QuickToolbar(
                             tools = QuickTool.barFor(doc, vm.quickToolbar.bar),
                             onTool = { vm.runQuickTool(doc, it) },
@@ -449,6 +452,9 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
 
         // The active tool's sheets, over everything.
         ToolSheets(vm, doc)
+
+        // Word editing: the caret and selection over the pages, and the keyboard's field
+        if (vm.wordEditing == doc) WordEditLayer(vm, doc)
 
         // Text selection's menu, and the glass lens over the text while a handle is dragged.
         selection.selection?.let { sel ->

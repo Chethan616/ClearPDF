@@ -37,6 +37,16 @@ pub(crate) trait OfficeDoc: Send + Sync {
     /// The document written as `format` (`pdf`, or one its engine writes: see [`formats`]).
     fn export(&self, format: &str) -> Result<Vec<u8>, MobileError>;
 
+    /// Write the document, edits and all, to `path` in its own format (what Save does).
+    fn save(&self, _path: &str) -> Result<(), MobileError> {
+        Err(MobileError::Command("this document can't be edited yet, so there is nothing to save".into()))
+    }
+
+    /// A Word document, which the app edits with WordCraft's commands.
+    fn as_word(&self) -> Option<&crate::word::WordDocument> {
+        None
+    }
+
     /// A workbook, whose sheets the app draws as a grid of its own.
     fn as_sheets(&self) -> Option<&crate::sheets::SheetBook> {
         None
@@ -56,11 +66,13 @@ pub(crate) enum OfficeFile {
     Word(&'static str),
     Slides,
     Sheets(&'static str),
+    /// A PowerPoint 97-2003 presentation (.ppt), which no engine reads yet.
+    LegacySlides,
 }
 
 const WORD_EXTENSIONS: &[&str] = &["docx", "docm", "dotx", "dotm", "doc", "dot", "odt", "ott", "rtf"];
 const SLIDE_EXTENSIONS: &[&str] = &["pptx", "pptm", "ppsx", "ppsm", "potx", "potm"];
-const SHEET_EXTENSIONS: &[&str] = &["xlsx", "xlsm", "xltx", "xltm", "xlsb", "ods", "csv", "tsv"];
+const SHEET_EXTENSIONS: &[&str] = &["xlsx", "xlsm", "xltx", "xltm", "xlsb", "xls", "xlt", "ods", "csv", "tsv"];
 
 /// What the bytes of a file are, as far as office documents go, or `None` when it is not one (a
 /// PDF, or anything else). An encrypted package is a compound file whatever the application: its
@@ -108,6 +120,14 @@ pub(crate) fn sniff(bytes: &[u8], path: &str) -> Option<OfficeFile> {
         let utf16 = |s: &str| s.encode_utf16().flat_map(u16::to_le_bytes).collect::<Vec<u8>>();
         if contains(&utf16("WordDocument")) {
             return Some(OfficeFile::Word(if word_named == Some("dot") { "dot" } else { "doc" }));
+        }
+        // Excel 97-2003: GridCraft reads its workbook stream
+        if contains(&utf16("Workbook")) || (contains(&utf16("Book")) && sheets_named.is_some()) {
+            return Some(OfficeFile::Sheets(if sheets_named == Some("xlt") { "xlt" } else { "xls" }));
+        }
+        // PowerPoint 97-2003: no reader yet, told as such rather than as a damaged file
+        if contains(&utf16("PowerPoint Document")) {
+            return Some(OfficeFile::LegacySlides);
         }
         if contains(&utf16("EncryptedPackage")) {
             if slides_named {
@@ -174,6 +194,11 @@ pub(crate) fn open(
         OfficeFile::Word(ext) => Arc::new(crate::word::WordDocument::open(path, ext, bytes, password, locale)?),
         OfficeFile::Slides => Arc::new(crate::slides::SlideDeck::open(path, bytes)?),
         OfficeFile::Sheets(ext) => Arc::new(crate::sheets::SheetBook::open(path, ext, bytes, password)?),
+        OfficeFile::LegacySlides => {
+            return Err(MobileError::Open(
+                "This is a PowerPoint 97-2003 presentation (.ppt), which Artefact can't open yet. Saved as .pptx (PowerPoint, Keynote, Google Slides or LibreOffice can), it opens here.".into(),
+            ));
+        }
     })
 }
 
@@ -256,6 +281,13 @@ mod tests {
         assert_eq!(sniff(&cfb, "/a/Locked.pptx"), Some(OfficeFile::Slides));
         assert_eq!(sniff(&cfb, "/a/Locked.xlsx"), Some(OfficeFile::Sheets("xlsx")));
         assert_eq!(sniff(&cfb, "/a/Locked.bin"), None);
+        let legacy = |stream: &str| {
+            let mut b = vec![0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+            b.extend(stream.encode_utf16().flat_map(u16::to_le_bytes));
+            b
+        };
+        assert_eq!(sniff(&legacy("Workbook"), "/a/Old.xls"), Some(OfficeFile::Sheets("xls")));
+        assert_eq!(sniff(&legacy("PowerPoint Document"), "/a/Old.ppt"), Some(OfficeFile::LegacySlides));
     }
 
     #[test]

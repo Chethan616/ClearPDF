@@ -354,7 +354,10 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         val eng = engine ?: return false
         if (!doc.info.dirty && !doc.notWrittenBack) return true
         return try {
-            if (doc.info.dirty) eng.tool("doc_save", mapOf("doc" to doc.id))
+            // an office document is saved by its own engine, in its own format, into the working copy
+            if (doc.info.dirty) {
+                if (doc.isOffice) eng.command { saveOffice(doc.id, doc.file.absolutePath) } else eng.tool("doc_save", mapOf("doc" to doc.id))
+            }
             refresh(doc)
             val src = doc.source
             if (src != null && src.scheme == "content") {
@@ -2397,6 +2400,52 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
 
     /** The note open in the editor. */
     var openNote by mutableStateOf<String?>(null)
+
+    /** The Word document being edited (typing and formatting with WordCraft), if one is. */
+    var wordEditing by mutableStateOf<OpenDocument?>(null)
+
+    /** Where the caret (or the selection) is in [wordEditing]. */
+    var wordCaret by mutableStateOf<com.chethan616.clearpdf.core.WordCaret?>(null)
+
+    /** WordCraft's formatting at the caret (`bold`, `italic`, ... as `format.state` gives it). */
+    var wordFormat by mutableStateOf(org.json.JSONObject())
+
+    /** Start editing Word document [doc]: a tap places the caret, the keyboard types. */
+    fun startWordEdit(doc: OpenDocument) {
+        wordEditing = doc
+        doc.selection.clear()
+        doc.controller.barsVisible = true
+        viewModelScope.launch { refreshWordCaret(doc) }
+    }
+
+    /** Leave editing; the changes are saved with the document (as on closing it). */
+    fun stopWordEdit() {
+        val doc = wordEditing ?: return
+        wordEditing = null
+        wordCaret = null
+        viewModelScope.launch { save(doc, quiet = true) }
+    }
+
+    /** Run WordCraft command [command] on [doc], then show its result: the pages, caret and formatting. */
+    fun wordRun(doc: OpenDocument, command: String, params: Map<String, Any?> = emptyMap()) {
+        val eng = engine ?: return
+        viewModelScope.launch {
+            val json = Engine.toJson(params).toString()
+            runCatching { eng.command { wordCommand(doc.id, command, json) } }
+                .onSuccess { refresh(doc); refreshWordCaret(doc) }
+                .onFailure { tell(it.userMessage) }
+        }
+    }
+
+    /** A tap on [doc]'s page while editing: the caret goes there ([extend]: the selection grows to it). */
+    fun wordTap(doc: OpenDocument, at: com.chethan616.clearpdf.ui.viewer.PagePoint, extend: Boolean = false) =
+        wordRun(doc, "caret.set", mapOf("page" to at.page, "x" to at.x, "y" to at.y, "extend" to extend))
+
+    private suspend fun refreshWordCaret(doc: OpenDocument) {
+        val eng = engine ?: return
+        wordCaret = runCatching { eng.command { wordCaret(doc.id) } }.getOrNull()
+        wordFormat = runCatching { org.json.JSONObject(eng.command { wordCommand(doc.id, "format.state", "") }) }.getOrDefault(org.json.JSONObject())
+    }
 
     /** A presentation shown full screen, slide by slide. */
     var presenting by mutableStateOf<OpenDocument?>(null)
