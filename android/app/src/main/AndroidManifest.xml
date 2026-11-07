@@ -65,6 +65,8 @@
                 <data android:mimeType="text/csv" />
                 <data android:mimeType="text/comma-separated-values" />
                 <data android:mimeType="text/plain" />
+                <data android:mimeType="application/vnd.ms-powerpoint" />
+                <data android:mimeType="application/vnd.ms-excel" />
                 <data android:mimeType="text/markdown" />
             </intent-filter>
         </activity>
@@ -112,6 +114,8 @@
                 <data android:mimeType="text/csv" />
                 <data android:mimeType="text/comma-separated-values" />
                 <data android:mimeType="text/plain" />
+                <data android:mimeType="application/vnd.ms-powerpoint" />
+                <data android:mimeType="application/vnd.ms-excel" />
                 <data android:mimeType="text/markdown" />
             </intent-filter>
         </activity>

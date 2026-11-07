@@ -26,6 +26,8 @@ object DocumentTypes {
         "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
         "application/vnd.openxmlformats-officedocument.presentationml.template",
         "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+        // PowerPoint 97-2003: its slides' text (Artefact's own reader)
+        "application/vnd.ms-powerpoint",
     )
 
     /** Workbooks and tables. */
@@ -34,6 +36,7 @@ object DocumentTypes {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.template",
         "application/vnd.ms-excel.sheet.macroEnabled.12",
         "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
+        "application/vnd.ms-excel",
         "application/vnd.oasis.opendocument.spreadsheet",
         "text/csv",
         "text/comma-separated-values",
@@ -47,8 +50,8 @@ object DocumentTypes {
     val OPENABLE = arrayOf(PDF) + WORD + SLIDES + SHEETS + TEXT
 
     private val WORD_EXTENSIONS = setOf("docx", "docm", "dotx", "dotm", "doc", "dot", "odt", "ott", "rtf")
-    private val SLIDE_EXTENSIONS = setOf("pptx", "pptm", "ppsx", "ppsm", "potx", "potm")
-    private val SHEET_EXTENSIONS = setOf("xlsx", "xlsm", "xltx", "xltm", "xlsb", "ods", "csv", "tsv")
+    private val SLIDE_EXTENSIONS = setOf("pptx", "pptm", "ppsx", "ppsm", "potx", "potm", "ppt", "pps", "pot")
+    private val SHEET_EXTENSIONS = setOf("xlsx", "xlsm", "xltx", "xltm", "xlsb", "xls", "xlt", "ods", "csv", "tsv")
     private val TEXT_EXTENSIONS = setOf("txt", "md", "markdown")
 
     /** The kinds a file list can be narrowed to (Files ▸ ⋯). */
@@ -96,6 +99,8 @@ object DocumentTypes {
         "pptx", "pptm" -> SLIDES[0]
         "ppsx", "ppsm" -> SLIDES[1]
         "potx", "potm" -> SLIDES[2]
+        "ppt", "pps", "pot" -> "application/vnd.ms-powerpoint"
+        "xls", "xlt" -> "application/vnd.ms-excel"
         "xlsx", "xltx" -> SHEETS[0]
         "xlsm", "xltm" -> SHEETS[2]
         "xlsb" -> SHEETS[3]

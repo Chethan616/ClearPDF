@@ -29,14 +29,24 @@ impl SlideDeck {
             return Err(MobileError::Open("password-protected presentations can't be opened yet".into()));
         }
         let pres = deckcraft_pptx::import(bytes).map_err(|e| MobileError::Open(e.to_string()))?;
+        Ok(Self::of(path, pres, bytes.len()))
+    }
+
+    /// A PowerPoint 97-2003 presentation (.ppt): its slides' text in a deck of its size.
+    pub(crate) fn open_ppt(path: &str, bytes: &[u8]) -> Result<SlideDeck, MobileError> {
+        let pres = crate::ppt::import(bytes).map_err(MobileError::Open)?;
+        Ok(Self::of(path, pres, bytes.len()))
+    }
+
+    fn of(path: &str, pres: Presentation, size: usize) -> SlideDeck {
         let n = pres.slides.len();
-        Ok(SlideDeck {
+        SlideDeck {
             pres: Arc::new(pres),
             name: crate::office::file_name(path),
             path: path.to_string(),
-            file_size: bytes.len() as u64,
+            file_size: size as u64,
             texts: Mutex::new(vec![None; n]),
-        })
+        }
     }
 
     fn slide(&self, page: u32) -> Result<usize, MobileError> {

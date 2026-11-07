@@ -26,6 +26,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import com.kyant.backdrop.floatingLayer
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -68,49 +70,48 @@ fun PageMenuView(vm: AppViewModel, menu: PageMenu) {
         // below the finger when it fits, else above it
         val below = menu.screen.y + with(density) { 24.dp.toPx() }
         val y = if (below + size.height < doc.viewer.viewH - doc.viewer.padBottom) below else (menu.screen.y - size.height - with(density) { 24.dp.toPx() }).coerceAtLeast(doc.viewer.padTop)
-        Column(
+        // the selection menu's frosted glass and unfold (ViewerOverlays), out of the finger
+        val appear = remember { androidx.compose.animation.core.Animatable(0f) }
+        LaunchedEffect(Unit) { appear.animateTo(1f, com.chethan616.clearpdf.ui.glass.GlassMotion.unfold()) }
+        val opensDown = y > menu.screen.y
+        com.chethan616.clearpdf.ui.glass.GlassCard(
             Modifier
                 .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
                 .onSizeChanged { size = it }
-                .width(209.dp)
-                .shadow(6.dp, RoundedCornerShape(4.dp))
-                .background(c.menu, RoundedCornerShape(4.dp))
+                .width(236.dp)
+                .floatingLayer {
+                    val p = appear.value
+                    scaleX = 0.6f + 0.4f * p
+                    scaleY = 0.4f + 0.6f * p
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, if (opensDown) 0f else 1f)
+                    alpha = (p * 1.6f).coerceIn(0f, 1f)
+                }
                 .pointerInput(Unit) { detectTapGestures { } },
+            shape = com.chethan616.clearpdf.ui.glass.RoundedRectangle(24.dp),
+            wash = com.chethan616.clearpdf.ui.theme.clear.frost,
+            blur = 16.dp,
         ) {
-            Row(Modifier.fillMaxWidth().height(61.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                PageMenuIcon(LucideIcons.MessageSquarePlus, stringResource(R.string.page_menu_add_comment), annotate) { close(); vm.notePrompt = NotePrompt(doc, menu.at) }
-                PageMenuIcon(LucideIcons.Pencil, stringResource(R.string.common_tool_draw), annotate) { close(); vm.enterTool(doc, ViewerTool.Draw) }
-                PageMenuIcon(LucideIcons.Type, stringResource(R.string.page_menu_add_text), annotate) { close(); vm.textPrompt = TextPrompt(doc, menu.at) }
-                if (fill) PageMenuIcon(LucideIcons.Signature, stringResource(R.string.common_sign), true) { close(); vm.enterTool(doc, ViewerTool.FillSign) }
+            Spacer(Modifier.height(6.dp))
+            if (doc.isOffice) {
+                // a Word document, slides or a sheet: its own tools, not the PDF ones
+                if (!doc.isSlides && !doc.isSheets) MenuRow(LucideIcons.FilePenLine, stringResource(R.string.word_edit)) { close(); vm.startWordEdit(doc) }
+                MenuRow(LucideIcons.Volume2, stringResource(R.string.common_tool_read_aloud)) { close(); vm.startReadAloud(doc) }
+                MenuRow(LucideIcons.FilePdf, stringResource(R.string.office_export_pdf)) { close(); vm.exportOffice(doc, "pdf") }
+            } else {
+                Row(Modifier.fillMaxWidth().height(56.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                    MenuIcon(LucideIcons.MessageSquarePlus, stringResource(R.string.page_menu_add_comment), annotate) { close(); vm.notePrompt = NotePrompt(doc, menu.at) }
+                    MenuIcon(LucideIcons.Pencil, stringResource(R.string.common_tool_draw), annotate) { close(); vm.enterTool(doc, ViewerTool.Draw) }
+                    MenuIcon(LucideIcons.Type, stringResource(R.string.page_menu_add_text), annotate) { close(); vm.textPrompt = TextPrompt(doc, menu.at) }
+                    if (fill) MenuIcon(LucideIcons.Signature, stringResource(R.string.common_sign), true) { close(); vm.enterTool(doc, ViewerTool.FillSign) }
+                }
+                Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(com.chethan616.clearpdf.ui.theme.clear.ink.copy(alpha = 0.12f)))
+                Spacer(Modifier.height(4.dp))
+                if (!menu.pageHasText) MenuRow(LucideIcons.ScanText, stringResource(R.string.common_tool_recognize_text)) { close(); vm.recognizeText(doc) }
+                MenuRow(LucideIcons.Crop, stringResource(R.string.common_tool_crop)) { close(); vm.openCrop(doc) }
+                MenuRow(LucideIcons.FilePenLine, stringResource(R.string.common_tool_edit_pdf)) { close(); vm.enterTool(doc, ViewerTool.Edit) }
+                MenuRow(LucideIcons.ImagePlus, stringResource(R.string.page_menu_add_image)) { close(); vm.addImageAt(doc, menu.at) }
             }
-            Box(Modifier.fillMaxWidth().padding(horizontal = 4.dp).height(1.dp).background(c.divider))
-            Spacer(Modifier.height(8.dp))
-            if (!menu.pageHasText) PageMenuRow(LucideIcons.ScanText, stringResource(R.string.common_tool_recognize_text)) { close(); vm.recognizeText(doc) }
-            PageMenuRow(LucideIcons.Crop, stringResource(R.string.common_tool_crop)) { close(); vm.openCrop(doc) }
-            PageMenuRow(LucideIcons.FilePenLine, stringResource(R.string.common_tool_edit_pdf)) { close(); vm.enterTool(doc, ViewerTool.Edit) }
-            PageMenuRow(LucideIcons.ImagePlus, stringResource(R.string.page_menu_add_image)) { close(); vm.addImageAt(doc, menu.at) }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
         }
-    }
-}
-
-@Composable
-private fun PageMenuIcon(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
-    val c = pdfColors
-    Box(
-        Modifier.size(48.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick).semantics { contentDescription = label },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, null, tint = if (enabled) c.icon else c.icon.copy(alpha = 0.35f), modifier = Modifier.size(24.dp))
-    }
-}
-
-@Composable
-private fun PageMenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
-    val c = pdfColors
-    Row(Modifier.fillMaxWidth().height(41.dp).clickable(onClick = onClick).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = c.icon, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(21.dp))
-        Text(label, color = c.text, fontSize = 15.sp)
     }
 }

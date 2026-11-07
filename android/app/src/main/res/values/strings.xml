@@ -975,6 +975,8 @@
     <string name="sheet_insert_column">Insert column</string>
     <string name="sheet_clear">Clear contents</string>
     <string name="word_undo">Undo</string>
+    <string name="word_edit">Edit document</string>
+    <string name="word_tap_to_type">Tap where you want to type. Long press a word to select it.</string>
     <string name="word_redo">Redo</string>
     <string name="word_bold">Bold</string>
     <string name="word_italic">Italic</string>
@@ -1014,6 +1016,10 @@
     <string name="photo_saturation">Saturation</string>
     <string name="photo_rotate">Rotate</string>
     <string name="photo_edit">Edit picture</string>
+    <string name="msg_ppt_text_only">This PowerPoint 97–2003 file shows its slides\' text. Saved as .pptx, it opens with its pictures and layout.</string>
+    <string name="photo_original">Original</string>
+    <string name="photo_reset">Reset</string>
+    <string name="photo_not_saved">The picture couldn\'t be saved.</string>
     <!-- Draw tool: lines drawn are turned into neat shapes. -->
     <string name="msg_snap_to_shape_on">Snap to shape on</string>
 

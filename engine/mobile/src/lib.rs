@@ -27,6 +27,7 @@ uniffi::setup_scaffolding!();
 
 mod office;
 mod photo;
+mod ppt;
 mod sheets;
 mod slides;
 

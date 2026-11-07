@@ -254,7 +254,7 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
 }
 
 @Composable
-private fun MenuIcon(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
+internal fun MenuIcon(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
     val ink = clear.ink
     Box(
         Modifier.size(48.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick).semantics { contentDescription = label },
@@ -265,7 +265,7 @@ private fun MenuIcon(icon: ImageVector, label: String, enabled: Boolean, onClick
 }
 
 @Composable
-private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
+internal fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
     val c = clear
     // as the desk menu's rows: the label, its glyph at the end
     Row(Modifier.fillMaxWidth().pressable(onClick).padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {

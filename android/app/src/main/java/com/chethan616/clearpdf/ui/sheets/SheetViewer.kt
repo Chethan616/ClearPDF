@@ -71,6 +71,15 @@ import com.chethan616.clearpdf.ui.theme.clear
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.flow.distinctUntilChanged
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.animation.core.animateDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
@@ -269,19 +278,7 @@ fun SheetGrid(
         Canvas(
             Modifier
                 .fillMaxSize()
-                .pointerInput(l) {
-                    detectTransformGestures { centroid, move, zoom, _ ->
-                        val s = (state.scale * zoom).coerceIn(0.4f, 4f)
-                        val f = s / state.scale
-                        val k = px * s
-                        val maxX = (l.colX.last() * k - size.width / 2f).coerceAtLeast(0f)
-                        val maxY = (l.rowY.last() * k - size.height / 2f).coerceAtLeast(0f)
-                        // zoom about the fingers, then follow them
-                        val p = (state.pan - centroid) * f + centroid + move
-                        state.pan = Offset(p.x.coerceIn(-maxX, 0f), p.y.coerceIn(-maxY, 0f))
-                        state.scale = s
-                    }
-                }
+                .panZoomFling(state, l, px)
                 .pointerInput(l, onCell, onDoubleTapCell) {
                     detectTapGestures(
                         onTap = { p -> onCell?.invoke(cellAt(p)) },
@@ -675,4 +672,55 @@ private fun DrawScope.drawSheet(
     }
     drawLine(lineC, Offset(0f, head.y), Offset(size.width, head.y), 1f)
     drawLine(lineC, Offset(head.x, 0f), Offset(head.x, size.height), 1f)
+}
+
+/**
+ * Pan and pinch-zoom the grid with a finger or two, and let it glide on when let go, slowing as a
+ * list does (the platform's spline decay), held within the sheet.
+ */
+private fun Modifier.panZoomFling(state: SheetGridState, l: SheetLayout, px: Float): Modifier = pointerInput(l) {
+    val decay = androidx.compose.animation.splineBasedDecay<Offset>(this)
+    fun clamp(p: Offset, s: Float): Offset {
+        val k = px * s
+        val maxX = (l.colX.last() * k - size.width / 2f).coerceAtLeast(0f)
+        val maxY = (l.rowY.last() * k - size.height / 2f).coerceAtLeast(0f)
+        return Offset(p.x.coerceIn(-maxX, 0f), p.y.coerceIn(-maxY, 0f))
+    }
+    kotlinx.coroutines.coroutineScope {
+        var glide: kotlinx.coroutines.Job? = null
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false)
+            glide?.cancel()
+            val tracker = androidx.compose.ui.input.pointer.util.VelocityTracker()
+            var pinched = false
+            do {
+                val event = awaitPointerEvent()
+                val zoom = event.calculateZoom()
+                val move = event.calculatePan()
+                val centroid = event.calculateCentroid(useCurrent = true)
+                if (zoom != 1f) pinched = true
+                if (zoom != 1f || move != Offset.Zero) {
+                    val s = (state.scale * zoom).coerceIn(0.4f, 4f)
+                    val f = s / state.scale
+                    // zoom about the fingers, then follow them
+                    val origin = if (centroid.isSpecified) centroid else Offset.Zero
+                    state.pan = clamp((state.pan - origin) * f + origin + move, s)
+                    state.scale = s
+                    event.changes.forEach { if (it.positionChanged()) it.consume() }
+                }
+                event.changes.firstOrNull()?.let { tracker.addPosition(it.uptimeMillis, it.position) }
+            } while (event.changes.any { it.pressed })
+            if (!pinched) {
+                val v = tracker.calculateVelocity()
+                glide = launch {
+                    androidx.compose.animation.core.AnimationState(Offset.VectorConverter, state.pan, Offset(v.x, v.y))
+                        .animateDecay(decay) {
+                            val next = clamp(value, state.scale)
+                            state.pan = next
+                            if (next != value) cancelAnimation()
+                        }
+                }
+            }
+        }
+    }
 }

@@ -229,6 +229,8 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             readingMode = recent?.reading == true && pendingTool == null
             document = doc
             if (doc.info.signed) announceSignatures(doc)
+            // a PowerPoint 97-2003 file shows its slides' text: say so, once, as it opens
+            if (doc.info.name.substringAfterLast('.').lowercase() in setOf("ppt", "pps", "pot")) tell(text(R.string.msg_ppt_text_only))
             startPendingTool(doc)
             pendingPage = recent?.lastPage?.takeIf { it in 0 until info.pages.size }
             pendingSpot = recent?.takeIf { pendingPage != null && it.lastX >= 0f && it.lastY >= 0f }?.let { Triple(it.lastX, it.lastY, it.lastZoom) }
@@ -2407,15 +2409,20 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     /** Where the caret (or the selection) is in [wordEditing]. */
     var wordCaret by mutableStateOf<com.chethan616.clearpdf.core.WordCaret?>(null)
 
+    /** Bumped by each tap that places the caret: the keyboard comes up (again) for it. */
+    var wordKeyboard by mutableStateOf(0)
+
     /** WordCraft's formatting at the caret (`bold`, `italic`, ... as `format.state` gives it). */
     var wordFormat by mutableStateOf(org.json.JSONObject())
 
     /** Start editing Word document [doc]: a tap places the caret, the keyboard types. */
     fun startWordEdit(doc: OpenDocument) {
         wordEditing = doc
+        wordCaret = null
         doc.selection.clear()
         doc.controller.barsVisible = true
-        viewModelScope.launch { refreshWordCaret(doc) }
+        // the keyboard waits for a place to type: a tap on the page puts the caret there
+        tell(text(R.string.word_tap_to_type))
     }
 
     /** Leave editing; the changes are saved with the document (as on closing it). */
@@ -2438,8 +2445,26 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     }
 
     /** A tap on [doc]'s page while editing: the caret goes there ([extend]: the selection grows to it). */
-    fun wordTap(doc: OpenDocument, at: com.chethan616.clearpdf.ui.viewer.PagePoint, extend: Boolean = false) =
+    fun wordTap(doc: OpenDocument, at: com.chethan616.clearpdf.ui.viewer.PagePoint, extend: Boolean = false) {
         wordRun(doc, "caret.set", mapOf("page" to at.page, "x" to at.x, "y" to at.y, "extend" to extend))
+        wordKeyboard++
+    }
+
+    /** A long press while editing: the word there is selected (to format or replace it). */
+    fun wordSelectWord(doc: OpenDocument, at: com.chethan616.clearpdf.ui.viewer.PagePoint) {
+        val eng = engine ?: return
+        viewModelScope.launch {
+            val place = Engine.toJson(mapOf("page" to at.page, "x" to at.x, "y" to at.y)).toString()
+            runCatching {
+                eng.command {
+                    wordCommand(doc.id, "caret.set", place)
+                    wordCommand(doc.id, "select.word", "")
+                }
+            }.onFailure { tell(it.userMessage) }
+            refreshWordCaret(doc)
+            wordKeyboard++
+        }
+    }
 
     private suspend fun refreshWordCaret(doc: OpenDocument) {
         val eng = engine ?: return

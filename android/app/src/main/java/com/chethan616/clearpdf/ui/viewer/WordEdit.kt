@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -97,9 +98,28 @@ fun WordEditLayer(vm: AppViewModel, doc: OpenDocument) {
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     var field by remember { mutableStateOf(TextFieldValue(SENTINEL, TextRange(SENTINEL.length))) }
-    LaunchedEffect(Unit) {
+    // every tap that places the caret brings the keyboard up, focused on the field
+    LaunchedEffect(vm.wordKeyboard) {
+        if (vm.wordKeyboard == 0) return@LaunchedEffect
         focus.requestFocus()
         keyboard?.show()
+    }
+    // the caret kept in sight above the keyboard (and below the top bar)
+    val ime = androidx.compose.foundation.layout.WindowInsets.ime
+    val dens = androidx.compose.ui.platform.LocalDensity.current
+    val imeBottom = ime.getBottom(dens)
+    LaunchedEffect(caret, imeBottom) {
+        val c = caret ?: return@LaunchedEffect
+        if (c.selection.isNotEmpty()) return@LaunchedEffect
+        val v = doc.viewer
+        val bottom = v.pageToScreen(c.page.toInt(), c.x, c.top + c.height).y
+        val top = v.pageToScreen(c.page.toInt(), c.x, c.top).y
+        val room = v.viewH - imeBottom - with(dens) { 96.dp.toPx() }
+        when {
+            // scrollBy takes a finger's move: the page goes up as a finger moving up takes it
+            bottom > room -> v.scrollBy(0f, -(bottom - room))
+            top < v.padTop -> v.scrollBy(0f, v.padTop - top)
+        }
     }
     DisposableEffect(Unit) { onDispose { keyboard?.hide() } }
     BasicTextField(

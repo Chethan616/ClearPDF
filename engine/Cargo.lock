@@ -128,6 +128,7 @@ name = "artefact-mobile"
 version = "0.14.0"
 dependencies = [
  "android_logger",
+ "cfb",
  "deckcraft-model",
  "deckcraft-pdf",
  "deckcraft-pptx",

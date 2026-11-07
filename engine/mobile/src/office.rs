@@ -66,7 +66,7 @@ pub(crate) enum OfficeFile {
     Word(&'static str),
     Slides,
     Sheets(&'static str),
-    /// A PowerPoint 97-2003 presentation (.ppt), which no engine reads yet.
+    /// A PowerPoint 97-2003 presentation (.ppt): its slides' text (see `ppt.rs`).
     LegacySlides,
 }
 
@@ -125,7 +125,7 @@ pub(crate) fn sniff(bytes: &[u8], path: &str) -> Option<OfficeFile> {
         if contains(&utf16("Workbook")) || (contains(&utf16("Book")) && sheets_named.is_some()) {
             return Some(OfficeFile::Sheets(if sheets_named == Some("xlt") { "xlt" } else { "xls" }));
         }
-        // PowerPoint 97-2003: no reader yet, told as such rather than as a damaged file
+        // PowerPoint 97-2003
         if contains(&utf16("PowerPoint Document")) {
             return Some(OfficeFile::LegacySlides);
         }
@@ -194,11 +194,8 @@ pub(crate) fn open(
         OfficeFile::Word(ext) => Arc::new(crate::word::WordDocument::open(path, ext, bytes, password, locale)?),
         OfficeFile::Slides => Arc::new(crate::slides::SlideDeck::open(path, bytes)?),
         OfficeFile::Sheets(ext) => Arc::new(crate::sheets::SheetBook::open(path, ext, bytes, password)?),
-        OfficeFile::LegacySlides => {
-            return Err(MobileError::Open(
-                "This is a PowerPoint 97-2003 presentation (.ppt), which Artefact can't open yet. Saved as .pptx (PowerPoint, Keynote, Google Slides or LibreOffice can), it opens here.".into(),
-            ));
-        }
+        // its slides' text, read by Artefact's own .ppt reader (DeckCraft reads .pptx only)
+        OfficeFile::LegacySlides => Arc::new(crate::slides::SlideDeck::open_ppt(path, bytes)?),
     })
 }
 

@@ -27,6 +27,8 @@ deckcraft-model = { workspace = true }
 deckcraft-pptx = { workspace = true }
 deckcraft-render = { workspace = true }
 deckcraft-pdf = { workspace = true }
+# PowerPoint 97-2003 (src/ppt.rs): the compound file holding its record stream (already in the tree)
+cfb = "0.15"
 # Excel workbooks (src/sheets.rs): GridCraft's engine
 gridcraft-engine = { workspace = true }
 gridcraft-xlsx = { workspace = true }

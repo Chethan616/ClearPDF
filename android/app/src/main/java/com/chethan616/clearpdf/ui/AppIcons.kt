@@ -58,6 +58,10 @@ object LucideIcons {
     val FilePlus2: ImageVector get() = Icons.AutoMirrored.Rounded.NoteAdd
     val FileStack: ImageVector get() = Icons.Rounded.FileCopy
     val FileText: ImageVector get() = Icons.Rounded.Description
+    val Contrast: ImageVector get() = Icons.Rounded.Contrast
+    val Highlights: ImageVector get() = Icons.Rounded.Flare
+    val Shadows: ImageVector get() = Icons.Rounded.DarkMode
+    val Droplet: ImageVector get() = Icons.Rounded.WaterDrop
     val MoreHorizontal: ImageVector get() = Icons.Rounded.MoreHoriz
     val PaintBucket: ImageVector get() = Icons.Rounded.FormatColorFill
     val WrapText: ImageVector get() = Icons.AutoMirrored.Rounded.WrapText

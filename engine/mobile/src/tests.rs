@@ -712,3 +712,15 @@ fn a_word_document_is_typed_in_formatted_undone_and_saved() {
     assert_eq!(s.page_plain_text(again, 0).unwrap().trim(), "Hello world, again");
     assert!(s.word_command(id, "no.such.command".into(), String::new()).is_err());
 }
+
+#[test]
+fn a_powerpoint_97_2003_file_opens_with_its_slides_text() {
+    let s = MobileSession::new();
+    let path = scratch().join("Old.ppt");
+    std::fs::write(&path, crate::ppt::tests::sample_ppt()).unwrap();
+    let info = s.open(path.to_string_lossy().into_owned(), None).unwrap();
+    assert_eq!(info.kind, DocumentKind::Slides);
+    assert_eq!(info.pages.len(), 2);
+    assert_eq!(s.find_in_page(info.id, 1, "new markets".into(), false, false).unwrap().len(), 1);
+    assert!(s.render_page(info.id, 0, 0.5, None).is_ok());
+}
