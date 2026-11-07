@@ -961,6 +961,7 @@
     <string name="office_present">Present</string>
     <string name="office_save_as_format">Save as %1$s</string>
     <string name="sheet_edited">edited</string>
+    <string name="sheet_of">%1$d of %2$d</string>
     <string name="sheet_tap_to_type">Tap to type a value or =formula</string>
     <string name="sheet_fill">Fill colour</string>
     <string name="sheet_fill_yellow">Yellow</string>

@@ -95,6 +95,9 @@ import androidx.compose.ui.text.input.ImeAction
 import com.chethan616.clearpdf.engine.Engine
 import com.chethan616.clearpdf.engine.userMessage
 import com.chethan616.clearpdf.ui.glass.GlassMenu
+import com.chethan616.clearpdf.ui.glass.GlassPill
+import com.chethan616.clearpdf.ui.glass.GlassTab
+import com.chethan616.clearpdf.ui.glass.GlassTabs
 import com.chethan616.clearpdf.ui.glass.GlassMenuItem
 import com.chethan616.clearpdf.ui.glass.GlassTextField
 import com.chethan616.clearpdf.ui.glass.pressable
@@ -171,12 +174,22 @@ class SheetGridState internal constructor(private val eng: Engine, private val d
         if (sheets.getOrNull(current)?.hidden != false) current = sheets.indexOfFirst { !it.hidden }.coerceAtLeast(0)
     }
 
+    /** Show sheet [index]: the view goes back to A1, nothing chosen, nothing found. */
+    fun show(index: Int) {
+        if (index == current) return
+        layout = null
+        selected = null
+        hits = emptyList()
+        pan = Offset.Zero
+        current = index
+    }
+
     internal suspend fun loadLayout() {
         val info = sheets.getOrNull(current) ?: return
         val sheet = current
         val rows = min(info.rows.toInt() + SPARE_ROWS, 20_000)
         val cols = min(info.cols.toInt() + SPARE_COLS, 2_000)
-        layout = runCatching {
+        val loaded = runCatching {
             eng.command {
                 val axes = sheetAxes(docId, sheet.toUInt(), 0u, rows.toUInt(), 0u, cols.toUInt())
                 val colX = FloatArray(cols + 1).also { a -> axes.colWidths.forEachIndexed { i, w -> a[i + 1] = a[i] + w } }
@@ -184,6 +197,8 @@ class SheetGridState internal constructor(private val eng: Engine, private val d
                 SheetLayout(info, colX, rowY, sheetMerges(docId, sheet.toUInt()))
             }
         }.getOrNull()
+        // a sheet chosen meanwhile wins
+        if (sheet == current) layout = loaded
     }
 
     internal suspend fun loadBlock(br: Int, bc: Int) {
@@ -434,19 +449,36 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
             }
 
             Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).imePadding()) {
-                // the sheet tabs
+                // the sheets: glass tabs for a few, else a pill with the sheet's name that lists them all
                 val visible = grid.sheets.withIndex().filter { !it.value.hidden }
-                if (visible.size > 1) Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    for ((i, s) in visible) {
-                        val chosen = i == grid.current
-                        GlassChip(
-                            onClick = { grid.current = i; grid.selected = null; grid.hits = emptyList(); grid.pan = Offset.Zero },
-                            fill = if (chosen) ({ Candy.Lemon }) else s.tabColor?.let { t -> { rgb(t).copy(alpha = 0.35f) } },
-                            ink = if (chosen) Color(0xFF172033) else c.ink,
-                        ) { Text(s.name, style = ClearType.Body.copy(fontSize = 14.sp), maxLines = 1) }
+                if (visible.size in 2..4) {
+                    GlassTabs(
+                        tabs = visible.map { (_, sh) -> GlassTab(sh.name, accent = sh.tabColor?.let { rgb(it) } ?: Candy.Sky) },
+                        selected = visible.indexOfFirst { it.index == grid.current }.coerceAtLeast(0),
+                        onSelect = { i -> visible.getOrNull(i)?.let { grid.show(it.index); editing = false } },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp).fillMaxWidth(),
+                        height = 44.dp,
+                    )
+                } else if (visible.size > 4) {
+                    var sheetsAt by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+                    var pillRect by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+                        GlassPill(
+                            onClick = { sheetsAt = pillRect }, height = 40.dp, horizontalPadding = 16.dp,
+                            modifier = Modifier.onGloballyPositioned { pillRect = it.boundsInWindow() },
+                        ) {
+                            GlassIcon(LucideIcons.Sheet, null, Modifier.size(17.dp))
+                            Spacer(Modifier.size(8.dp))
+                            Text(grid.sheets.getOrNull(grid.current)?.name.orEmpty(), style = ClearType.Label.copy(fontSize = 14.sp), color = c.ink, maxLines = 1)
+                            Spacer(Modifier.size(6.dp))
+                            Text(stringResource(R.string.sheet_of, visible.indexOfFirst { it.index == grid.current } + 1, visible.size), style = ClearType.Caption, color = c.inkSoft)
+                            GlassIcon(LucideIcons.ChevronDown, null, Modifier.size(16.dp))
+                        }
+                    }
+                    sheetsAt?.let { at ->
+                        GlassMenu(at, { sheetsAt = null }, visible.map { (i, sh) ->
+                            GlassMenuItem(sh.name, if (i == grid.current) LucideIcons.Check else null) { grid.show(i); editing = false }
+                        })
                     }
                 }
                 // the dock: the chosen cell's formatting, else the workbook's tools
