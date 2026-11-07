@@ -42,25 +42,32 @@ Read, sign and edit PDFs, open and edit Word, Excel and PowerPoint files, and ke
 
 ## Featured by HowToMen
 
-ClearPDF was featured by HowToMen. [Watch the video from 9:08](https://www.youtube.com/watch?v=TYNzg59ke30&t=548s).
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=TYNzg59ke30&t=548s">
+    <img src="https://img.youtube.com/vi/TYNzg59ke30/maxresdefault.jpg" alt="▶ ClearPDF featured by HowToMen — watch from 9:08" width="600">
+  </a>
+  <br>
+  <sub>▶ Tap to watch · starts at 9:08</sub>
+</p>
 
 ## Screenshots
 
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/media/desk-light.jpg" width="200" alt="Desk – light mode"></td>
+    <td align="center"><img src="docs/media/pdf-viewer.jpg" width="200" alt="PDF viewer"></td>
+    <td align="center"><img src="docs/media/word.jpg" width="200" alt="Word editing"></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/media/desk-dark.jpg" width="200" alt="Desk – dark mode"></td>
+    <td align="center"><img src="docs/media/slides.jpg" width="200" alt="PowerPoint slides"></td>
+    <td align="center"><img src="docs/media/photo-editor.jpg" width="200" alt="Photo editor"></td>
+  </tr>
+</table>
+
 <p align="center">
-  <img src="docs/media/desk-light.jpg" width="24%" alt="Artefact's desk in light mode: notes, lists and recent PDFs">
-  <img src="docs/media/pdf-viewer.jpg" width="24%" alt="Reading and annotating a PDF in Artefact">
-  <img src="docs/media/word.jpg" width="24%" alt="Editing a Word document in Artefact">
-  <img src="docs/media/sheets.jpg" width="24%" alt="Editing an Excel spreadsheet in Artefact">
-</p>
-<p align="center">
-  <img src="docs/media/desk-dark.jpg" width="24%" alt="Artefact's desk in dark mode">
-  <img src="docs/media/slides.jpg" width="24%" alt="Presenting PowerPoint slides in Artefact">
-  <img src="docs/media/photo-editor.jpg" width="24%" alt="Editing a photo with Artefact's picture editor">
-  <img src="docs/media/glass-settings.jpg" width="24%" alt="Artefact's liquid glass and motion settings">
-</p>
-<p align="center">
-  <img src="docs/media/pdf-scroll.gif" width="40%" alt="Scrolling a PDF in Artefact">
-  <img src="docs/media/quick-preview.gif" width="40%" alt="Quick Preview: a file opened from a chat shows over the chat">
+  <img src="docs/media/pdf-scroll.gif" width="32%" alt="Scrolling a PDF">
+  <img src="docs/media/quick-preview.gif" width="32%" alt="Quick Preview over another app">
 </p>
 
 ## What you can do
