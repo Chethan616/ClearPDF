@@ -132,13 +132,14 @@ all three → editing, one format at a time, each built and run on the phone bef
       opens .pptx with `deckcraft-pptx` and draws slides with `deckcraft-render` (no deckcraft engine,
       so no video codecs or krilla); slides are pages (`DocumentKind.Slides`), with text layer and links;
       `deckcraft-fonts` vendored with the Android font folders. App: pptx types in pickers, folder
-      lists and filters; same reading-only viewer as Word. [ ] seen on the phone; [ ] present mode
+      lists and filters; same reading-only viewer as Word. [ ] seen on the phone; [x] present mode
       (full-screen slides, tap/swipe to advance; transitions from `deckcraft-render::render_transition`).
-      Password-protected decks are refused with a message (deckcraft can't decrypt).
+      Password-protected decks are refused with a message (deckcraft can't decrypt). `.ppt` (97-2003)
+      opens through Artefact's own reader (`engine/mobile/src/ppt.rs`): slides' text only, [ ] pictures.
 - [x] **Excel viewing** (gridcraft `6a8eb4f`, 2026-11-07, built and host-tested): `sheets.rs` opens
       .xlsx/.xlsb/.ods/.csv (recalculated on open) and serves tabs, axes, cell windows with looks,
       merges, find; `ui/sheets/SheetViewer.kt` draws the grid on a canvas (pan, pinch zoom, heading
-      strips, frozen panes, cells in 50×20 blocks) under glass. [ ] seen on the phone; [ ] search UI
+      strips, frozen panes, cells in 50×20 blocks) under glass. [ ] seen on the phone; [x] search UI
       (bridge `sheet_find` is there); [ ] charts (gridcraft-chart) and pictures on sheets.
 - [x] **Pictures in notes** (lightcraft `8a0b91a`, 2026-11-07, built and host-tested): `photo.rs`
       (`PhotoEditor`: decode, develop with LightCraft's `DevelopSettings` JSON, export JPEG; codecs,
