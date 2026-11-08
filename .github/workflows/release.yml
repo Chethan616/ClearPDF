@@ -28,7 +28,9 @@ env:
 jobs:
   apk:
     name: APK
-    runs-on: ubuntu-latest
+    # Ubuntu's hosted image includes the pinned Gradle version below. Running that installation
+    # avoids downloading the Gradle distribution through the failing services.gradle.org redirect.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -53,6 +55,14 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+
+      - name: Verify Gradle
+        run: |
+          actual="$(gradle --version | sed -n 's/^Gradle //p' | head -n 1)"
+          if [ "$actual" != "9.8.2" ]; then
+            echo "::error::Expected runner Gradle 9.8.2, found '$actual'"
+            exit 1
+          fi
 
       # the Rust release and targets rust-toolchain.toml names
       - name: Install Rust
@@ -96,7 +106,7 @@ jobs:
         run: |
           mkdir -p "$GITHUB_WORKSPACE/dist"
           for abi in arm64-v8a armeabi-v7a; do
-            ./gradlew assembleRelease "-Partefact.abis=$abi" "-Partefact.version=$VERSION" --no-daemon
+            gradle assembleRelease "-Partefact.abis=$abi" "-Partefact.version=$VERSION" --no-daemon --no-configuration-cache
             suffix=""; [ "$abi" = arm64-v8a ] || suffix="-$abi"
             cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/dist/Artefact-v$VERSION$suffix.apk"
           done
