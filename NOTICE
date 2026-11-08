@@ -87,7 +87,7 @@ Android app (android/app):
 - AndroidX, Jetpack Compose, ExifInterface and kotlinx.coroutines — Apache-2.0.
 - Ocrs text-recognition models (engine/assets/models, committed so the build downloads nothing) by
   Robert Knight — CC-BY-SA-4.0. The app ships them unmodified with the license and attribution in
-  engine/assets/models/ATTRIBUTION.txt. Source builds may fetch them using `cargo xtask models`.
+  engine/assets/models/ATTRIBUTION.txt.
 
 Required notices:
 

@@ -288,7 +288,7 @@ Every asset Artefact includes, bundles or uses to build its published material, 
 
 ## Retrieved build inputs and bundled models (22)
 
-The 20 showcase-PDF fonts are fetched by `cargo xtask demo-pdf` into `target/demo-fonts/` and are not committed. The two OCR models are committed under `engine/assets/models/` with their attribution and license files; source builds can also fetch them with `cargo xtask models`. The recorded SHA-256 values identify the expected files.
+The 20 showcase-PDF fonts are fetched by the showcase-PDF tooling into `target/demo-fonts/` and are not committed. The two OCR models are committed under `engine/assets/models/` with their attribution and license files. The recorded SHA-256 values identify the expected files.
 
 | File | Title | Author | Licence | Source | Used for |
 |---|---|---|---|---|---|
