@@ -246,7 +246,7 @@ android {
     defaultConfig {
         applicationId = "com.chethan616.clearpdf"
         minSdk = minApi
-        targetSdk = 36
+        targetSdk = 37
         versionCode = appVersionCode
         versionName = appVersion
         ndk { abiFilters.addAll(rustAbis) }
