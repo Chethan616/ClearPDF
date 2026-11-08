@@ -1,0 +1,23 @@
+[package]
+name = "pdfcraft-redact"
+description = "Redaction (architecture §11.2): marks, apply (glyphs, images, vectors, XObjects, annotations, fields), verification"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+pdfcraft-cos = { workspace = true }
+pdfcraft-content = { workspace = true }
+pdfcraft-fonts = { workspace = true }
+pdfcraft-model = { workspace = true }
+pdfcraft-forms = { workspace = true }
+pdfcraft-edit = { workspace = true }
+pdfcraft-annot = { workspace = true }
+pdfcraft-xfa = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+pdfcraft-testkit = { workspace = true }

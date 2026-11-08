@@ -1,0 +1,21 @@
+# Vendored from storytold/wordcraft crates/fonts at 729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b
+# (Cargo.toml.orig is its manifest; the workspace inheritance is written out here).
+# Artefact patch: system_font_dirs() also lists Android's font folders (see ../README.md).
+# The bundled fonts it embeds (src/fontdb/face.rs) resolve to engine/assets/fonts.
+[package]
+name = "wordcraft-fonts"
+version = "0.15.1"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/storytold/wordcraft"
+description = "WordCraft fonts: font database (bundled OFL + system), metrics, glyph outlines, shaping"
+
+[dependencies]
+kurbo = { version = "0.13", features = ["serde"] }
+skrifa = "0.47"
+harfrust = "0.13"
+wuff = "0.2.9"
+brotli-decompressor = "5"
+unicode-bidi = "0.3"
+unicode-script = "0.5"
+log = "0.4"

@@ -1,0 +1,15 @@
+O Artefact junta os seus PDF, notas, listas de tarefas, fotos e notas de voz numa secretária bonita. É gratuito e de código aberto, sem anúncios nem contas, e nada sai do seu telemóvel.
+
+Uma secretária para tudo
+* PDF, notas, listas, fotos e notas de voz lado a lado, como cartões
+* Marque tarefas no próprio cartão e ouça notas de voz no momento
+
+Ferramentas de PDF a sério
+* Leia, realce, comente, desenhe, preencha formulários e assine (também com ID digital)
+* Edite texto e imagens, organize, recorte, comprima, combine e proteja com palavra-passe
+* Exporte para Word, Excel, PowerPoint ou imagens; digitalize papel e reconheça o texto
+
+Pré-visualização rápida
+* «Abrir com o Artefact» numa conversa ou num gestor de ficheiros mostra o PDF num cartão flutuante por cima dessa app.
+
+O Artefact é a nova versão do ClearPDF. Não está associado à Adobe; Acrobat é uma marca da Adobe Inc.

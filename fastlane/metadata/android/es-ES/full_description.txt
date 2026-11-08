@@ -1,0 +1,15 @@
+Artefact reúne tus PDF, notas, listas de tareas, fotos y notas de voz en un escritorio precioso. Es gratis y de código abierto, sin anuncios ni cuentas, y nada sale de tu teléfono.
+
+Un escritorio para todo
+* PDF, notas, listas, fotos y notas de voz uno al lado del otro, como tarjetas
+* Marca tareas en la propia tarjeta y reproduce notas de voz al instante
+
+Herramientas PDF de verdad
+* Lee, resalta, comenta, dibuja, rellena formularios y firma (también con ID digital)
+* Edita texto e imágenes, organiza, recorta, comprime, combina y protege con contraseña
+* Exporta a Word, Excel, PowerPoint o imágenes; escanea papel y reconoce su texto
+
+Vista rápida
+* «Abrir con Artefact» desde un chat o un gestor de archivos muestra el PDF en una tarjeta flotante sobre esa app.
+
+Artefact es la nueva versión de ClearPDF. No está afiliado a Adobe; Acrobat es una marca de Adobe Inc.

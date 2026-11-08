@@ -1,0 +1,15 @@
+Artefact legt deine PDFs, Notizen, To-do-Listen, Fotos und Sprachnotizen auf einen wunderschönen Schreibtisch. Kostenlos und quelloffen, ohne Werbung und ohne Konto, und nichts verlässt dein Telefon.
+
+Ein Tisch für alles
+* PDFs, Notizen, Listen, Fotos und Sprachnotizen nebeneinander als Karten
+* Aufgaben direkt auf der Karte abhaken, Sprachnotizen sofort abspielen
+
+Echte PDF-Werkzeuge
+* Lesen, markieren, kommentieren, zeichnen, Formulare ausfüllen und signieren (auch mit digitaler ID)
+* Text und Bilder bearbeiten, ordnen, zuschneiden, komprimieren, zusammenfügen, mit Passwort schützen
+* Export nach Word, Excel, PowerPoint oder Bilder; Papier scannen und Text erkennen
+
+Schnellansicht
+* „Mit Artefact öffnen“ aus einem Chat oder Dateimanager zeigt das PDF in einer schwebenden Karte über dieser App.
+
+Artefact ist die neue Version von ClearPDF. Es steht in keiner Verbindung zu Adobe; Acrobat ist eine Marke von Adobe Inc.

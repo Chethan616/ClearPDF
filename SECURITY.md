@@ -16,4 +16,4 @@ For non-security bugs, use the public [bug report form](https://github.com/Cheth
 
 ## Privacy
 
-ClearPDF processes selected documents locally and does not provide a document-upload service. The FOSS build can make requests for the optional Office engine download and when converting a web address you enter to PDF. See [PRIVACY.md](PRIVACY.md) for details.
+Artefact processes selected documents locally and does not provide a document-upload service. The FOSS build can make requests for the optional Office engine download and when converting a web address you enter to PDF. See [PRIVACY.md](PRIVACY.md) for details.

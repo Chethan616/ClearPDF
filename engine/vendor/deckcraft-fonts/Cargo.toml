@@ -1,0 +1,19 @@
+# Vendored from storytold/deckcraft crates/fonts at 159ed07eb3f0522a5dc97d7cf1858242a6638659
+# (Cargo.toml.orig is its manifest; the workspace inheritance is written out here).
+# Artefact patch: system_font_dirs() also lists Android's font folders (see ../README.md).
+[package]
+name = "deckcraft-fonts"
+version = "0.15.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/storytold/deckcraft"
+description = "DeckCraft fonts: font database (craft-fonts + system), substitutes for Office fonts, metrics, outlines, shaping"
+
+[dependencies]
+kurbo = { version = "0.13", features = ["serde"] }
+skrifa = "0.47"
+harfrust = "0.13"
+unicode-bidi = "0.3"
+log = "0.4"
+# Last-resort face only (Ubuntu Light); no UI code.
+epaint_default_fonts = "0.37"

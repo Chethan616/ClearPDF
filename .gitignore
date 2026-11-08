@@ -1,68 +1,18 @@
-# IntelliJ / Android Studio
-.idea/
-*.iml
-*.ipr
-*.iws
-
-# VS Code
-.vscode/*
-!.vscode/extensions.json
-
-# Gradle / Kotlin
-.gradle/
-.kotlin/
-.kotlinc/
-
-# Build outputs (all modules)
-**/build/
-build/
-out/
-captures/
-.externalNativeBuild/
-.cxx/
-
-# Android local config
-local.properties
-
-# Signing and sensitive local files
-key.properties
-.signing/
+*~
+/engine/target
+/engine/target-*/
+/dist
+.DS_Store
+.claude/
+# the phone parity tracker stays on this computer, out of the repo
+/docs/parity-mobile.md
+# release signing (the Play upload key): never committed
+/key.properties
 *.jks
 *.keystore
-*.pem
+# local build logs
+/build-*.log
 
-# Android distribution artifacts
-*.apk
-*.aab
-*.ap_
-
-# Logs
-*.log
-
-# OS-generated files
-.DS_Store
-Thumbs.db
-
-# Temporary / backups
-*.tmp
-*.swp
-*~
-
-# Ownership verification token file (local-only)
-app/src/main/assets/adi-registration.properties
-
-# Legacy extracted folder
-/Pdf_Tools-master/
-/ClearPDF-main/
-
-# Local Claude Code config
-.claude/
-
-# Local graphify knowledge graph
-/graphify-out/
-
-# Local scratch / reference clones
-scratch/
-
-# Upstream reference clones (study only)
-/reference/
+# reference screenshots shared while working, never committed
+/t[0-9].png
+/artefact_demo/
