@@ -59,8 +59,8 @@ jobs:
       - name: Verify Gradle
         run: |
           actual="$(gradle --version | sed -n 's/^Gradle //p' | head -n 1)"
-          if [ "$actual" != "9.8.1" ]; then
-            echo "::error::Expected runner Gradle 9.8.1, found '$actual'"
+          if [ "$actual" != "9.8.2" ]; then
+            echo "::error::Expected runner Gradle 9.8.2, found '$actual'"
             exit 1
           fi
 
