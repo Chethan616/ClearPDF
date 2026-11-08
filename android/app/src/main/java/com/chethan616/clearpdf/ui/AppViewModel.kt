@@ -838,7 +838,9 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         get() = if (appPrefs.getString("pageMode", "continuous") == "single") com.chethan616.clearpdf.ui.viewer.PageMode.SinglePage
         else com.chethan616.clearpdf.ui.viewer.PageMode.Continuous
 
-    val savedNightMode: Boolean get() = appPrefs.getBoolean("nightMode", false)
+    /** One reactive source for Settings and the reader's View settings. */
+    private var nightModeDefaultState by mutableStateOf(appPrefs.getBoolean("nightMode", false))
+    val savedNightMode: Boolean get() = nightModeDefaultState
 
     fun setPageMode(doc: OpenDocument, mode: com.chethan616.clearpdf.ui.viewer.PageMode) {
         // leaving Reading Mode: a canvas laid out already followed the page read; else it shows it on layout
@@ -855,6 +857,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
 
     /** PDFs and documents use this choice as soon as they open, and the current reader follows it. */
     fun setNightModeDefault(on: Boolean) {
+        nightModeDefaultState = on
         appPrefs.edit().putBoolean("nightMode", on).apply()
         prefsChanged++
         document?.controller?.nightMode = on

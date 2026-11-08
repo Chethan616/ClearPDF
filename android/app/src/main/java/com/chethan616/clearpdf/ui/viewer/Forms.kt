@@ -58,6 +58,7 @@ import com.chethan616.clearpdf.ui.PdfSheet
 import com.chethan616.clearpdf.ui.SheetRow
 import com.chethan616.clearpdf.ui.SheetTitle
 import com.chethan616.clearpdf.ui.pdfColors
+import com.chethan616.clearpdf.ui.glass.glassBar
 import kotlin.math.roundToInt
 
 /** A field being filled in: the widget tapped. */
@@ -142,7 +143,11 @@ fun BoxScope.FieldEditor(vm: AppViewModel, edit: FieldEdit) {
     // words used in forms before, above the keyboard
     val suggestions = if (w.password) emptyList() else vm.suggestionsFor(text)
     if (suggestions.isNotEmpty()) {
-        Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().imePadding().background(c.surface).height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().imePadding().padding(horizontal = 12.dp, vertical = 8.dp)
+                .height(44.dp).glassBar().padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             for (sug in suggestions) {
                 Text(sug, color = c.text, maxLines = 1, modifier = Modifier.weight(1f).clickable { text = sug }.padding(horizontal = 12.dp, vertical = 10.dp))
             }
@@ -170,9 +175,7 @@ class FieldActions(val reset: () -> Unit, val step: (Boolean) -> Unit, val canBa
 fun FieldTopBar(actions: FieldActions) {
     val c = pdfColors
     Row(
-        Modifier.fillMaxWidth().height(TopBarHeight).background(c.surface).drawBehind {
-            drawRect(c.divider, androidx.compose.ui.geometry.Offset(0f, size.height - 1.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx()))
-        },
+        Modifier.fillMaxWidth().height(TopBarHeight).padding(horizontal = 12.dp, vertical = 8.dp).glassBar().padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(stringResource(R.string.forms_reset), color = c.label, fontSize = 17.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,

@@ -8,10 +8,12 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -29,6 +31,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -77,6 +80,10 @@ import com.chethan616.clearpdf.ui.AppViewModel
 import com.chethan616.clearpdf.ui.LucideIcons
 import com.chethan616.clearpdf.ui.OpenDocument
 import com.chethan616.clearpdf.ui.pdfColors
+import com.chethan616.clearpdf.ui.glass.LocalGlassInk
+import com.chethan616.clearpdf.ui.glass.glassBar
+import com.chethan616.clearpdf.ui.glass.rememberGlassInk
+import com.chethan616.clearpdf.ui.theme.clear
 import kotlin.math.roundToInt
 
 /** A paragraph Edit PDF can change: its number on the page, text, box (points) and style. */
@@ -124,28 +131,22 @@ fun EditToolbar(vm: AppViewModel, doc: OpenDocument) {
 
 @Composable
 private fun EditToolsBar(vm: AppViewModel, doc: OpenDocument) {
-    Row(
-        // taller when a large font setting enlarges the labels, rather than cutting them off
-        Modifier.fillMaxWidth().heightIn(min = BottomBarHeight).barTopLine().background(pdfColors.surface),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    SubToolbar {
         val textHint = stringResource(R.string.edit_tap_for_text)
         val imageHint = stringResource(R.string.edit_tap_for_image)
-        EditBarItem(LucideIcons.LayoutGrid, stringResource(R.string.common_tool_organize), false, 96.dp) {
+        SubTool(LucideIcons.LayoutGrid, stringResource(R.string.common_tool_organize), vm.organizing, {
             vm.organizing = true
             doc.controller.pagesOpen = true
-        }
-        BarDividerLine()
-        EditBarItem(LucideIcons.Type, stringResource(R.string.edit_add_text), vm.editMode == EditMode.AddText, 70.dp) {
+        })
+        SubTool(LucideIcons.Type, stringResource(R.string.edit_add_text), vm.editMode == EditMode.AddText, {
             vm.editMode = if (vm.editMode == EditMode.AddText) EditMode.Select else EditMode.AddText
             if (vm.editMode == EditMode.AddText) vm.tell(textHint)
-        }
-        // as Add text: a mode, then a tap places the picture there
-        EditBarItem(LucideIcons.ImagePlus, stringResource(R.string.edit_add_image), vm.editMode == EditMode.AddImage, 78.dp) {
+        })
+        // As with Add text, Add image selects a placement mode; tapping the page places it.
+        SubTool(LucideIcons.ImagePlus, stringResource(R.string.edit_add_image), vm.editMode == EditMode.AddImage, {
             vm.editMode = if (vm.editMode == EditMode.AddImage) EditMode.Select else EditMode.AddImage
             if (vm.editMode == EditMode.AddImage) vm.tell(imageHint)
-        }
+        })
     }
 }
 
@@ -157,14 +158,15 @@ private fun BarDividerLine() {
 @Composable
 private fun EditBarItem(icon: ImageVector, label: String, selected: Boolean, width: Dp, onClick: () -> Unit) {
     val c = pdfColors
+    val ink = LocalGlassInk.current
     Column(
         Modifier.width(width).heightIn(min = BottomBarHeight).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = label },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(icon, null, tint = if (selected) c.toolAccent else c.icon, modifier = Modifier.size(24.dp))
+        Icon(icon, null, tint = if (selected) c.toolAccent else ink, modifier = Modifier.size(24.dp))
         Spacer(Modifier.height(6.dp))
-        Text(label, color = if (selected) c.toolAccent else c.label, fontSize = 13.sp, maxLines = 1, softWrap = false)
+        Text(label, color = if (selected) c.toolAccent else ink, fontSize = 13.sp, maxLines = 1, softWrap = false)
     }
 }
 
@@ -175,7 +177,7 @@ private fun EditFormatBar(vm: AppViewModel, doc: OpenDocument, para: Paragraph) 
     fun toggle(p: FormatPanel) {
         panel = if (panel == p) FormatPanel.None else p
     }
-    Column(Modifier.fillMaxWidth().background(c.surface)) {
+    Column(Modifier.fillMaxWidth()) {
         when (panel) {
             FormatPanel.Size -> SizePanel(para) { vm.styleParagraph(doc, para, mapOf("size" to it.toDouble())) }
             FormatPanel.Font -> FontPanel(vm.editFont[para.page to para.number]) { f ->
@@ -191,7 +193,7 @@ private fun EditFormatBar(vm: AppViewModel, doc: OpenDocument, para: Paragraph) 
             FormatPanel.None -> Unit
         }
         Row(
-            Modifier.fillMaxWidth().height(BottomBarHeight).barTopLine(),
+            Modifier.fillMaxWidth().height(BottomBarHeight).padding(horizontal = 12.dp, vertical = 8.dp).glassBar().padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {

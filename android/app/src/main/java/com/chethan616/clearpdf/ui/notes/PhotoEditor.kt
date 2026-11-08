@@ -4,14 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,11 +20,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.layout.windowInsetsTopHeight
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -37,7 +35,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -46,10 +43,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -66,17 +61,17 @@ import com.chethan616.clearpdf.engine.toBitmap
 import com.chethan616.clearpdf.ui.AppViewModel
 import com.chethan616.clearpdf.ui.LucideIcons
 import com.chethan616.clearpdf.ui.glass.ChromeCapsule
-import com.chethan616.clearpdf.ui.glass.Feel
 import com.chethan616.clearpdf.ui.glass.Fluid
 import com.chethan616.clearpdf.ui.glass.GlassCircle
 import com.chethan616.clearpdf.ui.glass.GlassIcon
 import com.chethan616.clearpdf.ui.glass.GlassPill
 import com.chethan616.clearpdf.ui.glass.LocalBackdrop
-import com.chethan616.clearpdf.ui.glass.LocalHaptics
+import com.chethan616.clearpdf.ui.glass.LocalGlassInk
 import com.chethan616.clearpdf.ui.glass.RoundedRectangle
-import com.chethan616.clearpdf.ui.glass.glass
 import com.chethan616.clearpdf.ui.glass.glassBar
+import com.chethan616.clearpdf.ui.glass.pressable
 import com.chethan616.clearpdf.ui.glass.rememberBeat
+import com.chethan616.clearpdf.ui.glass.rememberGlassInk
 import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -90,9 +85,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
-/** One adjustment of LightCraft's develop settings: where it lives, its name, glyph and range. */
+/** One adjustment LightCraft can develop. */
 private enum class Adjust(
     val section: String,
     val field: String,
@@ -110,72 +104,64 @@ private enum class Adjust(
     Saturation("color", "saturation", R.string.photo_saturation, LucideIcons.Droplet, -100f, 100f, 0),
 }
 
-/** The quarter turns LightCraft's orientation names, clockwise from as shot. */
 private val TURNS = listOf("Normal", "Rotate90", "Rotate180", "Rotate270")
 
-/** "+0.40", "−12", "0": signed, as Photos shows an adjustment. */
-private fun shown(a: Adjust, v: Float): String {
+private fun shown(a: Adjust, value: Float): String {
     val zero = if (a.decimals > 0) 0.005f else 0.5f
-    if (abs(v) < zero) return "0"
-    val n = if (a.decimals > 0) "%.${a.decimals}f".format(abs(v)) else abs(v).toInt().toString()
-    return (if (v > 0) "+" else "−") + n
+    if (abs(value) < zero) return "0"
+    val number = if (a.decimals > 0) "%1$.${a.decimals}f".format(abs(value)) else abs(value).toInt().toString()
+    return (if (value > 0f) "+" else "−") + number
 }
 
 /**
- * A photo editor built completely on Artefact's liquid-glass design system:
- * - Edge-to-edge photo canvas with touch-and-hold to view original
- * - Floating liquid-glass header with beat-delayed Cancel (X) and Save (Tick)
- * - Pure liquid glass controls with NO canvas circle marks
- * - Zero-snap precision ruler with haptic feedback
- * - Deep integration with GlassSettings & MotionSettings
- * - Proper BackHandler ensuring swipe-back never closes the app
+ * A direct-touch editor: the picture remains the focus, while two compact glass cylinders own the
+ * adjustment value and adjustment selection. The slider is immediate; rendering happens behind it.
  */
 @OptIn(kotlinx.coroutines.FlowPreview::class)
 @Composable
 fun PhotoEditScreen(vm: AppViewModel, noteId: String, name: String, onClose: () -> Unit) {
-    val source = remember(name) { vm.notes.file(name) }
-    val editor = remember { PhotoEditor() }
+    val source = remember(noteId, name) { vm.notes.file(name) }
+    val editor = remember(name) { PhotoEditor() }
     DisposableEffect(editor) { onDispose { editor.release(); editor.close() } }
-    val values = remember { mutableStateMapOf<Adjust, Float>() }
-    var turn by remember { mutableStateOf(0) }
-    var chosen by remember { mutableStateOf(Adjust.Exposure) }
-    var shown by remember { mutableStateOf<ImageBitmap?>(null) }
-    var original by remember { mutableStateOf<ImageBitmap?>(null) }
+
+    val values = remember(name) { mutableStateMapOf<Adjust, Float>() }
+    var turn by remember(name) { mutableStateOf(0) }
+    var selected by remember(name) { mutableStateOf(Adjust.Exposure) }
+    var preview by remember(name) { mutableStateOf<ImageBitmap?>(null) }
+    var original by remember(name) { mutableStateOf<ImageBitmap?>(null) }
     var comparing by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val edited = values.values.any { it != 0f } || turn != 0
+    val changed = values.values.any { it != 0f } || turn != 0
 
-    fun settings(withValues: Boolean = true): String {
-        val o = JSONObject()
-        if (withValues) for ((a, v) in values) if (v != 0f) {
-            (o.optJSONObject(a.section) ?: JSONObject().also { o.put(a.section, it) }).put(a.field, v.toDouble())
+    fun settings(includeAdjustments: Boolean = true): String {
+        val root = JSONObject()
+        if (includeAdjustments) values.forEach { (adjustment, value) ->
+            if (value != 0f) {
+                val section = root.optJSONObject(adjustment.section) ?: JSONObject().also { root.put(adjustment.section, it) }
+                section.put(adjustment.field, value.toDouble())
+            }
         }
-        if (turn != 0) o.put("orientation", TURNS[turn])
-        return o.toString()
+        if (turn != 0) root.put("orientation", TURNS[turn])
+        return root.toString()
     }
 
-    // Beat delay for Cancel (X): plays the liquid glass spring press before dismissing
-    val beatClose = rememberBeat(onClose)
-
-    // Beat delay for Done (Tick): plays the spring press, exports the image, and closes cleanly
-    val beatDone = rememberBeat({
+    val close = rememberBeat(onClose)
+    val done = rememberBeat(action = {
         if (saving) return@rememberBeat
-        if (!edited) {
+        if (!changed) {
             onClose()
             return@rememberBeat
         }
         saving = true
         scope.launch {
-            val out = File(source.parentFile, "edited-${System.currentTimeMillis()}.jpg")
-            val ok = withContext(Dispatchers.Default) {
-                runCatching {
-                    editor.exportJpeg(source.absolutePath, settings(), out.absolutePath, 92u)
-                }.isSuccess
+            val output = File(source.parentFile, "edited-${System.currentTimeMillis()}.jpg")
+            val saved = withContext(Dispatchers.Default) {
+                runCatching { editor.exportJpeg(source.absolutePath, settings(), output.absolutePath, 92u) }.isSuccess
             }
-            if (ok) {
-                vm.notes.get(noteId)?.let { n ->
-                    vm.notes.put(n.copy(images = n.images.map { if (it == name) out.name else it }))
+            if (saved) {
+                vm.notes.get(noteId)?.let { note ->
+                    vm.notes.put(note.copy(images = note.images.map { if (it == name) output.name else it }))
                 }
             } else {
                 vm.tell(com.chethan616.clearpdf.text(R.string.photo_not_saved))
@@ -185,58 +171,32 @@ fun PhotoEditScreen(vm: AppViewModel, noteId: String, name: String, onClose: () 
         }
     })
 
-    // Intercept back gesture / button: closes photo editor safely instead of closing the app!
-    BackHandler(enabled = true) {
-        beatClose()
-    }
+    BackHandler(enabled = true) { close() }
 
-    // Re-develop as the ruler moves; a newer value cancels the render still running
-    LaunchedEffect(Unit) {
-        // Rendering a 1600 px photo for every pointer event starved the ruler of frames. Coalesce
-        // values for two display frames; the ruler remains immediate while the preview catches up
-        // fluidly and always renders the final value.
+    // A smaller working render prevents native image development from competing with slider input.
+    LaunchedEffect(source) {
         snapshotFlow { settings() }
             .distinctUntilChanged()
-            .debounce(48)
+            .debounce(80)
             .collectLatest { json ->
-            shown = withContext(Dispatchers.Default) {
-                runCatching {
-                    editor.render(source.absolutePath, json, 1600u).toBitmap().asImageBitmap()
-                }.getOrNull()
-            } ?: shown
-        }
+                preview = withContext(Dispatchers.Default) {
+                    runCatching { editor.render(source.absolutePath, json, 1280u).toBitmap().asImageBitmap() }.getOrNull()
+                } ?: preview
+            }
     }
-
-    // The picture as shot (turned as the edit is), for holding to compare
-    LaunchedEffect(turn) {
-        val json = settings(withValues = false)
+    LaunchedEffect(source, turn) {
         original = withContext(Dispatchers.Default) {
-            runCatching {
-                editor.render(source.absolutePath, json, 1600u).toBitmap().asImageBitmap()
-            }.getOrNull()
+            runCatching { editor.render(source.absolutePath, settings(includeAdjustments = false), 1280u).toBitmap().asImageBitmap() }.getOrNull()
         }
     }
 
     val backdrop = rememberLayerBackdrop()
-
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Color(0xFF090A0F)),
-    ) {
-        // ── Photo Canvas Layer ───────────────────────────────────────────────
-        Column(
-            Modifier
-                .fillMaxSize()
-                .layerBackdrop(backdrop),
-        ) {
-            Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
-            Spacer(Modifier.height(64.dp))
+    Box(Modifier.fillMaxSize().background(Color(0xFF090A0F))) {
+        Box(Modifier.fillMaxSize().layerBackdrop(backdrop)) {
             Box(
                 Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxSize()
+                    .padding(top = 76.dp, bottom = 176.dp, start = 12.dp, end = 12.dp)
                     .pointerInput(Unit) {
                         detectTapGestures(onPress = {
                             comparing = true
@@ -246,330 +206,168 @@ fun PhotoEditScreen(vm: AppViewModel, noteId: String, name: String, onClose: () 
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                (if (comparing) original ?: shown else shown)?.let {
+                (if (comparing) original ?: preview else preview)?.let { image ->
                     Image(
-                        it,
-                        null,
-                        Modifier
-                            .clip(RoundedRectangle(20.dp))
-                            .fillMaxSize(),
+                        bitmap = image,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().clip(RoundedRectangle(24.dp)),
                         contentScale = ContentScale.Fit,
                     )
                 }
-
-                // "ORIGINAL" indicator when user holds down on the photo
-                androidx.compose.animation.AnimatedVisibility(
+                AnimatedVisibility(
                     visible = comparing,
                     enter = fadeIn(Fluid.fade()),
                     exit = fadeOut(Fluid.fade()),
                     modifier = Modifier.align(Alignment.TopCenter),
                 ) {
                     Box(
-                        Modifier
-                            .padding(top = 12.dp)
-                            .background(Color.Black.copy(alpha = 0.55f), ChromeCapsule)
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                        Modifier.padding(top = 12.dp).background(Color.Black.copy(alpha = 0.58f), ChromeCapsule).padding(horizontal = 14.dp, vertical = 7.dp),
                     ) {
-                        Text(
-                            stringResource(R.string.photo_original).uppercase(),
-                            style = ClearType.Label.copy(
-                                fontSize = 11.sp,
-                                letterSpacing = 1.4.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                            color = Color.White,
-                        )
+                        Text(stringResource(R.string.photo_original), style = ClearType.Label, color = Color.White)
                     }
                 }
             }
-            // Room for the bottom liquid glass deck
-            Spacer(Modifier.height(240.dp))
-            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
 
-        // ── Liquid Glass Chrome Layer ─────────────────────────────────────────
         CompositionLocalProvider(LocalBackdrop provides backdrop) {
-            // ── Top Navigation Bar ────────────────────────────────────────────
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter),
-            ) {
-                Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Close / Cancel (X) button with beat delay
-                    GlassCircle(
-                        onClick = beatClose,
-                        label = stringResource(R.string.common_cancel),
-                        size = 42.dp,
-                        surface = Color.White.copy(alpha = 0.12f),
-                        ink = Color.White,
-                    ) {
-                        GlassIcon(LucideIcons.X, null, Modifier.size(18.dp))
-                    }
-
-                    Spacer(Modifier.weight(1f))
-
-                    // Reset button — animates in only when edits exist
-                    AnimatedVisibility(
-                        visible = edited,
-                        enter = fadeIn(Fluid.quick()) + slideInVertically(Fluid.quick()) { -it / 2 },
-                        exit = fadeOut(Fluid.quick()) + slideOutVertically(Fluid.quick()) { -it / 2 },
-                    ) {
-                        GlassPill(
-                            onClick = {
-                                values.clear()
-                                turn = 0
-                            },
-                            height = 42.dp,
-                            horizontalPadding = 16.dp,
-                            surface = Color.White.copy(alpha = 0.12f),
-                            tap = Feel.Tap,
-                        ) {
-                            Text(
-                                stringResource(R.string.photo_reset),
-                                style = ClearType.Label.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-                                color = Candy.Lemon,
-                            )
-                        }
-                    }
-
-                    if (edited) Spacer(Modifier.width(10.dp))
-
-                    // Rotate CW
-                    GlassCircle(
-                        onClick = { turn = (turn + 1) % 4 },
-                        label = stringResource(R.string.photo_rotate),
-                        size = 42.dp,
-                        surface = Color.White.copy(alpha = 0.12f),
-                        ink = Color.White,
-                    ) {
-                        GlassIcon(LucideIcons.RotateCw, null, Modifier.size(18.dp))
-                    }
-
-                    Spacer(Modifier.width(10.dp))
-
-                    // Done / Save (Tick) button with beat delay
-                    GlassCircle(
-                        onClick = beatDone,
-                        label = stringResource(R.string.common_done),
-                        size = 42.dp,
-                        tint = if (edited) Candy.Sky else Color.Unspecified,
-                        surface = if (edited) Candy.Sky.copy(alpha = 0.32f) else Color.White.copy(alpha = 0.12f),
-                        ink = if (edited) Color.White else Color.White.copy(alpha = 0.7f),
-                    ) {
-                        GlassIcon(LucideIcons.Check, null, Modifier.size(20.dp))
-                    }
+            Box(Modifier.fillMaxSize()) {
+                PhotoHeader(
+                    changed = changed,
+                    onClose = close,
+                    onDone = done,
+                    onReset = { values.clear(); turn = 0 },
+                    onRotate = { turn = (turn + 1) % 4 },
+                )
+                Box(Modifier.align(Alignment.BottomCenter)) {
+                    PhotoControls(
+                        selected = selected,
+                        value = values[selected] ?: 0f,
+                        onSelect = { selected = it },
+                        onValueChange = { next ->
+                            val caught = if (abs(next) < (selected.max - selected.min) * 0.012f) 0f else next
+                            values[selected] = caught
+                        },
+                    )
                 }
-            }
-
-            // ── Bottom Liquid Glass Control Center ────────────────────────────
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                val v = values[chosen] ?: 0f
-
-                // Floating glass control deck enclosing readout, ruler, and dials
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .glass(
-                            shape = RoundedRectangle(28.dp),
-                            wash = Color(0x33101524),
-                            blur = 18.dp,
-                            lensHeight = 14.dp,
-                            lensAmount = 22.dp,
-                        )
-                        .padding(top = 16.dp, bottom = 14.dp),
-                ) {
-                    Column(
-                        Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        // Title + Value display
-                        Text(
-                            stringResource(chosen.label).uppercase(),
-                            style = ClearType.Label.copy(fontSize = 11.sp, letterSpacing = 1.8.sp),
-                            color = Color.White.copy(alpha = 0.5f),
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            shown(chosen, v),
-                            style = ClearType.Title.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold),
-                            color = if (v != 0f) Candy.Lemon else Color.White,
-                        )
-
-                        Spacer(Modifier.height(10.dp))
-
-                        // Precision Ruler
-                        Ruler(chosen, v) { values[chosen] = it }
-
-                        Spacer(Modifier.height(16.dp))
-
-                        // Liquid Glass Dials Row (no circle marks!)
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState())
-                                .padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            for (a in Adjust.entries) {
-                                Dial(
-                                    a = a,
-                                    value = values[a] ?: 0f,
-                                    chosen = a == chosen,
-                                    onClick = { chosen = a },
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             }
         }
     }
 }
 
-/**
- * An adjustment dial: pure liquid glass component with responsive fluid press,
- * squish and bloom. NO canvas circle marks or outer rings.
- */
 @Composable
-private fun Dial(
-    a: Adjust,
-    value: Float,
-    chosen: Boolean,
-    onClick: () -> Unit,
+private fun PhotoHeader(
+    changed: Boolean,
+    onClose: () -> Unit,
+    onDone: () -> Unit,
+    onReset: () -> Unit,
+    onRotate: () -> Unit,
 ) {
-    val nonZero = value != 0f
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(62.dp),
-    ) {
-        GlassCircle(
-            onClick = onClick,
-            size = 50.dp,
-            label = stringResource(a.label),
-            ink = if (chosen) Color(0xFF141202) else Color.White,
-            tint = if (chosen) Candy.Lemon else Color.Unspecified,
-            surface = if (chosen) Candy.Lemon else Color.White.copy(alpha = 0.10f),
+    val ink = rememberGlassInk(Color.White)
+    Column(Modifier.fillMaxWidth()) {
+        Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            GlassIcon(
-                a.icon,
-                null,
-                Modifier.size(22.dp),
-                tint = if (chosen) Color(0xFF141202) else Color.White,
+            GlassCircle(onClick = onClose, size = 42.dp, ink = Color.White, label = stringResource(R.string.common_cancel)) {
+                GlassIcon(LucideIcons.X, null, Modifier.size(19.dp))
+            }
+            Row(Modifier.weight(1f).height(42.dp).then(ink.modifier).glassBar().padding(horizontal = 15.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.photo_edit), style = ClearType.Title.copy(fontSize = 15.sp), color = ink.color)
+            }
+            AnimatedVisibility(visible = changed, enter = fadeIn(Fluid.quick()), exit = fadeOut(Fluid.quick())) {
+                GlassPill(onClick = onReset, height = 42.dp, horizontalPadding = 13.dp, label = stringResource(R.string.photo_reset)) {
+                    Text(stringResource(R.string.photo_reset), style = ClearType.Label, color = Candy.Lemon)
+                }
+            }
+            GlassCircle(onClick = onRotate, size = 42.dp, ink = Color.White, label = stringResource(R.string.photo_rotate)) {
+                GlassIcon(LucideIcons.RotateCw, null, Modifier.size(19.dp))
+            }
+            GlassCircle(
+                onClick = onDone,
+                size = 42.dp,
+                tint = if (changed) Candy.Sky else Color.Unspecified,
+                ink = Color.White,
+                label = stringResource(R.string.common_done),
+            ) {
+                GlassIcon(LucideIcons.Check, null, Modifier.size(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoControls(
+    selected: Adjust,
+    value: Float,
+    onSelect: (Adjust) -> Unit,
+    onValueChange: (Float) -> Unit,
+) {
+    val ink = rememberGlassInk(Color.White)
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().height(72.dp).then(ink.modifier).glassBar().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(Modifier.width(72.dp)) {
+                Text(stringResource(selected.label), style = ClearType.Label, color = ink.color.copy(alpha = 0.66f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(shown(selected, value), style = ClearType.Title.copy(fontSize = 22.sp), color = if (value == 0f) ink.color else Candy.Lemon)
+            }
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = selected.min..selected.max,
+                modifier = Modifier.weight(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = Candy.Sky,
+                    activeTrackColor = Candy.Sky,
+                    inactiveTrackColor = ink.color.copy(alpha = 0.22f),
+                ),
             )
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(8.dp))
+        LazyRow(
+            modifier = Modifier.fillMaxWidth().height(70.dp).then(ink.modifier).glassBar(),
+            contentPadding = PaddingValues(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            items(Adjust.entries, key = { it.name }) { adjustment ->
+                CompositionLocalProvider(LocalGlassInk provides ink.color) {
+                    AdjustmentTab(adjustment, adjustment == selected, onClick = { onSelect(adjustment) })
+                }
+            }
+        }
+        Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+    }
+}
+
+@Composable
+private fun AdjustmentTab(adjustment: Adjust, selected: Boolean, onClick: () -> Unit) {
+    val ink = LocalGlassInk.current
+    Column(
+        Modifier.width(68.dp).height(62.dp).pressable(onClick, pressedScale = 0.9f).padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Box(
+            Modifier.size(34.dp).clip(ChromeCapsule).background(if (selected) Candy.Sky else Color.Transparent),
+            contentAlignment = Alignment.Center,
+        ) {
+            GlassIcon(adjustment.icon, null, Modifier.size(19.dp), tint = if (selected) Color.White else ink)
+        }
         Text(
-            if (nonZero) shown(a, value) else stringResource(a.label),
-            style = ClearType.Label.copy(
-                fontSize = 11.sp,
-                fontWeight = if (chosen || nonZero) FontWeight.SemiBold else FontWeight.Normal,
-            ),
-            color = if (chosen || nonZero) Candy.Lemon else Color.White.copy(alpha = 0.6f),
+            stringResource(adjustment.label),
+            style = ClearType.Label.copy(fontSize = 10.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal),
+            color = if (selected) ink else ink.copy(alpha = 0.62f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
         )
-    }
-}
-
-/**
- * The value's ruler: ticks across the range with edge-fade, zero catch with haptics,
- * and a center indicator in Lemon.
- */
-@Composable
-private fun Ruler(a: Adjust, value: Float, onChange: (Float) -> Unit) {
-    val haptics = LocalHaptics.current
-    val range = a.max - a.min
-    var drag by remember(a) { mutableStateOf(value) }
-    var dragging by remember(a) { mutableStateOf(false) }
-    // A meaningful tick per adjustment type: fractions for exposure, five-point steps for tone,
-    // quarter turns for geometry. It feels deliberate without vibrating continuously.
-    val tickSize = remember(a) {
-        when {
-            range <= 8f -> 0.1f
-            range <= 12f -> 0.25f
-            range <= 40f -> 1f
-            else -> 5f
-        }
-    }
-    fun tickAt(v: Float) = (v / tickSize).roundToInt()
-    var lastTick by remember(a) { mutableIntStateOf(tickAt(value)) }
-    LaunchedEffect(value) {
-        if (!dragging) {
-            drag = value
-            lastTick = tickAt(value)
-        }
-    }
-
-    Canvas(
-        Modifier
-            .fillMaxWidth()
-            .height(44.dp)
-            .pointerInput(a) {
-                val perPx = range / (size.width * 3f)
-                detectHorizontalDragGestures(
-                    onDragStart = {
-                        dragging = true
-                        lastTick = tickAt(drag)
-                        haptics?.play(Feel.Rise)
-                    },
-                    onDragEnd = { dragging = false },
-                    onDragCancel = { dragging = false },
-                ) { change, dx ->
-                    change.consume()
-                    var next = (drag - dx * perPx).coerceIn(a.min, a.max)
-                    // Catch zero precisely; it is the natural resting point for every adjustment.
-                    if (abs(next) < range * 0.012f) next = 0f
-                    val nextTick = tickAt(next)
-                    if (nextTick != lastTick) {
-                        haptics?.play(Feel.Tick)
-                        lastTick = nextTick
-                    }
-                    drag = next
-                    onChange(next)
-                }
-            },
-    ) {
-        val w = size.width * 3f
-        val mid = size.width / 2
-        val t = (drag - a.min) / range
-        val ticks = 60
-
-        for (i in 0..ticks) {
-            val x = mid + (i.toFloat() / ticks - t) * w
-            if (x < -4 || x > size.width + 4) continue
-            val major = i % 10 == 0
-            val h = if (major) size.height * 0.55f else size.height * 0.32f
-            val fade = (1f - abs(x - mid) / mid).coerceIn(0.12f, 1f)
-            drawLine(
-                Color.White.copy(alpha = (if (major) 0.8f else 0.4f) * fade),
-                Offset(x, (size.height - h) / 2),
-                Offset(x, (size.height + h) / 2),
-                1.5.dp.toPx(),
-                StrokeCap.Round,
-            )
-        }
-
-        // zero indicator mark & center needle
-        val zx = mid + ((0f - a.min) / range - t) * w
-        if (zx in 0f..size.width) {
-            drawCircle(Candy.Lemon, 2.5.dp.toPx(), Offset(zx, size.height - 2.dp.toPx()))
-        }
-        drawLine(Candy.Lemon, Offset(mid, 0f), Offset(mid, size.height), 2.dp.toPx(), StrokeCap.Round)
     }
 }

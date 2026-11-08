@@ -374,12 +374,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                 }
                 val searchShown by remember { androidx.compose.runtime.derivedStateOf { ctl.searching || sp.value > 0.002f } }
                 Box(barSides) {
-                    Box(
-                        Modifier.graphicsLayer { alpha = (1f - sp.value).coerceIn(0f, 1f) }
-                            .then(if (searchShown) Modifier.pointerInput(searchShown) {
-                                awaitPointerEventScope { while (true) awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial).changes.forEach { it.consume() } }
-                            } else Modifier),
-                    ) {
+                    Box {
                         val fa = vm.fieldActions
                         if (fa != null) FieldTopBar(fa) else ViewerTopBar(
                             title = doc.title,
@@ -389,7 +384,11 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                             doneIsCheck = ctl.tool != ViewerTool.Comment,
                             canUndo = doc.localUndo?.canUndo?.invoke() ?: (doc.info.undo != null),
                             canRedo = doc.localUndo?.canRedo?.invoke() ?: (doc.info.redo != null),
-                            onBack = { if (ctl.tool != ViewerTool.None) vm.leaveTool(doc) else vm.closeDocument() },
+                            onBack = {
+                                if (searchShown) closeSearch(doc)
+                                else if (ctl.tool != ViewerTool.None) vm.leaveTool(doc)
+                                else vm.closeDocument()
+                            },
                             onUndo = { vm.undo(doc) },
                             onRedo = { vm.redo(doc) },
                             onTitle = { anchor ->
@@ -406,6 +405,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                                 moreMenuAnchor = anchor
                                 ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More
                             },
+                            contentAlpha = 1f - sp.value,
                             undoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.undo,
                             redoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.redo,
                         )
@@ -425,7 +425,6 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                                 query = ""
                                 search.clear()
                             },
-                            onClose = { closeSearch(doc) },
                             onPrev = { search.step(false)?.let { showHit(doc, it) } },
                             onNext = { search.step(true)?.let { showHit(doc, it) } },
                             // Extra Features: which result is on screen, of how many (still growing while

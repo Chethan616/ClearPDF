@@ -321,6 +321,12 @@ data class GlassMenuItem(val label: String, val icon: ImageVector? = null, val d
 /** How long a chosen menu item waits for the menu to fold away (its dismiss tween, about 260 ms). */
 private const val MenuGoneMillis = 220L
 
+// Menus are their own glass material.  A neutral wash lets a PDF, picture, or wallpaper supply the
+// reflected colour instead of imposing the app theme's blue frost over every context.
+private val MenuLightWash = Color.White.copy(alpha = 0.72f)
+private val MenuDarkWash = Color(0xFF0D0D10).copy(alpha = 0.58f)
+private val MenuGlassStyle = GlassStyle.MaximumFrost.copy(saturation = 1f)
+
 @Composable
 fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
     var closing by remember { mutableStateOf(false) }
@@ -399,9 +405,9 @@ private fun GlassMenuLayoutContent(
                         },
                     shape = RoundedRectangle(24.dp),
                     // Keep menus fully frosted even when the global glass setting is Lite or Crystal.
-                    wash = c.frost,
+                    wash = if (c.dark) MenuDarkWash else MenuLightWash,
                     blur = 16.dp,
-                    styleOverride = GlassStyle.MaximumFrost,
+                    styleOverride = MenuGlassStyle,
                 ) {
                     CompositionLocalProvider(LocalGlassInk provides c.ink) {
                         Column(Modifier.heightIn(max = maxHeight).verticalScroll(rememberScrollState()), content = content)

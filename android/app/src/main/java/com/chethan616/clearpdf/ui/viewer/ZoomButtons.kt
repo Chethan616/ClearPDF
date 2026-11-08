@@ -6,14 +6,11 @@ import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.PlainTooltip
@@ -29,8 +26,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -39,7 +34,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.ui.LucideIcons
-import com.chethan616.clearpdf.ui.pdfColors
+import com.chethan616.clearpdf.ui.glass.GlassCircle
+import com.chethan616.clearpdf.ui.glass.GlassIcon
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -124,22 +120,17 @@ fun ZoomButtons(state: ViewerState, visible: Boolean, bottom: Dp, onHover: () ->
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ZoomButton(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
-    val c = pdfColors
     TooltipBox(
         positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
         tooltip = { PlainTooltip { Text(label) } },
         state = rememberTooltipState(),
     ) {
-        Box(
-            Modifier
-                .size(40.dp)
-                .shadow(4.dp, CircleShape)
-                .clip(CircleShape)
-                .background(c.surfaceRaised)
-                .clickable(enabled = enabled, onClick = onClick),
-            contentAlignment = Alignment.Center,
+        GlassCircle(
+            onClick = { if (enabled) onClick() },
+            size = 40.dp,
+            label = label,
         ) {
-            Icon(icon, label, tint = c.icon, modifier = Modifier.size(22.dp).alpha(if (enabled) 1f else 0.38f))
+            GlassIcon(icon, null, modifier = Modifier.size(22.dp).alpha(if (enabled) 1f else 0.38f))
         }
     }
 }

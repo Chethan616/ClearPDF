@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.ui.glass.pressable
+import com.chethan616.clearpdf.ui.glass.glass
 import com.kyant.backdrop.floatingLayer
 import com.chethan616.clearpdf.ui.theme.clear
 import com.chethan616.clearpdf.R
@@ -111,8 +112,11 @@ fun BoxScope.Scrubber(doc: OpenDocument, visible: Boolean, top: Dp, bottom: Dp, 
                     .offset { IntOffset(0, y.roundToInt()) }
                     .height(32.dp)
                     .widthIn(min = if (label.length >= 3) 52.dp else 40.dp)
-                    .shadow(2.dp, RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
-                    .background(c.surface, RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
+                    .glass(
+                        shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp),
+                        wash = if (c.dark) Color(0xFF0D0D10).copy(alpha = 0.64f) else Color.White.copy(alpha = 0.76f),
+                        blur = 2.dp,
+                    )
                     .pointerInput(doc) {
                         detectTapGestures(onTap = { onTap() })
                     }
@@ -308,7 +312,11 @@ private fun InlineNoteBar(hint: String, onDismiss: () -> Unit, onPost: (String) 
         Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { onDismiss() } })
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().imePadding()
-                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)).background(c.surface),
+                .glass(
+                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                    wash = if (c.dark) Color(0xFF0D0D10).copy(alpha = 0.64f) else Color.White.copy(alpha = 0.76f),
+                    blur = 18.dp,
+                ),
         ) {
             BasicTextField(
                 value = text, onValueChange = { text = it }, maxLines = 3,
@@ -462,8 +470,11 @@ fun BoxScope.HorizontalScrubber(doc: OpenDocument, visible: Boolean, bottom: Dp,
                 Modifier
                     .offset { IntOffset(x.roundToInt(), 0) }
                     .size(48.dp, 30.dp)
-                    .shadow(2.dp, RoundedCornerShape(15.dp))
-                    .background(c.surface, RoundedCornerShape(15.dp))
+                    .glass(
+                        shape = RoundedCornerShape(15.dp),
+                        wash = if (c.dark) Color(0xFF0D0D10).copy(alpha = 0.64f) else Color.White.copy(alpha = 0.76f),
+                        blur = 2.dp,
+                    )
                     .pointerInput(doc) { detectTapGestures(onTap = { onTap() }) }
                     .pointerInput(doc) {
                         detectDragGestures(

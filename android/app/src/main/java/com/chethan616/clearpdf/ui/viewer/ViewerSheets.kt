@@ -195,7 +195,13 @@ fun ViewSettingsSheet(vm: AppViewModel, doc: OpenDocument) {
         SheetSection {
             // Keep this sheet mounted while the page inversion changes so the switch's touch
             // sequence cannot race a disappearing parent surface.
-            SheetRow(LucideIcons.Moon, stringResource(R.string.sheet_night_mode), { vm.setNightMode(doc, !ctl.nightMode) }, tint = Candy.Grape) {
+            SheetRow(
+                LucideIcons.Moon,
+                stringResource(R.string.sheet_night_mode),
+                { vm.setNightMode(doc, !ctl.nightMode) },
+                tint = Candy.Grape,
+                trailingInteractive = true,
+            ) {
                 PdfSwitch(ctl.nightMode, { vm.setNightMode(doc, it) })
             }
         }
