@@ -2614,7 +2614,7 @@ licence = "MIT OR Apache-2.0"
 licence_file = "LICENSE-MIT"
 kind = "data"
 adobe_data = true
-usage = "Advance widths for the fourteen standard fonts, which a PDF may name without embedding. Non-visual data, not a typeface: the item AGENTS.md 1.1 permits, held first-party so generated appearance streams and the renderer agree."
+usage = "Advance widths for the fourteen standard fonts, which a PDF may name without embedding. Non-visual data, not a typeface: the item docs/licensing-policy.md permits, held first-party so generated appearance streams and the renderer agree."
 sha256 = "f225e0b044875b8fa6375b6b5ad935f0d99fcc1ad03ecf9f0baae2cedbfca4d2"
 
 [[bundled]]
@@ -2674,7 +2674,7 @@ licence = "BSD-3-Clause"
 licence_file = "engine/vendor/hayro-cmap/assets/LICENSE.txt"
 kind = "data"
 adobe_data = true
-usage = "Character-code mapping tables required to read CJK PDFs. Non-visual data, allowed by AGENTS.md §1.1"
+usage = "Character-code mapping tables required to read CJK PDFs. Non-visual data, allowed by docs/licensing-policy.md"
 sha256 = "ddf37af521d904d5646c2fc37b2b7e912dc1b56f0d210190b61f598154758e46"
 
 [[bundled]]
@@ -2687,7 +2687,7 @@ source = "ISO 32000-2 Annex D; Adobe Core14 AFM files (via vendored hayro-interp
 licence = "MIT OR Apache-2.0"
 kind = "data"
 adobe_data = true
-usage = "Glyph widths and encodings for non-embedded standard fonts. Non-visual data, allowed by AGENTS.md §1.1"
+usage = "Glyph widths and encodings for non-embedded standard fonts. Non-visual data, allowed by docs/licensing-policy.md"
 sha256 = "2ec9e608573eda459de1e1d9bda3bb494315e36bee885acc88912a11fe0caa41"
 
 [[fetched]]
@@ -3196,4 +3196,79 @@ licence_file = "engine/assets/icons/LICENSE-lucide.txt"
 kind = "icon"
 usage = "UI icon, embedded via engine/crates/ui-egui/src/icon_data.rs"
 sha256 = "864ab2f19254e6ac7240bc6a98323197332e8f714d4d3f94831f41309e5ef2f7"
+[[asset]]
+path = "android/app/src/main/res/font/jakarta.ttf"
+title = "Plus Jakarta Sans Regular"
+author = "The Plus Jakarta Sans Project Authors"
+source = "https://github.com/tokotype/PlusJakartaSans"
+licence = "OFL-1.1"
+licence_file = "android/app/src/main/assets/licences/OFL-PlusJakartaSans.txt"
+kind = "font"
+usage = "Android app UI typeface; source and license are also listed in the app's Licences screen"
+sha256 = "89b3fb38aa0d275d7a731d0d817a4f1622b316b4d7fbdedcf02ee9099ff68bc8"
 
+[[asset]]
+path = "android/app/src/main/res/font/jakarta_italic.ttf"
+title = "Plus Jakarta Sans Italic"
+author = "The Plus Jakarta Sans Project Authors"
+source = "https://github.com/tokotype/PlusJakartaSans"
+licence = "OFL-1.1"
+licence_file = "android/app/src/main/assets/licences/OFL-PlusJakartaSans.txt"
+kind = "font"
+usage = "Android app UI typeface; source and license are also listed in the app's Licences screen"
+sha256 = "9529eb888668b6a3c6dd75b6341a2fc5263fb6c9e788822e6117c29dd9e8b115"
+
+[[asset]]
+path = "android/app/src/main/res/font/bricolage.ttf"
+title = "Bricolage Grotesque Variable"
+author = "The Bricolage Grotesque Project Authors"
+source = "https://github.com/ateliertriay/bricolage"
+licence = "OFL-1.1"
+licence_file = "android/app/src/main/assets/licences/OFL-BricolageGrotesque.txt"
+kind = "font"
+usage = "Android app UI typeface; source and license are also listed in the app's Licences screen"
+sha256 = "413e7357809ddd12fd80a96a8a396de0e401638d4acd3cb3e37532f0472ac682"
+
+[[asset]]
+path = "android/app/src/main/res/font/fraunces.ttf"
+title = "Fraunces Variable"
+author = "The Fraunces Project Authors"
+source = "https://github.com/undercasetype/Fraunces"
+licence = "OFL-1.1"
+licence_file = "android/app/src/main/assets/licences/OFL-Fraunces.txt"
+kind = "font"
+usage = "Android app UI typeface; source and license are also listed in the app's Licences screen"
+sha256 = "177ff6c0f14e5550a3c624247cd1189611d4eb65d000b14944c63d967958abbb"
+
+[[asset]]
+path = "android/app/src/main/res/font/dm_serif.ttf"
+title = "DM Serif Display Regular"
+author = "Colophon Foundry"
+source = "https://github.com/googlefonts/dm-fonts"
+licence = "OFL-1.1"
+licence_file = "android/app/src/main/assets/licences/OFL-DMSerifDisplay.txt"
+kind = "font"
+usage = "Android app UI typeface; source and license are also listed in the app's Licences screen"
+sha256 = "8cc3643535edf039aa5d95440a8542735e9197e4f4b8d9303e980fefbf5ab616"
+
+[[asset]]
+path = "android/app/src/main/res/font/dm_serif_italic.ttf"
+title = "DM Serif Display Italic"
+author = "Colophon Foundry"
+source = "https://github.com/googlefonts/dm-fonts"
+licence = "OFL-1.1"
+licence_file = "android/app/src/main/assets/licences/OFL-DMSerifDisplay.txt"
+kind = "font"
+usage = "Android app UI typeface; source and license are also listed in the app's Licences screen"
+sha256 = "df74c0ac387baeaeb0fe4f2324e1668e6a3ed8c09cd9796fe162c71753e19e45"
+
+[[asset]]
+path = "android/app/src/main/res/font/doto.ttf"
+title = "Doto Variable"
+author = "The Doto Project Authors"
+source = "https://github.com/oliverlalan/Doto"
+licence = "OFL-1.1"
+licence_file = "android/app/src/main/assets/licences/OFL-Doto.txt"
+kind = "font"
+usage = "Android app UI typeface; source and license are also listed in the app's Licences screen"
+sha256 = "6f4fe7d37853b91df3698daa84cde2dbe1c9695d88c986e6510134910337d426"
