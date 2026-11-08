@@ -226,7 +226,6 @@ cargo test -p artefact-mobile
 | `engine/` | The Rust engine: PDF crates, the mobile bridge (`engine/mobile`), patched crates (`engine/vendor`), fonts and models |
 | `docs/` | Design notes and media |
 | `fastlane/` | Store listings in nine languages |
-| `samples/` | Sample files for manual testing |
 | `tools/` | Developer utilities (i18n helper, etc.) |
 
 To run from Android Studio, open the repository root, sync Gradle, and run the `app` module. ClearPDF's code and history are on the [`clearPDF`](https://github.com/Chethan616/ClearPDF/tree/clearPDF) branch.
