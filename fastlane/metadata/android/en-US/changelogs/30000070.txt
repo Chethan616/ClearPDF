@@ -1,8 +1,7 @@
 Sharper glass, better Office files
-* Menus grow out of the button that opens them; lighter frost; optional Adaptive luminance
-* Spreadsheets: merged cells, table and conditional colours, pictures, faster scrolling, taps land on the right cell
-* PowerPoint: closer fonts, password-protected decks, old .ppt slides show their text and pictures
-* Remove a PDF's password for good; export a PDF's text
+* Menus grow out of their button; lighter frost; optional Adaptive luminance
+* Spreadsheets: merged cells, table colours, pictures, faster scrolling, taps land on the right cell
+* PowerPoint: closer fonts, protected decks, old .ppt slides show text and pictures
+* Remove a PDF's password; export its text
 * Import and export voice notes; more photo tools
-* Sideways, a single page fills the width
-* The app asks for no storage or phone permissions it never used
+* No storage or phone permissions
