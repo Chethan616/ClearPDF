@@ -1,8 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- No storage permission: files come through the system's pickers (On this device lists the
+    <!-- No network permission, ever: Artefact works wholly on the device.
+
+         No storage permission: files come through the system's pickers (On this device lists the
          folders the user picks), and what the app saves goes to Downloads through the media store -->
+
+    <!-- A library with no target SDK in its manifest (com.kyant.shapes) makes the build add these
+         three on its own, as it does for apps written before Android 1.6. Artefact uses none of
+         them, and an offline document reader has no business with the phone's state: taken out. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
 
     <!-- Comment ▸ Voice: recording a voice comment (asked for when first used) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />

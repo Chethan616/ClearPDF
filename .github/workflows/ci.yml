@@ -81,6 +81,18 @@ jobs:
         working-directory: android
         run: gradle assembleDebug testDebugUnitTest -Partefact.abis=x86_64 --no-daemon --no-configuration-cache
 
+      # Artefact is offline: the built app must ask for no network access, nor for the storage and
+      # phone-state permissions a library's manifest can drag in unasked
+      - name: The app stays offline
+        run: |
+          aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)aapt2"
+          perms="$("$aapt2" dump permissions android/app/build/outputs/apk/debug/*.apk)"
+          echo "$perms"
+          if grep -E "INTERNET|NETWORK_STATE|WIFI_STATE|READ_PHONE_STATE|EXTERNAL_STORAGE" <<<"$perms"; then
+            echo "::error::The app asks for a permission it must not have (see above)"
+            exit 1
+          fi
+
       - uses: actions/upload-artifact@v7
         with:
           name: debug-apk
