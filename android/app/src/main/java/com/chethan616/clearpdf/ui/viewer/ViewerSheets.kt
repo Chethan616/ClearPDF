@@ -215,7 +215,7 @@ private fun androidx.compose.foundation.layout.RowScope.LayoutChoice(icon: Image
     val c = clear
     val fill by androidx.compose.animation.animateColorAsState(
         if (chosen) Candy.Sky.copy(alpha = if (c.dark) 0.30f else 0.16f) else if (c.dark) Color.White.copy(alpha = 0.075f) else Color.White.copy(alpha = 0.66f),
-        com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "layout choice",
+        com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "layoutChoice",
     )
     Column(
         Modifier.weight(1f).height(96.dp).clip(RoundedRectangle(22.dp)).background(fill)
@@ -473,7 +473,7 @@ private fun ToolTile(icon: ImageVector, label: String, tint: Color, modifier: Mo
             Icon(icon, null, tint = Color.White, modifier = Modifier.size(27.dp))
         }
         Spacer(Modifier.height(8.dp))
-        Text(label, style = ClearType.Caption.copy(fontSize = 11.sp, lineHeight = 13.sp), color = clear.ink, textAlign = TextAlign.Center, maxLines = 2, modifier = Modifier.padding(horizontal = 2.dp))
+        Text(label, style = ClearType.Caption.copy(fontSize = 11.sp, lineHeight = 13.sp), color = menuInk(), textAlign = TextAlign.Center, maxLines = 2, modifier = Modifier.padding(horizontal = 2.dp))
     }
 }
 
@@ -521,7 +521,7 @@ fun MoreToolsSheet(vm: AppViewModel, doc: OpenDocument, anchor: Rect) {
         } else {
             Spacer(Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 14.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.common_tool_more_tools), style = ClearType.Title.copy(fontSize = 18.sp), color = clear.ink, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.common_tool_more_tools), style = ClearType.Title.copy(fontSize = 18.sp), color = menuInk(), modifier = Modifier.weight(1f))
                 com.chethan616.clearpdf.ui.glass.GlassCircle(onClick = { ctl.sheet = ViewerSheet.None }, size = 36.dp, label = stringResource(R.string.ui_close_sheet)) {
                     com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.X, null, Modifier.size(18.dp))
                 }
@@ -548,8 +548,8 @@ fun MoreToolsSheet(vm: AppViewModel, doc: OpenDocument, anchor: Rect) {
                 onClick = { customizing = true }, modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth(), height = 48.dp,
                 label = stringResource(R.string.sheet_customize_toolbar),
             ) {
-                Icon(LucideIcons.SlidersHorizontal, null, tint = clear.ink, modifier = Modifier.size(18.dp))
-                Text(stringResource(R.string.sheet_customize_toolbar), style = ClearType.BodyStrong, color = clear.ink)
+                Icon(LucideIcons.SlidersHorizontal, null, tint = menuInk(), modifier = Modifier.size(18.dp))
+                Text(stringResource(R.string.sheet_customize_toolbar), style = ClearType.BodyStrong, color = menuInk())
             }
             Spacer(Modifier.height(12.dp))
         }

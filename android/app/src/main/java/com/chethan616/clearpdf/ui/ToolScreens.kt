@@ -328,6 +328,20 @@ fun ProtectScreen(vm: AppViewModel, doc: OpenDocument) {
             }
         }) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
+            // a protected file: the way back out first, an unlocked copy that never asks again
+            if (doc.info.encrypted) {
+                Column(
+                    Modifier.padding(horizontal = 16.dp).padding(bottom = 18.dp).fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp)).background(c.label.copy(alpha = 0.06f)).padding(16.dp),
+                ) {
+                    Text(stringResource(R.string.tools_unlock_title), color = c.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.tools_unlock_body), color = c.text, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+                    com.chethan616.clearpdf.ui.glass.GlassPill(onClick = { vm.removePassword(doc) }, tint = com.chethan616.clearpdf.ui.theme.Candy.Sky, height = 44.dp) {
+                        Icon(LucideIcons.LockOpen, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Text(stringResource(R.string.tools_unlock_action), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
             Text(stringResource(R.string.tools_protect_intro), color = c.label, fontSize = 16.sp, modifier = Modifier.padding(horizontal = 24.dp))
             PasswordField(stringResource(R.string.tools_new_password), pw, { pw = it }, visible, { visible = !visible }, bad, focus)
             if (bad) Text(stringResource(R.string.tools_password_rule), color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
@@ -353,6 +367,7 @@ fun ExportScreen(vm: AppViewModel, doc: OpenDocument) {
         listOf(
             stringResource(R.string.tools_format_word) to "docx", stringResource(R.string.tools_format_rtf) to "rtf",
             stringResource(R.string.tools_format_excel) to "xlsx", stringResource(R.string.tools_format_powerpoint) to "pptx",
+            stringResource(R.string.tools_format_text) to "txt",
         )
     } else {
         listOf(stringResource(R.string.tools_format_jpeg) to "jpg", stringResource(R.string.tools_format_png) to "png")

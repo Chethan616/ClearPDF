@@ -60,6 +60,10 @@ import com.chethan616.clearpdf.core.PhotoEditor
 import com.chethan616.clearpdf.engine.toBitmap
 import com.chethan616.clearpdf.ui.AppViewModel
 import com.chethan616.clearpdf.ui.LucideIcons
+import androidx.compose.material.icons.rounded.Details
+import androidx.compose.material.icons.rounded.Straighten
+import androidx.compose.material.icons.rounded.Vignette
+import androidx.compose.material.icons.rounded.WbSunny
 import com.chethan616.clearpdf.ui.glass.ChromeCapsule
 import com.chethan616.clearpdf.ui.glass.Fluid
 import com.chethan616.clearpdf.ui.glass.GlassCircle
@@ -102,6 +106,13 @@ private enum class Adjust(
     Shadows("light", "shadows", R.string.photo_shadows, LucideIcons.Shadows, -100f, 100f, 0),
     Vibrance("color", "vibrance", R.string.photo_vibrance, LucideIcons.Palette, -100f, 100f, 0),
     Saturation("color", "saturation", R.string.photo_saturation, LucideIcons.Droplet, -100f, 100f, 0),
+    // LightCraft's geometry, tone, presence and detail (names as its settings spell them)
+    Straighten("geometry", "rotate", R.string.photo_straighten, androidx.compose.material.icons.Icons.Rounded.Straighten, -10f, 10f, 1),
+    Whites("light", "whites", R.string.photo_whites, androidx.compose.material.icons.Icons.Rounded.WbSunny, -100f, 100f, 0),
+    Blacks("light", "blacks", R.string.photo_blacks, LucideIcons.Moon, -100f, 100f, 0),
+    Clarity("effects", "clarity", R.string.photo_clarity, LucideIcons.Sparkles, -100f, 100f, 0),
+    Sharpen("detail", "sharpen_amount", R.string.photo_sharpen, androidx.compose.material.icons.Icons.Rounded.Details, 0f, 150f, 0),
+    Vignette("vignette", "amount", R.string.photo_vignette, androidx.compose.material.icons.Icons.Rounded.Vignette, -100f, 100f, 0),
 }
 
 private val TURNS = listOf("Normal", "Rotate90", "Rotate180", "Rotate270")
@@ -318,9 +329,22 @@ private fun PhotoControls(
                 Text(stringResource(selected.label), style = ClearType.Label, color = ink.color.copy(alpha = 0.66f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(shown(selected, value), style = ClearType.Title.copy(fontSize = 22.sp), color = if (value == 0f) ink.color else Candy.Lemon)
             }
+            // felt under the thumb: a light tick every fortieth of the way, a firm one through zero
+            val feel = com.chethan616.clearpdf.ui.glass.rememberFeel()
+            val notch = remember(selected) { intArrayOf(Int.MIN_VALUE) }
             Slider(
                 value = value,
-                onValueChange = onValueChange,
+                onValueChange = { v ->
+                    val at = Math.round((v - selected.min) / (selected.max - selected.min).coerceAtLeast(0.0001f) * 40f)
+                    if (at != notch[0]) {
+                        if (notch[0] != Int.MIN_VALUE) {
+                            val throughZero = selected.min < 0f && ((value < 0f) != (v < 0f) || v == 0f)
+                            feel(if (throughZero) com.chethan616.clearpdf.ui.glass.Feel.Tap else com.chethan616.clearpdf.ui.glass.Feel.Tick)
+                        }
+                        notch[0] = at
+                    }
+                    onValueChange(v)
+                },
                 valueRange = selected.min..selected.max,
                 modifier = Modifier.weight(1f),
                 colors = SliderDefaults.colors(

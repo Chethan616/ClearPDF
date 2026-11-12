@@ -95,7 +95,7 @@ fun GlassTabs(
     val count = tabs.size
     val container = c.glass
     val inner = (height - 8.dp).coerceAtLeast(0.dp)
-    val accent by animateColorAsState(tabs.getOrNull(selected)?.accent ?: c.ink, GlassMotion.settle(), label = "tab accent")
+    val accent by animateColorAsState(tabs.getOrNull(selected)?.accent ?: c.ink, GlassMotion.settle(), label = "tabAccent")
     val tabsLayer = rememberLayerBackdrop()
     val select by rememberUpdatedState(onSelect)
     val selectedNow by rememberUpdatedState(selected)

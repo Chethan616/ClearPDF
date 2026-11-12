@@ -64,8 +64,13 @@ private fun Modifier.glassControl(
     bloom: Boolean = true,
     tintAt: (() -> Color)? = null,
     candyBase: Boolean = true,
+    adaptWash: Boolean = true,
 ): Modifier {
     val backdrop = LocalBackdrop.current
+    // Adaptive luminance on: the glass reads the screen around it and turns to suit, its frost,
+    // colour and tint set by that instead of the glass preset. [adaptWash] false keeps the milk or
+    // smoke off a control whose ink is the caller's (a chip's label), where only the glass adapts.
+    val around = rememberSurroundLuminance()
     val scope = rememberCoroutineScope()
     val haptics = LocalHaptics.current
     val currentHaptics by rememberUpdatedState(haptics)
@@ -92,13 +97,17 @@ private fun Modifier.glassControl(
             }
         }
     }
-    val style = GlassSettings.style
+    val style = if (around != null) GlassSettings.style.adaptiveBase else GlassSettings.style
     return this
+        .then(around?.modifier ?: Modifier)
         .drawBackdrop(
             backdrop = backdrop,
             shape = { shape },
             shadow = null,
-            effects = { glassEffects(style, blur.toPx(), 12f.dp.toPx(), 24f.dp.toPx()) },
+            effects = {
+                if (around != null) adaptiveGlassEffects(style, around.value, blur.toPx(), 12f.dp.toPx(), 24f.dp.toPx())
+                else glassEffects(style, blur.toPx(), 12f.dp.toPx(), 24f.dp.toPx())
+            },
             highlight = { glassHighlight(style) },
             layerBlock = { liquidPressTransform(highlight) },
             onDrawSurface = {
@@ -109,6 +118,8 @@ private fun Modifier.glassControl(
                     if (candyBase) drawRect(Color.White.copy(alpha = 0.42f))
                     drawRect(t, blendMode = BlendMode.Hue)
                     drawRect(t.copy(alpha = if (candyBase) 0.8f else 0.75f))
+                } else if (around != null && adaptWash) {
+                    drawRect(adaptiveWash(around.value).let { it.copy(alpha = it.alpha * 0.7f) })
                 }
                 if (surface.isSpecified) drawRect(surface.glassTint(style))
                 // read here, while drawing, so a colour animating in changes pixels and recomposes nothing
@@ -165,16 +176,24 @@ fun Modifier.glassBar(shape: Shape = ChromeCapsule, surface: Color = Color.Unspe
     val backdrop = LocalBackdrop.current
     val scope = rememberCoroutineScope()
     val highlight = remember(scope) { InteractiveHighlight(scope) }
-    val style = GlassSettings.style
+    val around = rememberSurroundLuminance()
+    val style = if (around != null) GlassSettings.style.adaptiveBase else GlassSettings.style
     return this
+        .then(around?.modifier ?: Modifier)
         .drawBackdrop(
             backdrop = backdrop,
             shape = { shape },
             shadow = null,
-            effects = { glassEffects(style, blur.toPx(), 12f.dp.toPx(), 24f.dp.toPx()) },
+            effects = {
+                if (around != null) adaptiveGlassEffects(style, around.value, blur.toPx(), 12f.dp.toPx(), 24f.dp.toPx())
+                else glassEffects(style, blur.toPx(), 12f.dp.toPx(), 24f.dp.toPx())
+            },
             highlight = { glassHighlight(style) },
             layerBlock = { liquidPressTransform(highlight) },
-            onDrawSurface = { if (surface.isSpecified) drawRect(surface.glassTint(style)) },
+            onDrawSurface = {
+                if (around != null) drawRect(adaptiveWash(around.value).let { it.copy(alpha = it.alpha * 0.7f) })
+                if (surface.isSpecified) drawRect(surface.glassTint(style))
+            },
         )
         .then(highlight.modifier)
         .then(highlight.gestureModifier)
@@ -242,7 +261,7 @@ fun GlassChip(
     CompositionLocalProvider(LocalGlassInk provides ink) {
         Row(
             modifier
-                .glassControl(Capsule, onClick, onLongClick, Color.Unspecified, surface, blur, label, fill, tap, bloom)
+                .glassControl(Capsule, onClick, onLongClick, Color.Unspecified, surface, blur, label, fill, tap, bloom, adaptWash = false)
                 .height(height)
                 .padding(contentPadding),
             horizontalArrangement = horizontalArrangement,

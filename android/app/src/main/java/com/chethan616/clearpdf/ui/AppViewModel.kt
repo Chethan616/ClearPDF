@@ -2167,6 +2167,19 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         deliver(out, "${doc.title}_protected.pdf")
     }
 
+    /**
+     * A copy of [doc] with its password and restrictions removed for good, saved to Downloads: it
+     * opens without asking from then on. Only a document already opened with its password gets
+     * here (the engine holds it), so nothing is broken into; a file whose security the engine
+     * can't lift (a certificate's, say) says so.
+     */
+    fun removePassword(doc: OpenDocument) = job(text(R.string.msg_busy_removing_password)) { _ ->
+        save(doc)
+        val out = unlockedCopy(doc) ?: error(text(R.string.msg_unlock_failed))
+        toolScreen = null
+        deliver(out, "${doc.title}_unlocked.pdf")
+    }
+
     /** Crop [page] (or every page) to [rect] (points from the page's top-left). */
     fun crop(doc: OpenDocument, page: Int?, rect: FloatArray) {
         val args = mutableMapOf<String, Any?>("rect" to rect.map { it.toDouble() })
@@ -2180,9 +2193,17 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     /** Export [doc] as a Word, RTF, Excel or PowerPoint document. */
     fun exportDocument(doc: OpenDocument, ext: String) = job(text(R.string.msg_busy_exporting_to, ext.uppercase())) { eng ->
         val out = tempFile(ext)
-        eng.tool("doc_export_office", mapOf("doc" to doc.id, "path" to out.absolutePath))
+        if (ext == "txt") {
+            // the words of every page, in reading order, a blank line between pages
+            val pages = (0 until doc.pageCount).map { p -> eng.command { pagePlainText(doc.id, p.toUInt()) }.trim() }
+            if (pages.all { it.isEmpty() }) error(text(R.string.msg_no_text_to_export))
+            withContext(Dispatchers.IO) { out.writeText(pages.joinToString("\n\n")) }
+        } else {
+            eng.tool("doc_export_office", mapOf("doc" to doc.id, "path" to out.absolutePath))
+        }
         toolScreen = null
         val mime = when (ext) {
+            "txt" -> "text/plain"
             "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             "rtf" -> "application/rtf"
             "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -2620,6 +2641,92 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
 
     fun pickNotePhoto() {
         notePhotoPicks.trySend(Unit)
+    }
+
+    /** Asks for an audio file to bring onto the desk as a voice note. */
+    val audioPicks = Channel<Unit>(Channel.CONFLATED)
+
+    fun pickAudio() {
+        audioPicks.trySend(Unit)
+    }
+
+    /**
+     * An audio file (m4a, mp3, wav, ogg…) copied into the notes as a voice note of its own: it
+     * plays, renames, pins and deletes like one recorded here. Its length is read from the file;
+     * its wave is drawn even (the sound isn't analysed).
+     */
+    fun onAudioPicked(uri: Uri?) {
+        uri ?: return
+        viewModelScope.launch {
+            val note = withContext(Dispatchers.IO) {
+                runCatching {
+                    val resolver = getApplication<Application>().contentResolver
+                    val name = resolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                        if (c.moveToFirst() && !c.isNull(0)) c.getString(0) else null
+                    }.orEmpty()
+                    val known = setOf("m4a", "mp3", "wav", "aac", "ogg", "opus", "flac", "amr", "3gp", "mp4")
+                    val ext = name.substringAfterLast('.', "").lowercase().takeIf { it in known } ?: when (resolver.getType(uri)) {
+                        "audio/mpeg" -> "mp3"
+                        "audio/wav", "audio/x-wav" -> "wav"
+                        "audio/ogg" -> "ogg"
+                        else -> "m4a"
+                    }
+                    val f = notes.newMedia(ext)
+                    resolver.openInputStream(uri)?.use { input -> f.outputStream().use { input.copyTo(it) } } ?: error("unreadable")
+                    val retriever = android.media.MediaMetadataRetriever()
+                    val ms = try {
+                        retriever.setDataSource(f.absolutePath)
+                        retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                    } finally {
+                        runCatching { retriever.release() }
+                    }
+                    if (ms <= 0L) {
+                        f.delete()
+                        error("not audio")
+                    }
+                    com.chethan616.clearpdf.notes.Note(
+                        java.util.UUID.randomUUID().toString(), com.chethan616.clearpdf.notes.NoteKind.Voice,
+                        title = name.substringBeforeLast('.').take(80), audio = f.name, durationMs = ms,
+                        wave = List(48) { i -> 0.35f + 0.3f * kotlin.math.abs(kotlin.math.sin(i * 0.9f)) },
+                    )
+                }.getOrNull()
+            }
+            if (note == null) tell(text(R.string.common_file_unreadable))
+            else {
+                notes.add(note)
+                tell(text(R.string.voice_imported))
+            }
+        }
+    }
+
+    /** A voice note's recording saved to Downloads under its name, in the format it is kept in. */
+    fun exportVoice(note: com.chethan616.clearpdf.notes.Note) {
+        val audio = note.audio ?: return
+        viewModelScope.launch {
+            runCatching {
+                val source = notes.file(audio)
+                val ext = audio.substringAfterLast('.', "wav").lowercase()
+                val mime = when (ext) {
+                    "wav" -> "audio/wav"
+                    "mp3" -> "audio/mpeg"
+                    "ogg", "opus" -> "audio/ogg"
+                    "flac" -> "audio/flac"
+                    else -> "audio/mp4"
+                }
+                val name = (note.title.ifBlank { text(R.string.voice_export_name) }).replace(Regex("""[\\/:*?"<>|]"""), " ").trim() + ".$ext"
+                withContext(Dispatchers.IO) {
+                    // saveToDownloads takes the file it is given: hand it a copy
+                    val copy = tempFile(ext)
+                    source.copyTo(copy, overwrite = true)
+                    try {
+                        files.saveToDownloads(copy, name, mime)
+                    } finally {
+                        copy.delete()
+                    }
+                }
+                tell(text(R.string.msg_saved_downloads, name))
+            }.onFailure { tell(it.userMessage) }
+        }
     }
 
     fun takeNotePhoto() {

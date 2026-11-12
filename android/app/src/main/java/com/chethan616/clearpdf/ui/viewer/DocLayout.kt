@@ -65,16 +65,25 @@ class DocLayout(
             PageMode.SinglePage -> {
                 val availW = max(1f, viewW - 2 * margin)
                 val availH = max(1f, viewH - padTop - padBottom - 2 * margin)
+                // A phone turned on its side: an upright page fitted whole would be a narrow strip
+                // in the middle of the screen, too small to read. There the page takes the screen's
+                // width, as other readers show it, and is read by scrolling down it; a swipe
+                // sideways still turns the page.
+                val sideways = viewW > viewH * 1.15f
+                var tallest = viewH
                 pages.forEachIndexed { i, p ->
-                    val s = min(availW / p.width.coerceAtLeast(1f), availH / p.height.coerceAtLeast(1f))
+                    val byWidth = availW / p.width.coerceAtLeast(1f)
+                    val whole = min(byWidth, availH / p.height.coerceAtLeast(1f))
+                    val s = if (sideways) byWidth else whole
                     val w = p.width.coerceAtLeast(1f) * s
                     val h = p.height.coerceAtLeast(1f) * s
                     val x = i * viewW + (viewW - w) / 2f
-                    val y = padTop + margin + (availH - h) / 2f
+                    val y = padTop + margin + max(0f, (availH - h) / 2f)
                     out.add(LRect(x, y, x + w, y + h))
+                    tallest = max(tallest, y + h + margin + padBottom)
                 }
                 width = max(viewW, pages.size * viewW)
-                height = viewH
+                height = tallest
             }
         }
         rects = out

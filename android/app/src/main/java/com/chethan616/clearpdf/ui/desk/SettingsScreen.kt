@@ -105,7 +105,7 @@ fun SettingsScreen(vm: AppViewModel) {
                 (androidx.compose.animation.slideOutHorizontally(com.chethan616.clearpdf.ui.glass.Fluid.push()) { -dir * it / 10 } +
                     androidx.compose.animation.fadeOut(com.chethan616.clearpdf.ui.glass.Fluid.fade()))
         },
-        label = "settings page",
+        label = "settingsPage",
     ) { p ->
         when (p) {
             "licences" -> LicencesPage { page = "root" }

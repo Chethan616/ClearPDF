@@ -226,6 +226,9 @@
     <!-- Tool screens: Set password -->
     <string name="tools_about_passwords">About passwords</string>
     <string name="tools_protect_intro">A protected copy of this file is saved.</string>
+    <string name="tools_unlock_title">This PDF is password-protected</string>
+    <string name="tools_unlock_body">Save a copy that opens without its password, for good. Its restrictions on printing, copying and editing are lifted too.</string>
+    <string name="tools_unlock_action">Remove password</string>
     <!-- The * marks a field that must be filled in -->
     <string name="tools_new_password">New password *</string>
     <!-- The * marks a field that must be filled in -->
@@ -247,6 +250,8 @@
     <string name="tools_format_rtf">Rich Text Format (rtf)</string>
     <string name="tools_format_excel">Excel (xlsx)</string>
     <string name="tools_format_powerpoint">PowerPoint (pptx)</string>
+    <string name="tools_format_text">Plain text (txt)</string>
+    <string name="msg_no_text_to_export">This PDF has no text to export. Recognize its text first.</string>
     <string name="tools_format_jpeg">JPEG (jpeg)</string>
     <string name="tools_format_png">PNG (png)</string>
 
@@ -1027,6 +1032,12 @@
     <string name="photo_shadows">Shadows</string>
     <string name="photo_vibrance">Vibrance</string>
     <string name="photo_saturation">Saturation</string>
+    <string name="photo_straighten">Straighten</string>
+    <string name="photo_whites">Whites</string>
+    <string name="photo_blacks">Blacks</string>
+    <string name="photo_clarity">Clarity</string>
+    <string name="photo_sharpen">Sharpen</string>
+    <string name="photo_vignette">Vignette</string>
     <string name="photo_rotate">Rotate</string>
     <string name="photo_edit">Edit picture</string>
     <string name="msg_ppt_text_only">This PowerPoint 97–2003 file shows its slides\' text. Saved as .pptx, it opens with its pictures and layout.</string>
@@ -1138,6 +1149,8 @@
     <string name="msg_compress_no_gain">This file is already as small as it can be.</string>
     <string name="msg_busy_combining">Combining…</string>
     <string name="msg_busy_setting_password">Setting password…</string>
+    <string name="msg_busy_removing_password">Removing password…</string>
+    <string name="msg_unlock_failed">This file\'s protection can\'t be removed</string>
     <string name="msg_crop_all">Every page is cropped.</string>
     <string name="msg_crop_page">The page is cropped.</string>
     <!-- %1$s is a file format, for example DOCX. -->
@@ -1274,6 +1287,8 @@
     <string name="gm_highlight">Rim light</string>
     <string name="gm_depth">Depth</string>
     <string name="gm_chromatic">Prism edge</string>
+    <string name="gm_adaptive">Adaptive luminance</string>
+    <string name="gm_adaptive_body">Glass turns light or dark to suit what is behind it. The presets above rest while it is on</string>
     <string name="gm_spring">Glass spring</string>
     <string name="gm_spring_body">How glass swells, springs past and settles. Tap the graph to pause it.</string>
     <string name="gm_spring_stats">Damping %1$s · stiffness %2$s · settles in %3$s s</string>
@@ -1368,6 +1383,10 @@
     <string name="create_photo_note">Photo note</string>
     <string name="create_voice">Record a voice note</string>
     <string name="voice_saved">Voice note saved</string>
+    <string name="voice_import">Import audio</string>
+    <string name="voice_imported">Audio added to your desk</string>
+    <string name="voice_export">Save to Downloads</string>
+    <string name="voice_export_name">Voice note</string>
     <string name="voice_too_short">Too short to keep. Hold on a little longer.</string>
 
     <!-- Notes -->

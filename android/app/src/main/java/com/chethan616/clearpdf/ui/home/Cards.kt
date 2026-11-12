@@ -198,7 +198,7 @@ fun CheckPill(item: CheckItem, tone: CardTone, onToggle: () -> Unit) {
     // ticked: a deeper wash over the glass (the tone's ink on light cards, shade on dark ones)
     val doneWash = if (dark) Color.Black.copy(alpha = 0.34f) else tone.ink.copy(alpha = 0.58f)
     val wash by animateColorAsState(if (done) doneWash else Color.Transparent, com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "pill")
-    val ink by animateColorAsState(if (done) Color.White else tone.ink, com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "pill ink")
+    val ink by animateColorAsState(if (done) Color.White else tone.ink, com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "pillInk")
     val tick by animateFloatAsState(if (done) 1f else 0f, com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "tick")
     GlassChip(
         onClick = { haptics?.play(if (done) com.chethan616.clearpdf.ui.glass.Feel.ToggleOff else com.chethan616.clearpdf.ui.glass.Feel.ToggleOn); onToggle() },
@@ -554,7 +554,7 @@ fun RecentCard(vm: AppViewModel, rows: List<FileRow>, onAll: () -> Unit, modifie
                         val tilt = listOf(-4f, 7f, -12f)[i]
                         val dx = listOf(0, 26, -22)[i]
                         PaperThumb(
-                            vm, r.thumbPath, 84.dp, 110.dp, tilt = tilt, corner = 7.dp,
+                            vm, r.thumbPath, 84.dp, 110.dp, tilt = tilt, corner = 7.dp, name = r.name,
                             modifier = Modifier.align(Alignment.Center).offset(x = dx.dp, y = (i * 4).dp),
                         )
                     }
@@ -577,7 +577,7 @@ fun RecentCard(vm: AppViewModel, rows: List<FileRow>, onAll: () -> Unit, modifie
 fun DocCard(vm: AppViewModel, r: FileRow, tone: CardTone, tilt: Float, onLong: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.pressable(r.open, onLong, pressedScale = 0.95f).cardPaint(tone, Offset(0.8f, 0.0f)).padding(14.dp)) {
         Box(Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
-            PaperThumb(vm, r.thumbPath, 104.dp, 136.dp, tilt = tilt, corner = 8.dp, modifier = Modifier.graphicsLayer { shadowElevation = 10.dp.toPx(); shape = RoundedRectangle(8.dp) })
+            PaperThumb(vm, r.thumbPath, 104.dp, 136.dp, tilt = tilt, corner = 8.dp, name = r.name, modifier = Modifier.graphicsLayer { shadowElevation = 10.dp.toPx(); shape = RoundedRectangle(8.dp) })
             if (r.starred) {
                 Box(Modifier.align(Alignment.TopEnd).size(26.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
                     Icon(LucideIcons.Star, null, tint = com.chethan616.clearpdf.ui.theme.Candy.Lemon, modifier = Modifier.size(14.dp))

@@ -73,6 +73,7 @@ class MainActivity : ComponentActivity() {
     private val pickFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let(vm::addLocalFolder) }
     private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> vm.onMicPermission(granted) }
     private val pickNotePhoto = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> vm.onNotePhoto(uri) }
+    private val pickAudio = registerForActivityResult(ActivityResultContracts.GetContent()) { uri -> vm.onAudioPicked(uri) }
     private val takeNotePhoto = registerForActivityResult(ActivityResultContracts.TakePicture()) { ok -> vm.onNoteCamera(ok) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -130,6 +131,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { for (d in vm.imagePicks) launchSafely { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } }
         lifecycleScope.launch { for (u in vm.photoPicks) launchSafely { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } }
         lifecycleScope.launch { for (u in vm.notePhotoPicks) launchSafely { pickNotePhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } }
+        lifecycleScope.launch { for (u in vm.audioPicks) launchSafely { pickAudio.launch("audio/*") } }
         lifecycleScope.launch {
             for (f in vm.noteCameraShots) {
                 val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.files", f)

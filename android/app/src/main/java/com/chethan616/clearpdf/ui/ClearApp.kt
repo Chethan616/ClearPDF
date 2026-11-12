@@ -126,7 +126,10 @@ fun ClearApp(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: () ->
     ClearTheme(vm.theme) {
         PdfcraftTheme(vm.theme) {
             ProvideGlassHaptics {
-                CompositionLocalProvider(LocalGlassOverlayHost provides overlays, LocalHomeVm provides vm) { Shell(vm, onBrowse, onPickSignatureImage) }
+                // Adaptive luminance: one sampler of the window for every screen's glass
+                com.chethan616.clearpdf.ui.glass.ProvideScreenInk(enabled = com.chethan616.clearpdf.ui.glass.GlassSettings.adaptive) {
+                    CompositionLocalProvider(LocalGlassOverlayHost provides overlays, LocalHomeVm provides vm) { Shell(vm, onBrowse, onPickSignatureImage) }
+                }
             }
         }
     }
@@ -248,7 +251,8 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
             toast?.let { m ->
                 Box(
                     Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
-                        .padding(start = 16.dp, end = 16.dp, bottom = if (onDesk) 100.dp else 20.dp),
+                        // over a document it rides above the viewer's bottom bar, not on top of its buttons
+                        .padding(start = 16.dp, end = 16.dp, bottom = if (onDesk) 100.dp else if (doc != null) 92.dp else 20.dp),
                 ) { key(m) { GlassToast(m.text, m.actionLabel, { m.action?.invoke(); toast = null }) } }
             }
         },

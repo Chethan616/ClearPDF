@@ -216,7 +216,7 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
     val appear = remember { androidx.compose.animation.core.Animatable(0f) }
     LaunchedEffect(Unit) { appear.animateTo(1f, com.chethan616.clearpdf.ui.glass.GlassMotion.unfold()) }
     val opensDown = y > top.y
-    com.chethan616.clearpdf.ui.glass.GlassCard(
+    com.chethan616.clearpdf.ui.glass.MenuCard(
         Modifier
             .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
             .onSizeChanged { menuSize = it }
@@ -228,9 +228,6 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
                 transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, if (opensDown) 0f else 1f)
                 alpha = (p * 1.6f).coerceIn(0f, 1f)
             },
-        shape = com.chethan616.clearpdf.ui.glass.RoundedRectangle(24.dp),
-        wash = clear.frost,
-        blur = 16.dp,
     ) {
         Spacer(Modifier.height(6.dp))
         // a Word document or presentation opens for reading: no markup, no Edit text
@@ -241,7 +238,7 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
             MenuIcon(LucideIcons.Strikethrough, stringResource(R.string.viewer_strikethrough), allowed) { markup(TextMarkup.Strikethrough) }
         }
         // an inset divider, then the rows
-        if (!doc.isOffice) Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(clear.ink.copy(alpha = 0.12f)))
+        if (!doc.isOffice) Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(menuInk().copy(alpha = 0.12f)))
         if (!doc.isOffice) Spacer(Modifier.height(4.dp))
         if (!doc.isOffice && (doc.writable || doc.source == null)) MenuRow(LucideIcons.FilePenLine, stringResource(R.string.viewer_edit_text)) {
             doc.selection.clear()
@@ -257,9 +254,14 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
     }
 }
 
+/** The ink of the menu being composed: the glass's own when it adapts, else the theme's. */
+@Composable
+internal fun menuInk(): androidx.compose.ui.graphics.Color =
+    com.chethan616.clearpdf.ui.glass.LocalMenuInk.current.let { if (it == androidx.compose.ui.graphics.Color.Unspecified) clear.ink else it }
+
 @Composable
 internal fun MenuIcon(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
-    val ink = clear.ink
+    val ink = menuInk()
     Box(
         Modifier.size(48.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick).semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
@@ -270,11 +272,11 @@ internal fun MenuIcon(icon: ImageVector, label: String, enabled: Boolean, onClic
 
 @Composable
 internal fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
-    val c = clear
+    val ink = menuInk()
     // as the desk menu's rows: the label, its glyph at the end
     Row(Modifier.fillMaxWidth().pressable(onClick).padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = c.ink, style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, modifier = Modifier.weight(1f))
-        Icon(icon, null, tint = c.inkSoft, modifier = Modifier.size(19.dp))
+        Text(label, color = ink, style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, modifier = Modifier.weight(1f))
+        Icon(icon, null, tint = ink.copy(alpha = 0.65f), modifier = Modifier.size(19.dp))
     }
 }
 

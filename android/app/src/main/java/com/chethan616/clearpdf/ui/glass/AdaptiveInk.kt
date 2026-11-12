@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.atomic.AtomicBoolean
@@ -119,6 +120,38 @@ internal class InkFrame(
     }
 
     /**
+     * Luminance just outside [box], [gap] pixels clear of it on every side and corner: what the
+     * glass sits on, with none of the glass itself in the reading. (Read at its own rim, a control
+     * saw its own light: it brightened, read brighter, brightened again, and so breathed on a page
+     * that never changed.)
+     */
+    fun outsideLuminance(box: Rect, gap: Float): Float {
+        val cx = box.center.x
+        val cy = box.center.y
+        val l = box.left - gap
+        val t = box.top - gap
+        val r = box.right + gap
+        val b = box.bottom + gap
+        val sum = luminanceAt(l, cy) + luminanceAt(r, cy) + luminanceAt(cx, t) + luminanceAt(cx, b) +
+            luminanceAt(l, t) + luminanceAt(r, t) + luminanceAt(l, b) + luminanceAt(r, b)
+        return (sum / 8.0).toFloat()
+    }
+
+    /** The whole window's luminance, from a spread of its pixels. */
+    fun average(): Float {
+        var sum = 0.0
+        var n = 0
+        var i = 0
+        while (i < pixels.size) {
+            val c = pixels[i]
+            sum += (0.299 * ((c shr 16) and 0xFF) + 0.587 * ((c shr 8) and 0xFF) + 0.114 * (c and 0xFF)) / 255.0
+            n++
+            i += 37
+        }
+        return if (n == 0) 0.5f else (sum / n).toFloat()
+    }
+
+    /**
      * Luminance around [box]: just inside its four corners (outside the rounded glass), plus, at
      * double weight, just outside its left and right edges level with its centre, where the icon
      * itself sits. A control straddling a page edge so follows what is beside its glyph.
@@ -135,18 +168,74 @@ internal class InkFrame(
 
 val LocalScreenInk = staticCompositionLocalOf<ScreenInkSampler?> { null }
 
-/** Runs one [ScreenInkSampler] for this window (Android 8+); the viewers' controls read from it. */
+/**
+ * Runs one [ScreenInkSampler] for this window (Android 8+); the controls under it read from it. One
+ * already running above is used as it is (the app runs one for every screen while Adaptive luminance
+ * is on; the viewers always ask for one). [enabled] false provides none, without changing what is composed.
+ */
 @Composable
-fun ProvideScreenInk(content: @Composable () -> Unit) {
+fun ProvideScreenInk(enabled: Boolean = true, content: @Composable () -> Unit) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
         content()
         return
     }
+    val above = LocalScreenInk.current
     val view = LocalView.current
     val window = remember(view) { view.context.findActivity()?.window }
     val sampler = remember { ScreenInkSampler() }
-    if (window != null) LaunchedEffect(window, view) { sampler.run(window, view) }
-    CompositionLocalProvider(LocalScreenInk provides if (window != null) sampler else null, content = content)
+    val runs = enabled && above == null && window != null
+    if (runs && window != null) LaunchedEffect(window, view) { sampler.run(window, view) }
+    CompositionLocalProvider(LocalScreenInk provides (above ?: if (runs) sampler else null), content = content)
+}
+
+/**
+ * How light the screen is around one glass control, from the window's sampler: what the control's
+ * glass adapts to while Adaptive luminance is on. One copy of the window serves every control, so a
+ * screenful of glass buttons costs no more than one.
+ */
+@Stable
+class SurroundLuminance internal constructor(initial: Float) {
+    internal val anim = androidx.compose.animation.core.Animatable(initial)
+    internal val box = arrayOfNulls<Rect>(1)
+
+    /** 0 (dark around) … 1 (light around). Read while drawing. */
+    val value: Float get() = anim.value
+
+    /** Put on the control (first, so it measures the resting box). */
+    val modifier: Modifier = Modifier.onGloballyPositioned { box[0] = it.boundsInWindow() }
+}
+
+/** The luminance around the control being composed, or null while Adaptive luminance is off. */
+@Composable
+fun rememberSurroundLuminance(): SurroundLuminance? {
+    val sampler = LocalScreenInk.current
+    if (!GlassSettings.adaptive || sampler == null) return null
+    val dark = com.chethan616.clearpdf.ui.theme.clear.dark
+    val state = remember { SurroundLuminance(sampler.frame?.average() ?: if (dark) 0.14f else 0.86f) }
+    val gap = with(LocalDensity.current) { 7.dp.toPx() }
+    val overlays = LocalGlassOverlayHost.current
+    DisposableEffect(sampler) {
+        sampler.users++
+        onDispose { sampler.users-- }
+    }
+    LaunchedEffect(sampler) {
+        var first = true
+        snapshotFlow { sampler.frame }.collect { frame ->
+            val b = state.box[0]
+            if (frame == null || b == null || b.width <= 0f || b.height <= 0f) return@collect
+            // a menu or sheet over the screen is not the screen: the glass under it holds as it was
+            if (!first && overlays != null && overlays.entries.isNotEmpty()) return@collect
+            val lum = frame.outsideLuminance(b, gap)
+            if (first) {
+                state.anim.snapTo(lum)
+                first = false
+            } else if (kotlin.math.abs(lum - state.anim.targetValue) > 0.1f) {
+                // only a real change of what it is over moves it: a neighbour's glint does not
+                launch { state.anim.animateTo(lum, tween(360)) }
+            }
+        }
+    }
+    return state
 }
 
 /** One control's ink: put [modifier] on the control (first, so it measures the resting box). */
@@ -171,6 +260,7 @@ fun rememberAdaptiveInk(fallback: Color): InkProbe {
     val box = remember { arrayOfNulls<Rect>(1) }
     val currentFallback by rememberUpdatedState(fallbackOnLight)
     val inset = with(LocalDensity.current) { 5.dp.toPx() }
+    val overlays = LocalGlassOverlayHost.current
     if (sampler != null) {
         DisposableEffect(sampler) {
             sampler.users++
@@ -180,6 +270,8 @@ fun rememberAdaptiveInk(fallback: Color): InkProbe {
             snapshotFlow { sampler.frame }.collect { frame ->
                 val b = box[0]
                 if (frame == null || b == null || b.width <= 0f || b.height <= 0f) return@collect
+                // a menu lying over a button is not what the button stands on: its ink holds
+                if (measured && overlays != null && overlays.entries.isNotEmpty()) return@collect
                 val lum = frame.cornerLuminance(b, inset)
                 // Hysteresis, so a control over a mid-grey picture doesn't flicker.
                 onLight = when {

@@ -39,6 +39,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -136,10 +138,33 @@ private const val SPARE_COLS = 8
 private const val HEAD_H = 20f
 private const val HEAD_W = 36f
 
-/** One sheet's layout: where every row and column starts (points from A1), its merges and freeze. */
+/** One row-and-column pair as a map key. */
+private fun cellKey(row: Int, col: Int): Long = (row.toLong() shl 24) or col.toLong()
+
+/**
+ * One sheet's layout: where every row and column starts (points from A1), its merges and freeze.
+ * A cell's merge is looked up in a map (a form can hold hundreds of merges, and every cell drawn
+ * asks for its own on every frame); only the few very large ones are searched.
+ */
 internal class SheetLayout(val info: SheetInfo, val colX: FloatArray, val rowY: FloatArray, val merges: List<CellSpan>) {
     val cols get() = colX.size - 1
     val rows get() = rowY.size - 1
+
+    private val mergeOf = HashMap<Long, CellSpan>()
+    private val bigMerges = ArrayList<CellSpan>()
+
+    init {
+        for (m in merges) {
+            val h = (m.row1 - m.row0).toLong() + 1
+            val w = (m.col1 - m.col0).toLong() + 1
+            if (h * w > 4096 || mergeOf.size > 400_000) bigMerges += m
+            else for (r in m.row0.toInt()..m.row1.toInt()) for (c in m.col0.toInt()..m.col1.toInt()) mergeOf[cellKey(r, c)] = m
+        }
+    }
+
+    /** The merged area [row], [col] is part of, if it is. */
+    fun spanAt(row: Int, col: Int): CellSpan? =
+        mergeOf[cellKey(row, col)] ?: bigMerges.firstOrNull { row.toUInt() in it.row0..it.row1 && col.toUInt() in it.col0..it.col1 }
 
     /** The first index whose start is past [v] in [edges], less one: the line [v] falls in. */
     fun indexAt(edges: FloatArray, v: Float): Int {
@@ -168,6 +193,27 @@ private fun columnName(c: Int): String {
 private fun rgb(c: UInt): Color = Color(0xFF000000.toInt() or c.toInt())
 
 /**
+ * A cell made ready to draw, once, when its block arrives: the area its fill and text take (its
+ * merge, or itself), which of its own edges show (inside a merge only those on the merge's rim),
+ * and its colours. [covered] cells lie inside a merge but are not its first cell: they draw no fill
+ * or text of their own.
+ */
+internal class DrawCell(val v: CellView, val row: Int, val col: Int, val r0: Int, val c0: Int, val r1: Int, val c1: Int, val covered: Boolean, val edges: Int) {
+    val fill: Color? = v.fill?.let(::rgb)
+    val merged: Boolean get() = r0 != r1 || c0 != c1
+
+    companion object {
+        const val LEFT = 1
+        const val TOP = 2
+        const val RIGHT = 4
+        const val BOTTOM = 8
+    }
+}
+
+/** A picture floating over the sheet, decoded. */
+internal class SheetImage(val x: Float, val y: Float, val width: Float, val height: Float, val image: androidx.compose.ui.graphics.ImageBitmap)
+
+/**
  * One workbook's grid as the screen holds it: the sheets, the one shown, its layout and the cells
  * fetched so far (in blocks), the zoom and scroll, the chosen cell and the search hits.
  */
@@ -177,7 +223,10 @@ class SheetGridState internal constructor(private val eng: Engine, private val d
         internal set
     var current by mutableIntStateOf(0)
     internal var layout by mutableStateOf<SheetLayout?>(null)
-    internal val blocks = mutableStateMapOf<Triple<Int, Int, Int>, List<CellView>>()
+    internal val blocks = mutableStateMapOf<Triple<Int, Int, Int>, List<DrawCell>>()
+    /** The cells holding text, of the blocks fetched: a long text may run on over its empty neighbours, not over these. */
+    internal val texted = HashSet<Long>()
+    internal var pictures by mutableStateOf<List<SheetImage>>(emptyList())
     var scale by mutableStateOf(1f)
     var pan by mutableStateOf(Offset.Zero)
     /** The chosen cell, if one is. */
@@ -199,6 +248,7 @@ class SheetGridState internal constructor(private val eng: Engine, private val d
         selected = null
         hits = emptyList()
         pan = Offset.Zero
+        pictures = emptyList()
         current = index
     }
 
@@ -216,21 +266,63 @@ class SheetGridState internal constructor(private val eng: Engine, private val d
             }
         }.getOrNull()
         // a sheet chosen meanwhile wins
-        if (sheet == current) layout = loaded
+        if (sheet != current) return
+        // the cells were made ready against the old layout's merges: they are fetched again
+        blocks.clear()
+        texted.clear()
+        layout = loaded
+        pictures = runCatching {
+            eng.command {
+                sheetPictures(docId, sheet.toUInt()).mapNotNull { p ->
+                    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    android.graphics.BitmapFactory.decodeByteArray(p.data, 0, p.data.size, bounds)
+                    // a photo is drawn a few hundred pixels wide: no need for all of it
+                    var sample = 1
+                    while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 1600) sample *= 2
+                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(p.data, 0, p.data.size, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample })
+                    bitmap?.let { SheetImage(p.x, p.y, p.width, p.height, it.asImageBitmap()) }
+                }
+            }
+        }.getOrDefault(emptyList()).takeIf { sheet == current }.orEmpty()
     }
 
     internal suspend fun loadBlock(br: Int, bc: Int) {
-        val key = Triple(current, br, bc)
+        val l = layout ?: return
+        val sheet = current
+        val key = Triple(sheet, br, bc)
         if (key in blocks) return
         blocks[key] = emptyList()
-        blocks[key] = runCatching {
-            eng.command { sheetCells(docId, current.toUInt(), (br * BLOCK_ROWS).toUInt(), BLOCK_ROWS.toUInt(), (bc * BLOCK_COLS).toUInt(), BLOCK_COLS.toUInt()) }
+        val cells = runCatching {
+            eng.command {
+                sheetCells(docId, sheet.toUInt(), (br * BLOCK_ROWS).toUInt(), BLOCK_ROWS.toUInt(), (bc * BLOCK_COLS).toUInt(), BLOCK_COLS.toUInt()).mapNotNull { v ->
+                    val row = v.row.toInt()
+                    val col = v.col.toInt()
+                    if (row >= l.rows || col >= l.cols) return@mapNotNull null
+                    val m = l.spanAt(row, col)
+                    if (m == null) DrawCell(v, row, col, row, col, row, col, false, DrawCell.LEFT or DrawCell.TOP or DrawCell.RIGHT or DrawCell.BOTTOM)
+                    else {
+                        val r0 = m.row0.toInt()
+                        val c0 = m.col0.toInt()
+                        val r1 = min(m.row1.toInt(), l.rows - 1)
+                        val c1 = min(m.col1.toInt(), l.cols - 1)
+                        // inside a merge a cell keeps only the borders on the merge's rim
+                        val edges = (if (col == c0) DrawCell.LEFT else 0) or (if (row == r0) DrawCell.TOP else 0) or
+                            (if (col == c1) DrawCell.RIGHT else 0) or (if (row == r1) DrawCell.BOTTOM else 0)
+                        DrawCell(v, row, col, r0, c0, r1, c1, covered = row != r0 || col != c0, edges = edges)
+                    }
+                }
+            }
         }.getOrDefault(emptyList())
+        if (layout !== l || sheet != current) return
+        for (c in cells) if (c.v.text.isNotEmpty() && !c.covered) texted += cellKey(c.row, c.col)
+        blocks[key] = cells
     }
 
-    /** After an edit: everything shown is fetched again (sizes and values may all have moved). */
+    /**
+     * After an edit: the layout and cells are fetched again (sizes and values may all have moved).
+     * What is shown stays until the new layout is in, so the grid doesn't blink empty on every edit.
+     */
     fun changed() {
-        blocks.clear()
         version++
     }
 }
@@ -247,9 +339,49 @@ fun rememberSheetGrid(eng: Engine, docId: ULong): SheetGridState {
 }
 
 /**
- * The grid itself: pans and pinch-zooms, a tap chooses a cell ([onCell]; [onDoubleTapCell] for
- * the editor), the heading strips and frozen panes held in place. [top] and [bottom] are the
- * room the bars over it take (pixels): the grid runs on beneath them for their glass to refract.
+ * Text laid out once per cell and kept: at the size it has at zoom 1, drawn scaled, so neither a
+ * scroll nor a pinch measures anything again (measuring every cell in view on every frame was what
+ * made a full sheet lag). The least recently drawn go first when it is full.
+ */
+internal class SheetTextCache(private val measurer: TextMeasurer) {
+    private class Entry(val text: String, val style: Int, val width: Int, val layout: androidx.compose.ui.text.TextLayoutResult)
+
+    private val cells = object : LinkedHashMap<Long, Entry>(512, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Entry>?): Boolean = size > 6000
+    }
+    private val labels = HashMap<String, androidx.compose.ui.text.TextLayoutResult>()
+
+    /** [c]'s text set in [style], wrapped at [wrapWidth] pixels (0: one line). */
+    fun cell(c: DrawCell, style: TextStyle, styleKey: Int, wrapWidth: Int): androidx.compose.ui.text.TextLayoutResult {
+        val key = cellKey(c.row, c.col)
+        cells[key]?.let { if (it.text == c.v.text && it.style == styleKey && it.width == wrapWidth) return it.layout }
+        val wrap = wrapWidth > 0
+        val layout = measurer.measure(
+            c.v.text, style,
+            overflow = TextOverflow.Clip,
+            softWrap = wrap, maxLines = if (wrap) Int.MAX_VALUE else 1,
+            constraints = Constraints(maxWidth = if (wrap) wrapWidth else Constraints.Infinity),
+        )
+        cells[key] = Entry(c.v.text, styleKey, wrapWidth, layout)
+        return layout
+    }
+
+    /** A heading's letters or number. */
+    fun label(text: String, style: TextStyle): androidx.compose.ui.text.TextLayoutResult {
+        if (labels.size > 4000) labels.clear()
+        return labels.getOrPut(text) { measurer.measure(text, style) }
+    }
+
+    fun clear() {
+        cells.clear()
+        labels.clear()
+    }
+}
+
+/**
+ * The grid itself: pans and pinch-zooms, a tap chooses a cell ([onCell]), the heading strips and
+ * frozen panes held in place. [top] is the room the bars over it take (pixels): the grid runs on
+ * beneath them for their glass to refract.
  */
 @Composable
 fun SheetGrid(
@@ -257,12 +389,11 @@ fun SheetGrid(
     modifier: Modifier = Modifier,
     top: Float = 0f,
     onCell: ((CellSpan?) -> Unit)? = null,
-    onDoubleTapCell: ((CellSpan) -> Unit)? = null,
 ) {
     val c = pdfColors
     val sheetSurface = if (c.dark) Color(0xFF18192F) else Color.White
     val density = LocalDensity.current
-    val measurer = rememberTextMeasurer(cacheSize = 256)
+    val measurer = rememberTextMeasurer(cacheSize = 8)
     val l = state.layout
     Box(modifier.fillMaxSize().background(c.surface)) {
         if (l == null) {
@@ -270,13 +401,16 @@ fun SheetGrid(
             return@Box
         }
         val px = density.density
+        val texts = remember(l, measurer, c.dark, density.fontScale) { SheetTextCache(measurer) }
         // the blocks in view, asked for as the grid moves
         LaunchedEffect(l) {
             snapshotFlow { Triple(state.pan, state.scale, l) }.distinctUntilChanged().collect { (p, s, lay) ->
                 val k = px * s
                 val c0 = lay.indexAt(lay.colX, (-p.x / k).coerceAtLeast(0f)) / BLOCK_COLS
                 val r0 = lay.indexAt(lay.rowY, (-p.y / k).coerceAtLeast(0f)) / BLOCK_ROWS
-                for (br in r0..r0 + 1) for (bc in c0..c0 + 1) {
+                // zoomed out, a screen holds more than two blocks each way
+                val across = if (s < 0.75f) 2 else 1
+                for (br in r0..r0 + across) for (bc in c0..c0 + across) {
                     if (br * BLOCK_ROWS < lay.rows && bc * BLOCK_COLS < lay.cols) state.loadBlock(br, bc)
                 }
             }
@@ -294,11 +428,26 @@ fun SheetGrid(
             state.pan = Offset(x.coerceAtMost(0f), y.coerceAtMost(0f))
             state.selected = h
         }
+        // The bars over the grid grow and shrink (the formula bar comes with a chosen cell, the search
+        // field with Find), moving where the grid starts. The gestures below live as long as the
+        // layout does, so they read the room as it is now, not as it was when they began: a tap used
+        // to be measured against the old room, and chose a cell a few rows off the one touched.
+        val room = androidx.compose.runtime.rememberUpdatedState(top)
+        val tapped = androidx.compose.runtime.rememberUpdatedState(onCell)
+        // ... and the cells stay where they were on the screen while the bars change over them
+        val lastTop = remember(l) { floatArrayOf(top) }
+        androidx.compose.runtime.SideEffect {
+            val d = top - lastTop[0]
+            if (d != 0f) {
+                lastTop[0] = top
+                state.pan = Offset(state.pan.x, (state.pan.y - d).coerceAtMost(0f))
+            }
+        }
         // the cell under a point of the canvas (null: a heading strip)
         fun cellAt(p: Offset): CellSpan? {
             val k = px * state.scale
             val head = Offset(HEAD_W * k.coerceAtMost(px * 1.5f), HEAD_H * k.coerceAtMost(px * 1.5f))
-            val y = p.y - top
+            val y = p.y - room.value
             if (p.x < head.x || y < head.y) return null
             val fr = minOf(l.info.frozenRows.toInt(), l.rows)
             val fc = minOf(l.info.frozenCols.toInt(), l.cols)
@@ -306,31 +455,24 @@ fun SheetGrid(
             val gy = y - head.y
             val col = if (gx < l.colX[fc] * k) l.indexAt(l.colX, gx / k) else l.indexAt(l.colX, (gx - state.pan.x) / k)
             val row = if (gy < l.rowY[fr] * k) l.indexAt(l.rowY, gy / k) else l.indexAt(l.rowY, (gy - state.pan.y) / k)
-            val m = l.merges.firstOrNull { row.toUInt() in it.row0..it.row1 && col.toUInt() in it.col0..it.col1 }
-            return m ?: CellSpan(row.toUInt(), col.toUInt(), row.toUInt(), col.toUInt())
+            return l.spanAt(row, col) ?: CellSpan(row.toUInt(), col.toUInt(), row.toUInt(), col.toUInt())
         }
         val flinger = remember { arrayOfNulls<kotlinx.coroutines.Job>(1) }
         Canvas(
             Modifier
                 .fillMaxSize()
                 .panZoomFling(state, l, px, flinger)
-                .pointerInput(l, onCell, onDoubleTapCell) {
+                .pointerInput(l) {
+                    // no double tap is waited for: a tap chooses at once (a second tap on the chosen
+                    // cell edits it), where waiting made every tap land a third of a second late
                     detectTapGestures(
                         onPress = { flinger[0]?.cancel() },
-                        onTap = { p -> onCell?.invoke(cellAt(p)) },
-                        onDoubleTap = { p ->
-                            val cell = cellAt(p)
-                            if (cell != null && onDoubleTapCell != null) onDoubleTapCell(cell)
-                            else {
-                                state.scale = if (state.scale > 1.2f) 1f else 2f
-                                state.pan = Offset.Zero
-                            }
-                        },
+                        onTap = { p -> tapped.value?.invoke(cellAt(p)) },
                     )
                 },
         ) {
             translate(top = top) {
-                drawSheet(l, state.blocks, state.current, px * state.scale, state.pan, measurer, sheetSurface, c.text, c.dark, state.hits.getOrNull(state.hit), state.selected)
+                drawSheet(l, state, px * state.scale, texts, sheetSurface, c.text, c.dark)
             }
         }
     }
@@ -351,6 +493,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
     val grid = rememberSheetGrid(eng, doc.id)
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val feel = com.chethan616.clearpdf.ui.glass.rememberFeel()
     var searching by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf(false) }
@@ -407,13 +550,14 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
             SheetGrid(
                 grid, top = topPx,
                 onCell = { cell ->
+                    // a tap chooses the cell; a tap on the chosen cell opens it for typing
                     if (cell != null && cell == grid.selected) editing = true
                     else {
+                        if (cell != null) feel(com.chethan616.clearpdf.ui.glass.Feel.Tick)
                         grid.selected = cell
                         editing = false
                     }
                 },
-                onDoubleTapCell = { cell -> grid.selected = cell; editing = true },
             )
         }
         CompositionLocalProvider(LocalBackdrop provides backdrop, LocalGlassInk provides chrome.color) {
@@ -707,22 +851,25 @@ private fun DockKey(icon: ImageVector, label: String, enabled: Boolean = true, m
 }
 
 /**
- * The sheet at [k] pixels per point, moved by [pan]: the body, then the frozen rows and columns
- * held still on their axis, then the heading strips, each clipped to its own region.
+ * The sheet at [k] pixels per point: the body, then the frozen rows and columns held still on their
+ * axis, then the heading strips, each clipped to its own region. In each region, in Excel's order:
+ * grid lines, merged areas cleared of them, fills and data bars, borders, pictures, the chosen cell
+ * and the search hit, then the text.
  */
 private fun DrawScope.drawSheet(
     l: SheetLayout,
-    blocks: Map<Triple<Int, Int, Int>, List<CellView>>,
-    sheet: Int,
+    state: SheetGridState,
     k: Float,
-    pan: Offset,
-    measurer: TextMeasurer,
+    texts: SheetTextCache,
     sheetSurface: Color,
     ink: Color,
     dark: Boolean,
-    found: CellSpan?,
-    selected: CellSpan?,
 ) {
+    val pan = state.pan
+    val sheet = state.current
+    val blocks = state.blocks
+    val found = state.hits.getOrNull(state.hit)
+    val selected = state.selected
     drawRect(sheetSurface)
     val head = Offset(HEAD_W * k.coerceAtMost(density * 1.5f), HEAD_H * k.coerceAtMost(density * 1.5f))
     val fr = min(l.info.frozenRows.toInt(), l.rows)
@@ -730,6 +877,13 @@ private fun DrawScope.drawSheet(
     val frozenW = l.colX[fc] * k
     val frozenH = l.rowY[fr] * k
     val body = Rect(head.x + frozenW, head.y + frozenH, size.width, size.height)
+    // text is laid out at zoom 1 and drawn scaled
+    val zoom = k / density
+    val accent = Color(0xFF0A84FF)
+    val gridLine = if (dark) Color(0xFF343650) else Color(0xFFE1E4EA)
+    val dashes = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(3f * k, 2f * k))
+    val dots = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(1f * k, 1.2f * k))
+    val shown = ArrayList<DrawCell>(512)
     // a region of the sheet: rows/columns from the given starts, drawn from [origin]
     fun region(clip: Rect, origin: Offset, rowsFrom: Int, rowsTo: Int, colsFrom: Int, colsTo: Int, scrollX: Boolean, scrollY: Boolean) {
         if (clip.width <= 0f || clip.height <= 0f) return
@@ -742,46 +896,95 @@ private fun DrawScope.drawSheet(
         val r1 = min(rowsTo, l.indexAt(l.rowY, (clip.bottom - oy) / k) + 1)
         if (c0 >= c1 || r0 >= r1) return
         clipRect(clip.left, clip.top, clip.right, clip.bottom) {
-            val cell = { r: Int, c: Int -> Rect(ox + l.colX[c] * k, oy + l.rowY[r] * k, ox + l.colX[c + 1] * k, oy + l.rowY[r + 1] * k) }
+            fun x(c: Int) = ox + l.colX[c] * k
+            fun y(r: Int) = oy + l.rowY[r] * k
+            fun area(a: DrawCell) = Rect(x(a.c0), y(a.r0), x(a.c1 + 1), y(a.r1 + 1))
             // grid lines
             if (l.info.gridlines) {
-                val line = if (dark) Color(0xFF343650) else Color(0xFFE1E4EA)
-                for (c in c0..c1) drawLine(line, Offset(ox + l.colX[c] * k, clip.top), Offset(ox + l.colX[c] * k, clip.bottom), 1f)
-                for (r in r0..r1) drawLine(line, Offset(clip.left, oy + l.rowY[r] * k), Offset(clip.right, oy + l.rowY[r] * k), 1f)
-            }
-            // the cells of the blocks in view: fills, then borders, then text
-            val shown = ArrayList<CellView>()
-            for (br in r0 / BLOCK_ROWS..(r1 - 1) / BLOCK_ROWS) for (bc in c0 / BLOCK_COLS..(c1 - 1) / BLOCK_COLS) {
-                blocks[Triple(sheet, br, bc)]?.forEach { v -> if (v.row.toInt() in r0 until r1 && v.col.toInt() in c0 until c1) shown += v }
-            }
-            fun spanOf(v: CellView): Rect {
-                val m = l.merges.firstOrNull { it.row0 == v.row && it.col0 == v.col }
-                return if (m == null) cell(v.row.toInt(), v.col.toInt())
-                else cell(m.row0.toInt(), m.col0.toInt()).let { a ->
-                    val b = cell(min(m.row1.toInt(), l.rows - 1), min(m.col1.toInt(), l.cols - 1))
-                    Rect(a.left, a.top, b.right, b.bottom)
+                for (c in c0..c1) drawLine(gridLine, Offset(x(c), clip.top), Offset(x(c), clip.bottom), 1f)
+                for (r in r0..r1) drawLine(gridLine, Offset(clip.left, y(r)), Offset(clip.right, y(r)), 1f)
+                // a merged area is one cell: no grid lines run through it
+                if (l.merges.size <= 4000) for (m in l.merges) {
+                    val mr0 = m.row0.toInt()
+                    val mc0 = m.col0.toInt()
+                    val mr1 = min(m.row1.toInt(), l.rows - 1)
+                    val mc1 = min(m.col1.toInt(), l.cols - 1)
+                    if (mr1 < r0 || mr0 >= r1 || mc1 < c0 || mc0 >= c1) continue
+                    val a = Rect(x(mc0), y(mr0), x(mc1 + 1), y(mr1 + 1))
+                    if (a.width > 2f && a.height > 2f) drawRect(sheetSurface, Offset(a.left + 0.5f, a.top + 0.5f), Size(a.width - 1f, a.height - 1f))
                 }
             }
-            for (v in shown) v.fill?.let { drawRect(rgb(it), spanOf(v).topLeft, spanOf(v).size) }
-            for (v in shown) {
-                val r = spanOf(v)
-                fun edge(e: com.chethan616.clearpdf.core.CellEdge, a: Offset, b: Offset) {
-                    if (e.weight > 0u) drawLine(rgb(e.color), a, b, e.weight.toFloat() * density * 0.6f)
+            // the cells in view, from the blocks in view and the ones before them (a merge that
+            // begins above or left of the screen still shows its fill and text)
+            shown.clear()
+            val br0 = max(0, r0 / BLOCK_ROWS - 1)
+            val bc0 = max(0, c0 / BLOCK_COLS - 1)
+            for (br in br0..(r1 - 1) / BLOCK_ROWS) for (bc in bc0..(c1 - 1) / BLOCK_COLS) {
+                val cells = blocks[Triple(sheet, br, bc)] ?: continue
+                for (cell in cells) {
+                    if (cell.covered) {
+                        if (cell.row in r0 until r1 && cell.col in c0 until c1) shown += cell
+                    } else if (cell.r1 >= r0 && cell.r0 < r1 && cell.c1 >= c0 && cell.c0 < c1) shown += cell
                 }
-                edge(v.left, r.topLeft, r.bottomLeft)
-                edge(v.top, r.topLeft, r.topRight)
-                edge(v.right, r.topRight, r.bottomRight)
-                edge(v.bottom, r.bottomLeft, r.bottomRight)
+            }
+            // fills, then data bars
+            for (cell in shown) {
+                if (cell.covered) continue
+                val a = area(cell)
+                cell.fill?.let { drawRect(it, a.topLeft, a.size) }
+                if (cell.v.bar > 0f) drawRect(rgb(cell.v.barColor).copy(alpha = 0.55f), Offset(a.left + k, a.top + k), Size(((a.width - 2 * k) * cell.v.bar).coerceAtLeast(0f), (a.height - 2 * k).coerceAtLeast(0f)))
+            }
+            // borders: each cell's own, on its own box (inside a merge only those on the merge's rim)
+            for (cell in shown) {
+                if (cell.edges == 0) continue
+                val left = x(cell.col)
+                val top = y(cell.row)
+                val right = x(cell.col + 1)
+                val bottom = y(cell.row + 1)
+                fun edge(e: com.chethan616.clearpdf.core.CellEdge, bit: Int, a: Offset, b: Offset, nx: Float, ny: Float) {
+                    val weight = e.weight.toInt()
+                    if (weight == 0 || cell.edges and bit == 0) return
+                    // automatic (black) lines take the sheet's ink in the dark theme, where black would vanish
+                    val color = if (e.color == 0u && dark && cell.fill == null) ink.copy(alpha = 0.85f) else rgb(e.color)
+                    val line = e.line.toInt()
+                    val width = if (line == 4) 1f else max(1f, weight * 0.5f * k)
+                    when (line) {
+                        // double: two thin lines either side of the edge
+                        3 -> {
+                            val d = max(1f, 0.6f * k)
+                            val w = max(1f, 0.35f * k)
+                            drawLine(color, Offset(a.x + nx * d, a.y + ny * d), Offset(b.x + nx * d, b.y + ny * d), w)
+                            drawLine(color, Offset(a.x - nx * d, a.y - ny * d), Offset(b.x - nx * d, b.y - ny * d), w)
+                        }
+                        1 -> drawLine(color, a, b, width, pathEffect = dashes)
+                        2 -> drawLine(color, a, b, width, pathEffect = dots)
+                        else -> drawLine(color, a, b, width)
+                    }
+                }
+                edge(cell.v.left, DrawCell.LEFT, Offset(left, top), Offset(left, bottom), 1f, 0f)
+                edge(cell.v.top, DrawCell.TOP, Offset(left, top), Offset(right, top), 0f, 1f)
+                edge(cell.v.right, DrawCell.RIGHT, Offset(right, top), Offset(right, bottom), 1f, 0f)
+                edge(cell.v.bottom, DrawCell.BOTTOM, Offset(left, bottom), Offset(right, bottom), 0f, 1f)
+            }
+            // pictures float over the cells (in the part that scrolls both ways)
+            if (scrollX && scrollY) for (p in state.pictures) {
+                val w = (p.width * k).toInt()
+                val h = (p.height * k).toInt()
+                val left = ox + p.x * k
+                val top = oy + p.y * k
+                if (w <= 0 || h <= 0 || left > clip.right || top > clip.bottom || left + w < clip.left || top + h < clip.top) continue
+                drawImage(p.image, dstOffset = androidx.compose.ui.unit.IntOffset(left.toInt(), top.toInt()), dstSize = androidx.compose.ui.unit.IntSize(w, h))
             }
             // the chosen cell (or its merged area): a ring in the accent, as a spreadsheet marks it
             selected?.let { f ->
                 val r = f.row0.toInt()
                 val col = f.col0.toInt()
-                if (r in r0 until r1 && col in c0 until c1) {
-                    val a = cell(r, col)
-                    val b = cell(minOf(f.row1.toInt(), l.rows - 1), minOf(f.col1.toInt(), l.cols - 1))
-                    val box = Rect(a.left, a.top, b.right, b.bottom)
-                    drawRect(Color(0xFF0A84FF), box.topLeft, box.size, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f * density))
+                val rEnd = minOf(f.row1.toInt(), l.rows - 1)
+                val cEnd = minOf(f.col1.toInt(), l.cols - 1)
+                if (rEnd >= r0 && r < r1 && cEnd >= c0 && col < c1) {
+                    val box = Rect(x(col), y(r), x(cEnd + 1), y(rEnd + 1))
+                    drawRect(accent.copy(alpha = 0.08f), box.topLeft, box.size)
+                    drawRect(accent, box.topLeft, box.size, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f * density))
                 }
             }
             // the search hit in this region: an accent ring round its cell
@@ -789,25 +992,44 @@ private fun DrawScope.drawSheet(
                 val r = f.row0.toInt()
                 val col = f.col0.toInt()
                 if (r in r0 until r1 && col in c0 until c1) {
-                    val box = cell(r, col)
-                    drawRect(Color(0x330A84FF), box.topLeft, box.size)
-                    drawRect(Color(0xFF0A84FF), box.topLeft, box.size, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f * density))
+                    val box = Rect(x(col), y(r), x(col + 1), y(r + 1))
+                    drawRect(accent.copy(alpha = 0.2f), box.topLeft, box.size)
+                    drawRect(accent, box.topLeft, box.size, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f * density))
                 }
             }
-            for (v in shown) {
-                if (v.text.isEmpty()) continue
-                val r = spanOf(v)
-                val pad = 2f * k
-                val maxW = (r.width - 2 * pad).toInt()
-                if (maxW <= 0) continue
+            // text
+            for (cell in shown) {
+                val v = cell.v
+                if (cell.covered || v.text.isEmpty()) continue
+                val a = area(cell)
+                if (a.width < 2f || a.height < 2f) continue
+                val turned = v.rotation.toInt() != 0 && v.rotation.toInt() in -90..90
+                // the room the text has, at zoom 1 (pixels): the cell less its padding and indent
+                val pad0 = 2f * density
+                val indent0 = v.indent.toInt() * 7f * density
+                val cellW0 = a.width / zoom
+                val cellH0 = a.height / zoom
+                val wrapWidth = if (v.wrap && !turned) (cellW0 - 2 * pad0 - indent0).toInt().coerceAtLeast(1) else 0
+                val auto = v.ink == 0u
+                val surface = cell.fill ?: sheetSurface
+                val color = when {
+                    auto -> if (surface.luminance() > 0.5f) Color(0xFF15171C) else ink
+                    // a dark colour chosen for a white sheet, on the dark theme's ground: lifted so it reads
+                    cell.fill == null && dark && rgb(v.ink).luminance() < 0.22f -> androidx.compose.ui.graphics.lerp(rgb(v.ink), Color.White, 0.62f)
+                    else -> rgb(v.ink)
+                }
+                val styleKey = (color.hashCode() * 31 + (v.size * 4).toInt()) * 31 +
+                    ((if (v.bold) 1 else 0) or (if (v.italic) 2 else 0) or (if (v.underline) 4 else 0) or (if (v.strike) 8 else 0) or (v.face.toInt() shl 4))
                 val style = TextStyle(
-                    color = if (v.ink == 0u) {
-                        val cellSurface = v.fill?.let(::rgb) ?: sheetSurface
-                        if (cellSurface.luminance() > 0.5f) Color(0xFF15171C) else ink
-                    } else rgb(v.ink),
-                    fontSize = (v.size * k / density / fontScale).sp,
+                    color = color,
+                    fontSize = (v.size / fontScale).sp,
                     fontWeight = if (v.bold) FontWeight.Bold else FontWeight.Normal,
                     fontStyle = if (v.italic) FontStyle.Italic else FontStyle.Normal,
+                    fontFamily = when (v.face.toInt()) {
+                        1 -> androidx.compose.ui.text.font.FontFamily.Serif
+                        2 -> androidx.compose.ui.text.font.FontFamily.Monospace
+                        else -> androidx.compose.ui.text.font.FontFamily.SansSerif
+                    },
                     textDecoration = when {
                         v.underline && v.strike -> TextDecoration.combine(listOf(TextDecoration.Underline, TextDecoration.LineThrough))
                         v.underline -> TextDecoration.Underline
@@ -815,25 +1037,58 @@ private fun DrawScope.drawSheet(
                         else -> null
                     },
                 )
-                val t = measurer.measure(
-                    v.text, style,
-                    overflow = TextOverflow.Clip,
-                    softWrap = v.wrap, maxLines = if (v.wrap) Int.MAX_VALUE else 1,
-                    constraints = Constraints(maxWidth = if (v.wrap) maxW else Constraints.Infinity, maxHeight = max(1, r.height.toInt())),
-                )
-                val w = t.size.width.toFloat()
-                val x = when (v.align) {
-                    "c" -> r.left + (r.width - w) / 2f
-                    "r" -> r.right - pad - w
-                    else -> r.left + pad
+                val t = texts.cell(cell, style, styleKey, wrapWidth)
+                val tw = t.size.width.toFloat()
+                val th = t.size.height.toFloat()
+                if (turned) {
+                    // turned text: about the middle of its cell, kept inside it
+                    clipRect(a.left, a.top, a.right, a.bottom) {
+                        withTransform({
+                            translate(a.center.x, a.center.y)
+                            rotate(-v.rotation.toFloat(), Offset.Zero)
+                            scale(zoom, zoom, Offset.Zero)
+                        }) { drawText(t, topLeft = Offset(-tw / 2f, -th / 2f)) }
+                    }
+                    continue
                 }
-                val y = when (v.valign) {
-                    "t" -> r.top + pad / 2
-                    "c" -> r.top + (r.height - t.size.height) / 2f
-                    else -> r.bottom - pad / 2 - t.size.height
+                val x0 = when (v.align) {
+                    "c" -> (cellW0 - tw) / 2f
+                    "r" -> cellW0 - pad0 - indent0 - tw
+                    else -> pad0 + indent0
                 }
-                // text stays within its cell (a neighbour's text would overlap it otherwise)
-                clipRect(r.left, r.top, r.right, r.bottom) { drawText(t, topLeft = Offset(x, y)) }
+                val y0 = when (v.valign) {
+                    "t" -> pad0 / 2
+                    "c" -> (cellH0 - th) / 2f
+                    else -> cellH0 - pad0 / 2 - th
+                }
+                // One line too long for its cell runs on over the empty cells beside it, as Excel
+                // shows it (a title typed in A1 reads across the row), and stops at the first cell
+                // that holds something. Wrapped and merged text keeps to its own area.
+                var clipLeft = a.left
+                var clipRight = a.right
+                if (wrapWidth == 0 && !cell.merged && tw > cellW0 - 2 * pad0) {
+                    val need = tw * zoom
+                    if (v.align != "r") {
+                        var cEnd = cell.col
+                        while (cEnd + 1 < c1 + 8 && cEnd + 1 < l.cols && x(cEnd + 1) - a.left < need + pad0 * zoom * 2 &&
+                            cellKey(cell.row, cEnd + 1) !in state.texted && l.spanAt(cell.row, cEnd + 1) == null
+                        ) cEnd++
+                        clipRight = x(cEnd + 1)
+                    }
+                    if (v.align != "l") {
+                        var cStart = cell.col
+                        while (cStart - 1 >= 0 && a.right - x(cStart) < need + pad0 * zoom * 2 &&
+                            cellKey(cell.row, cStart - 1) !in state.texted && l.spanAt(cell.row, cStart - 1) == null
+                        ) cStart--
+                        clipLeft = x(cStart)
+                    }
+                }
+                clipRect(clipLeft, a.top, clipRight, a.bottom) {
+                    withTransform({
+                        translate(a.left, a.top)
+                        scale(zoom, zoom, Offset.Zero)
+                    }) { drawText(t, topLeft = Offset(x0, y0)) }
+                }
             }
         }
     }
@@ -845,31 +1100,57 @@ private fun DrawScope.drawSheet(
     val frozenDivider = if (dark) Color(0xFF777D9A) else Color(0xFF9AA3B2)
     if (fr > 0) drawLine(frozenDivider, Offset(head.x, head.y + frozenH), Offset(size.width, head.y + frozenH), density)
     if (fc > 0) drawLine(frozenDivider, Offset(head.x + frozenW, head.y), Offset(head.x + frozenW, size.height), density)
-    // the heading strips
+    // the heading strips: only the letters and numbers in view, each measured once
     val strip = if (dark) Color(0xFF20213B) else Color(0xFFF2F4F8)
-    val label = TextStyle(color = ink.copy(alpha = 0.6f), fontSize = (11 * min(k / density, 1.5f) / fontScale).sp)
+    val chosen = accent.copy(alpha = if (dark) 0.30f else 0.16f)
+    val labelZoom = min(zoom, 1.5f)
+    val label = TextStyle(color = ink.copy(alpha = 0.6f), fontSize = (11 / fontScale).sp)
     drawRect(strip, Offset(0f, 0f), Size(size.width, head.y))
     drawRect(strip, Offset(0f, 0f), Size(head.x, size.height))
     val lineC = if (dark) Color(0xFF343650) else Color(0xFFD5D9E0)
     clipRect(head.x, 0f, size.width, head.y) {
-        for (c in 0 until l.cols) {
-            val x0 = head.x + l.colX[c] * k + (if (c >= fc) pan.x else 0f)
-            val x1 = head.x + l.colX[c + 1] * k + (if (c >= fc) pan.x else 0f)
-            if (x1 < head.x + (if (c >= fc) frozenW else 0f) || x0 > size.width || x1 - x0 < 1f) continue
-            drawLine(lineC, Offset(x1, 0f), Offset(x1, head.y), 1f)
-            val t = measurer.measure(columnName(c), label)
-            if (t.size.width < x1 - x0) drawText(t, topLeft = Offset((x0 + x1 - t.size.width) / 2f, (head.y - t.size.height) / 2f))
+        fun columns(from: Int, to: Int, shift: Float, clipFrom: Float) {
+            if (from >= to) return
+            val first = max(from, l.indexAt(l.colX, (clipFrom - head.x - shift) / k))
+            val last = min(to - 1, l.indexAt(l.colX, (size.width - head.x - shift) / k))
+            for (c in first..last) {
+                val x0 = head.x + l.colX[c] * k + shift
+                val x1 = head.x + l.colX[c + 1] * k + shift
+                if (x1 - x0 < 1f) continue
+                if (selected != null && c.toUInt() in selected.col0..selected.col1) drawRect(chosen, Offset(x0, 0f), Size(x1 - x0, head.y))
+                drawLine(lineC, Offset(x1, 0f), Offset(x1, head.y), 1f)
+                val t = texts.label(columnName(c), label)
+                val w = t.size.width * labelZoom
+                if (w < x1 - x0) withTransform({
+                    translate((x0 + x1 - w) / 2f, (head.y - t.size.height * labelZoom) / 2f)
+                    scale(labelZoom, labelZoom, Offset.Zero)
+                }) { drawText(t) }
+            }
         }
+        clipRect(head.x + frozenW, 0f, size.width, head.y) { columns(fc, l.cols, pan.x, head.x + frozenW) }
+        columns(0, fc, 0f, head.x)
     }
     clipRect(0f, head.y, head.x, size.height) {
-        for (r in 0 until l.rows) {
-            val y0 = head.y + l.rowY[r] * k + (if (r >= fr) pan.y else 0f)
-            val y1 = head.y + l.rowY[r + 1] * k + (if (r >= fr) pan.y else 0f)
-            if (y1 < head.y + (if (r >= fr) frozenH else 0f) || y0 > size.height || y1 - y0 < 1f) continue
-            drawLine(lineC, Offset(0f, y1), Offset(head.x, y1), 1f)
-            val t = measurer.measure((r + 1).toString(), label)
-            if (t.size.height < y1 - y0 + 2) drawText(t, topLeft = Offset((head.x - t.size.width) / 2f, (y0 + y1 - t.size.height) / 2f))
+        fun rows(from: Int, to: Int, shift: Float, clipFrom: Float) {
+            if (from >= to) return
+            val first = max(from, l.indexAt(l.rowY, (clipFrom - head.y - shift) / k))
+            val last = min(to - 1, l.indexAt(l.rowY, (size.height - head.y - shift) / k))
+            for (r in first..last) {
+                val y0 = head.y + l.rowY[r] * k + shift
+                val y1 = head.y + l.rowY[r + 1] * k + shift
+                if (y1 - y0 < 1f) continue
+                if (selected != null && r.toUInt() in selected.row0..selected.row1) drawRect(chosen, Offset(0f, y0), Size(head.x, y1 - y0))
+                drawLine(lineC, Offset(0f, y1), Offset(head.x, y1), 1f)
+                val t = texts.label((r + 1).toString(), label)
+                val h = t.size.height * labelZoom
+                if (h < y1 - y0 + 2) withTransform({
+                    translate((head.x - t.size.width * labelZoom) / 2f, (y0 + y1 - h) / 2f)
+                    scale(labelZoom, labelZoom, Offset.Zero)
+                }) { drawText(t) }
+            }
         }
+        clipRect(0f, head.y + frozenH, head.x, size.height) { rows(fr, l.rows, pan.y, head.y + frozenH) }
+        rows(0, fr, 0f, head.y)
     }
     drawLine(lineC, Offset(0f, head.y), Offset(size.width, head.y), 1f)
     drawLine(lineC, Offset(head.x, 0f), Offset(head.x, size.height), 1f)
@@ -926,7 +1207,7 @@ private fun Modifier.panZoomFling(
                         val c = event.calculateCentroid()
                         centroid = c
                         if (zoomChange != 1f) {
-                            val newScale = (state.scale * zoomChange).coerceIn(0.4f, 4f)
+                            val newScale = (state.scale * zoomChange).coerceIn(0.4f, 6f)
                             val factor = newScale / state.scale
                             val origin = if (c.isSpecified) c else Offset.Zero
                             val target = (state.pan - origin) * factor + origin + pan

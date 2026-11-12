@@ -193,23 +193,49 @@ object GlassMotion {
     /** Alpha and colour. Never bounces. */
     fun <T> settle(): SpringSpec<T> = spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)
 
+    /**
+     * How close to rest a glass spring runs before it is let go. The platform's default (1 % of the
+     * way) cut a menu's last swing short: on a tall menu that is a jump of ten pixels or more, seen
+     * as the bounce stiffening before it had finished. At a twentieth of that nothing is left to see.
+     */
+    private const val Rest = 0.0005f
+
     /** A menu unfolding: its width leads and settles with a soft overshoot (the one every entrance is judged against). */
-    fun <T> unfold(): SpringSpec<T> = spring(MotionSettings.damping(0.68f), MotionSettings.stiffness(420f))
+    fun unfold(): SpringSpec<Float> = spring(MotionSettings.damping(0.68f), MotionSettings.stiffness(420f), Rest)
 
     /** The menu's height, a beat behind its width. */
-    fun <T> unfoldLag(): SpringSpec<T> = spring(MotionSettings.damping(0.6f), MotionSettings.stiffness(340f))
+    fun unfoldLag(): SpringSpec<Float> = spring(MotionSettings.damping(0.6f), MotionSettings.stiffness(340f), Rest)
 
     /** Springs open: capsules, chevrons, thumbs, dialogs, toasts. */
-    fun <T> morph(): SpringSpec<T> = spring(MotionSettings.damping(0.58f), MotionSettings.stiffness(420f))
+    fun morph(): SpringSpec<Float> = spring(MotionSettings.damping(0.58f), MotionSettings.stiffness(420f), Rest)
 
     /** A small thing popping into place: fan chips, the + glyph. */
-    fun <T> pop(): SpringSpec<T> = spring(MotionSettings.damping(0.45f), MotionSettings.stiffness(500f))
+    fun pop(): SpringSpec<Float> = spring(MotionSettings.damping(0.45f), MotionSettings.stiffness(500f), Rest)
+
+    /**
+     * A menu growing out of the button that opens it, as iOS 26's menus do: slower and heavier than
+     * [unfold] (a spring of about 0.42 s response, 0.8 damping at the Normal setting), so the eye
+     * follows the button becoming the menu; its height runs a touch softer behind ([growLag]).
+     */
+    fun grow(): SpringSpec<Float> = spring(MotionSettings.damping(0.82f), MotionSettings.stiffness(230f), Rest)
+
+    fun growLag(): SpringSpec<Float> = spring(MotionSettings.damping(0.76f), MotionSettings.stiffness(190f), Rest)
+
+    /**
+     * The menu going back into its button, the same way it came: the glass draws in to the
+     * button's box on the same slow spring, without the swing (a menu that bounced on its way out
+     * would hold the screen while it settled).
+     */
+    fun shrink(): SpringSpec<Float> = spring(1f, MotionSettings.stiffness(230f), Rest)
+
+    /** A glass popover folding back into its button: quick, critically damped, so it lands without a step. */
+    fun fold(): SpringSpec<Float> = spring(1f, MotionSettings.stiffness(900f), Rest)
 
     /** The recorder pill growing: slow and soft, with a floor on damping so Jelly cannot ring on. */
-    fun <T> shape(): SpringSpec<T> = spring(maxOf(MotionSettings.damping(0.6f), ShapeMinDamping), MotionSettings.stiffness(105f))
+    fun shape(): SpringSpec<Float> = spring(maxOf(MotionSettings.damping(0.6f), ShapeMinDamping), MotionSettings.stiffness(105f), Rest)
 
     /** The recorder pill shrinking back. */
-    fun <T> shapeBack(): SpringSpec<T> = spring(maxOf(MotionSettings.damping(0.62f), ShapeMinDamping), MotionSettings.stiffness(125f))
+    fun shapeBack(): SpringSpec<Float> = spring(maxOf(MotionSettings.damping(0.62f), ShapeMinDamping), MotionSettings.stiffness(125f), Rest)
 
     private const val ShapeMinDamping = 0.46f
 

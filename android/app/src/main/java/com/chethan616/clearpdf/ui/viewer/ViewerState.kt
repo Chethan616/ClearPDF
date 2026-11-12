@@ -216,7 +216,8 @@ class ViewerState(pages: List<PageSize>) {
         val ch = l.height * zoom
         scrollX = if (cw <= viewW) -(viewW - cw) / 2f else scrollX.coerceIn(0f, cw - viewW)
         scrollY = if (ch <= viewH) -(viewH - ch) / 2f else scrollY.coerceIn(0f, ch - viewH)
-        if (mode == PageMode.SinglePage && zoom <= 1.001f) scrollY = 0f
+        // a single page that fits stays put; one taller than the screen (a phone on its side) scrolls
+        if (mode == PageMode.SinglePage && zoom <= 1.001f && l.height <= viewH + 0.5f) scrollY = 0f
     }
 
     /** Page [i]'s rectangle on screen. */

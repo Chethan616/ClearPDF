@@ -286,6 +286,7 @@ private fun DeskHeader(vm: AppViewModel) {
         GlassMenu(anchor, { menu = false }, listOf(
             GlassMenuItem(stringResource(R.string.home_tab_files), LucideIcons.FolderOpen) { vm.homeTab = HomeTab.Files },
             GlassMenuItem(stringResource(R.string.home_tab_tools), LucideIcons.LayoutGrid) { vm.homeTab = HomeTab.Tools },
+            GlassMenuItem(stringResource(R.string.voice_import), LucideIcons.Mic) { vm.pickAudio() },
             GlassMenuItem(stringResource(R.string.home_settings), LucideIcons.Settings) { vm.settingsOpen = true },
         ))
     }
@@ -329,7 +330,7 @@ private fun DeskTitle(filter: DeskFilter) {
                 (slideInVertically(com.chethan616.clearpdf.ui.glass.Fluid.push()) { it / 3 } + fadeIn(com.chethan616.clearpdf.ui.glass.Fluid.quick())) togetherWith
                     (slideOutVertically(com.chethan616.clearpdf.ui.glass.Fluid.quick()) { -it / 4 } + fadeOut(com.chethan616.clearpdf.ui.glass.Fluid.fade()))
             },
-            label = "desk title",
+            label = "deskTitle",
             modifier = Modifier.fillMaxWidth().height(height),
         ) { f ->
             BasicText(
@@ -443,8 +444,10 @@ private fun NoteActions(vm: AppViewModel, n: Note, anchor: Rect, onRename: () ->
     val openLabel = stringResource(R.string.notes_open)
     val photoLabel = stringResource(R.string.photo_edit)
     val deleteLabel = stringResource(R.string.common_delete)
+    val exportLabel = stringResource(R.string.voice_export)
     GlassMenu(anchor, onDismiss, buildList {
         if (voice) add(GlassMenuItem(renameLabel, LucideIcons.PenLine) { onDismiss(); onRename() })
+        if (voice && n.audio != null) add(GlassMenuItem(exportLabel, LucideIcons.SaveAs) { vm.exportVoice(n); onDismiss() })
         add(GlassMenuItem(pinLabel, LucideIcons.Pin) { vm.notes.put(n.copy(pinned = !n.pinned)); onDismiss() })
         if (!voice) add(GlassMenuItem(openLabel, LucideIcons.SquarePen) { vm.openNote = n.id; onDismiss() })
         n.images.firstOrNull()?.let { pic -> add(GlassMenuItem(photoLabel, LucideIcons.SlidersHorizontal) { onDismiss(); vm.editingPhoto = n.id to pic }) }

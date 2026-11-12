@@ -165,8 +165,24 @@ class Thumbnails(private val context: Context) {
         }.getOrNull() ?: return null
         // a very large file isn't copied just for its first page
         if (size > MAX_COPY) return null
-        return cached(sha("$uri|$modified|$size|$maxSide")) {
-            val tmp = File.createTempFile("thumb", ".pdf", context.cacheDir)
+        // The copy keeps the document's own extension. The engine tells most files by their bytes,
+        // but a table of plain text (.csv, .tsv), a text file and a password-protected Office file
+        // are known by name alone: copied as "thumb.pdf" they could not be read, so they got no
+        // picture and were shown as a blank page with a PDF badge.
+        val extension = runCatching {
+            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                if (c.moveToFirst() && !c.isNull(0)) c.getString(0) else null
+            }
+        }.getOrNull()?.substringAfterLast('.', "")?.lowercase()?.takeIf { it.length in 1..8 && it.all(Char::isLetterOrDigit) }
+            ?: when (runCatching { resolver.getType(uri) }.getOrNull()) {
+                "text/csv", "text/comma-separated-values" -> "csv"
+                "text/tab-separated-values" -> "tsv"
+                "text/plain" -> "txt"
+                "text/markdown", "text/x-markdown" -> "md"
+                else -> "pdf"
+            }
+        return cached(sha("$uri|$modified|$size|$maxSide|$extension")) {
+            val tmp = File.createTempFile("thumb", ".$extension", context.cacheDir)
             try {
                 resolver.openInputStream(uri)?.use { input -> tmp.outputStream().use { input.copyTo(it) } } ?: error("unreadable")
                 fileThumbnail(tmp.absolutePath, maxSide.toUInt()).toBitmap()

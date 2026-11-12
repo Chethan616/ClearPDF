@@ -44,9 +44,34 @@ fun Modifier.glass(
     lensHeight: Dp = 16.dp,
     lensAmount: Dp = 24.dp,
     styleOverride: GlassStyle? = null,
+    luminance: GlassLuminance? = null,
 ): Modifier {
     val backdrop = LocalBackdrop.current
     val style = styleOverride ?: GlassSettings.style
+    // adaptive: the glass answers what is behind it instead of wearing the theme's wash
+    if (luminance != null) return drawBackdrop(
+        backdrop = backdrop,
+        shape = { shape },
+        shadow = null,
+        effects = { adaptiveGlassEffects(style, luminance.value, blur.toPx(), lensHeight.toPx(), lensAmount.toPx()) },
+        highlight = { glassHighlight(style) },
+        onDrawBackdrop = luminance.recorder,
+        onDrawSurface = { drawRect(adaptiveWash(luminance.value).glassTint(style)) },
+    )
+    // Adaptive luminance on: a still surface (a bar, a panel, a sheet) takes its frost and light
+    // from what is around it. It keeps its own wash: what is written on it is in the theme's ink.
+    val around = rememberSurroundLuminance()
+    if (around != null && styleOverride == null) {
+        val base = style.adaptiveBase
+        return then(around.modifier).drawBackdrop(
+            backdrop = backdrop,
+            shape = { shape },
+            shadow = null,
+            effects = { adaptiveGlassEffects(base, around.value, blur.toPx(), lensHeight.toPx(), lensAmount.toPx()) },
+            highlight = { glassHighlight(base) },
+            onDrawSurface = { if (wash.isSpecified) drawRect(wash) },
+        )
+    }
     return drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
@@ -68,13 +93,14 @@ fun GlassCard(
     wash: Color = clear.glass,
     blur: Dp = 8.dp,
     styleOverride: GlassStyle? = null,
+    luminance: GlassLuminance? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val below = LocalBackdrop.current
     val layer = rememberLayerBackdrop()
     val combined = rememberCombinedBackdrop(below, layer)
     Box(modifier) {
-        Box(Modifier.matchParentSize().layerBackdrop(layer).glass(shape, wash, blur, styleOverride = styleOverride))
+        Box(Modifier.matchParentSize().layerBackdrop(layer).glass(shape, wash, blur, styleOverride = styleOverride, luminance = luminance))
         CompositionLocalProvider(LocalBackdrop provides combined) { Column(content = content) }
     }
 }
