@@ -737,3 +737,96 @@ fn a_word_paragraph_is_edited_in_place() {
     let text = s.page_plain_text(id, 0).unwrap();
     assert!(text.contains("A new first line") && text.contains("Second line") && !text.contains("First line here"), "{text}");
 }
+
+#[test]
+#[ignore = "prints what the workbook in ARTEFACT_SAMPLE holds, for a look"]
+fn dump_sheet_sample() {
+    let Ok(path) = std::env::var("ARTEFACT_SAMPLE") else { return };
+    let bytes = std::fs::read(&path).unwrap();
+    let (wb, warnings) = gridcraft_engine::io::open_bytes_with_password(&path, &bytes, None).unwrap();
+    eprintln!("warnings {warnings:?}");
+    for (i, s) in wb.sheets.iter().enumerate() {
+        eprintln!(
+            "sheet {i} {:?} used {:?} merges {} cf {} tables {} charts {} images {} shapes {} gridlines {} freeze {:?} zoom {} cols {} rows {}",
+            s.name,
+            s.used_range().map(|r| r.a1()),
+            s.merges.len(),
+            s.cond_formats.len(),
+            s.tables.len(),
+            s.charts.len(),
+            s.images.len(),
+            s.shapes.len(),
+            s.show_gridlines,
+            s.freeze,
+            s.zoom,
+            s.cols.len(),
+            s.rows.len()
+        );
+        let Some(used) = s.used_range() else { continue };
+        let mut fills = std::collections::BTreeMap::new();
+        let mut borders = std::collections::BTreeMap::new();
+        let mut fonts = std::collections::BTreeMap::new();
+        let mut aligns = std::collections::BTreeMap::new();
+        for row in 0..=used.end.row {
+            for col in 0..=used.end.col {
+                let st = wb.styles.get(s.style_id(gridcraft_engine::core::CellRef::new(row, col)));
+                *fills
+                    .entry(format!("{:?} {:?} {:?}", st.fill.pattern, st.fill.fg.resolve(&wb.theme), st.fill.bg.resolve(&wb.theme)))
+                    .or_insert(0) += 1;
+                for b in [&st.borders.left, &st.borders.top, &st.borders.right, &st.borders.bottom, &st.borders.diag_down, &st.borders.diag_up] {
+                    *borders.entry(format!("{:?} {:?}", b.style, b.color)).or_insert(0) += 1;
+                }
+                *fonts
+                    .entry(format!("{} {} b{} i{} {:?} {:?}", st.font.name, st.font.size, st.font.bold, st.font.italic, st.font.color, st.font.vert))
+                    .or_insert(0) += 1;
+                *aligns.entry(format!("{:?}", st.align)).or_insert(0) += 1;
+            }
+        }
+        eprintln!("fills {fills:#?}\nborders {borders:#?}\nfonts {fonts:#?}\naligns {aligns:#?}");
+    }
+}
+
+#[test]
+fn a_deck_font_missing_on_a_phone_gets_a_stand_in_of_its_kind() {
+    // a database that sees no installed fonts, as on a phone, given the faces Artefact bundles
+    let db = deckcraft_fonts::FontDb::with_font_dirs(Vec::new());
+    db.set_system_fallback(false);
+    for bytes in wordcraft_fonts::bundled() {
+        db.add_font(bytes.to_vec());
+    }
+    assert_eq!(db.document_face("Calibri", "Regular").family, "Source Sans 3");
+    assert_eq!(db.document_face("Times New Roman", "Bold").family, "Source Serif 4");
+    assert_eq!(db.document_face("Arial", "Regular").family, "Inter");
+    assert_eq!(db.document_face("Consolas", "Regular").family, "JetBrains Mono");
+    // a family nobody has heard of is drawn as Office draws it: in its default sans
+    assert_eq!(db.document_face("Some Unknown Face", "Regular").family, "Source Sans 3");
+    assert_ne!(db.document_face("Georgia", "Italic").family, deckcraft_fonts::LAST_RESORT_FAMILY);
+}
+
+#[test]
+fn a_password_protected_presentation_asks_for_its_password() {
+    let plain = std::fs::read(deck_file("Locked away", "Plain.pptx")).unwrap();
+    let locked = gridcraft_xlsx::testing::encrypt_workbook(&plain, "s3cret");
+    let path = scratch().join("Locked.pptx");
+    std::fs::write(&path, locked).unwrap();
+    let path = path.to_string_lossy().into_owned();
+    let s = MobileSession::new();
+    assert!(matches!(s.open(path.clone(), None), Err(MobileError::NeedsPassword)));
+    assert!(matches!(s.open(path.clone(), Some("wrong".into())), Err(MobileError::WrongPassword)));
+    let info = s.open(path, Some("s3cret".into())).unwrap();
+    assert_eq!(info.kind, DocumentKind::Slides);
+    assert!(info.encrypted);
+    assert_eq!(s.find_in_page(info.id, 0, "locked".into(), false, false).unwrap().len(), 1);
+}
+
+#[test]
+fn the_photo_editors_tools_are_settings_lightcraft_reads() {
+    // the names the app writes for its Straighten, Whites, Blacks, Clarity, Sharpen and Vignette tools (snake case, as its settings are)
+    let json = r#"{"geometry":{"rotate":4.5},"light":{"whites":20,"blacks":-10},"effects":{"clarity":30},"detail":{"sharpen_amount":60},"vignette":{"amount":-40}}"#;
+    let s: lightcraft_develop::DevelopSettings = serde_json::from_str(json).unwrap();
+    assert_eq!(s.geometry.rotate, 4.5);
+    assert_eq!((s.light.whites, s.light.blacks), (20.0, -10.0));
+    assert_eq!(s.effects.clarity, 30.0);
+    assert_eq!(s.detail.sharpen_amount, 60.0);
+    assert_eq!(s.vignette.amount, -40.0);
+}

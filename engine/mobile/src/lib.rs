@@ -32,7 +32,7 @@ mod sheets;
 mod slides;
 
 pub use photo::PhotoEditor;
-pub use sheets::{CellEdge, CellSpan, CellView, SheetAxes, SheetInfo};
+pub use sheets::{CellEdge, CellSpan, CellView, SheetAxes, SheetInfo, SheetPicture};
 pub use word::{WordCaret, WordParagraph};
 #[cfg(test)]
 mod tests;
@@ -961,6 +961,11 @@ impl MobileSession {
     /// The cells of a window of sheet `sheet` that show something, with their looks.
     pub fn sheet_cells(&self, doc: u64, sheet: u32, row0: u32, rows: u32, col0: u32, cols: u32) -> Result<Vec<CellView>, MobileError> {
         self.with_sheets(doc, |b| b.cells(sheet, row0, rows, col0, cols))
+    }
+
+    /// The pictures floating over sheet `sheet` of workbook `doc`.
+    pub fn sheet_pictures(&self, doc: u64, sheet: u32) -> Result<Vec<SheetPicture>, MobileError> {
+        self.with_sheets(doc, |b| b.pictures(sheet))
     }
 
     /// The merged areas of sheet `sheet`.

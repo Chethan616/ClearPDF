@@ -129,6 +129,7 @@ version = "0.14.0"
 dependencies = [
  "android_logger",
  "cfb",
+ "deckcraft-fonts",
  "deckcraft-model",
  "deckcraft-pdf",
  "deckcraft-pptx",
@@ -148,6 +149,7 @@ dependencies = [
  "thiserror 2.0.21",
  "uniffi",
  "wordcraft-engine",
+ "wordcraft-fonts",
 ]
 
 [[package]]

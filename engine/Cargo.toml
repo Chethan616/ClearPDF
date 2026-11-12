@@ -59,12 +59,17 @@ pdfcraft-automation = { path = "crates/automation", version = "0.14.0", default-
 # The engine is vendored (vendor/wordcraft-engine) to leave its font store, and so all network
 # code, out: `default-features = false` turns off its `font-store` feature.
 wordcraft-engine = { path = "vendor/wordcraft-engine", version = "0.15.1", default-features = false }
+# its bundled faces (Source Sans 3, Source Serif 4, Inter, JetBrains Mono), shared with the slides
+wordcraft-fonts = { git = "https://github.com/storytold/wordcraft", rev = "729cd0a5fc953bbedbfdec4f6af18ad6d1780b3b", version = "0.15.1" }
 
 # PowerPoint (.pptx): storytold/deckcraft's reader, model and slide renderer, pinned to one revision.
 # Viewing needs no deckcraft-engine (and so none of its video codecs).
 deckcraft-model = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
 deckcraft-pptx = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
 deckcraft-render = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
+# the slides' font database (vendored, see [patch] below): the app adds its bundled faces to it, so
+# a deck's Calibri, Arial or Times New Roman has a close stand-in on a phone that has none of them
+deckcraft-fonts = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
 # slides to PDF (craft-pdf through the krilla fork patched in below)
 deckcraft-pdf = { git = "https://github.com/storytold/deckcraft", rev = "159ed07eb3f0522a5dc97d7cf1858242a6638659", version = "0.15.0" }
 

@@ -32,23 +32,37 @@ pub fn bundled() -> Vec<&'static [u8]> {
 pub fn substitutes(family: &str) -> &'static [&'static str] {
     let f = family.to_ascii_lowercase();
     if is_monospace_family(&f) {
-        return &["Liberation Mono", "Courier New", "Menlo", "Courier", "DejaVu Sans Mono"];
+        // Artefact patch: then the monospaced faces a phone has (the bundled one, then Android's)
+        return &["Liberation Mono", "Courier New", "Menlo", "Courier", "DejaVu Sans Mono", "JetBrains Mono", "Droid Sans Mono", "Cutive Mono"];
     }
+    // Artefact patch: a phone has none of the desktop stand-ins (Carlito, Liberation, Arial), so
+    // every family used to fall through to the last-resort Ubuntu Light, and a deck read as if all
+    // its fonts had been swapped. Each list now ends in a face Artefact bundles or Android ships:
+    // Source Sans 3 for the humanist sans Office defaults to (its width is close to Calibri's, so
+    // lines break in much the same places), Roboto or Inter for Arial and Helvetica, Source Serif 4
+    // or Noto Serif for the serifs.
     match f.as_str() {
-        "calibri" | "calibri light" => &["Carlito", "Liberation Sans", "Arial", "Inter"],
-        "cambria" | "cambria math" => &["Caladea", "Liberation Serif", "Times New Roman", "Merriweather"],
-        "arial" | "helvetica" | "helvetica neue" | "arial nova" => &["Liberation Sans", "Arial", "Helvetica Neue", "Helvetica", "Inter"],
-        "times new roman" | "times" => &["Liberation Serif", "Times New Roman", "Times", "Merriweather"],
+        "calibri" | "calibri light" | "candara" | "corbel" => &["Carlito", "Liberation Sans", "Source Sans 3", "Arial", "Inter"],
+        "cambria" | "cambria math" => &["Caladea", "Liberation Serif", "Times New Roman", "Merriweather", "Source Serif 4", "Noto Serif"],
+        "arial" | "helvetica" | "helvetica neue" | "arial nova" | "arial narrow" | "arial unicode ms" => {
+            &["Liberation Sans", "Arial", "Helvetica Neue", "Helvetica", "Roboto", "Inter", "Source Sans 3"]
+        }
+        "times new roman" | "times" => &["Liberation Serif", "Times New Roman", "Times", "Merriweather", "Source Serif 4", "Noto Serif"],
         "aptos" | "aptos display" | "aptos narrow" | "segoe ui" | "segoe ui light" | "segoe ui semibold" | "tahoma" | "verdana" => {
             &["Inter", "Helvetica Neue", "Arial", "Liberation Sans"]
         }
-        "georgia" | "garamond" | "book antiqua" | "palatino" | "palatino linotype" | "constantia" => &["Merriweather", "Liberation Serif", "Georgia"],
-        "century gothic" | "avenir" | "avenir next" | "futura" | "gill sans" | "gill sans mt" | "trebuchet ms" | "corbel" | "candara" => {
+        "georgia" | "garamond" | "book antiqua" | "palatino" | "palatino linotype" | "constantia" | "bookman old style" | "century"
+        | "century schoolbook" | "baskerville" | "baskerville old face" | "perpetua" | "rockwell" | "sylfaen" | "noto serif" => {
+            &["Merriweather", "Liberation Serif", "Georgia", "Source Serif 4", "Noto Serif"]
+        }
+        "century gothic" | "avenir" | "avenir next" | "futura" | "gill sans" | "gill sans mt" | "trebuchet ms" => {
             &["Montserrat", "Poppins", "Avenir Next", "Inter"]
         }
         "franklin gothic" | "franklin gothic book" | "franklin gothic medium" | "univers" => &["Open Sans", "Inter"],
         "open sans" | "lato" | "roboto" | "montserrat" | "poppins" | "nunito sans" => &["Inter"],
-        "playfair display" | "merriweather" | "source serif 4" | "source serif pro" => &["Merriweather", "Liberation Serif", "Georgia"],
+        "playfair display" | "merriweather" | "source serif 4" | "source serif pro" => {
+            &["Merriweather", "Liberation Serif", "Georgia", "Source Serif 4", "Noto Serif"]
+        }
         "source sans 3" | "source sans pro" => &["Open Sans", "Inter"],
         "impact" | "arial black" => &["Montserrat", "Inter"],
         _ => &[],
@@ -1182,7 +1196,8 @@ impl FontDb {
                 return f;
             }
         }
-        for sub in [FALLBACK_FAMILY, "Helvetica Neue", "Arial", "Liberation Sans", "DejaVu Sans", "Segoe UI"] {
+        // Artefact patch: Android's own sans (Roboto) and the bundled Source Sans 3 before the last resort
+        for sub in [FALLBACK_FAMILY, "Helvetica Neue", "Arial", "Liberation Sans", "DejaVu Sans", "Segoe UI", "Roboto", "Source Sans 3"] {
             if let Some(f) = self.try_family(sub, style) {
                 return f;
             }
