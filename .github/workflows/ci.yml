@@ -76,10 +76,11 @@ jobs:
           cargo install cargo-ndk --version 4.1.2 --locked
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;29.0.14206865" >/dev/null
 
-      # one ABI is enough to prove the app builds (x86_64: the emulator's)
+      # one ABI is enough to prove the app builds: arm64-v8a, so the APK kept below installs on a
+      # phone (an x86_64 one only runs on an emulator)
       - name: Build and unit-test
         working-directory: android
-        run: gradle assembleDebug testDebugUnitTest -Partefact.abis=x86_64 --no-daemon --no-configuration-cache
+        run: gradle assembleDebug testDebugUnitTest -Partefact.abis=arm64-v8a --no-daemon --no-configuration-cache
 
       # Artefact is offline: the built app must ask for no network access, nor for the storage and
       # phone-state permissions a library's manifest can drag in unasked
