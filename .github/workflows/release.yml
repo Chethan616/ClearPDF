@@ -29,8 +29,6 @@ env:
 jobs:
   apk:
     name: APK
-    # Ubuntu's hosted image includes the pinned Gradle version below. Running that installation
-    # avoids downloading the Gradle distribution through the failing services.gradle.org redirect.
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -57,13 +55,24 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Verify Gradle
+      # The Gradle the project pins (gradle-wrapper.properties: version and checksum), fetched and
+      # checked here. The runner's own Gradle moves on without notice (9.8.2, then 9.9.1), and the
+      # release must be built with the same Gradle as F-Droid's, which reads the wrapper.
+      - name: Install Gradle
         run: |
-          actual="$(gradle --version | sed -n 's/^Gradle //p' | head -n 1)"
-          if [ "$actual" != "9.8.2" ]; then
-            echo "::error::Expected runner Gradle 9.8.2, found '$actual'"
+          props=android/gradle/wrapper/gradle-wrapper.properties
+          version="$(sed -n 's/^distributionUrl=.*gradle-\([0-9.]*\)-bin\.zip$/\1/p' "$props")"
+          sum="$(sed -n 's/^distributionSha256Sum=//p' "$props")"
+          if [ -z "$version" ] || [ -z "$sum" ]; then
+            echo "::error::gradle-wrapper.properties names no Gradle version and checksum"
             exit 1
           fi
+          zip="$RUNNER_TEMP/gradle-$version-bin.zip"
+          curl -fsSL --retry 4 -o "$zip" "https://github.com/gradle/gradle-distributions/releases/download/v$version/gradle-$version-bin.zip"             || curl -fsSL --retry 4 -o "$zip" "https://services.gradle.org/distributions/gradle-$version-bin.zip"
+          echo "$sum  $zip" | sha256sum -c -
+          unzip -q "$zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-$version/bin" >>"$GITHUB_PATH"
+          "$RUNNER_TEMP/gradle-$version/bin/gradle" --version | sed -n 's/^Gradle //p'
 
       # the Rust release and targets rust-toolchain.toml names
       - name: Install Rust
