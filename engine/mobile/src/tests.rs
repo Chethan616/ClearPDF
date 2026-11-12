@@ -834,3 +834,67 @@ fn the_photo_editors_tools_are_settings_lightcraft_reads() {
         serde_json::from_str(r#"{"crop":{"geometry":{"rect":{"x0":0.125,"y0":0.0,"x1":0.875,"y1":1.0},"angle":0.0}}}"#).unwrap();
     assert_eq!((crop.crop.geometry.rect.x0, crop.crop.geometry.rect.x1), (0.125, 0.875));
 }
+
+/// A link in each kind of document the viewer opens, found where it is drawn.
+#[test]
+fn links_are_found_in_every_kind_of_document() {
+    let s = MobileSession::new();
+    let uri_of = |links: &[LinkInfo]| links.iter().filter_map(|l| l.uri.clone()).collect::<Vec<_>>();
+
+    // Markdown, read by the Word engine
+    let md = scratch().join("Links.md");
+    std::fs::write(&md, "# Title\n\nSee [the site](https://example.com/md) and [mail](mailto:a@example.com).\n").unwrap();
+    let info = s.open(md.to_string_lossy().into_owned(), None).unwrap();
+    let found = uri_of(&s.links(info.id, 0).unwrap());
+    assert!(found.contains(&"https://example.com/md".to_string()), "md: {found:?}");
+    assert!(found.contains(&"mailto:a@example.com".to_string()), "md: {found:?}");
+
+    // the same as a .docx (written by the Word engine)
+    let docx = scratch().join("Links.docx");
+    s.export_office(info.id, "docx".into(), docx.to_string_lossy().into_owned()).unwrap();
+    let d = s.open(docx.to_string_lossy().into_owned(), None).unwrap();
+    assert!(uri_of(&s.links(d.id, 0).unwrap()).contains(&"https://example.com/md".to_string()), "docx");
+
+    // a presentation: a web link on text, and a shape that goes to the next slide
+    let link = |action| deckcraft_model::text::Hyperlink {
+        action,
+        tooltip: String::new(),
+        highlight_click: false,
+        sound: None,
+        stop_sound: false,
+        zoom_return: None,
+    };
+    let mut p = deckcraft_model::defaults::new_presentation(None);
+    let layout = p.slides[0].layout;
+    let second = deckcraft_model::defaults::new_slide(&mut p, layout).unwrap();
+    p.slides.push(std::sync::Arc::new(second));
+    {
+        let slide = std::sync::Arc::make_mut(p.slides.first_mut().unwrap());
+        let shape = slide.shapes.iter_mut().find(|s| s.ph.is_some()).unwrap();
+        let mut body = deckcraft_model::text::TextBody::from_text("Open the site");
+        body.paragraphs[0].runs[0].props.link = Some(link(deckcraft_model::text::Action::Url { url: "https://example.com/deck".into() }));
+        shape.text = Some(body);
+        let other = slide.shapes.iter_mut().filter(|s| s.ph.is_some()).nth(1).unwrap();
+        other.text = Some(deckcraft_model::text::TextBody::from_text("Next"));
+        other.click = Some(link(deckcraft_model::text::Action::NextSlide));
+    }
+    let pptx = scratch().join("Links.pptx");
+    std::fs::write(&pptx, deckcraft_pptx::export(&p).unwrap()).unwrap();
+    let deck = s.open(pptx.to_string_lossy().into_owned(), None).unwrap();
+    let links = s.links(deck.id, 0).unwrap();
+    assert!(uri_of(&links).contains(&"https://example.com/deck".to_string()), "pptx: {links:?}");
+    assert!(links.iter().any(|l| l.page == Some(1)), "pptx jump: {links:?}");
+
+    // a workbook: a cell's hyperlink comes with the cell
+    let (mut wb, _) = gridcraft_engine::io::open_bytes("t.csv", b"Site,Sheet\nhere,there\n").unwrap();
+    std::sync::Arc::make_mut(&mut wb.sheets[0]).hyperlinks.insert(
+        gridcraft_engine::core::CellRef::new(1, 0),
+        gridcraft_engine::model::Hyperlink { target: "https://example.com/sheet".into(), tooltip: None, external: true },
+    );
+    let xlsx = scratch().join("Links.xlsx");
+    std::fs::write(&xlsx, gridcraft_engine::io::save_bytes(&wb, "Links.xlsx").unwrap()).unwrap();
+    let book = s.open(xlsx.to_string_lossy().into_owned(), None).unwrap();
+    let cells = s.sheet_cells(book.id, 0, 0, 5, 0, 5).unwrap();
+    let cell = cells.iter().find(|c| c.row == 1 && c.col == 0).unwrap();
+    assert_eq!(cell.link.as_deref(), Some("https://example.com/sheet"));
+}

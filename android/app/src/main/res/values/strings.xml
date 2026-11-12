@@ -444,6 +444,8 @@
     <string name="viewer_read_from_here">Read from here</string>
     <string name="viewer_copy_text">Copy text</string>
     <string name="viewer_translate">Translate</string>
+    <string name="sheet_open_link">Open link</string>
+    <string name="msg_link_not_followed">This link goes to a file Artefact can\'t open from here</string>
     <!-- Translator note: accessibility labels of the two handles at the ends of selected text. -->
     <string name="viewer_selection_start">Selection start</string>
     <string name="viewer_selection_end">Selection end</string>

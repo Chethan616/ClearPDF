@@ -514,6 +514,16 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         return true
     }
 
+    /** Follow [uri] from anywhere in the app: mail and phone straight away, a web page after asking. */
+    fun openLink(uri: String) {
+        val parsed = Uri.parse(uri.trim())
+        when (parsed.scheme?.lowercase()) {
+            "mailto", "tel" -> intents.trySend(Intent(Intent.ACTION_VIEW, parsed))
+            "http", "https" -> linkPrompt = uri.trim()
+            else -> tell(text(R.string.msg_link_not_followed))
+        }
+    }
+
     /** A web address waiting for "Open web page?". */
     var linkPrompt by mutableStateOf<String?>(null)
         private set

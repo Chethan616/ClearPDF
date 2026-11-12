@@ -318,6 +318,35 @@ class SheetGridState internal constructor(private val eng: Engine, private val d
         blocks[key] = cells
     }
 
+    /** The hyperlink of the cell at [row], [col], from the cells fetched so far. */
+    fun linkAt(row: Int, col: Int): String? {
+        for (cells in blocks.values) for (c in cells) if (c.row == row && c.col == col) return c.v.link
+        return null
+    }
+
+    /**
+     * Follow a link to a place in this workbook (`Sheet2!B4`, `#'My sheet'!A1`, or just `C7`): that
+     * sheet shown with the cell chosen. False when [target] is not such a place.
+     */
+    fun goTo(target: String): Boolean {
+        val t = target.trim().removePrefix("#")
+        val bang = t.lastIndexOf('!')
+        val sheetName = if (bang > 0) t.substring(0, bang).trim().removeSurrounding("'") else null
+        val ref = (if (bang >= 0) t.substring(bang + 1) else t).replace("$", "").substringBefore(':').trim().uppercase()
+        val m = Regex("""^([A-Z]{1,3})(\d{1,7})$""").matchEntire(ref) ?: return false
+        var col = 0
+        for (ch in m.groupValues[1]) col = col * 26 + (ch - 'A' + 1)
+        val row = m.groupValues[2].toInt() - 1
+        val index = if (sheetName == null) current else sheets.indexOfFirst { it.name.equals(sheetName, ignoreCase = true) }
+        if (index < 0 || row < 0) return false
+        show(index)
+        val span = CellSpan(row.toUInt(), (col - 1).toUInt(), row.toUInt(), (col - 1).toUInt())
+        // brought into view and chosen once the sheet is laid out, as a search hit is
+        hits = listOf(span)
+        hit = 0
+        return true
+    }
+
     /**
      * After an edit: the layout and cells are fetched again (sizes and values may all have moved).
      * What is shown stays until the new layout is in, so the grid doesn't blink empty on every edit.
@@ -726,6 +755,21 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                     ) {
                         Box(Modifier.padding(4.dp).glassBar(surface = Candy.Sky.copy(alpha = 0.22f)).padding(horizontal = 10.dp, vertical = 6.dp)) {
                             Text(columnName(cell.col0.toInt()) + (cell.row0.toInt() + 1), style = ClearType.Label, color = LocalGlassInk.current)
+                        }
+                        // the cell's hyperlink, one tap away (a place in the workbook, or a web or mail address)
+                        val link = if (editing) null else grid.linkAt(cell.row0.toInt(), cell.col0.toInt())
+                        if (link != null) {
+                            Box(
+                                Modifier.padding(end = 4.dp).height(36.dp).clip(Capsule).background(Candy.Sky)
+                                    .pressable({ if (!grid.goTo(link)) vm.openLink(link) }).padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(LucideIcons.ExternalLink, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                                    Spacer(Modifier.size(5.dp))
+                                    Text(stringResource(R.string.sheet_open_link), style = ClearType.Label, color = Color.White, maxLines = 1)
+                                }
+                            }
                         }
                         if (editing) {
                             val focus = remember { androidx.compose.ui.focus.FocusRequester() }

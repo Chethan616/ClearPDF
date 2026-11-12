@@ -86,6 +86,10 @@ private fun toneOf(t: ToolDef): Tone = when (t.key) {
     "crop" -> Tone.Sky
     "protect" -> Tone.Sage
     "create" -> Tone.Butter
+    "pdf2text" -> Tone.Blush
+    "photo" -> Tone.Lavender
+    "text2pdf" -> Tone.Sky
+    "fields" -> Tone.Peach
     else -> Tone.Paper
 }
 

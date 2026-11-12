@@ -179,17 +179,27 @@ impl OfficeDoc for SlideDeck {
         Ok(text)
     }
 
+    /// The web and mail links of slide `page`, and its links to other slides (a slide of the deck,
+    /// the next, the previous, the first or the last), which the viewer follows as page jumps.
     fn links(&self, page: u32) -> Result<Vec<LinkInfo>, MobileError> {
         let i = self.slide(page)?;
+        let last = self.pres.slides.len().saturating_sub(1);
         Ok(deckcraft_render::place_slide(&self.pres, i)
             .links
             .into_iter()
-            .filter_map(|l| match &l.link.action {
-                Action::Url { url } if is_web_link(url) => {
-                    let r = l.rect;
-                    Some(LinkInfo { rect: vec![r.x0 as f32, r.y0 as f32, r.x1 as f32, r.y1 as f32], uri: Some(url.clone()), page: None, top: None })
+            .filter_map(|l| {
+                let r = l.rect;
+                let rect = vec![r.x0 as f32, r.y0 as f32, r.x1 as f32, r.y1 as f32];
+                let jump = |to: usize| Some(LinkInfo { rect: rect.clone(), uri: None, page: Some(to as u32), top: None });
+                match &l.link.action {
+                    Action::Url { url } if is_web_link(url) => Some(LinkInfo { rect, uri: Some(url.clone()), page: None, top: None }),
+                    Action::Slide { slide } => self.pres.slide_index(*slide).and_then(jump),
+                    Action::NextSlide if i < last => jump(i + 1),
+                    Action::PreviousSlide if i > 0 => jump(i - 1),
+                    Action::FirstSlide => jump(0),
+                    Action::LastSlide => jump(last),
+                    _ => None,
                 }
-                _ => None,
             })
             .collect())
     }

@@ -102,7 +102,9 @@ object ToolCatalog {
     val PdfToText = ToolDef("pdf2text", LucideIcons.FileText, R.string.tool_pdf_to_text, R.string.home_about_pdf_to_text, Candy.Lemon, setOf("Convert")) { it.toolForFile(FileTool.ToText) }
     val FindFields = ToolDef("fields", LucideIcons.ScanText, R.string.tool_find_fields, R.string.home_about_find_fields, Candy.Bubblegum, setOf("Edit")) { it.toolForFile(FileTool.FindFields) }
 
-    val All = listOf(Edit, FillSign, Scan, Combine, Comment, ReadAloud, Organize, Compress, Export, Crop, Protect, Create, TextToPdf, PdfToText, FindFields, EditPhoto)
+    // Text to PDF is a way of Create PDF, and finding a form's fields a part of Fill & Sign: neither
+    // is a tile of its own
+    val All = listOf(Edit, FillSign, Scan, Combine, Comment, ReadAloud, Organize, Compress, Export, Crop, Protect, Create, PdfToText, EditPhoto)
 }
 
 /**

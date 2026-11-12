@@ -88,6 +88,8 @@ pub struct CellView {
     /// A conditional format's data bar: the part of the cell's width it fills (0: none) and its colour.
     pub bar: f32,
     pub bar_color: u32,
+    /// The cell's hyperlink: a web or mail address, or a place in the workbook (`Sheet2!A1`).
+    pub link: Option<String>,
     pub left: CellEdge,
     pub top: CellEdge,
     pub right: CellEdge,
@@ -348,8 +350,14 @@ impl SheetBook {
                     fill = rgb(Some(scale));
                 }
                 let (bar, bar_color) = look.and_then(|l| l.bar).map_or((0.0, 0), |(f, c, _)| (f.clamp(0.0, 1.0), rgb(Some(c)).unwrap_or(0)));
+                let link = s.hyperlinks.get(&c).map(|h| h.target.trim().to_string()).filter(|t| !t.is_empty());
                 let b = &style.borders;
-                if text.is_empty() && fill.is_none() && bar <= 0.0 && [&b.left, &b.top, &b.right, &b.bottom].iter().all(|l| l.is_none()) {
+                if text.is_empty()
+                    && fill.is_none()
+                    && bar <= 0.0
+                    && link.is_none()
+                    && [&b.left, &b.top, &b.right, &b.bottom].iter().all(|l| l.is_none())
+                {
                     continue;
                 }
                 let value = s.value(c);
@@ -399,6 +407,7 @@ impl SheetBook {
                     rotation: style.align.rotation,
                     bar,
                     bar_color,
+                    link,
                     left: edge(&b.left),
                     top: edge(&b.top),
                     right: edge(&b.right),

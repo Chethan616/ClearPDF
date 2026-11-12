@@ -140,6 +140,8 @@ fun FillSignToolbar(vm: AppViewModel, doc: OpenDocument) {
             SubDot(stringResource(R.string.fill_add_dot), sel == FillElement.Dot) { vm.fillElement = FillElement.Dot }
             SubTool(LucideIcons.RectangleHorizontal, stringResource(R.string.fill_add_box), sel == FillElement.Box, { vm.fillElement = FillElement.Box })
             SubTool(LucideIcons.Minus, stringResource(R.string.fill_add_line), sel == FillElement.Line, { vm.fillElement = FillElement.Line })
+            // a form that is only drawn: its lines and boxes are made into fields to tap and fill
+            SubTool(LucideIcons.ScanText, stringResource(R.string.tool_find_fields), false, { vm.detectFields(doc) })
         }
         SubTool(LucideIcons.Signature, stringResource(R.string.fill_sign_or_initials), sel == FillElement.Signature || sel == FillElement.Initials || doc.controller.signPanel, { doc.controller.signPanel = true })
     }
