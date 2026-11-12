@@ -2865,7 +2865,52 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         noteCameraShots.trySend(f)
     }
 
+    /** The Tools tab's Edit photo: a picture is asked for, then opened in the photo editor. */
+    private var photoToolPending = false
+
+    /** The edited picture also goes to Downloads when the editor was opened as a tool. */
+    var photoSaveCopy = false
+
+    fun pickPhotoToEdit() {
+        photoToolPending = true
+        notePhotoPicks.trySend(Unit)
+    }
+
+    /** A copy of the picture just edited, saved to Downloads (only after [pickPhotoToEdit]). */
+    fun savePhotoCopy(file: File) {
+        if (!photoSaveCopy) return
+        photoSaveCopy = false
+        viewModelScope.launch {
+            runCatching {
+                val name = "Artefact photo ${java.text.SimpleDateFormat("yyyy-MM-dd HH-mm-ss", java.util.Locale.ROOT).format(java.util.Date())}.jpg"
+                withContext(Dispatchers.IO) {
+                    val copy = tempFile("jpg")
+                    file.copyTo(copy, overwrite = true)
+                    try {
+                        files.saveToDownloads(copy, name, "image/jpeg")
+                    } finally {
+                        copy.delete()
+                    }
+                }
+                tell(text(R.string.msg_saved_downloads, name))
+            }.onFailure { tell(it.userMessage) }
+        }
+    }
+
     fun onNotePhoto(uri: Uri?) {
+        if (photoToolPending) {
+            // a picture for the editor: it is kept as a note of its own on the desk, and edited there
+            photoToolPending = false
+            uri ?: return
+            viewModelScope.launch {
+                val name = notes.importImage(uri) ?: return@launch tell(text(R.string.common_file_unreadable))
+                val note = com.chethan616.clearpdf.notes.Note(java.util.UUID.randomUUID().toString(), com.chethan616.clearpdf.notes.NoteKind.Text, images = listOf(name))
+                notes.add(note)
+                photoSaveCopy = true
+                editingPhoto = note.id to name
+            }
+            return
+        }
         val id = openNote ?: return
         uri ?: return
         viewModelScope.launch {

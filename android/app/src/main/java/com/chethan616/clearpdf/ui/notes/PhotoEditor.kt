@@ -113,6 +113,8 @@ private enum class Adjust(
     Clarity("effects", "clarity", R.string.photo_clarity, LucideIcons.Sparkles, -100f, 100f, 0),
     Sharpen("detail", "sharpen_amount", R.string.photo_sharpen, androidx.compose.material.icons.Icons.Rounded.Details, 0f, 150f, 0),
     Vignette("vignette", "amount", R.string.photo_vignette, androidx.compose.material.icons.Icons.Rounded.Vignette, -100f, 100f, 0),
+    // below zero it softens the picture (the nearest LightCraft has to a blur), above it brings detail out
+    Texture("effects", "texture", R.string.photo_texture, LucideIcons.Droplet, -100f, 100f, 0),
 }
 
 private val TURNS = listOf("Normal", "Rotate90", "Rotate180", "Rotate270")
@@ -190,6 +192,8 @@ fun PhotoEditScreen(vm: AppViewModel, noteId: String, name: String, onClose: () 
                 vm.notes.get(noteId)?.let { note ->
                     vm.notes.put(note.copy(images = note.images.map { if (it == name) output.name else it }))
                 }
+                // opened as a tool: the edited picture is also put in Downloads
+                vm.savePhotoCopy(output)
             } else {
                 vm.tell(com.chethan616.clearpdf.text(R.string.photo_not_saved))
             }

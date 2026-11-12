@@ -168,6 +168,13 @@
     <string name="home_about_compress">Make a PDF smaller</string>
     <string name="home_about_export">Save a PDF as a document, spreadsheet, slides or images</string>
     <string name="home_about_protect">Protect a PDF with a password</string>
+    <string name="tool_encryption">Encryption</string>
+    <string name="home_about_encryption">Set a PDF\'s password, or remove it for good</string>
+    <string name="tools_set_password_body">Save a copy that asks for a password before it opens</string>
+    <string name="msg_no_password_yet">This PDF has no password</string>
+    <string name="tool_edit_photo">Edit photo</string>
+    <string name="home_about_edit_photo">Crop, straighten and adjust a picture</string>
+    <string name="photo_texture">Soften / Texture</string>
     <string name="tool_text_to_pdf">Text to PDF</string>
     <string name="home_about_text_to_pdf">Type or paste text and save it as a PDF</string>
     <string name="tool_pdf_to_text">PDF to text</string>

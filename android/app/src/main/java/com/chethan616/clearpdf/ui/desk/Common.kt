@@ -92,16 +92,17 @@ object ToolCatalog {
     val Crop = ToolDef("crop", LucideIcons.Crop, R.string.common_tool_crop, R.string.home_about_crop, Candy.Mint, setOf("Edit")) { it.toolForFile(FileTool.Crop) }
     val Compress = ToolDef("compress", LucideIcons.FileArchive, R.string.common_tool_compress, R.string.home_about_compress, Candy.Mint, setOf("Convert")) { it.toolForFile(FileTool.Compress) }
     val Export = ToolDef("export", LucideIcons.FileOutput, R.string.common_tool_export, R.string.home_about_export, Candy.Tangerine, setOf("Convert")) { it.toolForFile(FileTool.Export) }
-    val Protect = ToolDef("protect", LucideIcons.FileLock2, R.string.common_tool_set_password, R.string.home_about_protect, Candy.Grape, setOf("Edit")) { it.toolForFile(FileTool.Protect) }
+    // one tool for a PDF's password: set one, or take it off for good
+    val Protect = ToolDef("protect", LucideIcons.FileLock2, R.string.tool_encryption, R.string.home_about_encryption, Candy.Grape, setOf("Edit")) { it.toolForFile(FileTool.Protect) }
+    val EditPhoto = ToolDef("photo", LucideIcons.Images, R.string.tool_edit_photo, R.string.home_about_edit_photo, Candy.Lemon, setOf("Edit")) { it.pickPhotoToEdit() }
     val Photos = ToolDef("photos", LucideIcons.Images, R.string.desk_photos_to_pdf, R.string.home_about_create, Candy.Lemon, setOf("Create")) { it.pickPhotosToPdf() }
 
     // the tools asked for on the tracker, each one tap from the Tools tab
     val TextToPdf = ToolDef("text2pdf", LucideIcons.Type, R.string.tool_text_to_pdf, R.string.home_about_text_to_pdf, Candy.Sky, setOf("Create", "Convert")) { it.openCreateFromText() }
     val PdfToText = ToolDef("pdf2text", LucideIcons.FileText, R.string.tool_pdf_to_text, R.string.home_about_pdf_to_text, Candy.Lemon, setOf("Convert")) { it.toolForFile(FileTool.ToText) }
     val FindFields = ToolDef("fields", LucideIcons.ScanText, R.string.tool_find_fields, R.string.home_about_find_fields, Candy.Bubblegum, setOf("Edit")) { it.toolForFile(FileTool.FindFields) }
-    val Unlock = ToolDef("unlock", LucideIcons.LockOpen, R.string.tools_unlock_action, R.string.home_about_unlock, Candy.Mint, setOf("Edit")) { it.toolForFile(FileTool.Unlock) }
 
-    val All = listOf(Edit, FillSign, Scan, Combine, Comment, ReadAloud, Organize, Compress, Export, Crop, Protect, Create, TextToPdf, PdfToText, FindFields, Unlock)
+    val All = listOf(Edit, FillSign, Scan, Combine, Comment, ReadAloud, Organize, Compress, Export, Crop, Protect, Create, TextToPdf, PdfToText, FindFields, EditPhoto)
 }
 
 /**

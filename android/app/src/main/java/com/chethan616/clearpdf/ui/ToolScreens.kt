@@ -57,6 +57,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import com.chethan616.clearpdf.ui.home.chipRowFade
@@ -313,46 +314,111 @@ private fun PasswordField(label: String, value: String, onValue: (String) -> Uni
 @Composable
 fun ProtectScreen(vm: AppViewModel, doc: OpenDocument) {
     val c = pdfColors
+    val ink = com.chethan616.clearpdf.ui.theme.clear
+    val locked = doc.info.encrypted
+    // the way that makes sense for this file is open first: a protected one to remove, else to set
+    var removing by remember { mutableStateOf(locked) }
     var pw by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(false) }
     var info by remember { mutableStateOf(false) }
-    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val bad = pw.isNotEmpty() && (pw.length !in 6..128 || pw.any { it < '!' || it > '~' })
     val mismatch = confirm.isNotEmpty() && confirm != pw
-    ToolPage(stringResource(R.string.common_tool_set_password), { vm.toolScreen = null }, stringResource(R.string.common_tool_set_password), pw.isNotEmpty() && confirm.isNotEmpty() && !bad && !mismatch, { vm.protect(doc, pw) },
+    val canSet = pw.isNotEmpty() && confirm.isNotEmpty() && !bad && !mismatch
+    ToolScaffold(
+        stringResource(R.string.tool_encryption), { vm.toolScreen = null },
+        action = stringResource(if (removing) R.string.tools_unlock_action else R.string.common_tool_set_password),
+        actionEnabled = if (removing) locked else canSet,
+        onAction = { if (removing) vm.removePassword(doc) else vm.protect(doc, pw) },
         trailing = {
             com.chethan616.clearpdf.ui.glass.GlassCircle({ info = true }, label = stringResource(R.string.tools_about_passwords)) {
                 com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Info, null, Modifier.size(20.dp))
             }
-        }) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
-            // a protected file: the way back out first, an unlocked copy that never asks again
-            if (doc.info.encrypted) {
-                Column(
-                    Modifier.padding(horizontal = 16.dp).padding(bottom = 18.dp).fillMaxWidth()
-                        .clip(RoundedCornerShape(18.dp)).background(c.label.copy(alpha = 0.06f)).padding(16.dp),
-                ) {
-                    Text(stringResource(R.string.tools_unlock_title), color = c.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text(stringResource(R.string.tools_unlock_body), color = c.text, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
-                    com.chethan616.clearpdf.ui.glass.GlassPill(onClick = { vm.removePassword(doc) }, tint = com.chethan616.clearpdf.ui.theme.Candy.Sky, height = 44.dp) {
-                        Icon(LucideIcons.LockOpen, null, tint = Color.White, modifier = Modifier.size(18.dp))
-                        Text(stringResource(R.string.tools_unlock_action), color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
+        },
+    ) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 12.dp)) {
+            // how the file stands now
+            Row(Modifier.padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(if (locked) LucideIcons.Lock else LucideIcons.LockOpen, null, tint = ink.inkSoft, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(if (locked) R.string.tools_unlock_title else R.string.msg_no_password_yet),
+                    style = com.chethan616.clearpdf.ui.theme.ClearType.Label, color = ink.inkSoft,
+                )
             }
-            Text(stringResource(R.string.tools_protect_intro), color = c.label, fontSize = 16.sp, modifier = Modifier.padding(horizontal = 24.dp))
-            PasswordField(stringResource(R.string.tools_new_password), pw, { pw = it }, visible, { visible = !visible }, bad, focus)
-            if (bad) Text(stringResource(R.string.tools_password_rule), color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
-            PasswordField(stringResource(R.string.tools_repeat_password), confirm, { confirm = it }, visible, { visible = !visible }, mismatch)
-            if (mismatch) Text(stringResource(R.string.tools_password_mismatch), color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+            EncryptionChoice(
+                LucideIcons.Lock, com.chethan616.clearpdf.ui.theme.Candy.Grape,
+                stringResource(R.string.common_tool_set_password), stringResource(R.string.tools_set_password_body),
+                chosen = !removing, enabled = true, onClick = { removing = false },
+            ) {
+                PasswordField(stringResource(R.string.tools_new_password), pw, { pw = it }, visible, { visible = !visible }, bad)
+                if (bad) Text(stringResource(R.string.tools_password_rule), color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+                PasswordField(stringResource(R.string.tools_repeat_password), confirm, { confirm = it }, visible, { visible = !visible }, mismatch)
+                if (mismatch) Text(stringResource(R.string.tools_password_mismatch), color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+                Spacer(Modifier.height(16.dp))
+            }
+            Spacer(Modifier.height(12.dp))
+            EncryptionChoice(
+                LucideIcons.LockOpen, com.chethan616.clearpdf.ui.theme.Candy.Mint,
+                stringResource(R.string.tools_unlock_action), stringResource(if (locked) R.string.tools_unlock_body else R.string.msg_no_password),
+                chosen = removing, enabled = locked, onClick = { removing = true },
+            ) {}
         }
     }
     if (info) {
         PdfDialog(onDismiss = { info = false }, title = stringResource(R.string.tools_about_passwords), confirm = stringResource(R.string.common_ok), onConfirm = { info = false }, dismiss = null) {
             Text(stringResource(R.string.tools_about_passwords_body), color = c.text, fontSize = 14.sp)
         }
+    }
+}
+
+/**
+ * One of Encryption's two ways, as a card: its sign in its colour, what it is called and what it
+ * does, a tick when it is the chosen one (the card is then ringed, and [more] opens under it). The
+ * button at the foot of the screen does the chosen one. A way that can't apply (removing a password
+ * from a file that has none) is shown faint and can't be chosen.
+ */
+@Composable
+private fun EncryptionChoice(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    accent: Color,
+    title: String,
+    body: String,
+    chosen: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    more: @Composable ColumnScope.() -> Unit,
+) {
+    val ink = com.chethan616.clearpdf.ui.theme.clear
+    val shape = com.chethan616.clearpdf.ui.glass.RoundedRectangle(24.dp)
+    Column(
+        Modifier.padding(horizontal = 16.dp).fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.5f)
+            .clip(shape)
+            .background(ink.glass)
+            .border(if (chosen && enabled) 2.dp else 1.dp, if (chosen && enabled) com.chethan616.clearpdf.ui.theme.Candy.Sky else ink.ink.copy(alpha = 0.10f), shape),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(44.dp).clip(com.chethan616.clearpdf.ui.glass.RoundedRectangle(14.dp)).background(accent), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = Color.White, modifier = Modifier.size(23.dp))
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, color = ink.ink)
+                Text(body, style = com.chethan616.clearpdf.ui.theme.ClearType.Caption, color = ink.inkSoft, modifier = Modifier.padding(top = 2.dp))
+            }
+            Spacer(Modifier.width(10.dp))
+            Box(
+                Modifier.size(24.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(if (chosen && enabled) com.chethan616.clearpdf.ui.theme.Candy.Sky else Color.Transparent)
+                    .border(2.dp, if (chosen && enabled) com.chethan616.clearpdf.ui.theme.Candy.Sky else ink.inkFaint, androidx.compose.foundation.shape.CircleShape),
+                contentAlignment = Alignment.Center,
+            ) { if (chosen && enabled) Icon(LucideIcons.Check, null, tint = Color.White, modifier = Modifier.size(14.dp)) }
+        }
+        androidx.compose.animation.AnimatedVisibility(chosen && enabled) { Column(content = more) }
     }
 }
 
