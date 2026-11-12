@@ -88,6 +88,7 @@ enum class QuickTool(val id: String, @StringRes val label: Int, @StringRes val t
     Text("text", R.string.toolbar_label_add_text, R.string.toolbar_tool_text, LucideIcons.Type, ToolHues.text),
     Scan("scan", R.string.common_tool_scan, R.string.common_tool_scan, LucideIcons.Camera, ToolHues.scan),
     ReadAloud("readaloud", R.string.common_tool_read_aloud, R.string.common_tool_read_aloud, LucideIcons.Volume2, ToolHues.read),
+    FindFields("findfields", R.string.toolbar_label_find_fields, R.string.tool_find_fields, LucideIcons.ScanText, ToolHues.sign),
 
     // office documents' own tools (their engines: WordCraft, DeckCraft)
     Present("present", R.string.office_present, R.string.office_present, LucideIcons.Presentation, ToolHues.read),
@@ -177,6 +178,7 @@ fun AppViewModel.runQuickTool(doc: OpenDocument, tool: QuickTool) {
         }
         QuickTool.Crop -> openCrop(doc)
         QuickTool.Ocr -> recognizeText(doc)
+        QuickTool.FindFields -> detectFields(doc)
         QuickTool.Create -> openCreate()
         QuickTool.Scan -> startScan()
         QuickTool.ReadAloud -> startReadAloud(doc)

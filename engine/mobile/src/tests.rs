@@ -829,4 +829,8 @@ fn the_photo_editors_tools_are_settings_lightcraft_reads() {
     assert_eq!(s.effects.clarity, 30.0);
     assert_eq!(s.detail.sharpen_amount, 60.0);
     assert_eq!(s.vignette.amount, -40.0);
+    // Crop: a box of the picture, as fractions of it
+    let crop: lightcraft_develop::DevelopSettings =
+        serde_json::from_str(r#"{"crop":{"geometry":{"rect":{"x0":0.125,"y0":0.0,"x1":0.875,"y1":1.0},"angle":0.0}}}"#).unwrap();
+    assert_eq!((crop.crop.geometry.rect.x0, crop.crop.geometry.rect.x1), (0.125, 0.875));
 }

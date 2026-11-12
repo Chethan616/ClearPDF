@@ -40,25 +40,43 @@ class DocLayout(
     val margin: Float,
     val padTop: Float,
     val padBottom: Float,
+    /** Continuous mode: how many pages sit side by side in a row (1, or 2 like an open book). */
+    val columns: Int = 1,
 ) {
     val rects: List<LRect>
     val width: Float
     val height: Float
+
+    /** Continuous mode: where each page's row ends (rows of two pages may differ in height). */
+    private val rowBottom: FloatArray
 
     init {
         val out = ArrayList<LRect>(pages.size)
         when (mode) {
             PageMode.Continuous -> {
                 val widest = pages.maxOfOrNull { it.width }?.coerceAtLeast(1f) ?: 1f
-                val scale = max(1f, viewW - 2 * margin) / widest
+                val cols = columns.coerceIn(1, 2)
+                // side by side, the pages share the width (less the gap between them)
+                val scale = max(1f, (viewW - 2 * margin - (cols - 1) * gap) / cols) / widest
+                val bottoms = FloatArray(pages.size)
                 var y = padTop
-                for (p in pages) {
-                    val w = p.width.coerceAtLeast(1f) * scale
-                    val h = p.height.coerceAtLeast(1f) * scale
-                    val x = (viewW - w) / 2f
-                    out.add(LRect(x, y, x + w, y + h))
-                    y += h + gap
+                var i = 0
+                while (i < pages.size) {
+                    val row = pages.subList(i, min(i + cols, pages.size))
+                    val rowW = row.sumOf { (it.width.coerceAtLeast(1f) * scale).toDouble() }.toFloat() + (row.size - 1) * gap
+                    val rowH = row.maxOf { it.height.coerceAtLeast(1f) * scale }
+                    var x = (viewW - rowW) / 2f
+                    for ((k, p) in row.withIndex()) {
+                        val w = p.width.coerceAtLeast(1f) * scale
+                        val h = p.height.coerceAtLeast(1f) * scale
+                        out.add(LRect(x, y, x + w, y + h))
+                        bottoms[i + k] = y + rowH
+                        x += w + gap
+                    }
+                    y += rowH + gap
+                    i += row.size
                 }
+                rowBottom = bottoms
                 width = viewW
                 height = if (pages.isEmpty()) viewH else y - gap + padBottom
             }
@@ -82,6 +100,7 @@ class DocLayout(
                     out.add(LRect(x, y, x + w, y + h))
                     tallest = max(tallest, y + h + margin + padBottom)
                 }
+                rowBottom = FloatArray(0)
                 width = max(viewW, pages.size * viewW)
                 height = tallest
             }
@@ -116,7 +135,7 @@ class DocLayout(
         var hi = rects.lastIndex
         while (lo < hi) {
             val mid = (lo + hi) / 2
-            if (rects[mid].bottom + gap < y) lo = mid + 1 else hi = mid
+            if (rowBottom[mid] + gap < y) lo = mid + 1 else hi = mid
         }
         return lo
     }
@@ -132,7 +151,9 @@ class DocLayout(
         if (rects.isEmpty()) return 0
         return when (mode) {
             PageMode.Continuous -> {
-                val i = firstAtOrBelow(y)
+                var i = firstAtOrBelow(y)
+                // side by side: the page of the row that [x] is nearest
+                while (i + 1 < rects.size && rects[i + 1].top == rects[i].top && x > (rects[i].right + rects[i + 1].left) / 2f) i++
                 val r = rects[i]
                 when {
                     // in the gap below page i: whichever edge is closer

@@ -117,6 +117,9 @@ private enum class Adjust(
 
 private val TURNS = listOf("Normal", "Rotate90", "Rotate180", "Rotate270")
 
+/** The shapes Crop steps through (width to height), after "as it is". */
+private val CROPS = listOf(1f to 1f, 4f to 3f, 3f to 4f, 16f to 9f, 9f to 16f)
+
 private fun shown(a: Adjust, value: Float): String {
     val zero = if (a.decimals > 0) 0.005f else 0.5f
     if (abs(value) < zero) return "0"
@@ -143,7 +146,9 @@ fun PhotoEditScreen(vm: AppViewModel, noteId: String, name: String, onClose: () 
     var comparing by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val changed = values.values.any { it != 0f } || turn != 0
+    // 0: the whole picture; else the shape of CROPS[crop - 1], cut from the middle
+    var crop by remember(name) { mutableStateOf(0) }
+    val changed = values.values.any { it != 0f } || turn != 0 || crop != 0
 
     fun settings(includeAdjustments: Boolean = true): String {
         val root = JSONObject()
@@ -154,6 +159,17 @@ fun PhotoEditScreen(vm: AppViewModel, noteId: String, name: String, onClose: () 
             }
         }
         if (turn != 0) root.put("orientation", TURNS[turn])
+        val whole = original
+        if (includeAdjustments && crop != 0 && whole != null && whole.width > 0 && whole.height > 0) {
+            // the largest box of the chosen shape, from the middle of the picture as it stands
+            val (cw, ch) = CROPS[crop - 1]
+            val shape = cw / ch
+            val picture = whole.width.toFloat() / whole.height
+            val w = minOf(1f, shape / picture).toDouble()
+            val h = minOf(1f, picture / shape).toDouble()
+            val rect = JSONObject().put("x0", (1 - w) / 2).put("y0", (1 - h) / 2).put("x1", (1 + w) / 2).put("y1", (1 + h) / 2)
+            root.put("crop", JSONObject().put("geometry", JSONObject().put("rect", rect).put("angle", 0.0)))
+        }
         return root.toString()
     }
 
@@ -246,8 +262,10 @@ fun PhotoEditScreen(vm: AppViewModel, noteId: String, name: String, onClose: () 
                     changed = changed,
                     onClose = close,
                     onDone = done,
-                    onReset = { values.clear(); turn = 0 },
+                    onReset = { values.clear(); turn = 0; crop = 0 },
                     onRotate = { turn = (turn + 1) % 4 },
+                    cropLabel = if (crop == 0) null else CROPS[crop - 1].let { "${it.first.toInt()}:${it.second.toInt()}" },
+                    onCrop = { crop = (crop + 1) % (CROPS.size + 1) },
                 )
                 Box(Modifier.align(Alignment.BottomCenter)) {
                     PhotoControls(
@@ -272,6 +290,8 @@ private fun PhotoHeader(
     onDone: () -> Unit,
     onReset: () -> Unit,
     onRotate: () -> Unit,
+    cropLabel: String?,
+    onCrop: () -> Unit,
 ) {
     val ink = rememberGlassInk(Color.White)
     Column(Modifier.fillMaxWidth()) {
@@ -291,6 +311,11 @@ private fun PhotoHeader(
                 GlassPill(onClick = onReset, height = 42.dp, horizontalPadding = 13.dp, label = stringResource(R.string.photo_reset)) {
                     Text(stringResource(R.string.photo_reset), style = ClearType.Label, color = Candy.Lemon)
                 }
+            }
+            // Crop steps through the shapes (1:1, 4:3, 3:4, 16:9, 9:16) and back to the whole picture
+            GlassCircle(onClick = onCrop, size = 42.dp, ink = Color.White, label = stringResource(R.string.photo_crop)) {
+                if (cropLabel == null) GlassIcon(LucideIcons.Crop, null, Modifier.size(19.dp))
+                else Text(cropLabel, style = ClearType.Label.copy(fontSize = 11.sp), color = Candy.Lemon, maxLines = 1)
             }
             GlassCircle(onClick = onRotate, size = 42.dp, ink = Color.White, label = stringResource(R.string.photo_rotate)) {
                 GlassIcon(LucideIcons.RotateCw, null, Modifier.size(19.dp))

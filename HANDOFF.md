@@ -109,6 +109,13 @@ The parts a later session needs to know:
   change height, and a stale value put taps on the wrong cell.
 - **.ppt** (`engine/mobile/src/ppt.rs`) reads each slide's drawing (text boxes, pictures) through the
   persist directory, and falls back to the outline. Only tested on a synthetic file.
+- **alpha.8 additions**: Two pages (`DocLayout.columns`, `ViewerState.showColumns`, View settings);
+  a note as a mind map (`ui/notes/MindMap.kt`: `parseOutline` reads headings, bullets and indentation;
+  one android `Canvas` drawing serves the screen, the PNG and the PDF); Find form fields (the
+  engine's `form_detect_fields`); Translate (a chooser of text-processing apps; the app itself has no
+  network permission and must not gain one); Bold/Italic on the selected words only (`text_edit`
+  `ranges`, UTF-8 byte offsets); photo Crop (LightCraft's `crop.geometry`, which needs `rect` and
+  `angle`); voice notes leave as m4a (`notes/AudioExport.kt`).
 - **Releases** build five APKs (`-arm64-v8a`, `-armeabi-v7a`, `-x86`, `-x86_64`, `-universal`); `x86`
   is new (`i686-linux-android`, version-code suffix 4). `ci.yml` builds pull requests.
 

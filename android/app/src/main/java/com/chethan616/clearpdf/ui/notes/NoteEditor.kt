@@ -113,6 +113,9 @@ fun NoteEditor(vm: AppViewModel, id: String) {
     val c = clear
     var title by remember(id) { mutableStateOf(TextFieldValue(note.title)) }
     var body by remember(id) { mutableStateOf(TextFieldValue(note.body)) }
+    // the note drawn as a mind map, over the whole screen
+    var mindMap by remember(id) { mutableStateOf(false) }
+    if (mindMap) com.chethan616.clearpdf.ui.glass.GlassOverlay { MindMapScreen(vm, title.text, body.text) { mindMap = false } }
     var items by remember(id) { mutableStateOf(note.items) }
     var focusItem by remember { mutableStateOf<String?>(null) }
     val titleFocus = remember { FocusRequester() }
@@ -280,6 +283,7 @@ fun NoteEditor(vm: AppViewModel, id: String) {
             } else {
                 ToolButton(LucideIcons.Bold, stringResource(R.string.notes_bold), primary = true) { body = toggleBold(body) }
                 ToolButton(LucideIcons.Heading, stringResource(R.string.notes_heading)) { body = toggleHeading(body) }
+                ToolButton(LucideIcons.Network, stringResource(R.string.mindmap_title)) { mindMap = true }
             }
             ToolButton(LucideIcons.Camera, stringResource(R.string.notes_take_photo)) { commit(); vm.takeNotePhoto() }
             ToolButton(LucideIcons.ImagePlus, stringResource(R.string.notes_add_photo)) { commit(); vm.pickNotePhoto() }

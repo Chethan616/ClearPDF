@@ -178,12 +178,20 @@ fun ViewSettingsSheet(vm: AppViewModel, doc: OpenDocument) {
         SheetBackHeader(stringResource(R.string.sheet_view_settings), onBack = { ctl.sheet = ViewerSheet.More })
         // how the pages run, as three cards to choose from (the chosen one lit in blue)
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LayoutChoice(LucideIcons.GalleryVerticalEnd, stringResource(R.string.sheet_continuous), doc.viewer.mode == PageMode.Continuous && !vm.readingMode) {
+            LayoutChoice(LucideIcons.GalleryVerticalEnd, stringResource(R.string.sheet_continuous), doc.viewer.mode == PageMode.Continuous && !vm.twoPages && !vm.readingMode) {
                 vm.setPageMode(doc, PageMode.Continuous)
+                vm.setTwoPages(doc, false)
                 ctl.sheet = ViewerSheet.None
             }
             LayoutChoice(LucideIcons.File, stringResource(R.string.sheet_single_page), doc.viewer.mode == PageMode.SinglePage && !vm.readingMode) {
                 vm.setPageMode(doc, PageMode.SinglePage)
+                ctl.sheet = ViewerSheet.None
+            }
+            LayoutChoice(LucideIcons.Columns2, stringResource(R.string.sheet_two_pages), doc.viewer.mode == PageMode.Continuous && vm.twoPages && !vm.readingMode) {
+                // two pages side by side, scrolled together like an open book; chosen again, one column
+                val on = !(vm.twoPages && doc.viewer.mode == PageMode.Continuous)
+                vm.setPageMode(doc, PageMode.Continuous)
+                vm.setTwoPages(doc, on)
                 ctl.sheet = ViewerSheet.None
             }
             LayoutChoice(LucideIcons.BookOpenText, stringResource(R.string.sheet_reading_mode), vm.readingMode) {

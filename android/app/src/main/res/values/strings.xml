@@ -425,6 +425,7 @@
     <string name="viewer_search_count">%1$d of %2$d</string>
     <string name="viewer_read_from_here">Read from here</string>
     <string name="viewer_copy_text">Copy text</string>
+    <string name="viewer_translate">Translate</string>
     <!-- Translator note: accessibility labels of the two handles at the ends of selected text. -->
     <string name="viewer_selection_start">Selection start</string>
     <string name="viewer_selection_end">Selection end</string>
@@ -654,6 +655,7 @@
     <!-- Viewer sheets: View settings -->
     <string name="sheet_continuous">Continuous</string>
     <string name="sheet_single_page">Single page</string>
+    <string name="sheet_two_pages">Two pages</string>
     <string name="sheet_reading_mode">Reading Mode</string>
     <string name="sheet_night_mode">Night Mode</string>
 
@@ -769,6 +771,14 @@
     <string name="toolbar_label_crop">Crop</string>
     <!-- Note: the Recognize text tool's short name on the toolbar -->
     <string name="toolbar_label_recognize">Recognize</string>
+    <string name="toolbar_label_find_fields">Find fields</string>
+    <string name="tool_find_fields">Find form fields</string>
+    <string name="msg_busy_finding_fields">Looking for places to fill in…</string>
+    <string name="msg_no_fields_found">No places to fill in were found on this document</string>
+    <plurals name="msg_fields_found">
+        <item quantity="one">%1$d field found. Tap it to fill it in.</item>
+        <item quantity="other">%1$d fields found. Tap one to fill it in.</item>
+    </plurals>
     <!-- Note: the tool that types text onto the page, as named on the toolbar -->
     <string name="toolbar_label_add_text">Add text</string>
     <!-- Note: the same tool's name in More tools, and its one sub-tool (text typed onto the page) -->
@@ -1033,6 +1043,7 @@
     <string name="photo_vibrance">Vibrance</string>
     <string name="photo_saturation">Saturation</string>
     <string name="photo_straighten">Straighten</string>
+    <string name="photo_crop">Crop</string>
     <string name="photo_whites">Whites</string>
     <string name="photo_blacks">Blacks</string>
     <string name="photo_clarity">Clarity</string>
@@ -1384,6 +1395,10 @@
     <string name="create_voice">Record a voice note</string>
     <string name="voice_saved">Voice note saved</string>
     <string name="voice_import">Import audio</string>
+    <string name="mindmap_title">Mind map</string>
+    <string name="mindmap_empty">Write the note as an outline: one idea a line, indented under the idea it belongs to. It is drawn here as a map.</string>
+    <string name="mindmap_save_image">Save as image</string>
+    <string name="mindmap_save_pdf">Save as PDF</string>
     <string name="voice_imported">Audio added to your desk</string>
     <string name="voice_export">Save to Downloads</string>
     <string name="voice_export_name">Voice note</string>

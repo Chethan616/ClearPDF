@@ -225,6 +225,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             loadLinks(eng, doc)
             doc.controller.nightMode = savedNightMode
             if (savedPageMode != doc.viewer.mode) doc.viewer.switchMode(savedPageMode)
+            doc.viewer.showColumns(if (twoPages) 2 else 1)
             // a file left in Reading Mode reopens in it, unless it was opened for a tool
             readingMode = recent?.reading == true && pendingTool == null
             document = doc
@@ -842,6 +843,16 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     private var nightModeDefaultState by mutableStateOf(appPrefs.getBoolean("nightMode", false))
     val savedNightMode: Boolean get() = nightModeDefaultState
 
+    /** Two pages side by side in continuous mode (View settings; remembered app-wide). */
+    var twoPages by mutableStateOf(appPrefs.getBoolean("twoPages", false))
+        private set
+
+    fun setTwoPages(doc: OpenDocument, on: Boolean) {
+        twoPages = on
+        appPrefs.edit().putBoolean("twoPages", on).apply()
+        doc.viewer.showColumns(if (on) 2 else 1)
+    }
+
     fun setPageMode(doc: OpenDocument, mode: com.chethan616.clearpdf.ui.viewer.PageMode) {
         // leaving Reading Mode: a canvas laid out already followed the page read; else it shows it on layout
         if (readingMode && doc.viewer.viewW > 0f) pendingPage = null
@@ -1110,6 +1121,29 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     }
 
     /** Copy the selected text (when the document allows copying). */
+    /**
+     * The selected text handed to a translator the phone has (Google Translate, DeepL, a
+     * dictionary…): the system's own list of apps that take text, so Artefact itself still asks
+     * for no network access.
+     */
+    fun translateSelection(doc: OpenDocument) {
+        if (!doc.info.allowsCopying) {
+            tell(text(R.string.msg_copy_not_allowed))
+            return
+        }
+        viewModelScope.launch {
+            val picked = doc.selection.text()?.trim().orEmpty()
+            if (picked.isEmpty()) return@launch
+            // apps that process a piece of text (the selection toolbar's "Translate"), with the ones
+            // that answer a plain translate request offered first
+            val process = Intent(Intent.ACTION_PROCESS_TEXT).setType("text/plain")
+                .putExtra(Intent.EXTRA_PROCESS_TEXT, picked).putExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
+            val translate = Intent(Intent.ACTION_TRANSLATE).putExtra(Intent.EXTRA_TEXT, picked)
+            intents.trySend(Intent.createChooser(process, text(R.string.viewer_translate)).putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(translate)))
+            doc.selection.clear()
+        }
+    }
+
     fun copySelection(doc: OpenDocument) {
         if (!doc.info.allowsCopying) {
             tell(text(R.string.msg_copy_not_allowed))
@@ -1668,6 +1702,30 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         runTool(doc, "text_edit", paraArgs(para) + style + (if (typed != null) mapOf("text" to typed) else emptyMap()))
     }
 
+    /** The part of the paragraph being typed in that is selected (null: none, or a bare caret). */
+    var editRange by mutableStateOf<androidx.compose.ui.text.TextRange?>(null)
+
+    /**
+     * Bold or slanted, only the words selected in the paragraph being typed in: the rest keeps its
+     * face. The engine takes the selection as a byte range of the paragraph's text, in one of its
+     * three built-in families (the paragraph's own kind: serif, monospaced, else sans).
+     */
+    fun styleRange(doc: OpenDocument, para: com.chethan616.clearpdf.ui.viewer.Paragraph, range: androidx.compose.ui.text.TextRange, bold: Boolean, italic: Boolean) {
+        val words = editDraft?.takeIf { editing != null } ?: para.text
+        val start = range.min.coerceIn(0, words.length)
+        val end = range.max.coerceIn(start, words.length)
+        if (start == end) return
+        val bytes = { upTo: Int -> words.substring(0, upTo).toByteArray(Charsets.UTF_8).size }
+        val name = para.font.lowercase()
+        val family = editFont[para.page to para.number] ?: when {
+            "courier" in name || "mono" in name || "consol" in name -> "courier"
+            "times" in name || "serif" in name && "sans" !in name || "roman" in name || "georgia" in name || "garamond" in name -> "times"
+            else -> "helvetica"
+        }
+        val one = mapOf("range" to listOf(bytes(start), bytes(end)), "font" to family, "bold" to bold, "italic" to italic)
+        runTool(doc, "text_edit", paraArgs(para) + mapOf("text" to words, "ranges" to listOf(one)))
+    }
+
     /** Move [para] by ([dx], [dy]) points (right and down on screen). */
     fun moveParagraph(doc: OpenDocument, para: com.chethan616.clearpdf.ui.viewer.Paragraph, dx: Float, dy: Float) {
         runTool(doc, "text_edit", paraArgs(para) + mapOf("dx" to dx.toDouble(), "dy" to -dy.toDouble()))
@@ -2178,6 +2236,30 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         val out = unlockedCopy(doc) ?: error(text(R.string.msg_unlock_failed))
         toolScreen = null
         deliver(out, "${doc.title}_unlocked.pdf")
+    }
+
+    /**
+     * A form that is only drawn (lines to write on, boxes to tick, no fields of its own): the
+     * engine looks for those places and makes real fields of them, which Fill & Sign then fills
+     * like any form's.
+     */
+    fun detectFields(doc: OpenDocument) {
+        if (doc.info.readOnlyReason != null || (!doc.info.allowsFormFilling && !doc.info.allowsAnnotation)) {
+            tell(doc.info.readOnlyReason ?: text(R.string.msg_tool_blocked_security))
+            return
+        }
+        busy = text(R.string.msg_busy_finding_fields)
+        runTool(doc, "form_detect_fields") { r ->
+            busy = null
+            val found = r.optJSONArray("fields")?.length() ?: 0
+            if (found == 0) tell(text(R.string.msg_no_fields_found))
+            else tell(getApplication<Application>().resources.getQuantityString(R.plurals.msg_fields_found, found, found))
+        }
+    }
+
+    /** A file made for the user (a mind map's picture or PDF) put into Downloads, and said so. */
+    fun deliverFile(file: File, name: String, mime: String) {
+        viewModelScope.launch { runCatching { deliver(file, name, mime) }.onFailure { tell(it.userMessage) } }
     }
 
     /** Crop [page] (or every page) to [rect] (points from the page's top-left). */
@@ -2704,8 +2786,18 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         val audio = note.audio ?: return
         viewModelScope.launch {
             runCatching {
-                val source = notes.file(audio)
-                val ext = audio.substringAfterLast('.', "wav").lowercase()
+                var source = notes.file(audio)
+                var ext = audio.substringAfterLast('.', "wav").lowercase()
+                // a recording is kept as WAV: it leaves as m4a (AAC), which every player and chat app takes
+                var converted: File? = null
+                if (ext == "wav") {
+                    val m4a = tempFile("m4a")
+                    if (withContext(Dispatchers.IO) { com.chethan616.clearpdf.notes.wavToM4a(source, m4a) }) {
+                        converted = m4a
+                        source = m4a
+                        ext = "m4a"
+                    }
+                }
                 val mime = when (ext) {
                     "wav" -> "audio/wav"
                     "mp3" -> "audio/mpeg"
@@ -2722,6 +2814,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
                         files.saveToDownloads(copy, name, mime)
                     } finally {
                         copy.delete()
+                        converted?.delete()
                     }
                 }
                 tell(text(R.string.msg_saved_downloads, name))
