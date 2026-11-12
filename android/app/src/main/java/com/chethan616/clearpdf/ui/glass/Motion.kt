@@ -212,22 +212,6 @@ object GlassMotion {
     /** A small thing popping into place: fan chips, the + glyph. */
     fun pop(): SpringSpec<Float> = spring(MotionSettings.damping(0.45f), MotionSettings.stiffness(500f), Rest)
 
-    /**
-     * A menu growing out of the button that opens it, as iOS 26's menus do: slower and heavier than
-     * [unfold] (a spring of about 0.42 s response, 0.8 damping at the Normal setting), so the eye
-     * follows the button becoming the menu; its height runs a touch softer behind ([growLag]).
-     */
-    fun grow(): SpringSpec<Float> = spring(MotionSettings.damping(0.82f), MotionSettings.stiffness(230f), Rest)
-
-    fun growLag(): SpringSpec<Float> = spring(MotionSettings.damping(0.76f), MotionSettings.stiffness(190f), Rest)
-
-    /**
-     * The menu going back into its button, the same way it came: the glass draws in to the
-     * button's box on the same slow spring, without the swing (a menu that bounced on its way out
-     * would hold the screen while it settled).
-     */
-    fun shrink(): SpringSpec<Float> = spring(1f, MotionSettings.stiffness(230f), Rest)
-
     /** A glass popover folding back into its button: quick, critically damped, so it lands without a step. */
     fun fold(): SpringSpec<Float> = spring(1f, MotionSettings.stiffness(900f), Rest)
 

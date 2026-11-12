@@ -168,6 +168,13 @@
     <string name="home_about_compress">Make a PDF smaller</string>
     <string name="home_about_export">Save a PDF as a document, spreadsheet, slides or images</string>
     <string name="home_about_protect">Protect a PDF with a password</string>
+    <string name="tool_text_to_pdf">Text to PDF</string>
+    <string name="home_about_text_to_pdf">Type or paste text and save it as a PDF</string>
+    <string name="tool_pdf_to_text">PDF to text</string>
+    <string name="home_about_pdf_to_text">Save the text of a PDF as a plain text file</string>
+    <string name="home_about_find_fields">Turn the blanks of a drawn form into fields to fill</string>
+    <string name="home_about_unlock">Save a copy of a protected PDF that opens without its password</string>
+    <string name="msg_no_password">This PDF has no password to remove</string>
 
     <!-- Search tab -->
     <string name="home_search_your_files">Search your files</string>
@@ -260,6 +267,10 @@
     <string name="tools_browse_files">Browse files</string>
     <string name="tools_or_make_new">Or make a new one</string>
     <string name="tools_scan_document">Scan a document</string>
+    <string name="tools_create_from_text">Type or paste text</string>
+    <string name="tools_create_action">Create PDF</string>
+    <string name="tools_text_name">Name (optional)</string>
+    <string name="tools_text_hint">Write or paste the text here</string>
 
     <!-- Tool screens: Combine files -->
     <!-- Title once two or more files are chosen -->

@@ -404,6 +404,7 @@ fun ExportScreen(vm: AppViewModel, doc: OpenDocument) {
 @Composable
 fun CreateSourcesScreen(vm: AppViewModel) {
     val back = { vm.toolScreen = null }
+    var typing by remember { mutableStateOf(vm.createTyping.also { vm.createTyping = false }) }
     ToolScaffold(stringResource(R.string.tools_create_title), back, action = null, actionEnabled = false, onAction = {}) {
         Spacer(Modifier.height(8.dp))
         com.chethan616.clearpdf.ui.glass.WashPanel(Modifier.padding(horizontal = 16.dp).fillMaxWidth()) {
@@ -415,7 +416,32 @@ fun CreateSourcesScreen(vm: AppViewModel) {
             color = com.chethan616.clearpdf.ui.theme.clear.inkSoft, modifier = Modifier.padding(start = 26.dp, top = 24.dp, bottom = 8.dp),
         )
         com.chethan616.clearpdf.ui.glass.WashPanel(Modifier.padding(horizontal = 16.dp).fillMaxWidth()) {
+            SourceRow(LucideIcons.Type, stringResource(R.string.tools_create_from_text), com.chethan616.clearpdf.ui.theme.Candy.Sky) { typing = true }
             SourceRow(LucideIcons.Camera, stringResource(R.string.tools_scan_document), com.chethan616.clearpdf.ui.theme.Candy.Tomato) { vm.toolScreen = null; vm.startScan() }
+        }
+    }
+    // Text to PDF: a name and the words, typed or pasted, set out as pages by the Word engine
+    if (typing) {
+        var name by remember { mutableStateOf("") }
+        var words by remember { mutableStateOf("") }
+        com.chethan616.clearpdf.ui.glass.GlassDialog(
+            onDismiss = { typing = false },
+            title = stringResource(R.string.tools_create_from_text),
+            confirm = stringResource(R.string.tools_create_action),
+            confirmEnabled = words.isNotBlank(),
+            onConfirm = {
+                typing = false
+                vm.toolScreen = null
+                vm.createFromText(name, words)
+            },
+            dismiss = stringResource(R.string.common_cancel),
+        ) {
+            com.chethan616.clearpdf.ui.glass.GlassTextField(name, { name = it }, stringResource(R.string.tools_text_name))
+            Spacer(Modifier.height(10.dp))
+            com.chethan616.clearpdf.ui.glass.GlassTextField(
+                words, { words = it }, stringResource(R.string.tools_text_hint),
+                modifier = Modifier.heightIn(min = 160.dp), singleLine = false,
+            )
         }
     }
 }

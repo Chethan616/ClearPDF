@@ -1178,6 +1178,14 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     fun openProtect(doc: OpenDocument) { toolScreen = ToolScreen.Protect(doc) }
     /** Create PDF starts on its own page of sources (photos, files, a scan), as the reference's. */
     fun openCreate() { toolScreen = ToolScreen.Create }
+
+    /** Create PDF opened straight on its text box (the Tools tab's Text to PDF). */
+    var createTyping = false
+
+    fun openCreateFromText() {
+        createTyping = true
+        toolScreen = ToolScreen.Create
+    }
     fun openCrop(doc: OpenDocument) { toolScreen = ToolScreen.Crop(doc) }
     fun startScan() { toolScreen = ToolScreen.Scan }
 
@@ -2366,6 +2374,35 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         open(uri)
     }
 
+    /**
+     * Text to PDF: [words] (typed or pasted; Markdown headings, lists and emphasis are set as such)
+     * laid out as pages by the Word engine and saved to Downloads as "[name].pdf", then opened.
+     */
+    fun createFromText(name: String, words: String) = job(text(R.string.msg_busy_creating_pdf)) { eng ->
+        val title = name.trim().ifEmpty { words.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty().trim().trimStart('#', ' ').take(40) }.ifEmpty { "Text" }
+        val dir = File(getApplication<Application>().cacheDir, "text-${System.nanoTime()}").apply { mkdirs() }
+        val source = File(dir, "text.md")
+        val out = tempFile("pdf")
+        try {
+            withContext(Dispatchers.IO) { source.writeText(words) }
+            eng.command {
+                val doc = open(source.absolutePath, null)
+                try {
+                    exportOffice(doc.id, "pdf", out.absolutePath)
+                } finally {
+                    runCatching { close(doc.id, true) }
+                }
+            }
+            val file = DocumentFiles.safeName("$title.pdf")
+            val uri = withContext(Dispatchers.IO) { files.saveToDownloads(out, file) }
+            tell(text(R.string.msg_saved_downloads, file))
+            open(uri)
+        } finally {
+            out.delete()
+            dir.deleteRecursively()
+        }
+    }
+
     /** Pages [pages] (0-based) of [doc] as a new PDF in Downloads. */
     fun extractPages(doc: OpenDocument, pages: List<Int>) = job(text(R.string.msg_busy_extracting)) { eng ->
         val out = tempFile("pdf")
@@ -3039,6 +3076,9 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             FileTool.Protect -> openProtect(doc)
             FileTool.Crop -> openCrop(doc)
             FileTool.Ocr -> recognizeText(doc)
+            FileTool.ToText -> exportDocument(doc, "txt")
+            FileTool.FindFields -> detectFields(doc)
+            FileTool.Unlock -> if (doc.info.encrypted) removePassword(doc) else tell(text(R.string.msg_no_password))
         }
     }
 

@@ -95,7 +95,13 @@ object ToolCatalog {
     val Protect = ToolDef("protect", LucideIcons.FileLock2, R.string.common_tool_set_password, R.string.home_about_protect, Candy.Grape, setOf("Edit")) { it.toolForFile(FileTool.Protect) }
     val Photos = ToolDef("photos", LucideIcons.Images, R.string.desk_photos_to_pdf, R.string.home_about_create, Candy.Lemon, setOf("Create")) { it.pickPhotosToPdf() }
 
-    val All = listOf(Edit, FillSign, Scan, Combine, Comment, ReadAloud, Organize, Compress, Export, Crop, Protect, Create)
+    // the tools asked for on the tracker, each one tap from the Tools tab
+    val TextToPdf = ToolDef("text2pdf", LucideIcons.Type, R.string.tool_text_to_pdf, R.string.home_about_text_to_pdf, Candy.Sky, setOf("Create", "Convert")) { it.openCreateFromText() }
+    val PdfToText = ToolDef("pdf2text", LucideIcons.FileText, R.string.tool_pdf_to_text, R.string.home_about_pdf_to_text, Candy.Lemon, setOf("Convert")) { it.toolForFile(FileTool.ToText) }
+    val FindFields = ToolDef("fields", LucideIcons.ScanText, R.string.tool_find_fields, R.string.home_about_find_fields, Candy.Bubblegum, setOf("Edit")) { it.toolForFile(FileTool.FindFields) }
+    val Unlock = ToolDef("unlock", LucideIcons.LockOpen, R.string.tools_unlock_action, R.string.home_about_unlock, Candy.Mint, setOf("Edit")) { it.toolForFile(FileTool.Unlock) }
+
+    val All = listOf(Edit, FillSign, Scan, Combine, Comment, ReadAloud, Organize, Compress, Export, Crop, Protect, Create, TextToPdf, PdfToText, FindFields, Unlock)
 }
 
 /**

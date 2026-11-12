@@ -410,25 +410,11 @@ private fun GlassMenuLayoutContent(
         // folding back into the button is quick and never bounces
         // (a spring both ways: closed mid-swing it carries its speed on instead of starting a new
         // curve from a standstill, and the screens' curve from Settings no longer reaches the glass)
-        //
-        // Opened from a single button (⋯, More tools, a bar's glyph), the menu is that button grown:
-        // it starts as the button's own box, at the button's place, and springs out to its size, over
-        // the button, then folds back into it. Opened from anything larger (a card held down on the
-        // desk) it unfolds beside its anchor as before.
-        val buttonSide = with(LocalDensity.current) { 72.dp.toPx() }
-        val morph = anchor.width > 0f && anchor.height > 0f && maxOf(anchor.width, anchor.height) <= buttonSide
-        val appear = rememberOverlayAppear(
-            enter = if (morph) GlassMotion.grow() else GlassMotion.unfold(),
-            exit = if (morph) GlassMotion.shrink() else GlassMotion.fold(),
-        )
+        val appear = rememberOverlayAppear(enter = GlassMotion.unfold(), exit = GlassMotion.fold())
         val lag = remember { Animatable(0f) }
         LaunchedEffect(leaving) {
-            if (!leaving) lag.animateTo(1f, if (morph) GlassMotion.growLag() else GlassMotion.unfoldLag())
-            else lag.animateTo(0f, if (morph) GlassMotion.shrink() else GlassMotion.fold())
+            if (!leaving) lag.animateTo(1f, GlassMotion.unfoldLag()) else lag.animateTo(0f, GlassMotion.fold())
         }
-        // where the card was put (the portal's space): the button's box inside it follows from this
-        var placedAt by remember { mutableStateOf(Offset.Zero) }
-        val menuCorner = with(LocalDensity.current) { 24.dp.toPx() }
         Box(Modifier.fillMaxSize().clickable(remember { MutableInteractionSource() }, null, onClick = onDismiss))
         val local = Rect(host.windowToLocal(anchor.topLeft), host.windowToLocal(anchor.bottomRight))
         val margin = with(LocalDensity.current) { 12.dp.toPx() }
@@ -441,59 +427,13 @@ private fun GlassMenuLayoutContent(
                         .width(width)
                         .floatingLayer {
                             val p = appear.value
-                            if (morph && size.width > 0f && size.height > 0f) {
-                                // The glass itself grows: the card lies where it will rest, and what
-                                // shows of it is an outline that starts as the button's own box (its
-                                // place, its size, its roundness) and opens out to the card's, the
-                                // height a beat behind the width. Nothing is stretched, so the corners
-                                // stay true and the rows don't squash; only an outline on a finished
-                                // texture moves, which costs nothing.
-                                val px = p.coerceIn(0f, 1f)
-                                val py = lag.value.coerceIn(0f, 1f)
-                                val bl = (local.left - placedAt.x).coerceIn(0f, size.width)
-                                val bt = (local.top - placedAt.y).coerceIn(0f, size.height)
-                                val br = (local.right - placedAt.x).coerceIn(bl, size.width)
-                                val bb = (local.bottom - placedAt.y).coerceIn(bt, size.height)
-                                shape = GrownShape(
-                                    lerp(bl, 0f, px), lerp(bt, 0f, py), lerp(br, size.width, px), lerp(bb, size.height, py),
-                                    lerp(minOf(br - bl, bb - bt) / 2f, menuCorner, px),
-                                )
-                                clip = true
-                                // the swing past rest is the whole card swelling a little about the button
-                                scaleX = 1f + (p - px)
-                                scaleY = 1f + (lag.value - py)
-                                transformOrigin = TransformOrigin(
-                                    if (size.width > 0f) ((bl + br) / 2f / size.width) else 0.5f,
-                                    if (size.height > 0f) ((bt + bb) / 2f / size.height) else 0.5f,
-                                )
-                                // over the button within the first few frames (and off it in the last),
-                                // so the two glasses cross rather than swap
-                                alpha = (px * 5f).coerceIn(0f, 1f)
-                            } else {
-                                scaleX = lerp(0.5f, 1f, p).coerceAtLeast(0.2f)
-                                scaleY = lerp(0.35f, 1f, lag.value).coerceAtLeast(0.2f)
-                                alpha = (p * 1.6f).coerceIn(0f, 1f)
-                                transformOrigin = TransformOrigin(if (fromRight) 1f else 0f, if (fromBelow) 0f else 1f)
-                            }
+                            scaleX = lerp(0.5f, 1f, p).coerceAtLeast(0.2f)
+                            scaleY = lerp(0.35f, 1f, lag.value).coerceAtLeast(0.2f)
+                            transformOrigin = TransformOrigin(if (fromRight) 1f else 0f, if (fromBelow) 0f else 1f)
+                            alpha = (p * 1.6f).coerceIn(0f, 1f)
                         },
                 ) {
-                    Column(
-                        Modifier
-                            .then(
-                                // what is written on the menu comes up out of the button as the glass
-                                // opens, and goes back first on the way in
-                                if (morph) Modifier.graphicsLayer {
-                                    val px = appear.value.coerceIn(0f, 1f)
-                                    alpha = ((px - 0.22f) / 0.5f).coerceIn(0f, 1f)
-                                    val s = lerp(0.9f, 1f, px)
-                                    scaleX = s
-                                    scaleY = s
-                                    transformOrigin = TransformOrigin(if (fromRight) 1f else 0f, if (fromBelow) 0f else 1f)
-                                } else Modifier,
-                            )
-                            .heightIn(max = maxHeight).verticalScroll(rememberScrollState()),
-                        content = content,
-                    )
+                    Column(Modifier.heightIn(max = maxHeight).verticalScroll(rememberScrollState()), content = content)
                 }
             },
             modifier = Modifier.fillMaxSize(),
@@ -511,30 +451,17 @@ private fun GlassMenuLayoutContent(
                 val right = local.center.x > constraints.maxWidth / 2f
                 fromRight = right
                 val x = if (right) (local.right - p.width) else local.left
-                // grown from a button, the menu lies over it (from its top edge down, or its bottom
-                // edge up); beside anything else, a little clear of it
-                val gap = if (morph) -local.height else 6f
-                val below = local.bottom + gap + p.height < constraints.maxHeight - barBottom - margin
+                val below = local.bottom + 6f + p.height < constraints.maxHeight - barBottom - margin
                 fromBelow = below
-                val y = if (below) local.bottom + gap else local.top - gap - p.height
+                val y = if (below) local.bottom + 6f else local.top - 6f - p.height
                 val minX = barLeft + margin
                 val maxX = (constraints.maxWidth - barRight - p.width - margin).coerceAtLeast(minX)
                 val minY = barTop + margin
                 val maxY = (constraints.maxHeight - barBottom - p.height - margin).coerceAtLeast(minY)
-                val at = IntOffset(x.coerceIn(minX, maxX).roundToInt(), y.coerceIn(minY, maxY).roundToInt())
-                placedAt = Offset(at.x.toFloat(), at.y.toFloat())
-                p.place(at)
+                p.place(IntOffset(x.coerceIn(minX, maxX).roundToInt(), y.coerceIn(minY, maxY).roundToInt()))
             }
         }
     }
-}
-
-/** What shows of a menu as it grows out of its button: a rounded box, in the card's own space. */
-private class GrownShape(val left: Float, val top: Float, val right: Float, val bottom: Float, val radius: Float) : androidx.compose.ui.graphics.Shape {
-    override fun createOutline(size: androidx.compose.ui.geometry.Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection, density: androidx.compose.ui.unit.Density) =
-        androidx.compose.ui.graphics.Outline.Rounded(
-            androidx.compose.ui.geometry.RoundRect(left, top, right, bottom, androidx.compose.ui.geometry.CornerRadius(radius.coerceAtLeast(0f))),
-        )
 }
 
 /** A text field on glass: a rounded frosted well, a quiet [placeholder], the theme's ink. */
