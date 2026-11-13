@@ -132,3 +132,9 @@ pinned to), with the same Android font-folder patch as `wordcraft-fonts` in `sys
 (marked `Artefact patch:`; drafted in `docs/upstream/wordcraft-android.md`). It is a
 `[patch."https://github.com/storytold/deckcraft"]` entry. Its last-resort face is Ubuntu Light from
 `epaint_default_fonts` 0.37 (crates.io). No deckcraft engine, media or PDF crate is in the build.
+
+A second `Artefact patch:` in `substitutes()` and `face()` (`src/fontdb.rs`) ends each family's list
+of stand-ins in a face a phone has: Source Sans 3, Source Serif 4, Inter and JetBrains Mono (the
+faces Artefact bundles, given to the database by `ensure_fonts` in `mobile/src/slides.rs`) and
+Android's Roboto, Noto Serif and Droid Sans Mono. Without it every family fell through to the
+last-resort face on Android, and a deck's fonts all looked replaced (GitHub issue 130).

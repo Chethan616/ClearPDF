@@ -339,8 +339,10 @@ private fun dockSlots(widthDp: Int): Int = when {
 }
 
 /**
- * The floating dock: the tools the reader keeps there, each glyph in its own candy, on a glass
- * capsule, and More tools as a grape bubble beside it.
+ * The floating dock, in the manner of the tools' own bars (Edit, Comment, Fill & Sign): the tools
+ * the reader keeps there as glyphs on one glass capsule, the one just tapped on a blue disc for a
+ * moment, and More tools as a blue glass circle beside it (where those bars keep Done). One capsule
+ * is one piece of glass to draw, where a row of glass circles was one each.
  */
 @Composable
 fun QuickToolbar(
@@ -356,30 +358,43 @@ fun QuickToolbar(
     val overflow = remember(tools, moreTools, slots) { (tools.drop(slots) + moreTools).distinct() }
     var menuAt by remember { mutableStateOf<Rect?>(null) }
     var moreRect by remember { mutableStateOf(Rect.Zero) }
-    val turn by androidx.compose.animation.core.animateFloatAsState(if (menuAt != null) 45f else 0f, com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "more")
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (menuAt != null) 45f else 0f, GlassMotion.morph(), label = "more")
+    // the tool just tapped, lit for a moment
+    var lit by remember { mutableStateOf<QuickTool?>(null) }
+    LaunchedEffect(lit) {
+        if (lit != null) {
+            kotlinx.coroutines.delay(420)
+            lit = null
+        }
+    }
     Row(
         Modifier.fillMaxWidth().height(BottomBarHeight).padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // Match Back and More tools: every action has its own clear glass circle rather than living
-        // inside a themed toolbar surface.
+        val ink = rememberGlassInk(clear.ink)
         Row(
-            Modifier.weight(1f).fillMaxHeight(),
+            Modifier.weight(1f).fillMaxHeight().then(ink.modifier).glassBar().padding(horizontal = 6.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            for (t in shown) DockItem(t.icon, stringResource(t.label)) { onTool(t) }
+            CompositionLocalProvider(LocalGlassInk provides ink.color) {
+                for (t in shown) DockItem(t.icon, stringResource(t.label), lit == t) {
+                    lit = t
+                    onTool(t)
+                }
+            }
         }
         // Office documents have their own concise toolbar. PDFs use the menu for the remaining
         // tools rather than opening the old grid sheet.
         if (overflow.isNotEmpty() || onCustomize != null) GlassCircle(
             onClick = { menuAt = moreRect },
-            size = 60.dp,
+            size = 48.dp,
+            tint = Candy.Sky,
             label = stringResource(R.string.common_tool_more_tools),
             modifier = Modifier.onGloballyPositioned { moreRect = it.boundsInWindow() },
         ) {
-            GlassIcon(LucideIcons.LayoutGrid, null, Modifier.size(23.dp).androidxRotate(turn))
+            GlassIcon(LucideIcons.LayoutGrid, null, Modifier.size(22.dp).androidxRotate(turn))
         }
     }
     menuAt?.let { anchor ->
@@ -392,10 +407,18 @@ fun QuickToolbar(
 
 private fun Modifier.androidxRotate(degrees: Float) = this.graphicsLayer { rotationZ = degrees }
 
+/** A tool of the dock: its glyph in the bar's ink; [lit], white on a blue disc. */
 @Composable
-private fun DockItem(icon: ImageVector, label: String, onClick: () -> Unit) {
-    GlassCircle(onClick = onClick, size = 48.dp, label = label) {
-        GlassIcon(icon, null, Modifier.size(24.dp))
+private fun DockItem(icon: ImageVector, label: String, lit: Boolean, onClick: () -> Unit) {
+    val disc by animateColorAsState(if (lit) Candy.Sky else Color.Transparent, GlassMotion.settle(), label = "dock")
+    val ink = com.chethan616.clearpdf.ui.glass.LocalGlassInk.current.takeIf { it != Color.Unspecified } ?: clear.ink
+    val glyph by animateColorAsState(if (lit) Color.White else ink, GlassMotion.settle(), label = "dockInk")
+    Box(
+        Modifier.width(54.dp).fillMaxHeight().pressable(onClick, pressedScale = 0.86f).semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.size(42.dp).clip(CircleShape).background(disc))
+        Icon(icon, null, tint = glyph, modifier = Modifier.size(23.dp))
     }
 }
 

@@ -190,6 +190,20 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
 
     val search = doc.search
     val selection = doc.selection
+    // Selecting text is felt, as the system's own selection is: a firm rise when a long press takes
+    // a word (or the selection first appears), then a light tick each time a dragged handle takes in
+    // or lets go of a character. The haptics drop ticks closer than 35 ms, so a fast drag purrs
+    // rather than buzzes. Clearing the selection is silent.
+    val feel = com.chethan616.clearpdf.ui.glass.rememberFeel()
+    LaunchedEffect(selection) {
+        var last: com.chethan616.clearpdf.core.TextRange? = null
+        snapshotFlow { selection.selection?.range }.collect { range ->
+            if (range != null && range != last) {
+                feel(if (last == null) com.chethan616.clearpdf.ui.glass.Feel.Bloom else com.chethan616.clearpdf.ui.glass.Feel.Tick)
+            }
+            last = range
+        }
+    }
     // on a desktop, zoom buttons at the bottom right: with the bars, or for a moment when the mouse
     // comes near the corner or the wheel zooms, as the reference has them
     val config = androidx.compose.ui.platform.LocalConfiguration.current

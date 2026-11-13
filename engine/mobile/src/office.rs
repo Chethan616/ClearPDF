@@ -192,7 +192,7 @@ pub(crate) fn open(
 ) -> Result<Arc<dyn OfficeDoc>, MobileError> {
     Ok(match kind {
         OfficeFile::Word(ext) => Arc::new(crate::word::WordDocument::open(path, ext, bytes, password, locale)?),
-        OfficeFile::Slides => Arc::new(crate::slides::SlideDeck::open(path, bytes)?),
+        OfficeFile::Slides => Arc::new(crate::slides::SlideDeck::open(path, bytes, password)?),
         OfficeFile::Sheets(ext) => Arc::new(crate::sheets::SheetBook::open(path, ext, bytes, password)?),
         // its slides' text, read by Artefact's own .ppt reader (DeckCraft reads .pptx only)
         OfficeFile::LegacySlides => Arc::new(crate::slides::SlideDeck::open_ppt(path, bytes)?),

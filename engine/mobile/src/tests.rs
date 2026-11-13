@@ -737,3 +737,262 @@ fn a_word_paragraph_is_edited_in_place() {
     let text = s.page_plain_text(id, 0).unwrap();
     assert!(text.contains("A new first line") && text.contains("Second line") && !text.contains("First line here"), "{text}");
 }
+
+#[test]
+#[ignore = "prints what the workbook in ARTEFACT_SAMPLE holds, for a look"]
+fn dump_sheet_sample() {
+    let Ok(path) = std::env::var("ARTEFACT_SAMPLE") else { return };
+    let bytes = std::fs::read(&path).unwrap();
+    let (wb, warnings) = gridcraft_engine::io::open_bytes_with_password(&path, &bytes, None).unwrap();
+    eprintln!("warnings {warnings:?}");
+    for (i, s) in wb.sheets.iter().enumerate() {
+        eprintln!(
+            "sheet {i} {:?} used {:?} merges {} cf {} tables {} charts {} images {} shapes {} gridlines {} freeze {:?} zoom {} cols {} rows {}",
+            s.name,
+            s.used_range().map(|r| r.a1()),
+            s.merges.len(),
+            s.cond_formats.len(),
+            s.tables.len(),
+            s.charts.len(),
+            s.images.len(),
+            s.shapes.len(),
+            s.show_gridlines,
+            s.freeze,
+            s.zoom,
+            s.cols.len(),
+            s.rows.len()
+        );
+        let Some(used) = s.used_range() else { continue };
+        let mut fills = std::collections::BTreeMap::new();
+        let mut borders = std::collections::BTreeMap::new();
+        let mut fonts = std::collections::BTreeMap::new();
+        let mut aligns = std::collections::BTreeMap::new();
+        for row in 0..=used.end.row {
+            for col in 0..=used.end.col {
+                let st = wb.styles.get(s.style_id(gridcraft_engine::core::CellRef::new(row, col)));
+                *fills
+                    .entry(format!("{:?} {:?} {:?}", st.fill.pattern, st.fill.fg.resolve(&wb.theme), st.fill.bg.resolve(&wb.theme)))
+                    .or_insert(0) += 1;
+                for b in [&st.borders.left, &st.borders.top, &st.borders.right, &st.borders.bottom, &st.borders.diag_down, &st.borders.diag_up] {
+                    *borders.entry(format!("{:?} {:?}", b.style, b.color)).or_insert(0) += 1;
+                }
+                *fonts
+                    .entry(format!("{} {} b{} i{} {:?} {:?}", st.font.name, st.font.size, st.font.bold, st.font.italic, st.font.color, st.font.vert))
+                    .or_insert(0) += 1;
+                *aligns.entry(format!("{:?}", st.align)).or_insert(0) += 1;
+            }
+        }
+        eprintln!("fills {fills:#?}\nborders {borders:#?}\nfonts {fonts:#?}\naligns {aligns:#?}");
+    }
+}
+
+#[test]
+fn a_deck_font_missing_on_a_phone_gets_a_stand_in_of_its_kind() {
+    // a database that sees no installed fonts, as on a phone, given the faces Artefact bundles
+    let db = deckcraft_fonts::FontDb::with_font_dirs(Vec::new());
+    db.set_system_fallback(false);
+    for bytes in wordcraft_fonts::bundled() {
+        db.add_font(bytes.to_vec());
+    }
+    assert_eq!(db.document_face("Calibri", "Regular").family, "Source Sans 3");
+    assert_eq!(db.document_face("Times New Roman", "Bold").family, "Source Serif 4");
+    assert_eq!(db.document_face("Arial", "Regular").family, "Inter");
+    assert_eq!(db.document_face("Consolas", "Regular").family, "JetBrains Mono");
+    // a family nobody has heard of is drawn as Office draws it: in its default sans
+    assert_eq!(db.document_face("Some Unknown Face", "Regular").family, "Source Sans 3");
+    assert_ne!(db.document_face("Georgia", "Italic").family, deckcraft_fonts::LAST_RESORT_FAMILY);
+}
+
+#[test]
+fn a_password_protected_presentation_asks_for_its_password() {
+    let plain = std::fs::read(deck_file("Locked away", "Plain.pptx")).unwrap();
+    let locked = gridcraft_xlsx::testing::encrypt_workbook(&plain, "s3cret");
+    let path = scratch().join("Locked.pptx");
+    std::fs::write(&path, locked).unwrap();
+    let path = path.to_string_lossy().into_owned();
+    let s = MobileSession::new();
+    assert!(matches!(s.open(path.clone(), None), Err(MobileError::NeedsPassword)));
+    assert!(matches!(s.open(path.clone(), Some("wrong".into())), Err(MobileError::WrongPassword)));
+    let info = s.open(path, Some("s3cret".into())).unwrap();
+    assert_eq!(info.kind, DocumentKind::Slides);
+    assert!(info.encrypted);
+    assert_eq!(s.find_in_page(info.id, 0, "locked".into(), false, false).unwrap().len(), 1);
+}
+
+#[test]
+fn the_photo_editors_tools_are_settings_lightcraft_reads() {
+    // the names the app writes for its Straighten, Whites, Blacks, Clarity, Sharpen and Vignette tools (snake case, as its settings are)
+    let json = r#"{"geometry":{"rotate":4.5},"light":{"whites":20,"blacks":-10},"effects":{"clarity":30},"detail":{"sharpen_amount":60},"vignette":{"amount":-40}}"#;
+    let s: lightcraft_develop::DevelopSettings = serde_json::from_str(json).unwrap();
+    assert_eq!(s.geometry.rotate, 4.5);
+    assert_eq!((s.light.whites, s.light.blacks), (20.0, -10.0));
+    assert_eq!(s.effects.clarity, 30.0);
+    assert_eq!(s.detail.sharpen_amount, 60.0);
+    assert_eq!(s.vignette.amount, -40.0);
+    // Crop: a box of the picture, as fractions of it
+    let crop: lightcraft_develop::DevelopSettings =
+        serde_json::from_str(r#"{"crop":{"geometry":{"rect":{"x0":0.125,"y0":0.0,"x1":0.875,"y1":1.0},"angle":0.0}}}"#).unwrap();
+    assert_eq!((crop.crop.geometry.rect.x0, crop.crop.geometry.rect.x1), (0.125, 0.875));
+}
+
+/// A link in each kind of document the viewer opens, found where it is drawn.
+#[test]
+fn links_are_found_in_every_kind_of_document() {
+    let s = MobileSession::new();
+    let uri_of = |links: &[LinkInfo]| links.iter().filter_map(|l| l.uri.clone()).collect::<Vec<_>>();
+
+    // Markdown, read by the Word engine
+    let md = scratch().join("Links.md");
+    std::fs::write(&md, "# Title\n\nSee [the site](https://example.com/md) and [mail](mailto:a@example.com).\n").unwrap();
+    let info = s.open(md.to_string_lossy().into_owned(), None).unwrap();
+    let found = uri_of(&s.links(info.id, 0).unwrap());
+    assert!(found.contains(&"https://example.com/md".to_string()), "md: {found:?}");
+    assert!(found.contains(&"mailto:a@example.com".to_string()), "md: {found:?}");
+
+    // the same as a .docx (written by the Word engine)
+    let docx = scratch().join("Links.docx");
+    s.export_office(info.id, "docx".into(), docx.to_string_lossy().into_owned()).unwrap();
+    let d = s.open(docx.to_string_lossy().into_owned(), None).unwrap();
+    assert!(uri_of(&s.links(d.id, 0).unwrap()).contains(&"https://example.com/md".to_string()), "docx");
+
+    // a presentation: a web link on text, and a shape that goes to the next slide
+    let link = |action| deckcraft_model::text::Hyperlink {
+        action,
+        tooltip: String::new(),
+        highlight_click: false,
+        sound: None,
+        stop_sound: false,
+        zoom_return: None,
+    };
+    let mut p = deckcraft_model::defaults::new_presentation(None);
+    let layout = p.slides[0].layout;
+    let second = deckcraft_model::defaults::new_slide(&mut p, layout).unwrap();
+    p.slides.push(std::sync::Arc::new(second));
+    {
+        let slide = std::sync::Arc::make_mut(p.slides.first_mut().unwrap());
+        let shape = slide.shapes.iter_mut().find(|s| s.ph.is_some()).unwrap();
+        let mut body = deckcraft_model::text::TextBody::from_text("Open the site");
+        body.paragraphs[0].runs[0].props.link = Some(link(deckcraft_model::text::Action::Url { url: "https://example.com/deck".into() }));
+        shape.text = Some(body);
+        let other = slide.shapes.iter_mut().filter(|s| s.ph.is_some()).nth(1).unwrap();
+        other.text = Some(deckcraft_model::text::TextBody::from_text("Next"));
+        other.click = Some(link(deckcraft_model::text::Action::NextSlide));
+    }
+    let pptx = scratch().join("Links.pptx");
+    std::fs::write(&pptx, deckcraft_pptx::export(&p).unwrap()).unwrap();
+    let deck = s.open(pptx.to_string_lossy().into_owned(), None).unwrap();
+    let links = s.links(deck.id, 0).unwrap();
+    assert!(uri_of(&links).contains(&"https://example.com/deck".to_string()), "pptx: {links:?}");
+    assert!(links.iter().any(|l| l.page == Some(1)), "pptx jump: {links:?}");
+
+    // a workbook: a cell's hyperlink comes with the cell
+    let (mut wb, _) = gridcraft_engine::io::open_bytes("t.csv", b"Site,Sheet\nhere,there\n").unwrap();
+    std::sync::Arc::make_mut(&mut wb.sheets[0]).hyperlinks.insert(
+        gridcraft_engine::core::CellRef::new(1, 0),
+        gridcraft_engine::model::Hyperlink { target: "https://example.com/sheet".into(), tooltip: None, external: true },
+    );
+    let xlsx = scratch().join("Links.xlsx");
+    std::fs::write(&xlsx, gridcraft_engine::io::save_bytes(&wb, "Links.xlsx").unwrap()).unwrap();
+    let book = s.open(xlsx.to_string_lossy().into_owned(), None).unwrap();
+    let cells = s.sheet_cells(book.id, 0, 0, 5, 0, 5).unwrap();
+    let cell = cells.iter().find(|c| c.row == 1 && c.col == 0).unwrap();
+    assert_eq!(cell.link.as_deref(), Some("https://example.com/sheet"));
+}
+
+/// Charts and pictures come with a workbook: an .xlsx's from GridCraft, an .xls's (which GridCraft
+/// leaves out) from Artefact's own reader. Both files hold a column, a pie and a line chart of the
+/// same cells, and one picture (made with LibreOffice from the .xlsx).
+#[test]
+fn charts_and_pictures_of_xlsx_and_xls_are_shown() {
+    let s = MobileSession::new();
+    for name in ["charts.xlsx", "charts.xls"] {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data").join(name);
+        let book = s.open(path.to_string_lossy().into_owned(), None).unwrap();
+        let charts = s.sheet_charts(book.id, 0).unwrap();
+        assert_eq!(charts.len(), 3, "{name}: charts");
+        for c in &charts {
+            assert!(c.width > 50.0 && c.height > 50.0, "{name}: {} x {}", c.width, c.height);
+            // a chart with words on it (its title, the months) and bars, wedges or lines
+            assert!(c.prims.contains("\"Text\""), "{name}: no text");
+            assert!(c.prims.contains("\"Rect\"") || c.prims.contains("\"Wedge\"") || c.prims.contains("\"Line\""), "{name}: nothing drawn");
+        }
+        assert!(charts.iter().any(|c| c.prims.contains("Jan")), "{name}: categories");
+        assert!(charts.iter().any(|c| c.prims.contains("\"Wedge\"")), "{name}: the pie");
+        let pictures = s.sheet_pictures(book.id, 0).unwrap();
+        assert_eq!(pictures.len(), 1, "{name}: pictures");
+        assert!(
+            pictures[0].data.starts_with(&[0x89, b'P', b'N', b'G'])
+                || pictures[0].data.starts_with(&[0xFF, 0xD8])
+                || pictures[0].data.starts_with(b"BM"),
+            "{name}: picture bytes"
+        );
+    }
+}
+
+/// An untouched picture comes out of the photo editor as it went in (no edit, no change of colour).
+#[test]
+fn an_untouched_picture_keeps_its_colours() {
+    let w = 64u32;
+    let h = 32u32;
+    let mut px = Vec::with_capacity((w * h * 3) as usize);
+    for y in 0..h {
+        for x in 0..w {
+            let c: [u8; 3] = if y < h / 2 {
+                if x < w / 2 { [255, 194, 26] } else { [18, 24, 38] }
+            } else if x < w / 2 {
+                [10, 132, 255]
+            } else {
+                [128, 128, 128]
+            };
+            px.extend_from_slice(&c);
+        }
+    }
+    let png = scratch().join("colours.png");
+    image_png(&png, w, h, &px);
+    let e = crate::photo::PhotoEditor::new();
+    let out = e.render(png.to_string_lossy().into_owned(), String::new(), 64).unwrap();
+    let at = |x: u32, y: u32| {
+        let i = ((y * out.width + x) * 4) as usize;
+        [out.rgba[i], out.rgba[i + 1], out.rgba[i + 2]]
+    };
+    for (x, y, want) in [(8, 4, [255u8, 194, 26]), (40, 4, [18, 24, 38]), (8, 24, [10, 132, 255]), (40, 24, [128, 128, 128])] {
+        let got = at(x * out.width / w, y * out.height / h);
+        let off = got.iter().zip(want).map(|(a, b)| (i32::from(*a) - i32::from(b)).abs()).max().unwrap();
+        assert!(off <= 4, "{want:?} came out as {got:?}");
+    }
+}
+
+fn image_png(path: &std::path::Path, w: u32, h: u32, rgb: &[u8]) {
+    let mut data = Vec::new();
+    {
+        let mut enc = png::Encoder::new(&mut data, w, h);
+        enc.set_color(png::ColorType::Rgb);
+        enc.set_depth(png::BitDepth::Eight);
+        enc.write_header().unwrap().write_image_data(rgb).unwrap();
+    }
+    std::fs::write(path, data).unwrap();
+}
+
+/// A selection's summary counts its filled cells and adds up its numbers, the way a spreadsheet's
+/// status bar does; a whole column reads only the rows in use.
+#[test]
+fn a_selection_is_summed_and_counted() {
+    let s = MobileSession::new();
+    let csv = scratch().join("Stats.csv");
+    std::fs::write(
+        &csv,
+        "Item,Price
+Tea,3.5
+Cake,4
+Note,
+Jam,2.5
+",
+    )
+    .unwrap();
+    let book = s.open(csv.to_string_lossy().into_owned(), None).unwrap();
+    let col = s.sheet_stats(book.id, 0, CellSpan { row0: 0, col0: 1, row1: 1_048_575, col1: 1 }).unwrap();
+    assert_eq!((col.filled, col.numbers), (4, 3));
+    assert!((col.sum - 10.0).abs() < 1e-9 && col.min == 2.5 && col.max == 4.0, "{col:?}");
+    let both = s.sheet_stats(book.id, 0, CellSpan { row0: 1, col0: 0, row1: 4, col1: 1 }).unwrap();
+    assert_eq!((both.filled, both.numbers), (7, 3));
+}

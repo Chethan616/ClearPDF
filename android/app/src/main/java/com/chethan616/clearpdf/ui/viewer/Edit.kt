@@ -199,8 +199,17 @@ private fun EditFormatBar(vm: AppViewModel, doc: OpenDocument, para: Paragraph) 
         ) {
             val underline = vm.editUnderline[para.page to para.number] == true
             // the reference draws these as serif T's: heavy, slanted, underlined, and a small t beside a big one
-            LetterButton("T", stringResource(R.string.edit_bold), para.bold, weight = FontWeight.Black) { vm.styleParagraph(doc, para, mapOf("bold" to !para.bold)) }
-            LetterButton("T", stringResource(R.string.edit_italic), para.italic, italic = true) { vm.styleParagraph(doc, para, mapOf("italic" to !para.italic)) }
+            // with words selected in the paragraph, Bold and Italic change only those; else all of it
+            LetterButton("T", stringResource(R.string.edit_bold), para.bold, weight = FontWeight.Black) {
+                val picked = vm.editRange?.takeIf { vm.editing != null }
+                if (picked != null) vm.styleRange(doc, para, picked, bold = !para.bold, italic = para.italic)
+                else vm.styleParagraph(doc, para, mapOf("bold" to !para.bold))
+            }
+            LetterButton("T", stringResource(R.string.edit_italic), para.italic, italic = true) {
+                val picked = vm.editRange?.takeIf { vm.editing != null }
+                if (picked != null) vm.styleRange(doc, para, picked, bold = para.bold, italic = !para.italic)
+                else vm.styleParagraph(doc, para, mapOf("italic" to !para.italic))
+            }
             LetterButton("T", stringResource(R.string.edit_underline), underline, underline = true) {
                 vm.editUnderline[para.page to para.number] = !underline
                 vm.styleParagraph(doc, para, mapOf("underline" to !underline))
@@ -524,6 +533,9 @@ private fun BoxScope.InlineEditor(vm: AppViewModel, doc: OpenDocument, para: Par
         if (b.y > clear) v.setScroll(v.scrollX, v.scrollY + (b.y - clear))
     }
     LaunchedEffect(value.text) { vm.editDraft = value.text }
+    // what is selected in the paragraph, for Bold and Italic to take only that
+    LaunchedEffect(value.selection) { vm.editRange = value.selection.takeIf { !it.collapsed } }
+    androidx.compose.runtime.DisposableEffect(para) { onDispose { vm.editRange = null } }
     // misspelled words, checked a moment after typing stops, underlined in red (as the reference does)
     val context = androidx.compose.ui.platform.LocalContext.current
     val speller = remember { SpellCheck(context) }

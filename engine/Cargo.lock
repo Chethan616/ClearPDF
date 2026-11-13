@@ -129,10 +129,12 @@ version = "0.14.0"
 dependencies = [
  "android_logger",
  "cfb",
+ "deckcraft-fonts",
  "deckcraft-model",
  "deckcraft-pdf",
  "deckcraft-pptx",
  "deckcraft-render",
+ "gridcraft-chart",
  "gridcraft-engine",
  "gridcraft-xlsx",
  "kurbo",
@@ -144,10 +146,12 @@ dependencies = [
  "pdfcraft-automation",
  "pdfcraft-engine",
  "pdfcraft-render",
+ "png",
  "serde_json",
  "thiserror 2.0.21",
  "uniffi",
  "wordcraft-engine",
+ "wordcraft-fonts",
 ]
 
 [[package]]

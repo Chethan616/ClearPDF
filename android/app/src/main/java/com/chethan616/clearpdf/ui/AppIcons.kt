@@ -93,6 +93,9 @@ object LucideIcons {
     val Link: ImageVector get() = Icons.Rounded.Link
     val List: ImageVector get() = Icons.AutoMirrored.Rounded.List
     val ListChecks: ImageVector get() = Icons.Rounded.Checklist
+    val Languages: ImageVector get() = Icons.Rounded.Translate
+    val Network: ImageVector get() = Icons.Rounded.AccountTree
+    val Columns2: ImageVector get() = Icons.Rounded.ViewColumn
     val Lock: ImageVector get() = Icons.Rounded.Lock
     val LockOpen: ImageVector get() = Icons.Rounded.LockOpen
     val Maximize: ImageVector get() = Icons.Rounded.OpenInFull

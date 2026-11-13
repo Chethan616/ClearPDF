@@ -46,22 +46,39 @@ object DocumentTypes {
     /** Plain text and Markdown, read by the Word engine. */
     val TEXT = arrayOf("text/plain", "text/markdown", "text/x-markdown")
 
-    /** Everything the viewer opens. */
-    val OPENABLE = arrayOf(PDF) + WORD + SLIDES + SHEETS + TEXT
+    /** Pictures: they open in the photo editor. */
+    val IMAGES = arrayOf("image/jpeg", "image/png")
+
+    /** Mind maps saved as OPML outlines (by Artefact or a desktop outliner): they open as a map. */
+    val MIND_MAPS = arrayOf("text/x-opml", "application/x-opml")
+
+    /**
+     * What the Open picker offers: everything the app opens, and files typed only as generic
+     * binary or XML, the way Android stores an .opml it doesn't know (the app reads them by name
+     * and says so when one isn't something it opens).
+     */
+    val PICKABLE get() = OPENABLE + arrayOf("application/octet-stream", "text/xml", "application/xml")
+
+    /** Everything the app opens. */
+    val OPENABLE = arrayOf(PDF) + WORD + SLIDES + SHEETS + TEXT + IMAGES + MIND_MAPS
 
     private val WORD_EXTENSIONS = setOf("docx", "docm", "dotx", "dotm", "doc", "dot", "odt", "ott", "rtf")
     private val SLIDE_EXTENSIONS = setOf("pptx", "pptm", "ppsx", "ppsm", "potx", "potm", "ppt", "pps", "pot")
     private val SHEET_EXTENSIONS = setOf("xlsx", "xlsm", "xltx", "xltm", "xlsb", "xls", "xlt", "ods", "csv", "tsv")
     private val TEXT_EXTENSIONS = setOf("txt", "md", "markdown")
+    private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png")
+    private val MAP_EXTENSIONS = setOf("opml")
 
     /** The kinds a file list can be narrowed to (Files ▸ ⋯). */
-    enum class Kind(val label: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    enum class Kind(val label: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector, val short: Int = label) {
         All(com.chethan616.clearpdf.R.string.files_kind_all, com.chethan616.clearpdf.ui.LucideIcons.Files),
-        Pdf(com.chethan616.clearpdf.R.string.files_kind_pdf, com.chethan616.clearpdf.ui.LucideIcons.FileText),
-        Word(com.chethan616.clearpdf.R.string.files_kind_word, com.chethan616.clearpdf.ui.LucideIcons.FilePenLine),
-        Slides(com.chethan616.clearpdf.R.string.files_kind_slides, com.chethan616.clearpdf.ui.LucideIcons.Presentation),
-        Sheets(com.chethan616.clearpdf.R.string.files_kind_sheets, com.chethan616.clearpdf.ui.LucideIcons.Sheet),
-        Text(com.chethan616.clearpdf.R.string.files_kind_text, com.chethan616.clearpdf.ui.LucideIcons.Type),
+        Pdf(com.chethan616.clearpdf.R.string.files_kind_pdf, com.chethan616.clearpdf.ui.LucideIcons.FileText, com.chethan616.clearpdf.R.string.kind_short_pdf),
+        Word(com.chethan616.clearpdf.R.string.files_kind_word, com.chethan616.clearpdf.ui.LucideIcons.FilePenLine, com.chethan616.clearpdf.R.string.kind_short_word),
+        Slides(com.chethan616.clearpdf.R.string.files_kind_slides, com.chethan616.clearpdf.ui.LucideIcons.Presentation, com.chethan616.clearpdf.R.string.kind_short_slides),
+        Sheets(com.chethan616.clearpdf.R.string.files_kind_sheets, com.chethan616.clearpdf.ui.LucideIcons.Sheet, com.chethan616.clearpdf.R.string.kind_short_sheets),
+        Text(com.chethan616.clearpdf.R.string.files_kind_text, com.chethan616.clearpdf.ui.LucideIcons.Type, com.chethan616.clearpdf.R.string.kind_short_text),
+        Images(com.chethan616.clearpdf.R.string.files_kind_images, com.chethan616.clearpdf.ui.LucideIcons.Images, com.chethan616.clearpdf.R.string.kind_short_images),
+        MindMaps(com.chethan616.clearpdf.R.string.files_kind_mindmaps, com.chethan616.clearpdf.ui.LucideIcons.Network, com.chethan616.clearpdf.R.string.kind_short_maps),
     }
 
     /** The kind a file named [name] is. */
@@ -70,6 +87,8 @@ object DocumentTypes {
         in SLIDE_EXTENSIONS -> Kind.Slides
         in SHEET_EXTENSIONS -> Kind.Sheets
         in TEXT_EXTENSIONS -> Kind.Text
+        in IMAGE_EXTENSIONS -> Kind.Images
+        in MAP_EXTENSIONS -> Kind.MindMaps
         else -> Kind.Pdf
     }
 
@@ -77,16 +96,25 @@ object DocumentTypes {
 
     fun isWordName(name: String) = extension(name) in WORD_EXTENSIONS
 
+    /** A picture's name (.jpg, .jpeg, .png): it opens in the photo editor. */
+    fun isImageName(name: String) = extension(name) in IMAGE_EXTENSIONS
+
+    /** A mind map's name (.opml). */
+    fun isMindMapName(name: String) = extension(name) in MAP_EXTENSIONS
+
+    /** A name that keeps its own extension: an office document's, a picture's or a mind map's (anything else is a PDF). */
+    fun keepsExtension(name: String) = isOfficeName(name) || isImageName(name) || isMindMapName(name)
+
     /** An office document's name (Word, slides or a workbook): it keeps its own extension. */
     fun isOfficeName(name: String) = extension(name).let { it in WORD_EXTENSIONS || it in SLIDE_EXTENSIONS || it in SHEET_EXTENSIONS || it in TEXT_EXTENSIONS }
 
     /** Whether a file of type [mime] named [name] is one the viewer opens. */
     fun isOpenable(mime: String?, name: String) =
-        mime == PDF || mime in WORD || mime in SLIDES || mime in SHEETS || mime in TEXT || extension(name) == "pdf" || isOfficeName(name)
+        mime == PDF || mime in WORD || mime in SLIDES || mime in SHEETS || mime in TEXT || mime in IMAGES || mime in MIND_MAPS || extension(name) == "pdf" || keepsExtension(name)
 
     /** A file name without its extension, as documents are titled (`Report.docx` → `Report`). */
     fun title(name: String): String =
-        if (isOfficeName(name)) name.substringBeforeLast('.') else name.removeSuffix(".pdf").removeSuffix(".PDF")
+        if (keepsExtension(name)) name.substringBeforeLast('.') else name.removeSuffix(".pdf").removeSuffix(".PDF")
 
     /** The type to hand another app a file named [name] as. */
     fun mimeOf(name: String): String = when (extension(name)) {
@@ -109,6 +137,9 @@ object DocumentTypes {
         "tsv" -> "text/tab-separated-values"
         "txt" -> "text/plain"
         "md", "markdown" -> "text/markdown"
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "opml" -> MIND_MAPS[0]
         else -> PDF
     }
 }

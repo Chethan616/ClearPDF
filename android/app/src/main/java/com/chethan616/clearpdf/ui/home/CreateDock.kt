@@ -378,6 +378,7 @@ private fun BoxScope.Fan(vm: AppViewModel, desk: DeskState, open: Boolean, onBro
     val items = listOf(
         FanItem(LucideIcons.SquarePen, stringResource(R.string.create_note), Candy.Sky, go { vm.newNote(NoteKind.Text) }),
         FanItem(LucideIcons.ListChecks, stringResource(R.string.create_list), Candy.Mint, go { vm.newNote(NoteKind.List) }),
+        FanItem(LucideIcons.Network, stringResource(R.string.create_mindmap), Candy.Grape, go { vm.newNote(NoteKind.Map) }),
         FanItem(ToolCatalog.Scan.icon, stringResource(ToolCatalog.Scan.label), Candy.Tomato, go { ToolCatalog.Scan.go(vm) }),
         FanItem(LucideIcons.FolderOpen, stringResource(R.string.home_open_file), Candy.Grape, go(onBrowse)),
         FanItem(LucideIcons.Images, stringResource(R.string.desk_photos_to_pdf), Candy.Tangerine, go { vm.pickPhotosToPdf() }),

@@ -5,6 +5,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -198,7 +200,7 @@ fun CheckPill(item: CheckItem, tone: CardTone, onToggle: () -> Unit) {
     // ticked: a deeper wash over the glass (the tone's ink on light cards, shade on dark ones)
     val doneWash = if (dark) Color.Black.copy(alpha = 0.34f) else tone.ink.copy(alpha = 0.58f)
     val wash by animateColorAsState(if (done) doneWash else Color.Transparent, com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "pill")
-    val ink by animateColorAsState(if (done) Color.White else tone.ink, com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "pill ink")
+    val ink by animateColorAsState(if (done) Color.White else tone.ink, com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "pillInk")
     val tick by animateFloatAsState(if (done) 1f else 0f, com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "tick")
     GlassChip(
         onClick = { haptics?.play(if (done) com.chethan616.clearpdf.ui.glass.Feel.ToggleOff else com.chethan616.clearpdf.ui.glass.Feel.ToggleOn); onToggle() },
@@ -241,6 +243,53 @@ fun NoteCard(note: Note, onOpen: () -> Unit, onLong: () -> Unit, modifier: Modif
         note.images.firstOrNull()?.let { name ->
             Spacer(Modifier.height(12.dp))
             NoteImage(name, Modifier.fillMaxWidth().height(86.dp).clip(RoundedRectangle(16.dp)))
+        }
+        Spacer(Modifier.height(12.dp).weight(1f, fill = false))
+        Text(shortDate(note.updated), style = ClearType.Caption.copy(fontSize = 10.5.sp), color = tone.ink.copy(alpha = 0.55f), modifier = Modifier.align(Alignment.End))
+    }
+}
+
+/** A mind map: lavender paper, its centre idea as the title and the map itself drawn small under it. */
+@Composable
+fun MapCard(note: Note, onOpen: () -> Unit, onLong: () -> Unit, modifier: Modifier = Modifier) {
+    val tone = clear.tone(Tone.Lavender)
+    val dark = clear.dark
+    val d = androidx.compose.ui.platform.LocalDensity.current.density
+    val context = androidx.compose.ui.platform.LocalContext.current
+    remember(context) { com.chethan616.clearpdf.ui.notes.MapType.load(context) }
+    val rootHint = stringResource(R.string.mindmap_root_hint)
+    val hint = stringResource(R.string.mindmap_node_hint)
+    val layout = remember(note.map, d) {
+        val doc = com.chethan616.clearpdf.ui.notes.mindFromJson(note.map)
+            ?: com.chethan616.clearpdf.ui.notes.MindDoc(com.chethan616.clearpdf.ui.notes.parseOutline(note.title, note.body))
+        com.chethan616.clearpdf.ui.notes.layoutMind(doc, d, rootHint, hint)
+    }
+    Column(
+        modifier.heightIn(min = 156.dp).pressable(onOpen, onLong, pressedScale = 0.96f).cardPaint(tone, Offset(0.1f, 0.0f)).padding(18.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(LucideIcons.Network, null, tint = tone.ink.copy(alpha = 0.75f), modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.mindmap_title), style = ClearType.Caption.copy(fontSize = 11.sp), color = tone.ink.copy(alpha = 0.75f))
+        }
+        Spacer(Modifier.height(6.dp))
+        WordFitText(note.title.ifBlank { stringResource(R.string.mindmap_title) }, ClearType.CardTitle.copy(color = tone.accent), maxLines = 3)
+        Spacer(Modifier.height(10.dp))
+        // the map itself, small: on a soft well so its colours read on the lavender
+        Canvas(
+            Modifier.fillMaxWidth().height(92.dp).clip(RoundedRectangle(16.dp))
+                .background(if (dark) Color(0xFF14152B).copy(alpha = 0.55f) else Color.White.copy(alpha = 0.55f)),
+        ) {
+            val b = layout.bounds
+            val k = minOf((size.width - 16f) / b.width().coerceAtLeast(1f), (size.height - 16f) / b.height().coerceAtLeast(1f), 0.6f)
+            drawIntoCanvas { cv ->
+                val nc = cv.nativeCanvas
+                nc.save()
+                nc.translate(size.width / 2f - b.centerX() * k, size.height / 2f - b.centerY() * k)
+                nc.scale(k, k)
+                com.chethan616.clearpdf.ui.notes.drawMind(nc, layout, dark)
+                nc.restore()
+            }
         }
         Spacer(Modifier.height(12.dp).weight(1f, fill = false))
         Text(shortDate(note.updated), style = ClearType.Caption.copy(fontSize = 10.5.sp), color = tone.ink.copy(alpha = 0.55f), modifier = Modifier.align(Alignment.End))
@@ -512,9 +561,14 @@ fun StackCard(
  */
 @Composable
 fun PhotoChip(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null) {
-    GlassChip(onClick = onClick, modifier = modifier, height = 34.dp, contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), ink = Color.White) {
-        if (icon != null) Icon(icon, null, tint = Color.White, modifier = Modifier.size(15.dp))
-        Text(text, style = ClearType.Label, color = Color.White, maxLines = 1)
+    // white over a photo; with Adaptive luminance, dark wherever the glass turns light
+    val ink = com.chethan616.clearpdf.ui.glass.rememberGlassInk(Color.White)
+    GlassChip(
+        onClick = onClick, modifier = modifier.then(ink.modifier), height = 34.dp, contentPadding = PaddingValues(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp), ink = ink.color,
+    ) {
+        if (icon != null) Icon(icon, null, tint = ink.color, modifier = Modifier.size(15.dp))
+        Text(text, style = ClearType.Label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = ink.color, maxLines = 1)
     }
 }
 
@@ -554,7 +608,7 @@ fun RecentCard(vm: AppViewModel, rows: List<FileRow>, onAll: () -> Unit, modifie
                         val tilt = listOf(-4f, 7f, -12f)[i]
                         val dx = listOf(0, 26, -22)[i]
                         PaperThumb(
-                            vm, r.thumbPath, 84.dp, 110.dp, tilt = tilt, corner = 7.dp,
+                            vm, r.thumbPath, 84.dp, 110.dp, tilt = tilt, corner = 7.dp, name = r.name,
                             modifier = Modifier.align(Alignment.Center).offset(x = dx.dp, y = (i * 4).dp),
                         )
                     }
@@ -564,7 +618,9 @@ fun RecentCard(vm: AppViewModel, rows: List<FileRow>, onAll: () -> Unit, modifie
         ) {
             Row(Modifier.align(Alignment.BottomStart).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (rows.size > 1) PhotoChip("+${rows.size - 1}", onAll)
-                PhotoChip(stringResource(R.string.desk_chip_pdfs), onAll, icon = LucideIcons.FileText)
+                // what the newest is: PDFs, Pictures, Spreadsheets, Mind maps …
+                val kind = com.chethan616.clearpdf.engine.DocumentTypes.kindOf(top.name)
+                PhotoChip(stringResource(kind.short), onAll, icon = kind.icon)
             }
         }
     }
@@ -577,7 +633,7 @@ fun RecentCard(vm: AppViewModel, rows: List<FileRow>, onAll: () -> Unit, modifie
 fun DocCard(vm: AppViewModel, r: FileRow, tone: CardTone, tilt: Float, onLong: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.pressable(r.open, onLong, pressedScale = 0.95f).cardPaint(tone, Offset(0.8f, 0.0f)).padding(14.dp)) {
         Box(Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
-            PaperThumb(vm, r.thumbPath, 104.dp, 136.dp, tilt = tilt, corner = 8.dp, modifier = Modifier.graphicsLayer { shadowElevation = 10.dp.toPx(); shape = RoundedRectangle(8.dp) })
+            PaperThumb(vm, r.thumbPath, 104.dp, 136.dp, tilt = tilt, corner = 8.dp, name = r.name, modifier = Modifier.graphicsLayer { shadowElevation = 10.dp.toPx(); shape = RoundedRectangle(8.dp) })
             if (r.starred) {
                 Box(Modifier.align(Alignment.TopEnd).size(26.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
                     Icon(LucideIcons.Star, null, tint = com.chethan616.clearpdf.ui.theme.Candy.Lemon, modifier = Modifier.size(14.dp))

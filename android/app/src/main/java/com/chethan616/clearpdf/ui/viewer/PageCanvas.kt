@@ -292,7 +292,11 @@ private suspend fun settle(state: ViewerState, velocity: Offset, density: Float,
     if (state.mode == PageMode.SinglePage && state.zoom <= 1.01f) {
         val target = state.snapTarget(velocity.x)
         val anim = Animatable(state.scrollX)
-        anim.animateTo(target, spring(stiffness = 600f), initialVelocity = -velocity.x) { state.setScroll(value, 0f) }
+        // where the reader is down the page is kept while it settles; a new page starts from its top
+        val page = state.currentPage
+        val y = state.scrollY
+        anim.animateTo(target, spring(stiffness = 600f), initialVelocity = -velocity.x) { state.setScroll(value, y) }
+        if (state.currentPage != page) state.setScroll(state.scrollX, 0f)
         return
     }
     if (velocity.getDistance() < 50f) return

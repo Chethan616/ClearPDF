@@ -44,7 +44,10 @@ impl PhotoEditor {
         let bytes = crate::office::read(path)?;
         let opts = DecodeOptions { max_size: preview.then_some((PREVIEW_SOURCE, PREVIEW_SOURCE)), ..DecodeOptions::default() };
         let decoded = lightcraft_codecs::decode(&bytes, opts).map_err(|e| MobileError::Open(format!("{path}: {e}")))?;
-        let img = Arc::new(decoded.image);
+        // the decoder hands linear light in the picture's own primaries (sRGB, Display P3, its ICC
+        // profile's): the pipeline works in linear Rec.2020, so it is converted, or every colour
+        // comes out washed towards grey (a yellow as cream, a blue as slate)
+        let img = Arc::new(decoded.to_working());
         *s = Some((path.to_string(), preview, img.clone()));
         Ok(img)
     }

@@ -51,9 +51,25 @@ class ViewerState(pages: List<PageSize>) {
     val layout: DocLayout
         get() {
             val c = cachedLayout
-            if (c != null && c.pages === pages && c.mode == mode && c.viewW == viewW && c.viewH == viewH && c.padTop == padTop && c.padBottom == padBottom) return c
-            return DocLayout(pages, mode, viewW, viewH, gap, margin, padTop, padBottom).also { cachedLayout = it }
+            if (c != null && c.pages === pages && c.mode == mode && c.viewW == viewW && c.viewH == viewH && c.padTop == padTop && c.padBottom == padBottom && c.columns == columns) return c
+            return DocLayout(pages, mode, viewW, viewH, gap, margin, padTop, padBottom, columns).also { cachedLayout = it }
         }
+
+    /** Continuous mode: pages in one column, or two side by side. */
+    var columns by androidx.compose.runtime.mutableIntStateOf(1)
+        private set
+
+    /** One column or two; the reader stays on the page it was on. */
+    fun showColumns(n: Int) {
+        val to = n.coerceIn(1, 2)
+        if (to == columns) return
+        val page = if (viewW > 0f) currentPage else 0
+        columns = to
+        if (viewW > 0f) {
+            if (mode == PageMode.Continuous) zoom = 1f
+            goToPage(page)
+        }
+    }
 
     /** Continuous pages zoom out past fit-width; single-page mode rests on one page filling the width. */
     val minZoom: Float get() = if (mode == PageMode.Continuous) ZOOM_OUT_LIMIT else MIN_ZOOM
@@ -216,7 +232,8 @@ class ViewerState(pages: List<PageSize>) {
         val ch = l.height * zoom
         scrollX = if (cw <= viewW) -(viewW - cw) / 2f else scrollX.coerceIn(0f, cw - viewW)
         scrollY = if (ch <= viewH) -(viewH - ch) / 2f else scrollY.coerceIn(0f, ch - viewH)
-        if (mode == PageMode.SinglePage && zoom <= 1.001f) scrollY = 0f
+        // a single page that fits stays put; one taller than the screen (a phone on its side) scrolls
+        if (mode == PageMode.SinglePage && zoom <= 1.001f && l.height <= viewH + 0.5f) scrollY = 0f
     }
 
     /** Page [i]'s rectangle on screen. */

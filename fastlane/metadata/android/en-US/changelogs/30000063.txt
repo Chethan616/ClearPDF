@@ -1,0 +1,7 @@
+Sharper glass, better Office files
+* Menus grow out of the button that opens them; lighter frost; optional Adaptive luminance
+* Spreadsheets: merged cells, table and conditional colours, pictures, faster scrolling, taps land on the right cell
+* PowerPoint: closer fonts, password-protected decks, old .ppt slides show their text and pictures
+* Remove a PDF's password for good; export a PDF's text
+* Import and export voice notes; more photo tools
+* Sideways, a single page fills the width

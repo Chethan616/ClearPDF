@@ -92,10 +92,19 @@ object ToolCatalog {
     val Crop = ToolDef("crop", LucideIcons.Crop, R.string.common_tool_crop, R.string.home_about_crop, Candy.Mint, setOf("Edit")) { it.toolForFile(FileTool.Crop) }
     val Compress = ToolDef("compress", LucideIcons.FileArchive, R.string.common_tool_compress, R.string.home_about_compress, Candy.Mint, setOf("Convert")) { it.toolForFile(FileTool.Compress) }
     val Export = ToolDef("export", LucideIcons.FileOutput, R.string.common_tool_export, R.string.home_about_export, Candy.Tangerine, setOf("Convert")) { it.toolForFile(FileTool.Export) }
-    val Protect = ToolDef("protect", LucideIcons.FileLock2, R.string.common_tool_set_password, R.string.home_about_protect, Candy.Grape, setOf("Edit")) { it.toolForFile(FileTool.Protect) }
+    // one tool for a PDF's password: set one, or take it off for good
+    val Protect = ToolDef("protect", LucideIcons.FileLock2, R.string.tool_encryption, R.string.home_about_encryption, Candy.Grape, setOf("Edit")) { it.toolForFile(FileTool.Protect) }
+    val EditPhoto = ToolDef("photo", LucideIcons.Images, R.string.tool_edit_photo, R.string.home_about_edit_photo, Candy.Lemon, setOf("Edit")) { it.pickPhotoToEdit() }
     val Photos = ToolDef("photos", LucideIcons.Images, R.string.desk_photos_to_pdf, R.string.home_about_create, Candy.Lemon, setOf("Create")) { it.pickPhotosToPdf() }
 
-    val All = listOf(Edit, FillSign, Scan, Combine, Comment, ReadAloud, Organize, Compress, Export, Crop, Protect, Create)
+    // the tools asked for on the tracker, each one tap from the Tools tab
+    val TextToPdf = ToolDef("text2pdf", LucideIcons.Type, R.string.tool_text_to_pdf, R.string.home_about_text_to_pdf, Candy.Sky, setOf("Create", "Convert")) { it.openCreateFromText() }
+    val PdfToText = ToolDef("pdf2text", LucideIcons.FileText, R.string.tool_pdf_to_text, R.string.home_about_pdf_to_text, Candy.Lemon, setOf("Convert")) { it.toolForFile(FileTool.ToText) }
+    val FindFields = ToolDef("fields", LucideIcons.ScanText, R.string.tool_find_fields, R.string.home_about_find_fields, Candy.Bubblegum, setOf("Edit")) { it.toolForFile(FileTool.FindFields) }
+
+    // Text to PDF is a way of Create PDF, and finding a form's fields a part of Fill & Sign: neither
+    // is a tile of its own
+    val All = listOf(Edit, FillSign, Scan, Combine, Comment, ReadAloud, Organize, Compress, Export, Crop, Protect, Create, EditPhoto)
 }
 
 /**
@@ -103,7 +112,7 @@ object ToolCatalog {
  * optionally tilted like a sheet dropped on a desk.
  */
 @Composable
-fun PaperThumb(vm: AppViewModel, path: String?, width: Dp, height: Dp, modifier: Modifier = Modifier, tilt: Float = 0f, corner: Dp = 8.dp) {
+fun PaperThumb(vm: AppViewModel, path: String?, width: Dp, height: Dp, modifier: Modifier = Modifier, tilt: Float = 0f, corner: Dp = 8.dp, name: String? = null) {
     var img by remember(path) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(path) {
         if (path != null) img = withContext(Dispatchers.IO) { vm.thumbnails.of(path)?.asImageBitmap() }
@@ -124,10 +133,29 @@ fun PaperThumb(vm: AppViewModel, path: String?, width: Dp, height: Dp, modifier:
                 Box(Modifier.fillMaxWidth(0.62f).height(height * 0.05f).clip(CircleShape).background(Color(0xFF17141F).copy(alpha = 0.20f)))
                 repeat(4) { k -> Box(Modifier.fillMaxWidth(if (k == 3) 0.5f else 1f).height(height * 0.03f).clip(CircleShape).background(Color(0xFF17141F).copy(alpha = 0.09f))) }
             }
-            Box(Modifier.align(Alignment.BottomEnd).padding(width * 0.08f).clip(RoundedRectangle(4.dp)).background(Candy.Tomato).padding(horizontal = 4.dp, vertical = 1.dp)) {
-                Text("PDF", color = Color.White, fontSize = (width.value * 0.11f).coerceIn(7f, 13f).sp, style = ClearType.Eyebrow.copy(letterSpacing = 0.4.sp))
+            // the corner badge says what the file is (a workbook is not a PDF), in its kind's colour
+            val (badge, badgeColor) = kindBadge(name ?: path?.takeIf { !it.startsWith("content:") })
+            Box(Modifier.align(Alignment.BottomEnd).padding(width * 0.08f).clip(RoundedRectangle(4.dp)).background(badgeColor).padding(horizontal = 4.dp, vertical = 1.dp)) {
+                Text(badge, color = Color.White, fontSize = (width.value * 0.11f).coerceIn(7f, 13f).sp, style = ClearType.Eyebrow.copy(letterSpacing = 0.4.sp))
             }
         }
+    }
+}
+
+/**
+ * The badge a file without a picture wears: its own extension (XLSX, CSV, DOCX, PPT, TXT) on its
+ * kind's colour, as the office suites colour them; PDF on tomato for a PDF or a name that says nothing.
+ */
+internal fun kindBadge(name: String?): Pair<String, Color> {
+    val ext = name?.substringAfterLast('.', "")?.uppercase().orEmpty()
+    return when (name?.let { com.chethan616.clearpdf.engine.DocumentTypes.kindOf(it) }) {
+        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Sheets -> ext to Color(0xFF1E9E5A)
+        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Word -> ext to Color(0xFF2F6FED)
+        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Slides -> ext to Color(0xFFE8672C)
+        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Text -> ext to Color(0xFF6B7280)
+        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Images -> ext to Candy.Grape
+        com.chethan616.clearpdf.engine.DocumentTypes.Kind.MindMaps -> ext to Candy.Bubblegum
+        else -> "PDF" to Candy.Tomato
     }
 }
 
@@ -183,7 +211,7 @@ fun FileListItem(vm: AppViewModel, r: FileRow, recent: Boolean, modifier: Modifi
             .padding(start = 14.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PaperThumb(vm, r.thumbPath, 40.dp, 52.dp, corner = 6.dp)
+        PaperThumb(vm, r.thumbPath, 40.dp, 52.dp, corner = 6.dp, name = r.name)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(displayName(r.name), style = ClearType.BodyStrong, color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)

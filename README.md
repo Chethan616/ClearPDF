@@ -122,7 +122,8 @@ Open the release page and download the APK that matches your device:
 |---|---|
 | `-arm64-v8a.apk` | Most current 64-bit ARM phones and tablets |
 | `-armeabi-v7a.apk` | 32-bit ARM devices |
-| `-x86_64.apk` | x86-based emulators and devices |
+| `-x86_64.apk` | 64-bit x86 emulators and devices |
+| `-x86.apk` | 32-bit x86 emulators and devices |
 | `-universal.apk` | A larger package containing all supported ABIs |
 
 The APK installs over ClearPDF and keeps your data.

@@ -211,6 +211,27 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     }
 
     private suspend fun openFile(eng: Engine, uri: Uri, file: File, password: String?) {
+        // a mind map (OPML) opens as a map to look at, and can be made into a mind-map note
+        if (com.chethan616.clearpdf.engine.DocumentTypes.isMindMapName(file.name)) {
+            val doc = withContext(Dispatchers.IO) {
+                runCatching { if (file.length() < 8L shl 20) com.chethan616.clearpdf.ui.notes.mindFromOpml(file.readText()) else null }.getOrNull()
+            } ?: return tell(text(R.string.msg_not_opml))
+            previewingMap = OpenedMap(uri, file.name, doc, otherAppUri == uri)
+            withContext(Dispatchers.IO) {
+                recents.touch(RecentFile(uri.toString(), file.name, System.currentTimeMillis(), 1, file.length(), 0))
+            }
+            refreshRecents()
+            return
+        }
+        // a picture opens in the photo editor (over whatever is open), and is kept in Recent
+        if (com.chethan616.clearpdf.engine.DocumentTypes.isImageName(file.name)) {
+            editingImage = OpenedImage(uri, file, otherAppUri == uri)
+            withContext(Dispatchers.IO) {
+                recents.touch(RecentFile(uri.toString(), file.name, System.currentTimeMillis(), 1, file.length(), 0))
+            }
+            refreshRecents()
+            return
+        }
         try {
             document?.let { saveAndClose(eng, it) }
             val info = eng.command { open(file.absolutePath, password) }
@@ -225,6 +246,7 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             loadLinks(eng, doc)
             doc.controller.nightMode = savedNightMode
             if (savedPageMode != doc.viewer.mode) doc.viewer.switchMode(savedPageMode)
+            doc.viewer.showColumns(if (twoPages) 2 else 1)
             // a file left in Reading Mode reopens in it, unless it was opened for a tool
             readingMode = recent?.reading == true && pendingTool == null
             document = doc
@@ -511,6 +533,16 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             }
         }
         return true
+    }
+
+    /** Follow [uri] from anywhere in the app: mail and phone straight away, a web page after asking. */
+    fun openLink(uri: String) {
+        val parsed = Uri.parse(uri.trim())
+        when (parsed.scheme?.lowercase()) {
+            "mailto", "tel" -> intents.trySend(Intent(Intent.ACTION_VIEW, parsed))
+            "http", "https" -> linkPrompt = uri.trim()
+            else -> tell(text(R.string.msg_link_not_followed))
+        }
     }
 
     /** A web address waiting for "Open web page?". */
@@ -842,6 +874,16 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     private var nightModeDefaultState by mutableStateOf(appPrefs.getBoolean("nightMode", false))
     val savedNightMode: Boolean get() = nightModeDefaultState
 
+    /** Two pages side by side in continuous mode (View settings; remembered app-wide). */
+    var twoPages by mutableStateOf(appPrefs.getBoolean("twoPages", false))
+        private set
+
+    fun setTwoPages(doc: OpenDocument, on: Boolean) {
+        twoPages = on
+        appPrefs.edit().putBoolean("twoPages", on).apply()
+        doc.viewer.showColumns(if (on) 2 else 1)
+    }
+
     fun setPageMode(doc: OpenDocument, mode: com.chethan616.clearpdf.ui.viewer.PageMode) {
         // leaving Reading Mode: a canvas laid out already followed the page read; else it shows it on layout
         if (readingMode && doc.viewer.viewW > 0f) pendingPage = null
@@ -1110,6 +1152,29 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     }
 
     /** Copy the selected text (when the document allows copying). */
+    /**
+     * The selected text handed to a translator the phone has (Google Translate, DeepL, a
+     * dictionary…): the system's own list of apps that take text, so Artefact itself still asks
+     * for no network access.
+     */
+    fun translateSelection(doc: OpenDocument) {
+        if (!doc.info.allowsCopying) {
+            tell(text(R.string.msg_copy_not_allowed))
+            return
+        }
+        viewModelScope.launch {
+            val picked = doc.selection.text()?.trim().orEmpty()
+            if (picked.isEmpty()) return@launch
+            // apps that process a piece of text (the selection toolbar's "Translate"), with the ones
+            // that answer a plain translate request offered first
+            val process = Intent(Intent.ACTION_PROCESS_TEXT).setType("text/plain")
+                .putExtra(Intent.EXTRA_PROCESS_TEXT, picked).putExtra(Intent.EXTRA_PROCESS_TEXT_READONLY, true)
+            val translate = Intent(Intent.ACTION_TRANSLATE).putExtra(Intent.EXTRA_TEXT, picked)
+            intents.trySend(Intent.createChooser(process, text(R.string.viewer_translate)).putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(translate)))
+            doc.selection.clear()
+        }
+    }
+
     fun copySelection(doc: OpenDocument) {
         if (!doc.info.allowsCopying) {
             tell(text(R.string.msg_copy_not_allowed))
@@ -1144,6 +1209,14 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     fun openProtect(doc: OpenDocument) { toolScreen = ToolScreen.Protect(doc) }
     /** Create PDF starts on its own page of sources (photos, files, a scan), as the reference's. */
     fun openCreate() { toolScreen = ToolScreen.Create }
+
+    /** Create PDF opened straight on its text box (the Tools tab's Text to PDF). */
+    var createTyping = false
+
+    fun openCreateFromText() {
+        createTyping = true
+        toolScreen = ToolScreen.Create
+    }
     fun openCrop(doc: OpenDocument) { toolScreen = ToolScreen.Crop(doc) }
     fun startScan() { toolScreen = ToolScreen.Scan }
 
@@ -1668,6 +1741,30 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         runTool(doc, "text_edit", paraArgs(para) + style + (if (typed != null) mapOf("text" to typed) else emptyMap()))
     }
 
+    /** The part of the paragraph being typed in that is selected (null: none, or a bare caret). */
+    var editRange by mutableStateOf<androidx.compose.ui.text.TextRange?>(null)
+
+    /**
+     * Bold or slanted, only the words selected in the paragraph being typed in: the rest keeps its
+     * face. The engine takes the selection as a byte range of the paragraph's text, in one of its
+     * three built-in families (the paragraph's own kind: serif, monospaced, else sans).
+     */
+    fun styleRange(doc: OpenDocument, para: com.chethan616.clearpdf.ui.viewer.Paragraph, range: androidx.compose.ui.text.TextRange, bold: Boolean, italic: Boolean) {
+        val words = editDraft?.takeIf { editing != null } ?: para.text
+        val start = range.min.coerceIn(0, words.length)
+        val end = range.max.coerceIn(start, words.length)
+        if (start == end) return
+        val bytes = { upTo: Int -> words.substring(0, upTo).toByteArray(Charsets.UTF_8).size }
+        val name = para.font.lowercase()
+        val family = editFont[para.page to para.number] ?: when {
+            "courier" in name || "mono" in name || "consol" in name -> "courier"
+            "times" in name || "serif" in name && "sans" !in name || "roman" in name || "georgia" in name || "garamond" in name -> "times"
+            else -> "helvetica"
+        }
+        val one = mapOf("range" to listOf(bytes(start), bytes(end)), "font" to family, "bold" to bold, "italic" to italic)
+        runTool(doc, "text_edit", paraArgs(para) + mapOf("text" to words, "ranges" to listOf(one)))
+    }
+
     /** Move [para] by ([dx], [dy]) points (right and down on screen). */
     fun moveParagraph(doc: OpenDocument, para: com.chethan616.clearpdf.ui.viewer.Paragraph, dx: Float, dy: Float) {
         runTool(doc, "text_edit", paraArgs(para) + mapOf("dx" to dx.toDouble(), "dy" to -dy.toDouble()))
@@ -2167,6 +2264,43 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         deliver(out, "${doc.title}_protected.pdf")
     }
 
+    /**
+     * A copy of [doc] with its password and restrictions removed for good, saved to Downloads: it
+     * opens without asking from then on. Only a document already opened with its password gets
+     * here (the engine holds it), so nothing is broken into; a file whose security the engine
+     * can't lift (a certificate's, say) says so.
+     */
+    fun removePassword(doc: OpenDocument) = job(text(R.string.msg_busy_removing_password)) { _ ->
+        save(doc)
+        val out = unlockedCopy(doc) ?: error(text(R.string.msg_unlock_failed))
+        toolScreen = null
+        deliver(out, "${doc.title}_unlocked.pdf")
+    }
+
+    /**
+     * A form that is only drawn (lines to write on, boxes to tick, no fields of its own): the
+     * engine looks for those places and makes real fields of them, which Fill & Sign then fills
+     * like any form's.
+     */
+    fun detectFields(doc: OpenDocument) {
+        if (doc.info.readOnlyReason != null || (!doc.info.allowsFormFilling && !doc.info.allowsAnnotation)) {
+            tell(doc.info.readOnlyReason ?: text(R.string.msg_tool_blocked_security))
+            return
+        }
+        busy = text(R.string.msg_busy_finding_fields)
+        runTool(doc, "form_detect_fields") { r ->
+            busy = null
+            val found = r.optJSONArray("fields")?.length() ?: 0
+            if (found == 0) tell(text(R.string.msg_no_fields_found))
+            else tell(getApplication<Application>().resources.getQuantityString(R.plurals.msg_fields_found, found, found))
+        }
+    }
+
+    /** A file made for the user (a mind map's picture or PDF) put into Downloads, and said so. */
+    fun deliverFile(file: File, name: String, mime: String) {
+        viewModelScope.launch { runCatching { deliver(file, name, mime) }.onFailure { tell(it.userMessage) } }
+    }
+
     /** Crop [page] (or every page) to [rect] (points from the page's top-left). */
     fun crop(doc: OpenDocument, page: Int?, rect: FloatArray) {
         val args = mutableMapOf<String, Any?>("rect" to rect.map { it.toDouble() })
@@ -2180,9 +2314,17 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     /** Export [doc] as a Word, RTF, Excel or PowerPoint document. */
     fun exportDocument(doc: OpenDocument, ext: String) = job(text(R.string.msg_busy_exporting_to, ext.uppercase())) { eng ->
         val out = tempFile(ext)
-        eng.tool("doc_export_office", mapOf("doc" to doc.id, "path" to out.absolutePath))
+        if (ext == "txt") {
+            // the words of every page, in reading order, a blank line between pages
+            val pages = (0 until doc.pageCount).map { p -> eng.command { pagePlainText(doc.id, p.toUInt()) }.trim() }
+            if (pages.all { it.isEmpty() }) error(text(R.string.msg_no_text_to_export))
+            withContext(Dispatchers.IO) { out.writeText(pages.joinToString("\n\n")) }
+        } else {
+            eng.tool("doc_export_office", mapOf("doc" to doc.id, "path" to out.absolutePath))
+        }
         toolScreen = null
         val mime = when (ext) {
+            "txt" -> "text/plain"
             "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             "rtf" -> "application/rtf"
             "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -2261,6 +2403,35 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         val uri = withContext(Dispatchers.IO) { files.saveToDownloads(out, DocumentFiles.safeName(name)).also { out.delete() } }
         tell(text(R.string.msg_saved_downloads, name))
         open(uri)
+    }
+
+    /**
+     * Text to PDF: [words] (typed or pasted; Markdown headings, lists and emphasis are set as such)
+     * laid out as pages by the Word engine and saved to Downloads as "[name].pdf", then opened.
+     */
+    fun createFromText(name: String, words: String) = job(text(R.string.msg_busy_creating_pdf)) { eng ->
+        val title = name.trim().ifEmpty { words.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty().trim().trimStart('#', ' ').take(40) }.ifEmpty { "Text" }
+        val dir = File(getApplication<Application>().cacheDir, "text-${System.nanoTime()}").apply { mkdirs() }
+        val source = File(dir, "text.md")
+        val out = tempFile("pdf")
+        try {
+            withContext(Dispatchers.IO) { source.writeText(words) }
+            eng.command {
+                val doc = open(source.absolutePath, null)
+                try {
+                    exportOffice(doc.id, "pdf", out.absolutePath)
+                } finally {
+                    runCatching { close(doc.id, true) }
+                }
+            }
+            val file = DocumentFiles.safeName("$title.pdf")
+            val uri = withContext(Dispatchers.IO) { files.saveToDownloads(out, file) }
+            tell(text(R.string.msg_saved_downloads, file))
+            open(uri)
+        } finally {
+            out.delete()
+            dir.deleteRecursively()
+        }
     }
 
     /** Pages [pages] (0-based) of [doc] as a new PDF in Downloads. */
@@ -2526,6 +2697,38 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     /** A note's picture being edited (note id, picture name), over everything. */
     var editingPhoto by mutableStateOf<Pair<String, String>?>(null)
 
+    /** A mind map file (OPML) opened, shown as a map over everything. */
+    internal var previewingMap by mutableStateOf<OpenedMap?>(null)
+
+    /** The map preview closed: back to the app that opened the file, if one did. */
+    fun closeMap() {
+        val map = previewingMap ?: return
+        previewingMap = null
+        if (map.fromOtherApp) leave.trySend(Unit)
+    }
+
+    /** A picture file opened (from Files, Recent or another app), in the photo editor over everything. */
+    var editingImage by mutableStateOf<OpenedImage?>(null)
+
+    /** The photo editor closed on an opened picture: back to the app that opened it, if one did. */
+    fun closeImage() {
+        val image = editingImage ?: return
+        editingImage = null
+        if (image.fromOtherApp) leave.trySend(Unit)
+    }
+
+    /**
+     * The edited picture [file] of [image], saved to Downloads beside the original (which is left as
+     * it was) as "<name> edited.jpg".
+     */
+    suspend fun saveEditedImage(image: OpenedImage, file: File) {
+        runCatching {
+            val name = DocumentFiles.safeName("${image.file.name.substringBeforeLast('.')} edited.jpg")
+            withContext(Dispatchers.IO) { files.saveToDownloads(file, name, "image/jpeg") }
+            tell(text(R.string.msg_saved_downloads, name))
+        }.onFailure { tell(it.userMessage) }
+    }
+
     /** The desk's dock is turning into the open note's toolbar: the toolbar waits, unseen, until it has. */
     var noteBarHidden by mutableStateOf(false)
 
@@ -2580,8 +2783,17 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
 
     /** A new note (or list) straight into the editor. */
     fun newNote(kind: com.chethan616.clearpdf.notes.NoteKind) {
+        if (kind == com.chethan616.clearpdf.notes.NoteKind.Map) return newMindMap(null)
         val items = if (kind == com.chethan616.clearpdf.notes.NoteKind.List) listOf(com.chethan616.clearpdf.notes.checkItem("")) else emptyList()
         openNote = notes.create(kind, items = items).id
+    }
+
+    /** A new mind-map note (of [from], a note's outline seen as a map, or an empty centre) opened to work on. */
+    internal fun newMindMap(from: com.chethan616.clearpdf.ui.notes.MindDoc?) {
+        val doc = from ?: com.chethan616.clearpdf.ui.notes.MindDoc(com.chethan616.clearpdf.ui.notes.MindNode(""))
+        val note = doc.asNote()
+        notes.add(note)
+        openNote = note.id
     }
 
     fun closeNote() {
@@ -2622,13 +2834,155 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
         notePhotoPicks.trySend(Unit)
     }
 
+    /** Asks for an audio file to bring onto the desk as a voice note. */
+    val audioPicks = Channel<Unit>(Channel.CONFLATED)
+
+    fun pickAudio() {
+        audioPicks.trySend(Unit)
+    }
+
+    /**
+     * An audio file (m4a, mp3, wav, ogg…) copied into the notes as a voice note of its own: it
+     * plays, renames, pins and deletes like one recorded here. Its length is read from the file;
+     * its wave is drawn even (the sound isn't analysed).
+     */
+    fun onAudioPicked(uri: Uri?) {
+        uri ?: return
+        viewModelScope.launch {
+            val note = withContext(Dispatchers.IO) {
+                runCatching {
+                    val resolver = getApplication<Application>().contentResolver
+                    val name = resolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                        if (c.moveToFirst() && !c.isNull(0)) c.getString(0) else null
+                    }.orEmpty()
+                    val known = setOf("m4a", "mp3", "wav", "aac", "ogg", "opus", "flac", "amr", "3gp", "mp4")
+                    val ext = name.substringAfterLast('.', "").lowercase().takeIf { it in known } ?: when (resolver.getType(uri)) {
+                        "audio/mpeg" -> "mp3"
+                        "audio/wav", "audio/x-wav" -> "wav"
+                        "audio/ogg" -> "ogg"
+                        else -> "m4a"
+                    }
+                    val f = notes.newMedia(ext)
+                    resolver.openInputStream(uri)?.use { input -> f.outputStream().use { input.copyTo(it) } } ?: error("unreadable")
+                    val retriever = android.media.MediaMetadataRetriever()
+                    val ms = try {
+                        retriever.setDataSource(f.absolutePath)
+                        retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                    } finally {
+                        runCatching { retriever.release() }
+                    }
+                    if (ms <= 0L) {
+                        f.delete()
+                        error("not audio")
+                    }
+                    com.chethan616.clearpdf.notes.Note(
+                        java.util.UUID.randomUUID().toString(), com.chethan616.clearpdf.notes.NoteKind.Voice,
+                        title = name.substringBeforeLast('.').take(80), audio = f.name, durationMs = ms,
+                        wave = List(48) { i -> 0.35f + 0.3f * kotlin.math.abs(kotlin.math.sin(i * 0.9f)) },
+                    )
+                }.getOrNull()
+            }
+            if (note == null) tell(text(R.string.common_file_unreadable))
+            else {
+                notes.add(note)
+                tell(text(R.string.voice_imported))
+            }
+        }
+    }
+
+    /** A voice note's recording saved to Downloads under its name, in the format it is kept in. */
+    fun exportVoice(note: com.chethan616.clearpdf.notes.Note) {
+        val audio = note.audio ?: return
+        viewModelScope.launch {
+            runCatching {
+                var source = notes.file(audio)
+                var ext = audio.substringAfterLast('.', "wav").lowercase()
+                // a recording is kept as WAV: it leaves as m4a (AAC), which every player and chat app takes
+                var converted: File? = null
+                if (ext == "wav") {
+                    val m4a = tempFile("m4a")
+                    if (withContext(Dispatchers.IO) { com.chethan616.clearpdf.notes.wavToM4a(source, m4a) }) {
+                        converted = m4a
+                        source = m4a
+                        ext = "m4a"
+                    }
+                }
+                val mime = when (ext) {
+                    "wav" -> "audio/wav"
+                    "mp3" -> "audio/mpeg"
+                    "ogg", "opus" -> "audio/ogg"
+                    "flac" -> "audio/flac"
+                    else -> "audio/mp4"
+                }
+                val name = (note.title.ifBlank { text(R.string.voice_export_name) }).replace(Regex("""[\\/:*?"<>|]"""), " ").trim() + ".$ext"
+                withContext(Dispatchers.IO) {
+                    // saveToDownloads takes the file it is given: hand it a copy
+                    val copy = tempFile(ext)
+                    source.copyTo(copy, overwrite = true)
+                    try {
+                        files.saveToDownloads(copy, name, mime)
+                    } finally {
+                        copy.delete()
+                        converted?.delete()
+                    }
+                }
+                tell(text(R.string.msg_saved_downloads, name))
+            }.onFailure { tell(it.userMessage) }
+        }
+    }
+
     fun takeNotePhoto() {
         val f = notes.newMedia("jpg")
         noteShot = f
         noteCameraShots.trySend(f)
     }
 
+    /** The Tools tab's Edit photo: a picture is asked for, then opened in the photo editor. */
+    private var photoToolPending = false
+
+    /** The edited picture also goes to Downloads when the editor was opened as a tool. */
+    var photoSaveCopy = false
+
+    fun pickPhotoToEdit() {
+        photoToolPending = true
+        notePhotoPicks.trySend(Unit)
+    }
+
+    /** A copy of the picture just edited, saved to Downloads (only after [pickPhotoToEdit]). */
+    fun savePhotoCopy(file: File) {
+        if (!photoSaveCopy) return
+        photoSaveCopy = false
+        viewModelScope.launch {
+            runCatching {
+                val name = "Artefact photo ${java.text.SimpleDateFormat("yyyy-MM-dd HH-mm-ss", java.util.Locale.ROOT).format(java.util.Date())}.jpg"
+                withContext(Dispatchers.IO) {
+                    val copy = tempFile("jpg")
+                    file.copyTo(copy, overwrite = true)
+                    try {
+                        files.saveToDownloads(copy, name, "image/jpeg")
+                    } finally {
+                        copy.delete()
+                    }
+                }
+                tell(text(R.string.msg_saved_downloads, name))
+            }.onFailure { tell(it.userMessage) }
+        }
+    }
+
     fun onNotePhoto(uri: Uri?) {
+        if (photoToolPending) {
+            // a picture for the editor: it is kept as a note of its own on the desk, and edited there
+            photoToolPending = false
+            uri ?: return
+            viewModelScope.launch {
+                val name = notes.importImage(uri) ?: return@launch tell(text(R.string.common_file_unreadable))
+                val note = com.chethan616.clearpdf.notes.Note(java.util.UUID.randomUUID().toString(), com.chethan616.clearpdf.notes.NoteKind.Text, images = listOf(name))
+                notes.add(note)
+                photoSaveCopy = true
+                editingPhoto = note.id to name
+            }
+            return
+        }
         val id = openNote ?: return
         uri ?: return
         viewModelScope.launch {
@@ -2839,6 +3193,9 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
             FileTool.Protect -> openProtect(doc)
             FileTool.Crop -> openCrop(doc)
             FileTool.Ocr -> recognizeText(doc)
+            FileTool.ToText -> exportDocument(doc, "txt")
+            FileTool.FindFields -> detectFields(doc)
+            FileTool.Unlock -> if (doc.info.encrypted) removePassword(doc) else tell(text(R.string.msg_no_password))
         }
     }
 
@@ -3200,3 +3557,9 @@ private const val MAX_CREATE_FILES = 12
 
 /** A green banner saying a job worked, with the way to undo it. */
 class SuccessBanner(val text: String, val undo: (() -> Unit)?)
+
+/** A picture file opened in the photo editor: where it came from, its working copy, and whether another app handed it over. */
+data class OpenedImage(val uri: Uri, val file: File, val fromOtherApp: Boolean)
+
+/** A mind map file (OPML) opened to look at: where it came from, its name, the map, and whether another app handed it over. */
+internal data class OpenedMap(val uri: Uri, val name: String, val doc: com.chethan616.clearpdf.ui.notes.MindDoc, val fromOtherApp: Boolean)
