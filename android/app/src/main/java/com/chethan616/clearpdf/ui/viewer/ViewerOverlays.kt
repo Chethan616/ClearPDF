@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.viewer
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -458,92 +459,81 @@ fun BoxScope.SelectionHandles(doc: OpenDocument, sel: Selection) {
 }
 
 /**
- * Single page mode's page bar, along the bottom over the pages: a glass capsule holding the page
- * number (a tap opens Go to page) and a track. A tap anywhere on the track goes to that page and a
- * drag runs through the pages under the finger, a light tick at each. The track reads the page from
- * the viewer itself on every touch: the old pill kept the place it had when it was first drawn, so
- * each drag began again from page 1.
+ * Single page mode's scrubber: a liquid glass pill with the page number, riding a hairline along the
+ * bottom. Drag it through the pages (a light tick at each), tap it for Go to page. On every drag the
+ * pill starts from where it is now: it used to start from where it was when it was first drawn, so
+ * each drag jumped back to page 1.
  */
 @Composable
 fun BoxScope.HorizontalScrubber(doc: OpenDocument, visible: Boolean, bottom: Dp, onDrag: () -> Unit, onTap: () -> Unit) {
+    val c = pdfColors
     val v = doc.viewer
-    var dragging by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
     val feel = com.chethan616.clearpdf.ui.glass.rememberFeel()
-    val latestDrag by androidx.compose.runtime.rememberUpdatedState(onDrag)
-    val count = doc.pageCount
-    val page = v.currentPage
-    val pageOf = stringResource(R.string.viewer_page_of, page + 1, count)
-    AnimatedVisibility(visible || dragging, modifier = Modifier.align(Alignment.BottomCenter), enter = fadeIn(tween(150)), exit = fadeOut(tween(300))) {
-        val ink = com.chethan616.clearpdf.ui.glass.rememberGlassInk(clear.ink)
-        Row(
-            Modifier
-                .padding(start = 16.dp, end = 16.dp, bottom = bottom + 10.dp)
-                .widthIn(max = 560.dp)
-                .fillMaxWidth()
-                .height(44.dp)
-                .then(ink.modifier)
-                .glassBar()
-                .padding(start = 6.dp, end = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // the page number; a tap opens Go to page
+    var dragging by remember { mutableStateOf(false) }
+    var dragX by remember { mutableFloatStateOf(0f) }
+    // the pill swells a little under the finger, as the glass buttons do
+    val lift by androidx.compose.animation.core.animateFloatAsState(
+        if (dragging) 1.12f else 1f, com.chethan616.clearpdf.ui.glass.GlassMotion.pop(), label = "scrubLift",
+    )
+    AnimatedVisibility(
+        visible || dragging, modifier = Modifier.align(Alignment.BottomCenter),
+        enter = fadeIn(com.chethan616.clearpdf.ui.glass.Fluid.quick()), exit = fadeOut(com.chethan616.clearpdf.ui.glass.Fluid.fade()),
+    ) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = bottom + 12.dp).height(36.dp)) {
+            val track = with(density) { maxWidth.toPx() }
+            val pillW = with(density) { 52.dp.toPx() }
+            val n = (doc.pageCount - 1).coerceAtLeast(1)
+            val x = if (dragging) dragX else v.currentPage.toFloat() / n * (track - pillW)
+            // read on every drag, not kept from the first composition
+            val now by androidx.compose.runtime.rememberUpdatedState(x)
+            val span by androidx.compose.runtime.rememberUpdatedState((track - pillW).coerceAtLeast(1f))
+            val pageOf = stringResource(R.string.viewer_page_of, v.currentPage + 1, doc.pageCount)
+            val ink = com.chethan616.clearpdf.ui.glass.rememberGlassInk(c.text)
             Box(
-                Modifier.height(36.dp).widthIn(min = 64.dp).clip(RoundedCornerShape(18.dp)).pressable(onTap).padding(horizontal = 10.dp)
+                Modifier.align(Alignment.CenterStart).fillMaxWidth().height(2.dp)
+                    .clip(com.chethan616.clearpdf.ui.glass.ChromeCapsule).background(ink.color.copy(alpha = 0.22f)),
+            )
+            Box(
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .offset { IntOffset(x.roundToInt(), 0) }
+                    .graphicsLayer {
+                        scaleX = lift
+                        scaleY = lift
+                    }
+                    .size(52.dp, 32.dp)
+                    .then(ink.modifier)
+                    .glassBar(com.chethan616.clearpdf.ui.glass.ChromeCapsule)
+                    .pointerInput(doc) { detectTapGestures(onTap = { onTap() }) }
+                    .pointerInput(doc) {
+                        detectDragGestures(
+                            onDragStart = {
+                                dragX = now
+                                dragging = true
+                                feel(com.chethan616.clearpdf.ui.glass.Feel.Press)
+                            },
+                            onDragEnd = { dragging = false },
+                            onDragCancel = { dragging = false },
+                        ) { change, d ->
+                            change.consume()
+                            dragX = (dragX + d.x).coerceIn(0f, span)
+                            val page = (dragX / span * (doc.pageCount - 1).coerceAtLeast(1)).roundToInt()
+                            if (page != v.currentPage) {
+                                v.goToPage(page)
+                                feel(com.chethan616.clearpdf.ui.glass.Feel.Tick)
+                            }
+                            onDrag()
+                        }
+                    }
                     .semantics { contentDescription = pageOf },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("${page + 1} / $count", color = ink.color, fontSize = 14.sp, maxLines = 1)
-            }
-            Spacer(Modifier.width(6.dp))
-            val fraction = if (count > 1) page.toFloat() / (count - 1) else 0f
-            val anim by androidx.compose.animation.core.animateFloatAsState(fraction, com.chethan616.clearpdf.ui.glass.GlassMotion.settle(), label = "pageBar")
-            Box(
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .pointerInput(doc, count) {
-                        // the page at a point of the track: the track's own width, read on each touch
-                        fun pageAt(x: Float): Int {
-                            val r = 11.dp.toPx()
-                            val f = ((x - r) / (size.width - 2 * r).coerceAtLeast(1f)).coerceIn(0f, 1f)
-                            return (f * (count - 1)).roundToInt()
-                        }
-                        fun show(p: Int) {
-                            if (p != v.currentPage) {
-                                v.goToPage(p)
-                                feel(com.chethan616.clearpdf.ui.glass.Feel.Tick)
-                            }
-                            latestDrag()
-                        }
-                        awaitEachGesture {
-                            val down = awaitFirstDown()
-                            dragging = true
-                            down.consume()
-                            show(pageAt(down.position.x))
-                            while (true) {
-                                val e = awaitPointerEvent()
-                                val ch = e.changes.firstOrNull { it.id == down.id } ?: break
-                                if (!ch.pressed) break
-                                ch.consume()
-                                show(pageAt(ch.position.x))
-                            }
-                            dragging = false
-                        }
-                    },
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(22.dp)) {
-                    val r = size.height / 2f
-                    val y = size.height / 2f
-                    val x = r + anim * (size.width - 2 * r)
-                    val thick = 4.dp.toPx()
-                    // the track, the part read in the accent, the thumb
-                    drawLine(ink.color.copy(alpha = 0.18f), Offset(r, y), Offset(size.width - r, y), thick, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                    drawLine(com.chethan616.clearpdf.ui.theme.Candy.Sky, Offset(r, y), Offset(x, y), thick, cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                    drawCircle(Color.Black.copy(alpha = 0.18f), r, Offset(x, y + 1.dp.toPx()))
-                    drawCircle(Color.White, r - 1.dp.toPx(), Offset(x, y))
-                    drawCircle(com.chethan616.clearpdf.ui.theme.Candy.Sky, r * 0.38f, Offset(x, y))
-                }
+                Text(
+                    "${v.currentPage + 1}",
+                    style = com.chethan616.clearpdf.ui.theme.ClearType.Label.copy(fontWeight = FontWeight.SemiBold),
+                    color = ink.color,
+                )
             }
         }
     }

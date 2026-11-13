@@ -106,6 +106,9 @@ import com.chethan616.clearpdf.ui.glass.LocalGlassInk
 import com.chethan616.clearpdf.ui.glass.LocalGlassOverlayHost
 import com.chethan616.clearpdf.ui.glass.LocalScreenInk
 import com.chethan616.clearpdf.ui.glass.RoundedRectangle
+import com.chethan616.clearpdf.ui.theme.ClearType
+import com.chethan616.clearpdf.ui.theme.Candy
+import com.chethan616.clearpdf.ui.glass.glassBar
 import com.chethan616.clearpdf.ui.glass.glass
 import com.chethan616.clearpdf.ui.glass.rememberGlassInk
 import com.chethan616.clearpdf.ui.theme.clear
@@ -476,7 +479,11 @@ fun DrawScope.drawReadAloud(doc: OpenDocument, r: ReadAloud) {
     mark(r.wordRects, Color(0xFFF8D904), 1.5f * density)
 }
 
-/** The minimized read-aloud player: document, speed, live wave, skip, play/pause, and stop. */
+/**
+ * The read-aloud player, docked over the page: the app's glass bar (as the viewer's toolbar), the
+ * voice's sign in the accent beside the document's name and where it has got to, the speed, the
+ * live wave of progress, and the transport (back 15, play or pause, forward 15, stop).
+ */
 @Composable
 fun BoxScope.ReadAloudBar(doc: OpenDocument, r: ReadAloud) {
     var speeds by remember { mutableStateOf(false) }
@@ -488,46 +495,55 @@ fun BoxScope.ReadAloudBar(doc: OpenDocument, r: ReadAloud) {
             .navigationBarsPadding()
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .then(ink.modifier)
-            .glass(RoundedRectangle(28.dp), wash = Color.White.copy(alpha = 0.12f), blur = 18.dp)
-            .padding(horizontal = 10.dp, vertical = 9.dp),
+            .glassBar(RoundedRectangle(30.dp))
+            .padding(start = 14.dp, end = 12.dp, top = 12.dp, bottom = 10.dp),
     ) {
         CompositionLocalProvider(LocalGlassInk provides ink.color) {
             Column(Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(doc.title, color = LocalGlassInk.current, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(stringResource(R.string.common_tool_read_aloud), color = LocalGlassInk.current.copy(alpha = 0.62f), fontSize = 11.sp, maxLines = 1)
+                    Box(Modifier.size(36.dp).clip(CircleShape).background(Candy.Sky), contentAlignment = Alignment.Center) {
+                        Icon(LucideIcons.AudioLines, null, tint = Color.White, modifier = Modifier.size(18.dp))
                     }
-                }
-                Spacer(Modifier.height(7.dp))
-                WavyProgressTrack(r.progress, Modifier.fillMaxWidth().height(9.dp))
-                Spacer(Modifier.height(7.dp))
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(doc.title, style = ClearType.BodyStrong, color = LocalGlassInk.current, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            stringResource(R.string.common_tool_read_aloud) + "  ·  " + stringResource(R.string.viewer_page_of, r.page + 1, doc.info.pages.size),
+                            style = ClearType.Caption, color = LocalGlassInk.current.copy(alpha = 0.62f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
                     Box {
                         GlassPill(
                             onClick = { speeds = true },
                             modifier = Modifier.onGloballyPositioned { speedAnchor = it.boundsInWindow() },
-                            height = 42.dp,
-                            horizontalPadding = 10.dp,
+                            height = 36.dp,
+                            horizontalPadding = 12.dp,
                             label = stringResource(R.string.read_aloud_speed),
                         ) {
-                            Text(speedLabel(r.speed), color = LocalGlassInk.current, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(speedLabel(r.speed), style = ClearType.Label.copy(fontWeight = FontWeight.SemiBold), color = LocalGlassInk.current)
                         }
                         if (speeds) SpeedMenu(speedAnchor, r) { speeds = false }
                     }
-                    SkipButton(back = true, size = 44.dp) { r.skip(false) }
+                }
+                Spacer(Modifier.height(10.dp))
+                WavyProgressTrack(r.progress, Modifier.fillMaxWidth().padding(horizontal = 4.dp).height(9.dp))
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally)) {
+                    SkipButton(back = true, size = 46.dp) { r.skip(false) }
                     GlassCircle(
                         onClick = { if (r.playing) r.pause() else r.play() },
-                        size = 52.dp,
-                        tint = Color(0xFF1683FF),
+                        size = 56.dp,
+                        tint = Candy.Sky,
                         label = stringResource(if (r.playing) R.string.common_pause else if (r.finished) R.string.read_aloud_read_again else R.string.common_play),
                     ) { GlassIcon(if (r.playing) LucideIcons.Pause else LucideIcons.Play, null, Modifier.size(25.dp), tint = Color.White) }
-                    SkipButton(back = false, size = 44.dp) { r.skip(true) }
-                    GlassCircle(onClick = r::stop, size = 38.dp, label = stringResource(R.string.read_aloud_stop_reading)) {
-                        GlassIcon(LucideIcons.Square, null, Modifier.size(16.dp))
-                    }
+                    SkipButton(back = false, size = 46.dp) { r.skip(true) }
                 }
-                r.problem?.let { Text(it, color = Color(0xFFFF625D), fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp)) }
+                r.problem?.let { Text(it, style = ClearType.Caption, color = Candy.Tomato, modifier = Modifier.padding(top = 6.dp)) }
+            }
+            // stop sits in the corner, away from play
+            GlassCircle(onClick = r::stop, size = 34.dp, label = stringResource(R.string.read_aloud_stop_reading), modifier = Modifier.align(Alignment.BottomEnd)) {
+                GlassIcon(LucideIcons.Square, null, Modifier.size(13.dp))
             }
         }
     }
@@ -536,7 +552,7 @@ fun BoxScope.ReadAloudBar(doc: OpenDocument, r: ReadAloud) {
 /** Material 3 Expressive's animated wave, tinted to the player rather than the app theme. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun WavyProgressTrack(progress: Float, modifier: Modifier, accent: Color = Color(0xFF1683FF)) {
+private fun WavyProgressTrack(progress: Float, modifier: Modifier, accent: Color = Candy.Sky) {
     val animatedProgress by animateFloatAsState(progress.coerceIn(0f, 1f), animationSpec = tween(360), label = "readAloudProgress")
     LinearWavyProgressIndicator(
         progress = { animatedProgress },

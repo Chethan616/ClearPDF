@@ -60,6 +60,50 @@ pub struct SheetPicture {
     pub data: Vec<u8>,
 }
 
+/// A chart floating over a sheet: where it sits (as a picture is), its own size in points, and
+/// GridCraft's layout of it as drawing steps (`gridcraft_chart::Prim`, JSON) in those points.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct SheetChart {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub chart_width: f32,
+    pub chart_height: f32,
+    pub prims: String,
+}
+
+/// Text widths for chart layout: a sans-serif's average advance, close to the phone's own.
+struct PhoneMeasure;
+
+impl gridcraft_chart::Measure for PhoneMeasure {
+    fn text_width(&self, text: &str, size: f32, bold: bool) -> f32 {
+        text.chars()
+            .map(|c| {
+                if c.is_ascii_uppercase() || c.is_ascii_digit() {
+                    0.6
+                } else if c.is_ascii() {
+                    0.5
+                } else {
+                    0.9
+                }
+            })
+            .sum::<f32>()
+            * size
+            * if bold { 1.06 } else { 1.0 }
+    }
+}
+
+/// What a selection of cells holds (see `SheetBook::stats`).
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct SheetStats {
+    pub filled: u32,
+    pub numbers: u32,
+    pub sum: f64,
+    pub min: f64,
+    pub max: f64,
+}
+
 /// A cell as the grid draws it: the text it shows, in its looks. Colours are `0xRRGGBB`.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct CellView {
@@ -133,8 +177,12 @@ impl SheetBook {
         let name = crate::office::file_name(path);
         let stem = std::path::Path::new(&name).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         let encrypted = gridcraft_xlsx::sniff(bytes) == gridcraft_xlsx::Format::Encrypted;
-        let (wb, _warnings) =
+        let (mut wb, _warnings) =
             gridcraft_engine::io::open_bytes_with_password(&format!("{stem}.{ext}"), bytes, password).map_err(|e| open_error(e.to_string()))?;
+        // GridCraft's .xls reader leaves pictures and charts out: they are read here
+        if matches!(ext, "xls" | "xlt") && !encrypted {
+            crate::xls_art::import(bytes, &mut wb);
+        }
         // the desktop app's document: computed on open (values the file left stale are brought up to
         // date), with its selection and undo history
         let mut session = gridcraft_engine::Session::new();
@@ -164,6 +212,44 @@ impl SheetBook {
         s.execute("sheet.activate", serde_json::json!({ "sheet": name })).map_err(err)?;
         s.execute("selection.set", serde_json::json!({ "range": range.a1(), "active": range.start.a1() })).map_err(err)?;
         s.execute(command, params).map_err(err)
+    }
+
+    /// What a selection holds, for the line under the formula bar: how many cells have something
+    /// in them, how many of those are numbers, and the numbers' sum, smallest and largest. Only the
+    /// part of `area` the sheet uses is read (a whole column is its used rows), two million cells at most.
+    pub(crate) fn stats(&self, sheet: u32, area: CellSpan) -> Result<SheetStats, MobileError> {
+        let wb = self.wb();
+        let s = self.sheet_in(&wb, sheet)?;
+        let mut out = SheetStats { filled: 0, numbers: 0, sum: 0.0, min: 0.0, max: 0.0 };
+        let Some(used) = s.used_range() else { return Ok(out) };
+        let (r0, r1) = (area.row0.max(used.start.row), area.row1.min(used.end.row));
+        let (c0, c1) = (area.col0.max(used.start.col), area.col1.min(used.end.col));
+        let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
+        let mut budget = 2_000_000u32;
+        'rows: for r in r0..=r1 {
+            for c in c0..=c1 {
+                budget = budget.saturating_sub(1);
+                if budget == 0 {
+                    break 'rows;
+                }
+                match s.value_ref(CellRef::new(r, c)) {
+                    None | Some(gridcraft_engine::core::Value::Empty) => {}
+                    Some(gridcraft_engine::core::Value::Number(n)) if n.is_finite() => {
+                        out.filled += 1;
+                        out.numbers += 1;
+                        out.sum += n;
+                        lo = lo.min(*n);
+                        hi = hi.max(*n);
+                    }
+                    Some(_) => out.filled += 1,
+                }
+            }
+        }
+        if out.numbers > 0 {
+            out.min = lo;
+            out.max = hi;
+        }
+        Ok(out)
     }
 
     /// What the formula bar shows for a cell: its formula (`=SUM(A1:A3)`), else its value as typed.
@@ -432,6 +518,31 @@ impl SheetBook {
                 width: i.anchor.width * PT,
                 height: i.anchor.height * PT,
                 data: (*i.data).clone(),
+            })
+            .collect())
+    }
+
+    /// The charts over sheet `sheet`: each laid out by GridCraft (from the workbook's values) at its
+    /// anchor's size, placed in points from A1 as the pictures are.
+    pub(crate) fn charts(&self, sheet: u32) -> Result<Vec<SheetChart>, MobileError> {
+        let wb = self.wb();
+        let s = self.sheet_in(&wb, sheet)?;
+        Ok(s.charts
+            .iter()
+            .filter(|c| c.anchor.width >= 8.0 && c.anchor.height >= 8.0)
+            .take(32)
+            .filter_map(|c| {
+                let data = gridcraft_chart::resolve(&wb, sheet as usize, c);
+                let prims = gridcraft_chart::render(c, &data, c.anchor.width, c.anchor.height, &PhoneMeasure);
+                Some(SheetChart {
+                    x: (s.col_left(c.anchor.cell.col) as f32 + c.anchor.dx) * PT,
+                    y: (s.row_top(c.anchor.cell.row) as f32 + c.anchor.dy) * PT,
+                    width: c.anchor.width * PT,
+                    height: c.anchor.height * PT,
+                    chart_width: c.anchor.width,
+                    chart_height: c.anchor.height,
+                    prims: serde_json::to_string(&prims).ok()?,
+                })
             })
             .collect())
     }

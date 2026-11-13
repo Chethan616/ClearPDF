@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui.sheets
 
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -229,8 +230,19 @@ class SheetGridState internal constructor(private val eng: Engine, private val d
     internal var pictures by mutableStateOf<List<SheetImage>>(emptyList())
     var scale by mutableStateOf(1f)
     var pan by mutableStateOf(Offset.Zero)
-    /** The chosen cell, if one is. */
+    /** What is chosen: a cell, or a range of cells. */
     var selected by mutableStateOf<CellSpan?>(null)
+    /** The cell the choice began from (the one the formula bar shows and typing goes into), inside [selected]. */
+    var active by mutableStateOf<CellSpan?>(null)
+
+    /** Choose [cell] alone (null: nothing). */
+    fun choose(cell: CellSpan?) {
+        selected = cell
+        active = cell
+    }
+
+    /** Whether more than one cell is chosen. */
+    val isRange: Boolean get() = selected != null && selected != active
     var hits by mutableStateOf<List<CellSpan>>(emptyList())
     var hit by mutableIntStateOf(0)
     /** Bumped when the workbook changed: the layout and cells are fetched again. */
@@ -245,7 +257,7 @@ class SheetGridState internal constructor(private val eng: Engine, private val d
     fun show(index: Int) {
         if (index == current) return
         layout = null
-        selected = null
+        choose(null)
         hits = emptyList()
         pan = Offset.Zero
         pictures = emptyList()
@@ -281,6 +293,9 @@ class SheetGridState internal constructor(private val eng: Engine, private val d
                     while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 1600) sample *= 2
                     val bitmap = android.graphics.BitmapFactory.decodeByteArray(p.data, 0, p.data.size, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample })
                     bitmap?.let { SheetImage(p.x, p.y, p.width, p.height, it.asImageBitmap()) }
+                } + sheetCharts(docId, sheet.toUInt()).mapNotNull { c ->
+                    // charts are painted from GridCraft's layout, sharp enough to zoom into
+                    paintChart(c.prims, c.chartWidth, c.chartHeight, scale = 3f)?.let { SheetImage(c.x, c.y, c.width, c.height, it.asImageBitmap()) }
                 }
             }
         }.getOrDefault(emptyList()).takeIf { sheet == current }.orEmpty()
@@ -418,6 +433,8 @@ fun SheetGrid(
     modifier: Modifier = Modifier,
     top: Float = 0f,
     onCell: ((CellSpan?) -> Unit)? = null,
+    /** A range was chosen or changed (a drag, a long press, a column or row heading). */
+    onRange: (() -> Unit)? = null,
 ) {
     val c = pdfColors
     val sheetSurface = if (c.dark) Color(0xFF18192F) else Color.White
@@ -455,7 +472,7 @@ fun SheetGrid(
             val x = if (col < fc) state.pan.x else -(l.colX[col] - l.colX[minOf(fc, l.cols)]) * k + 24 * px
             val y = if (r < fr) state.pan.y else -(l.rowY[r] - l.rowY[minOf(fr, l.rows)]) * k + 24 * px
             state.pan = Offset(x.coerceAtMost(0f), y.coerceAtMost(0f))
-            state.selected = h
+            state.choose(h)
         }
         // The bars over the grid grow and shrink (the formula bar comes with a chosen cell, the search
         // field with Find), moving where the grid starts. The gestures below live as long as the
@@ -463,6 +480,8 @@ fun SheetGrid(
         // to be measured against the old room, and chose a cell a few rows off the one touched.
         val room = androidx.compose.runtime.rememberUpdatedState(top)
         val tapped = androidx.compose.runtime.rememberUpdatedState(onCell)
+        val ranged = androidx.compose.runtime.rememberUpdatedState(onRange)
+        val feel = com.chethan616.clearpdf.ui.glass.rememberFeel()
         // ... and the cells stay where they were on the screen while the bars change over them
         val lastTop = remember(l) { floatArrayOf(top) }
         androidx.compose.runtime.SideEffect {
@@ -471,6 +490,20 @@ fun SheetGrid(
                 lastTop[0] = top
                 state.pan = Offset(state.pan.x, (state.pan.y - d).coerceAtMost(0f))
             }
+        }
+        // the cell typed into stays in sight: the bars that come with a choice can cover it, so the
+        // sheet moves just enough to show it under them (a moment after, once they have settled)
+        LaunchedEffect(state.active, l) {
+            val a = state.active ?: return@LaunchedEffect
+            kotlinx.coroutines.delay(60)
+            val k = px * state.scale
+            val headH = HEAD_H * k.coerceAtMost(px * 1.5f)
+            val fr = minOf(l.info.frozenRows.toInt(), l.rows)
+            val r = a.row0.toInt()
+            if (r < fr || r >= l.rows) return@LaunchedEffect
+            val y = headH + l.rowY[r] * k + state.pan.y
+            val clear = headH + l.rowY[fr] * k
+            if (y < clear) state.pan = Offset(state.pan.x, (state.pan.y + clear - y + 6f * px).coerceAtMost(0f))
         }
         // the cell under a point of the canvas (null: a heading strip)
         fun cellAt(p: Offset): CellSpan? {
@@ -486,6 +519,28 @@ fun SheetGrid(
             val row = if (gy < l.rowY[fr] * k) l.indexAt(l.rowY, gy / k) else l.indexAt(l.rowY, (gy - state.pan.y) / k)
             return l.spanAt(row, col) ?: CellSpan(row.toUInt(), col.toUInt(), row.toUInt(), col.toUInt())
         }
+        // a column's letter or a row's number: the whole column or row
+        fun headingAt(p: Offset): CellSpan? {
+            val k = px * state.scale
+            val head = Offset(HEAD_W * k.coerceAtMost(px * 1.5f), HEAD_H * k.coerceAtMost(px * 1.5f))
+            val y = p.y - room.value
+            val fr = minOf(l.info.frozenRows.toInt(), l.rows)
+            val fc = minOf(l.info.frozenCols.toInt(), l.cols)
+            return when {
+                y < 0f -> null
+                y < head.y && p.x >= head.x -> {
+                    val gx = p.x - head.x
+                    val col = if (gx < l.colX[fc] * k) l.indexAt(l.colX, gx / k) else l.indexAt(l.colX, (gx - state.pan.x) / k)
+                    CellSpan(0u, col.toUInt(), (l.rows - 1).toUInt(), col.toUInt())
+                }
+                p.x < head.x && y >= head.y -> {
+                    val gy = y - head.y
+                    val row = if (gy < l.rowY[fr] * k) l.indexAt(l.rowY, gy / k) else l.indexAt(l.rowY, (gy - state.pan.y) / k)
+                    CellSpan(row.toUInt(), 0u, row.toUInt(), (l.cols - 1).toUInt())
+                }
+                else -> null
+            }
+        }
         val flinger = remember { arrayOfNulls<kotlinx.coroutines.Job>(1) }
         Canvas(
             Modifier
@@ -496,8 +551,109 @@ fun SheetGrid(
                     // cell edits it), where waiting made every tap land a third of a second late
                     detectTapGestures(
                         onPress = { flinger[0]?.cancel() },
-                        onTap = { p -> tapped.value?.invoke(cellAt(p)) },
+                        onTap = { p ->
+                            val whole = headingAt(p)
+                            if (whole != null) {
+                                state.selected = whole
+                                state.active = CellSpan(whole.row0, whole.col0, whole.row0, whole.col0)
+                                feel(com.chethan616.clearpdf.ui.glass.Feel.Tick)
+                                ranged.value?.invoke()
+                            } else {
+                                tapped.value?.invoke(cellAt(p))
+                            }
+                        },
                     )
+                }
+                .pointerInput(l) {
+                    // A range, as Sheets and Excel take one on a phone: drag a handle of the choice to
+                    // stretch it (the opposite corner stays), or hold a cell and drag from it. The sheet
+                    // scrolls when the finger reaches its edge. These touches are taken from the pan.
+                    val slop = viewConfiguration.touchSlop
+                    val hold = viewConfiguration.longPressTimeoutMillis
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val k = px * state.scale
+                        val sel = state.selected
+                        var anchor: Pair<Int, Int>? = null
+                        if (sel != null) {
+                            val a = sheetCorner(l, state, k, px, sel.row0.toInt(), sel.col0.toInt()) + Offset(0f, room.value)
+                            val b = sheetCorner(l, state, k, px, sel.row1.toInt() + 1, sel.col1.toInt() + 1) + Offset(0f, room.value)
+                            val reach = 26f * px
+                            anchor = when {
+                                (down.position - b).getDistance() <= reach -> sel.row0.toInt() to sel.col0.toInt()
+                                (down.position - a).getDistance() <= reach -> sel.row1.toInt() to sel.col1.toInt()
+                                else -> null
+                            }
+                        }
+                        if (anchor != null) {
+                            down.consume()
+                            feel(com.chethan616.clearpdf.ui.glass.Feel.Press)
+                        } else {
+                            // held still long enough: a long press (lifted, moved or pinched first: not one)
+                            val ended = withTimeoutOrNull(hold) {
+                                while (true) {
+                                    val e = awaitPointerEvent()
+                                    val ch = e.changes.firstOrNull { it.id == down.id }
+                                    if (ch == null || !ch.pressed || e.changes.count { it.pressed } > 1 || (ch.position - down.position).getDistance() > slop) break
+                                }
+                                true
+                            }
+                            if (ended != null) return@awaitEachGesture
+                            val cell = cellAt(down.position) ?: return@awaitEachGesture
+                            anchor = cell.row0.toInt() to cell.col0.toInt()
+                            state.choose(cell)
+                            feel(com.chethan616.clearpdf.ui.glass.Feel.Press)
+                            ranged.value?.invoke()
+                        }
+                        val (ar, ac) = anchor
+                        val edge = 28f * px
+                        var travelled = false
+                        while (true) {
+                            val e = awaitPointerEvent()
+                            val ch = e.changes.firstOrNull { it.id == down.id } ?: break
+                            e.changes.forEach { it.consume() }
+                            if (!ch.pressed) break
+                            // the sheet scrolls only once the finger has set off, not from where it landed
+                            if (!travelled && (ch.position - down.position).getDistance() > slop) travelled = true
+                            val kk = px * state.scale
+                            val head = Offset(HEAD_W * kk.coerceAtMost(px * 1.5f), HEAD_H * kk.coerceAtMost(px * 1.5f))
+                            val top0 = room.value + head.y
+                            // at an edge the sheet moves under the finger
+                            val dx = when {
+                                !travelled -> 0f
+                                ch.position.x > size.width - edge -> -16f * px
+                                ch.position.x < head.x + edge && state.pan.x < 0f -> 16f * px
+                                else -> 0f
+                            }
+                            val dy = when {
+                                !travelled -> 0f
+                                ch.position.y > size.height - edge -> -16f * px
+                                ch.position.y < top0 + edge && state.pan.y < 0f -> 16f * px
+                                else -> 0f
+                            }
+                            if (dx != 0f || dy != 0f) {
+                                val maxX = (l.colX.last() * kk - size.width + 120 * px).coerceAtLeast(0f)
+                                val maxY = (l.rowY.last() * kk - size.height + 160 * px).coerceAtLeast(0f)
+                                state.pan = Offset((state.pan.x + dx).coerceIn(-maxX, 0f), (state.pan.y + dy).coerceIn(-maxY, 0f))
+                            }
+                            val p = Offset(ch.position.x.coerceIn(head.x + 1f, size.width - 1f), ch.position.y.coerceIn(top0 + 1f, size.height - 1f))
+                            val at = cellAt(p) ?: continue
+                            val span = CellSpan(
+                                minOf(ar, at.row0.toInt()).toUInt(), minOf(ac, at.col0.toInt()).toUInt(),
+                                maxOf(ar, at.row1.toInt()).toUInt(), maxOf(ac, at.col1.toInt()).toUInt(),
+                            )
+                            if (span != state.selected) {
+                                state.selected = span
+                                // the cell typed into stays inside the choice: the corner held still, if it left
+                                val act = state.active
+                                if (act == null || act.row0 !in span.row0..span.row1 || act.col0 !in span.col0..span.col1) {
+                                    state.active = CellSpan(ar.toUInt(), ac.toUInt(), ar.toUInt(), ac.toUInt())
+                                }
+                                feel(com.chethan616.clearpdf.ui.glass.Feel.Tick)
+                                ranged.value?.invoke()
+                            }
+                        }
+                    }
                 },
         ) {
             translate(top = top) {
@@ -533,9 +689,18 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
         with(density) { ((if (searching) 56.dp else 0.dp) + (if (grid.selected != null) 56.dp else 0.dp)).toPx() }
 
     // the chosen cell's contents, for the formula bar
-    LaunchedEffect(grid.selected, grid.version) {
-        val s = grid.selected ?: return@LaunchedEffect
+    LaunchedEffect(grid.active, grid.version) {
+        val s = grid.active ?: return@LaunchedEffect
         input = runCatching { eng.command { sheetInput(doc.id, grid.current.toUInt(), s.row0, s.col0) } }.getOrDefault("")
+    }
+    // a range's sum, average and count, as a spreadsheet's status bar gives them (a moment after it settles)
+    var stats by remember { mutableStateOf<com.chethan616.clearpdf.core.SheetStats?>(null) }
+    LaunchedEffect(grid.selected, grid.version, grid.current) {
+        stats = null
+        val s = grid.selected ?: return@LaunchedEffect
+        if (!grid.isRange) return@LaunchedEffect
+        delay(120)
+        stats = runCatching { eng.command { sheetStats(doc.id, grid.current.toUInt(), s) } }.getOrNull()
     }
     // live debounced search across the active sheet
     LaunchedEffect(query, grid.current, searching) {
@@ -564,7 +729,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
         }
     }
     fun commit() {
-        val s = grid.selected ?: return
+        val s = grid.active ?: grid.selected ?: return
         editing = false
         scope.launch {
             runCatching { eng.command { sheetSetCell(doc.id, grid.current.toUInt(), s.row0, s.col0, input) } }
@@ -574,18 +739,25 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
     }
 
     val backdrop = rememberLayerBackdrop()
+    val gridFocus = androidx.compose.ui.platform.LocalFocusManager.current
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().layerBackdrop(backdrop)) {
             SheetGrid(
                 grid, top = topPx,
                 onCell = { cell ->
+                    // a tap on the sheet takes the focus from the search field (and its cursor)
+                    if (searching) gridFocus.clearFocus()
                     // a tap chooses the cell; a tap on the chosen cell opens it for typing
-                    if (cell != null && cell == grid.selected) editing = true
+                    if (cell != null && cell == grid.selected && !grid.isRange) editing = true
                     else {
                         if (cell != null) feel(com.chethan616.clearpdf.ui.glass.Feel.Tick)
-                        grid.selected = cell
+                        grid.choose(cell)
                         editing = false
                     }
+                },
+                onRange = {
+                    if (searching) gridFocus.clearFocus()
+                    editing = false
                 },
             )
         }
@@ -622,7 +794,19 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                 }
                 if (searching) {
                     val searchFocus = remember { FocusRequester() }
+                    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
                     LaunchedEffect(Unit) { searchFocus.requestFocus() }
+                    // the field lets go once the keyboard is put away, so no cursor is left blinking over the sheet
+                    @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+                    val imeOpen = WindowInsets.isImeVisible
+                    var imeWasOpen by remember { mutableStateOf(false) }
+                    LaunchedEffect(imeOpen) {
+                        if (imeOpen) imeWasOpen = true
+                        else if (imeWasOpen) {
+                            imeWasOpen = false
+                            focusManager.clearFocus()
+                        }
+                    }
                     val findLabel = stringResource(R.string.viewer_find_in_document)
                     val clearLabel = stringResource(R.string.common_clear)
                     val qTrim = query.trim()
@@ -661,6 +845,7 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                                 cursorBrush = SolidColor(if (notFound) Candy.Tomato else Candy.Sky),
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                 keyboardActions = KeyboardActions(onSearch = {
+                                    focusManager.clearFocus()
                                     val q = query.trim()
                                     scope.launch {
                                         grid.hits = if (q.isEmpty()) emptyList() else runCatching {
@@ -753,11 +938,26 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                             .padding(horizontal = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        val range = grid.isRange
                         Box(Modifier.padding(4.dp).glassBar(surface = Candy.Sky.copy(alpha = 0.22f)).padding(horizontal = 10.dp, vertical = 6.dp)) {
-                            Text(columnName(cell.col0.toInt()) + (cell.row0.toInt() + 1), style = ClearType.Label, color = LocalGlassInk.current)
+                            Text(rangeName(cell, grid.layout, range), style = ClearType.Label, color = LocalGlassInk.current, maxLines = 1)
+                        }
+                        if (range) {
+                            // what the range holds: its numbers added up and averaged, and its filled cells counted
+                            val st = stats
+                            val nf = remember { java.text.NumberFormat.getNumberInstance().apply { maximumFractionDigits = 2 } }
+                            Text(
+                                when {
+                                    st == null -> ""
+                                    st.numbers > 0u -> stringResource(R.string.sheet_stats, nf.format(st.sum), nf.format(st.sum / st.numbers.toDouble()), st.filled.toInt())
+                                    else -> stringResource(R.string.sheet_stats_count, st.filled.toInt())
+                                },
+                                style = ClearType.Label, color = LocalGlassInk.current, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                            )
                         }
                         // the cell's hyperlink, one tap away (a place in the workbook, or a web or mail address)
-                        val link = if (editing) null else grid.linkAt(cell.row0.toInt(), cell.col0.toInt())
+                        val link = if (editing || range) null else grid.linkAt(cell.row0.toInt(), cell.col0.toInt())
                         if (link != null) {
                             Box(
                                 Modifier.padding(end = 4.dp).height(36.dp).clip(Capsule).background(Candy.Sky)
@@ -771,7 +971,9 @@ fun SheetViewer(vm: AppViewModel, doc: OpenDocument) {
                                 }
                             }
                         }
-                        if (editing) {
+                        if (range) {
+                            Unit
+                        } else if (editing) {
                             val focus = remember { androidx.compose.ui.focus.FocusRequester() }
                             LaunchedEffect(Unit) { focus.requestFocus() }
                             GlassTextField(
@@ -1027,7 +1229,23 @@ private fun DrawScope.drawSheet(
                 val cEnd = minOf(f.col1.toInt(), l.cols - 1)
                 if (rEnd >= r0 && r < r1 && cEnd >= c0 && col < c1) {
                     val box = Rect(x(col), y(r), x(cEnd + 1), y(rEnd + 1))
-                    drawRect(accent.copy(alpha = 0.08f), box.topLeft, box.size)
+                    val act = state.active
+                    if (act != null && act != f) {
+                        // a range: tinted, the cell it began from left clear and ringed, as a spreadsheet shows one
+                        val hole = Rect(
+                            x(act.col0.toInt()), y(act.row0.toInt()),
+                            x(minOf(act.col1.toInt(), l.cols - 1) + 1), y(minOf(act.row1.toInt(), l.rows - 1) + 1),
+                        )
+                        val tint = androidx.compose.ui.graphics.Path().apply {
+                            fillType = androidx.compose.ui.graphics.PathFillType.EvenOdd
+                            addRect(box)
+                            addRect(hole)
+                        }
+                        drawPath(tint, accent.copy(alpha = 0.13f))
+                        drawRect(accent, hole.topLeft, hole.size, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5f * density))
+                    } else {
+                        drawRect(accent.copy(alpha = 0.08f), box.topLeft, box.size)
+                    }
                     drawRect(accent, box.topLeft, box.size, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f * density))
                 }
             }
@@ -1141,6 +1359,18 @@ private fun DrawScope.drawSheet(
     region(Rect(head.x + frozenW, head.y, size.width, head.y + frozenH), head, 0, fr, fc, l.cols, scrollX = true, scrollY = false)
     region(Rect(head.x, head.y + frozenH, head.x + frozenW, size.height), head, fr, l.rows, 0, fc, scrollX = false, scrollY = true)
     region(Rect(head.x, head.y, head.x + frozenW, head.y + frozenH), head, 0, fr, 0, fc, scrollX = false, scrollY = false)
+    // the choice's two handles, to drag it bigger or smaller (as on Sheets and Excel for phones)
+    selected?.let { f ->
+        val a = sheetCorner(l, state, k, density, f.row0.toInt(), f.col0.toInt())
+        val b = sheetCorner(l, state, k, density, f.row1.toInt() + 1, f.col1.toInt() + 1)
+        clipRect(head.x, head.y, size.width, size.height) {
+            for (p in listOf(a, b)) {
+                drawCircle(Color.Black.copy(alpha = 0.12f), 9f * density, p + Offset(0f, 1.5f * density))
+                drawCircle(Color.White, 8f * density, p)
+                drawCircle(accent, 8f * density, p, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f * density))
+            }
+        }
+    }
     val frozenDivider = if (dark) Color(0xFF777D9A) else Color(0xFF9AA3B2)
     if (fr > 0) drawLine(frozenDivider, Offset(head.x, head.y + frozenH), Offset(size.width, head.y + frozenH), density)
     if (fc > 0) drawLine(frozenDivider, Offset(head.x + frozenW, head.y), Offset(head.x + frozenW, size.height), density)
@@ -1234,6 +1464,8 @@ private fun Modifier.panZoomFling(
                 val event = awaitPointerEvent()
                 val pressed = event.changes.filter { it.pressed }
                 if (pressed.isEmpty()) break
+                // taken by a range being chosen (a handle dragged, a cell held): the sheet stays put
+                if (!started && event.changes.any { it.isConsumed }) break
                 val zoomChange = event.calculateZoom()
                 val pan = event.calculatePan()
 
@@ -1294,4 +1526,31 @@ private fun Modifier.panZoomFling(
             }
         }
     }
+}
+
+/**
+ * Where the corner before row [row] and column [col] is on the grid (pixels; the grid's top is 0):
+ * the frozen rows and columns stay put, the rest move with the sheet.
+ */
+internal fun sheetCorner(l: SheetLayout, state: SheetGridState, k: Float, density: Float, row: Int, col: Int): Offset {
+    val head = Offset(HEAD_W * k.coerceAtMost(density * 1.5f), HEAD_H * k.coerceAtMost(density * 1.5f))
+    val fr = minOf(l.info.frozenRows.toInt(), l.rows)
+    val fc = minOf(l.info.frozenCols.toInt(), l.cols)
+    val c = col.coerceIn(0, l.colX.size - 1)
+    val r = row.coerceIn(0, l.rowY.size - 1)
+    val x = head.x + l.colX[c] * k + (if (c >= fc) state.pan.x else 0f)
+    val y = head.y + l.rowY[r] * k + (if (r >= fr) state.pan.y else 0f)
+    return Offset(x, y)
+}
+
+/**
+ * A choice's name, as a spreadsheet writes it: `B4` for a cell, `B4:D9` for a range, `B:D` for whole
+ * columns and `4:9` for whole rows.
+ */
+internal fun rangeName(s: CellSpan, l: SheetLayout?, range: Boolean): String {
+    val (r0, c0, r1, c1) = listOf(s.row0.toInt(), s.col0.toInt(), s.row1.toInt(), s.col1.toInt())
+    if (!range) return columnName(c0) + (r0 + 1)
+    if (l != null && r0 == 0 && r1 >= l.rows - 1) return columnName(c0) + ":" + columnName(c1)
+    if (l != null && c0 == 0 && c1 >= l.cols - 1) return "${r0 + 1}:${r1 + 1}"
+    return columnName(c0) + (r0 + 1) + ":" + columnName(c1) + (r1 + 1)
 }

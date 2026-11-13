@@ -5,6 +5,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -241,6 +243,53 @@ fun NoteCard(note: Note, onOpen: () -> Unit, onLong: () -> Unit, modifier: Modif
         note.images.firstOrNull()?.let { name ->
             Spacer(Modifier.height(12.dp))
             NoteImage(name, Modifier.fillMaxWidth().height(86.dp).clip(RoundedRectangle(16.dp)))
+        }
+        Spacer(Modifier.height(12.dp).weight(1f, fill = false))
+        Text(shortDate(note.updated), style = ClearType.Caption.copy(fontSize = 10.5.sp), color = tone.ink.copy(alpha = 0.55f), modifier = Modifier.align(Alignment.End))
+    }
+}
+
+/** A mind map: lavender paper, its centre idea as the title and the map itself drawn small under it. */
+@Composable
+fun MapCard(note: Note, onOpen: () -> Unit, onLong: () -> Unit, modifier: Modifier = Modifier) {
+    val tone = clear.tone(Tone.Lavender)
+    val dark = clear.dark
+    val d = androidx.compose.ui.platform.LocalDensity.current.density
+    val context = androidx.compose.ui.platform.LocalContext.current
+    remember(context) { com.chethan616.clearpdf.ui.notes.MapType.load(context) }
+    val rootHint = stringResource(R.string.mindmap_root_hint)
+    val hint = stringResource(R.string.mindmap_node_hint)
+    val layout = remember(note.map, d) {
+        val doc = com.chethan616.clearpdf.ui.notes.mindFromJson(note.map)
+            ?: com.chethan616.clearpdf.ui.notes.MindDoc(com.chethan616.clearpdf.ui.notes.parseOutline(note.title, note.body))
+        com.chethan616.clearpdf.ui.notes.layoutMind(doc, d, rootHint, hint)
+    }
+    Column(
+        modifier.heightIn(min = 156.dp).pressable(onOpen, onLong, pressedScale = 0.96f).cardPaint(tone, Offset(0.1f, 0.0f)).padding(18.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(LucideIcons.Network, null, tint = tone.ink.copy(alpha = 0.75f), modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.mindmap_title), style = ClearType.Caption.copy(fontSize = 11.sp), color = tone.ink.copy(alpha = 0.75f))
+        }
+        Spacer(Modifier.height(6.dp))
+        WordFitText(note.title.ifBlank { stringResource(R.string.mindmap_title) }, ClearType.CardTitle.copy(color = tone.accent), maxLines = 3)
+        Spacer(Modifier.height(10.dp))
+        // the map itself, small: on a soft well so its colours read on the lavender
+        Canvas(
+            Modifier.fillMaxWidth().height(92.dp).clip(RoundedRectangle(16.dp))
+                .background(if (dark) Color(0xFF14152B).copy(alpha = 0.55f) else Color.White.copy(alpha = 0.55f)),
+        ) {
+            val b = layout.bounds
+            val k = minOf((size.width - 16f) / b.width().coerceAtLeast(1f), (size.height - 16f) / b.height().coerceAtLeast(1f), 0.6f)
+            drawIntoCanvas { cv ->
+                val nc = cv.nativeCanvas
+                nc.save()
+                nc.translate(size.width / 2f - b.centerX() * k, size.height / 2f - b.centerY() * k)
+                nc.scale(k, k)
+                com.chethan616.clearpdf.ui.notes.drawMind(nc, layout, dark)
+                nc.restore()
+            }
         }
         Spacer(Modifier.height(12.dp).weight(1f, fill = false))
         Text(shortDate(note.updated), style = ClearType.Caption.copy(fontSize = 10.5.sp), color = tone.ink.copy(alpha = 0.55f), modifier = Modifier.align(Alignment.End))
@@ -512,9 +561,14 @@ fun StackCard(
  */
 @Composable
 fun PhotoChip(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null) {
-    GlassChip(onClick = onClick, modifier = modifier, height = 34.dp, contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), ink = Color.White) {
-        if (icon != null) Icon(icon, null, tint = Color.White, modifier = Modifier.size(15.dp))
-        Text(text, style = ClearType.Label, color = Color.White, maxLines = 1)
+    // white over a photo; with Adaptive luminance, dark wherever the glass turns light
+    val ink = com.chethan616.clearpdf.ui.glass.rememberGlassInk(Color.White)
+    GlassChip(
+        onClick = onClick, modifier = modifier.then(ink.modifier), height = 34.dp, contentPadding = PaddingValues(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp), ink = ink.color,
+    ) {
+        if (icon != null) Icon(icon, null, tint = ink.color, modifier = Modifier.size(15.dp))
+        Text(text, style = ClearType.Label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), color = ink.color, maxLines = 1)
     }
 }
 
@@ -564,7 +618,9 @@ fun RecentCard(vm: AppViewModel, rows: List<FileRow>, onAll: () -> Unit, modifie
         ) {
             Row(Modifier.align(Alignment.BottomStart).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (rows.size > 1) PhotoChip("+${rows.size - 1}", onAll)
-                PhotoChip(stringResource(R.string.desk_chip_pdfs), onAll, icon = LucideIcons.FileText)
+                // what the newest is: PDFs, Pictures, Spreadsheets, Mind maps …
+                val kind = com.chethan616.clearpdf.engine.DocumentTypes.kindOf(top.name)
+                PhotoChip(stringResource(kind.short), onAll, icon = kind.icon)
             }
         }
     }

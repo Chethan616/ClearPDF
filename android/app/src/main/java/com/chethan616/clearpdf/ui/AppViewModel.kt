@@ -211,6 +211,27 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     }
 
     private suspend fun openFile(eng: Engine, uri: Uri, file: File, password: String?) {
+        // a mind map (OPML) opens as a map to look at, and can be made into a mind-map note
+        if (com.chethan616.clearpdf.engine.DocumentTypes.isMindMapName(file.name)) {
+            val doc = withContext(Dispatchers.IO) {
+                runCatching { if (file.length() < 8L shl 20) com.chethan616.clearpdf.ui.notes.mindFromOpml(file.readText()) else null }.getOrNull()
+            } ?: return tell(text(R.string.msg_not_opml))
+            previewingMap = OpenedMap(uri, file.name, doc, otherAppUri == uri)
+            withContext(Dispatchers.IO) {
+                recents.touch(RecentFile(uri.toString(), file.name, System.currentTimeMillis(), 1, file.length(), 0))
+            }
+            refreshRecents()
+            return
+        }
+        // a picture opens in the photo editor (over whatever is open), and is kept in Recent
+        if (com.chethan616.clearpdf.engine.DocumentTypes.isImageName(file.name)) {
+            editingImage = OpenedImage(uri, file, otherAppUri == uri)
+            withContext(Dispatchers.IO) {
+                recents.touch(RecentFile(uri.toString(), file.name, System.currentTimeMillis(), 1, file.length(), 0))
+            }
+            refreshRecents()
+            return
+        }
         try {
             document?.let { saveAndClose(eng, it) }
             val info = eng.command { open(file.absolutePath, password) }
@@ -2676,6 +2697,38 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
     /** A note's picture being edited (note id, picture name), over everything. */
     var editingPhoto by mutableStateOf<Pair<String, String>?>(null)
 
+    /** A mind map file (OPML) opened, shown as a map over everything. */
+    internal var previewingMap by mutableStateOf<OpenedMap?>(null)
+
+    /** The map preview closed: back to the app that opened the file, if one did. */
+    fun closeMap() {
+        val map = previewingMap ?: return
+        previewingMap = null
+        if (map.fromOtherApp) leave.trySend(Unit)
+    }
+
+    /** A picture file opened (from Files, Recent or another app), in the photo editor over everything. */
+    var editingImage by mutableStateOf<OpenedImage?>(null)
+
+    /** The photo editor closed on an opened picture: back to the app that opened it, if one did. */
+    fun closeImage() {
+        val image = editingImage ?: return
+        editingImage = null
+        if (image.fromOtherApp) leave.trySend(Unit)
+    }
+
+    /**
+     * The edited picture [file] of [image], saved to Downloads beside the original (which is left as
+     * it was) as "<name> edited.jpg".
+     */
+    suspend fun saveEditedImage(image: OpenedImage, file: File) {
+        runCatching {
+            val name = DocumentFiles.safeName("${image.file.name.substringBeforeLast('.')} edited.jpg")
+            withContext(Dispatchers.IO) { files.saveToDownloads(file, name, "image/jpeg") }
+            tell(text(R.string.msg_saved_downloads, name))
+        }.onFailure { tell(it.userMessage) }
+    }
+
     /** The desk's dock is turning into the open note's toolbar: the toolbar waits, unseen, until it has. */
     var noteBarHidden by mutableStateOf(false)
 
@@ -2730,8 +2783,17 @@ class AppViewModel(app: Application, private val saved: SavedStateHandle) : Andr
 
     /** A new note (or list) straight into the editor. */
     fun newNote(kind: com.chethan616.clearpdf.notes.NoteKind) {
+        if (kind == com.chethan616.clearpdf.notes.NoteKind.Map) return newMindMap(null)
         val items = if (kind == com.chethan616.clearpdf.notes.NoteKind.List) listOf(com.chethan616.clearpdf.notes.checkItem("")) else emptyList()
         openNote = notes.create(kind, items = items).id
+    }
+
+    /** A new mind-map note (of [from], a note's outline seen as a map, or an empty centre) opened to work on. */
+    internal fun newMindMap(from: com.chethan616.clearpdf.ui.notes.MindDoc?) {
+        val doc = from ?: com.chethan616.clearpdf.ui.notes.MindDoc(com.chethan616.clearpdf.ui.notes.MindNode(""))
+        val note = doc.asNote()
+        notes.add(note)
+        openNote = note.id
     }
 
     fun closeNote() {
@@ -3495,3 +3557,9 @@ private const val MAX_CREATE_FILES = 12
 
 /** A green banner saying a job worked, with the way to undo it. */
 class SuccessBanner(val text: String, val undo: (() -> Unit)?)
+
+/** A picture file opened in the photo editor: where it came from, its working copy, and whether another app handed it over. */
+data class OpenedImage(val uri: Uri, val file: File, val fromOtherApp: Boolean)
+
+/** A mind map file (OPML) opened to look at: where it came from, its name, the map, and whether another app handed it over. */
+internal data class OpenedMap(val uri: Uri, val name: String, val doc: com.chethan616.clearpdf.ui.notes.MindDoc, val fromOtherApp: Boolean)

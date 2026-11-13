@@ -35,6 +35,7 @@ cfb = "0.15"
 # Excel workbooks (src/sheets.rs): GridCraft's engine
 gridcraft-engine = { workspace = true }
 gridcraft-xlsx = { workspace = true }
+gridcraft-chart = { workspace = true }
 # Pictures (src/photo.rs): LightCraft's decoding, develop settings and pipeline
 lightcraft-codecs = { workspace = true }
 lightcraft-develop = { workspace = true }
@@ -54,3 +55,5 @@ android_logger = { version = "0.15", default-features = false }
 [dev-dependencies]
 # its test helper that password-protects a package (the encrypted presentation test)
 gridcraft-xlsx = { workspace = true, features = ["test-support"] }
+# writes the pictures of the photo tests
+png = "0.18"

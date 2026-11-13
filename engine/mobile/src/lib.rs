@@ -30,9 +30,10 @@ mod photo;
 mod ppt;
 mod sheets;
 mod slides;
+mod xls_art;
 
 pub use photo::PhotoEditor;
-pub use sheets::{CellEdge, CellSpan, CellView, SheetAxes, SheetInfo, SheetPicture};
+pub use sheets::{CellEdge, CellSpan, CellView, SheetAxes, SheetChart, SheetInfo, SheetPicture, SheetStats};
 pub use word::{WordCaret, WordParagraph};
 #[cfg(test)]
 mod tests;
@@ -966,6 +967,16 @@ impl MobileSession {
     /// The pictures floating over sheet `sheet` of workbook `doc`.
     pub fn sheet_pictures(&self, doc: u64, sheet: u32) -> Result<Vec<SheetPicture>, MobileError> {
         self.with_sheets(doc, |b| b.pictures(sheet))
+    }
+
+    /// What the cells of `area` on sheet `sheet` hold: counts, and the sum, smallest and largest of its numbers.
+    pub fn sheet_stats(&self, doc: u64, sheet: u32, area: CellSpan) -> Result<SheetStats, MobileError> {
+        self.with_sheets(doc, |b| b.stats(sheet, area))
+    }
+
+    /// The charts over sheet `sheet` of workbook `doc`, laid out by GridCraft as drawing steps.
+    pub fn sheet_charts(&self, doc: u64, sheet: u32) -> Result<Vec<SheetChart>, MobileError> {
+        self.with_sheets(doc, |b| b.charts(sheet))
     }
 
     /// The merged areas of sheet `sheet`.

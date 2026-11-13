@@ -152,7 +152,59 @@ class Thumbnails(private val context: Context) {
         if (path.startsWith("content:")) return ofContent(Uri.parse(path), maxSide)
         val f = File(path)
         if (!f.isFile) return null
-        return cached(sha("$path|${f.lastModified()}|${f.length()}|$maxSide")) { fileThumbnail(path, maxSide.toUInt()).toBitmap() }
+        return cached(sha("$path|${f.lastModified()}|${f.length()}|$maxSide")) {
+            when {
+                DocumentTypes.isImageName(path) -> pictureThumbnail(path, maxSide)
+                DocumentTypes.isMindMapName(path) -> mapThumbnail(path, maxSide)
+                else -> fileThumbnail(path, maxSide.toUInt()).toBitmap()
+            }
+        }
+    }
+
+    /** A mind map (.opml) drawn small on a page of paper, so it reads as a map in a list. */
+    private fun mapThumbnail(path: String, maxSide: Int): Bitmap {
+        val file = File(path)
+        require(file.length() < 8L shl 20) { "too large" }
+        val doc = com.chethan616.clearpdf.ui.notes.mindFromOpml(file.readText()) ?: error("not a mind map")
+        com.chethan616.clearpdf.ui.notes.MapType.load(context)
+        val layout = com.chethan616.clearpdf.ui.notes.layoutMind(
+            doc, 1.5f, context.getString(com.chethan616.clearpdf.R.string.mindmap_root_hint), context.getString(com.chethan616.clearpdf.R.string.mindmap_node_hint),
+        )
+        val h = maxSide * 2
+        val w = h * 3 / 4
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bmp)
+        canvas.drawColor(android.graphics.Color.rgb(248, 249, 252))
+        val b = layout.bounds
+        val pad = w * 0.08f
+        val k = minOf((w - 2 * pad) / b.width().coerceAtLeast(1f), (h - 2 * pad) / b.height().coerceAtLeast(1f), 1f)
+        canvas.translate(w / 2f - b.centerX() * k, h / 2f - b.centerY() * k)
+        canvas.scale(k, k)
+        com.chethan616.clearpdf.ui.notes.drawMind(canvas, layout, dark = false)
+        return bmp
+    }
+
+    /** A picture made small: decoded at a fraction of its size, turned as its camera recorded it. */
+    private fun pictureThumbnail(path: String, maxSide: Int): Bitmap {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide * 2) sample *= 2
+        val bmp = BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: error("not a picture")
+        val turn = runCatching {
+            when (androidx.exifinterface.media.ExifInterface(path).getAttributeInt(androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION, 1)) {
+                6 -> 90f
+                3 -> 180f
+                8 -> 270f
+                else -> 0f
+            }
+        }.getOrDefault(0f)
+        val k = maxSide.toFloat() * 2 / maxOf(bmp.width, bmp.height)
+        val m = android.graphics.Matrix().apply {
+            if (k < 1f) postScale(k, k)
+            if (turn != 0f) postRotate(turn)
+        }
+        return Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
     }
 
     private fun ofContent(uri: Uri, maxSide: Int): Bitmap? {
@@ -179,13 +231,20 @@ class Thumbnails(private val context: Context) {
                 "text/tab-separated-values" -> "tsv"
                 "text/plain" -> "txt"
                 "text/markdown", "text/x-markdown" -> "md"
+                "image/jpeg" -> "jpg"
+                "image/png" -> "png"
+                "text/x-opml", "application/x-opml" -> "opml"
                 else -> "pdf"
             }
         return cached(sha("$uri|$modified|$size|$maxSide|$extension")) {
             val tmp = File.createTempFile("thumb", ".$extension", context.cacheDir)
             try {
                 resolver.openInputStream(uri)?.use { input -> tmp.outputStream().use { input.copyTo(it) } } ?: error("unreadable")
-                fileThumbnail(tmp.absolutePath, maxSide.toUInt()).toBitmap()
+                when {
+                    DocumentTypes.isImageName(tmp.name) -> pictureThumbnail(tmp.absolutePath, maxSide)
+                    DocumentTypes.isMindMapName(tmp.name) -> mapThumbnail(tmp.absolutePath, maxSide)
+                    else -> fileThumbnail(tmp.absolutePath, maxSide.toUInt()).toBitmap()
+                }
             } finally {
                 tmp.delete()
             }

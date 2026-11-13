@@ -76,6 +76,7 @@ deckcraft-pdf = { git = "https://github.com/storytold/deckcraft", rev = "159ed07
 # Excel (.xlsx, .xlsb, .ods, .csv): storytold/gridcraft's engine (formulas, number formats), pinned.
 gridcraft-engine = { git = "https://github.com/storytold/gridcraft", rev = "6a8eb4ff42cfa88b5bdd3eec13c6db3874d95214", version = "0.16.0" }
 gridcraft-xlsx = { git = "https://github.com/storytold/gridcraft", rev = "6a8eb4ff42cfa88b5bdd3eec13c6db3874d95214", version = "0.16.0" }
+gridcraft-chart = { git = "https://github.com/storytold/gridcraft", rev = "6a8eb4ff42cfa88b5bdd3eec13c6db3874d95214", version = "0.16.0" }
 
 # Pictures (notes' photos): storytold/lightcraft's codecs, develop settings and CPU pipeline, pinned.
 # Not its engine (GPU, faces, catalog); no AVIF or JPEG XL encoders.

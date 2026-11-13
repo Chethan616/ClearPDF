@@ -898,3 +898,101 @@ fn links_are_found_in_every_kind_of_document() {
     let cell = cells.iter().find(|c| c.row == 1 && c.col == 0).unwrap();
     assert_eq!(cell.link.as_deref(), Some("https://example.com/sheet"));
 }
+
+/// Charts and pictures come with a workbook: an .xlsx's from GridCraft, an .xls's (which GridCraft
+/// leaves out) from Artefact's own reader. Both files hold a column, a pie and a line chart of the
+/// same cells, and one picture (made with LibreOffice from the .xlsx).
+#[test]
+fn charts_and_pictures_of_xlsx_and_xls_are_shown() {
+    let s = MobileSession::new();
+    for name in ["charts.xlsx", "charts.xls"] {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data").join(name);
+        let book = s.open(path.to_string_lossy().into_owned(), None).unwrap();
+        let charts = s.sheet_charts(book.id, 0).unwrap();
+        assert_eq!(charts.len(), 3, "{name}: charts");
+        for c in &charts {
+            assert!(c.width > 50.0 && c.height > 50.0, "{name}: {} x {}", c.width, c.height);
+            // a chart with words on it (its title, the months) and bars, wedges or lines
+            assert!(c.prims.contains("\"Text\""), "{name}: no text");
+            assert!(c.prims.contains("\"Rect\"") || c.prims.contains("\"Wedge\"") || c.prims.contains("\"Line\""), "{name}: nothing drawn");
+        }
+        assert!(charts.iter().any(|c| c.prims.contains("Jan")), "{name}: categories");
+        assert!(charts.iter().any(|c| c.prims.contains("\"Wedge\"")), "{name}: the pie");
+        let pictures = s.sheet_pictures(book.id, 0).unwrap();
+        assert_eq!(pictures.len(), 1, "{name}: pictures");
+        assert!(
+            pictures[0].data.starts_with(&[0x89, b'P', b'N', b'G'])
+                || pictures[0].data.starts_with(&[0xFF, 0xD8])
+                || pictures[0].data.starts_with(b"BM"),
+            "{name}: picture bytes"
+        );
+    }
+}
+
+/// An untouched picture comes out of the photo editor as it went in (no edit, no change of colour).
+#[test]
+fn an_untouched_picture_keeps_its_colours() {
+    let w = 64u32;
+    let h = 32u32;
+    let mut px = Vec::with_capacity((w * h * 3) as usize);
+    for y in 0..h {
+        for x in 0..w {
+            let c: [u8; 3] = if y < h / 2 {
+                if x < w / 2 { [255, 194, 26] } else { [18, 24, 38] }
+            } else if x < w / 2 {
+                [10, 132, 255]
+            } else {
+                [128, 128, 128]
+            };
+            px.extend_from_slice(&c);
+        }
+    }
+    let png = scratch().join("colours.png");
+    image_png(&png, w, h, &px);
+    let e = crate::photo::PhotoEditor::new();
+    let out = e.render(png.to_string_lossy().into_owned(), String::new(), 64).unwrap();
+    let at = |x: u32, y: u32| {
+        let i = ((y * out.width + x) * 4) as usize;
+        [out.rgba[i], out.rgba[i + 1], out.rgba[i + 2]]
+    };
+    for (x, y, want) in [(8, 4, [255u8, 194, 26]), (40, 4, [18, 24, 38]), (8, 24, [10, 132, 255]), (40, 24, [128, 128, 128])] {
+        let got = at(x * out.width / w, y * out.height / h);
+        let off = got.iter().zip(want).map(|(a, b)| (i32::from(*a) - i32::from(b)).abs()).max().unwrap();
+        assert!(off <= 4, "{want:?} came out as {got:?}");
+    }
+}
+
+fn image_png(path: &std::path::Path, w: u32, h: u32, rgb: &[u8]) {
+    let mut data = Vec::new();
+    {
+        let mut enc = png::Encoder::new(&mut data, w, h);
+        enc.set_color(png::ColorType::Rgb);
+        enc.set_depth(png::BitDepth::Eight);
+        enc.write_header().unwrap().write_image_data(rgb).unwrap();
+    }
+    std::fs::write(path, data).unwrap();
+}
+
+/// A selection's summary counts its filled cells and adds up its numbers, the way a spreadsheet's
+/// status bar does; a whole column reads only the rows in use.
+#[test]
+fn a_selection_is_summed_and_counted() {
+    let s = MobileSession::new();
+    let csv = scratch().join("Stats.csv");
+    std::fs::write(
+        &csv,
+        "Item,Price
+Tea,3.5
+Cake,4
+Note,
+Jam,2.5
+",
+    )
+    .unwrap();
+    let book = s.open(csv.to_string_lossy().into_owned(), None).unwrap();
+    let col = s.sheet_stats(book.id, 0, CellSpan { row0: 0, col0: 1, row1: 1_048_575, col1: 1 }).unwrap();
+    assert_eq!((col.filled, col.numbers), (4, 3));
+    assert!((col.sum - 10.0).abs() < 1e-9 && col.min == 2.5 && col.max == 4.0, "{col:?}");
+    let both = s.sheet_stats(book.id, 0, CellSpan { row0: 1, col0: 0, row1: 4, col1: 1 }).unwrap();
+    assert_eq!((both.filled, both.numbers), (7, 3));
+}

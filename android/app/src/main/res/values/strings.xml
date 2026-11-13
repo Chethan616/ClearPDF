@@ -1056,6 +1056,7 @@
     <string name="files_kind_slides">Presentations</string>
     <string name="files_kind_sheets">Spreadsheets</string>
     <string name="files_kind_text">Text files</string>
+    <string name="files_kind_images">Pictures</string>
     <string name="photo_exposure">Exposure</string>
     <string name="photo_contrast">Contrast</string>
     <string name="photo_highlights">Highlights</string>
@@ -1074,6 +1075,19 @@
     <string name="msg_ppt_text_only">This PowerPoint 97–2003 file shows its slides\' text. Saved as .pptx, it opens with its pictures and layout.</string>
     <string name="photo_original">Original</string>
     <string name="photo_reset">Reset</string>
+    <string name="photo_adjust">Adjust</string>
+    <string name="photo_blur">Blur</string>
+    <string name="photo_text">Text</string>
+    <string name="photo_pixelate">Pixelate</string>
+    <string name="photo_erase">Erase</string>
+    <string name="photo_brush">Brush</string>
+    <string name="photo_add_text">Add text</string>
+    <string name="photo_text_hint">Type here</string>
+    <string name="photo_text_help">Tap the picture to write on it. Drag words to move them, pinch to size and turn them.</string>
+    <string name="photo_free">Free</string>
+    <string name="photo_shape_original">Original</string>
+    <string name="photo_mirror">Mirror</string>
+    <string name="photo_font_sample">Aa</string>
     <string name="photo_not_saved">The picture couldn\'t be saved.</string>
     <!-- Draw tool: lines drawn are turned into neat shapes. -->
     <string name="msg_snap_to_shape_on">Snap to shape on</string>
@@ -1419,6 +1433,23 @@
     <string name="mindmap_empty">Write the note as an outline: one idea a line, indented under the idea it belongs to. It is drawn here as a map.</string>
     <string name="mindmap_save_image">Save as image</string>
     <string name="mindmap_save_pdf">Save as PDF</string>
+    <string name="mindmap_save_opml">Export as OPML</string>
+    <string name="mindmap_root_hint">Central idea</string>
+    <string name="mindmap_node_hint">New idea</string>
+    <string name="mindmap_child">Child</string>
+    <string name="mindmap_sibling">Sibling</string>
+    <string name="mindmap_edit">Edit</string>
+    <string name="mindmap_colour">Colour</string>
+    <string name="mindmap_branch_colour">Branch colour</string>
+    <string name="mindmap_fold">Fold</string>
+    <string name="mindmap_unfold">Unfold</string>
+    <string name="mindmap_add_idea">Add idea</string>
+    <string name="mindmap_fit">Fit to screen</string>
+    <string name="mindmap_one_side">Branches to the right</string>
+    <string name="mindmap_both_sides">Branches on both sides</string>
+    <string name="mindmap_make">Make it a mind map</string>
+    <string name="mindmap_hint">Tap an idea to pick it, tap it again to type. Drag it to move it, or drop it on another idea.</string>
+    <string name="create_mindmap">Mind map</string>
     <string name="voice_imported">Audio added to your desk</string>
     <string name="voice_export">Save to Downloads</string>
     <string name="voice_export_name">Voice note</string>
@@ -1491,6 +1522,8 @@
     <string name="preview_expand">Open in Artefact</string>
     <string name="preview_open_in_app">Open in Artefact</string>
     <string name="preview_open">Open</string>
+    <string name="preview_edit">Edit</string>
+    <string name="preview_edit_picture">Edit the picture</string>
     <string name="preview_save_downloads">Save to Downloads</string>
     <string name="preview_saved_downloads">Saved to Downloads</string>
     <string name="preview_locked_body">This PDF is locked. Type its password to look inside.</string>
@@ -1567,4 +1600,19 @@
         <item>You can\'t control every wave, but you can **choose how you meet it**. A steady breath is **contagious**.</item>
         <item>A sentence, a sketch, a tidy shelf. **Creating** reminds you that you can **change the world around you**, even a little.</item>
     </string-array>
+    <string name="files_kind_mindmaps">Mind maps</string>
+    <string name="msg_not_opml">This file isn\'t a mind map outline (OPML).</string>
+    <plurals name="preview_ideas">
+        <item quantity="one">%d idea</item>
+        <item quantity="other">%d ideas</item>
+    </plurals>
+    <string name="sheet_stats">Sum %1$s · Average %2$s · Count %3$d</string>
+    <string name="sheet_stats_count">Count %1$d</string>
+    <string name="kind_short_pdf">PDFs</string>
+    <string name="kind_short_word">Docs</string>
+    <string name="kind_short_slides">Slides</string>
+    <string name="kind_short_sheets">Sheets</string>
+    <string name="kind_short_text">Text</string>
+    <string name="kind_short_images">Pictures</string>
+    <string name="kind_short_maps">Maps</string>
 </resources>

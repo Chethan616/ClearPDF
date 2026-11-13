@@ -142,7 +142,7 @@ fun deskItems(filter: DeskFilter, notes: List<Note>, recents: List<FileRow>): Li
             out.add(minOf(6, out.size), DeskItem.Pdfs(recents.size))
             out
         }
-        DeskFilter.Notes -> sorted.filter { it.kind == NoteKind.Text }.map { DeskItem.Of(it) }
+        DeskFilter.Notes -> sorted.filter { it.kind == NoteKind.Text || it.kind == NoteKind.Map }.map { DeskItem.Of(it) }
         DeskFilter.Todo -> sorted.filter { it.kind == NoteKind.List }.map { DeskItem.Of(it) }
         DeskFilter.Audio -> sorted.filter { it.kind == NoteKind.Voice }.map { DeskItem.Of(it) }
         DeskFilter.Images -> sorted.filter { it.images.isNotEmpty() }.map { DeskItem.Picture(it) }
@@ -231,6 +231,7 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
                             { play(item.note) }, { actionsFor = item.note }, m,
                         )
                         NoteKind.Text -> NoteCard(item.note, { vm.openNote = item.note.id }, { actionsFor = item.note }, m)
+                        NoteKind.Map -> MapCard(item.note, { vm.openNote = item.note.id }, { actionsFor = item.note }, m)
                     }
                     is DeskItem.Picture -> {
                         val n = item.note

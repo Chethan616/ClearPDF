@@ -109,6 +109,10 @@ fun NoteEditor(vm: AppViewModel, id: String) {
         LaunchedEffect(id) { vm.openNote = null }
         return
     }
+    if (note.kind == NoteKind.Map) {
+        MindMapEditor(vm, id)
+        return
+    }
     BackHandler { vm.closeNote() }
     val c = clear
     var title by remember(id) { mutableStateOf(TextFieldValue(note.title)) }

@@ -104,7 +104,7 @@ object ToolCatalog {
 
     // Text to PDF is a way of Create PDF, and finding a form's fields a part of Fill & Sign: neither
     // is a tile of its own
-    val All = listOf(Edit, FillSign, Scan, Combine, Comment, ReadAloud, Organize, Compress, Export, Crop, Protect, Create, PdfToText, EditPhoto)
+    val All = listOf(Edit, FillSign, Scan, Combine, Comment, ReadAloud, Organize, Compress, Export, Crop, Protect, Create, EditPhoto)
 }
 
 /**
@@ -153,6 +153,8 @@ internal fun kindBadge(name: String?): Pair<String, Color> {
         com.chethan616.clearpdf.engine.DocumentTypes.Kind.Word -> ext to Color(0xFF2F6FED)
         com.chethan616.clearpdf.engine.DocumentTypes.Kind.Slides -> ext to Color(0xFFE8672C)
         com.chethan616.clearpdf.engine.DocumentTypes.Kind.Text -> ext to Color(0xFF6B7280)
+        com.chethan616.clearpdf.engine.DocumentTypes.Kind.Images -> ext to Candy.Grape
+        com.chethan616.clearpdf.engine.DocumentTypes.Kind.MindMaps -> ext to Candy.Bubblegum
         else -> "PDF" to Candy.Tomato
     }
 }

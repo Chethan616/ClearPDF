@@ -226,6 +226,17 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
                 vm.certSign?.let { CertSignScreen(vm, it) }
                 vm.presenting?.let { d -> com.chethan616.clearpdf.ui.viewer.PresentMode(vm, d) { vm.presenting = null } }
                 vm.editingPhoto?.let { (note, picture) -> com.chethan616.clearpdf.ui.notes.PhotoEditScreen(vm, note, picture) { vm.editingPhoto = null } }
+                vm.editingImage?.let { image -> com.chethan616.clearpdf.ui.notes.PhotoEditScreen(vm, image) { vm.closeImage() } }
+                vm.previewingMap?.let { m ->
+                    com.chethan616.clearpdf.ui.notes.MindMapPreview(
+                        vm, m.doc, m.name.substringBeforeLast('.'),
+                        // made into a note: the note opens here, even for a file another app handed over
+                        onMake = {
+                            vm.previewingMap = null
+                            vm.newMindMap(m.doc)
+                        },
+                    ) { vm.closeMap() }
+                }
                 if (vm.idCreate) CreateIdScreen(vm)
             }
         },
@@ -234,14 +245,16 @@ private fun Shell(vm: AppViewModel, onBrowse: () -> Unit, onPickSignatureImage: 
             // on the desk, the note's toolbar becomes the dock again
             val lastRoute = remember { arrayOf(route) }
             if (lastRoute[0] != route) {
-                val intoNote = lastRoute[0] == HomeTab.Home.name && route.startsWith("note:") && doc == null
-                val fromNote = lastRoute[0].startsWith("note:") && route == HomeTab.Home.name && doc == null
+                // a mind map has its own bars: it opens and closes like Files or PDFs, without the dock turning into a toolbar
+                fun isMap(r: String) = r.startsWith("note:") && vm.notes.get(r.removePrefix("note:"))?.kind == com.chethan616.clearpdf.notes.NoteKind.Map
+                val intoNote = lastRoute[0] == HomeTab.Home.name && route.startsWith("note:") && doc == null && !isMap(route)
+                val fromNote = lastRoute[0].startsWith("note:") && route == HomeTab.Home.name && doc == null && !isMap(lastRoute[0])
                 if (intoNote != dockIntoNote) dockIntoNote = intoNote
                 if (fromNote != dockFromNote) dockFromNote = fromNote
                 if (vm.noteBarHidden != (intoNote || fromNote)) vm.noteBarHidden = intoNote || fromNote
                 lastRoute[0] = route
             }
-            if ((onDesk || dockIntoNote) && vm.editingPhoto == null && vm.presenting == null) {
+            if ((onDesk || dockIntoNote) && vm.editingPhoto == null && vm.editingImage == null && vm.previewingMap == null && vm.presenting == null) {
                 CreateDock(vm, desk, onBrowse, intoNote = !onDesk, fromNote = onDesk && dockFromNote) {
                     dockIntoNote = false
                     dockFromNote = false

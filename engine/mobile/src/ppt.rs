@@ -82,14 +82,14 @@ struct Outline {
 }
 
 /// One record's header: its type, whether it holds other records, and its body.
-struct Record<'a> {
-    kind: u16,
-    instance: u16,
-    container: bool,
-    body: &'a [u8],
+pub(crate) struct Record<'a> {
+    pub(crate) kind: u16,
+    pub(crate) instance: u16,
+    pub(crate) container: bool,
+    pub(crate) body: &'a [u8],
 }
 
-fn records(data: &[u8]) -> impl Iterator<Item = Record<'_>> {
+pub(crate) fn records(data: &[u8]) -> impl Iterator<Item = Record<'_>> {
     let mut at = 0usize;
     std::iter::from_fn(move || {
         let (r, next) = record_at(data, at)?;
@@ -99,7 +99,7 @@ fn records(data: &[u8]) -> impl Iterator<Item = Record<'_>> {
 }
 
 /// The record starting at `at`, and where the next one starts.
-fn record_at(data: &[u8], at: usize) -> Option<(Record<'_>, usize)> {
+pub(crate) fn record_at(data: &[u8], at: usize) -> Option<(Record<'_>, usize)> {
     let head = data.get(at..at.checked_add(8)?)?;
     let ver_inst = u16::from_le_bytes([head[0], head[1]]);
     let kind = u16::from_le_bytes([head[2], head[3]]);
@@ -109,11 +109,11 @@ fn record_at(data: &[u8], at: usize) -> Option<(Record<'_>, usize)> {
     Some((Record { kind, instance: ver_inst >> 4, container: ver_inst & 0xF == 0xF, body: data.get(start..end)? }, start.checked_add(len)?))
 }
 
-fn u16_at(b: &[u8], at: usize) -> Option<u16> {
+pub(crate) fn u16_at(b: &[u8], at: usize) -> Option<u16> {
     b.get(at..at.checked_add(2)?).map(|v| u16::from_le_bytes([v[0], v[1]]))
 }
 
-fn u32_at(b: &[u8], at: usize) -> Option<u32> {
+pub(crate) fn u32_at(b: &[u8], at: usize) -> Option<u32> {
     b.get(at..at.checked_add(4)?).map(|v| u32::from_le_bytes([v[0], v[1], v[2], v[3]]))
 }
 
@@ -516,10 +516,10 @@ fn persist_offsets(data: &[u8]) -> HashMap<u32, u32> {
 }
 
 /// A picture of the file: its bytes and their type.
-struct Picture {
-    data: Vec<u8>,
-    mime: &'static str,
-    ext: &'static str,
+pub(crate) struct Picture {
+    pub(crate) data: Vec<u8>,
+    pub(crate) mime: &'static str,
+    pub(crate) ext: &'static str,
 }
 
 /// The picture a blip record holds: a JPEG or PNG as it is, a bitmap given the file header it
@@ -569,6 +569,13 @@ fn read_pictures(data: &[u8], pictures: &[u8]) -> Vec<Option<Picture>> {
     }
     // Document ▸ drawing group ▸ OfficeArt's group container ▸ its picture store
     let Some(store) = find(data, &[0x03E8, DRAWING_GROUP, ART_DGG, ART_BSTORE]) else { return Vec::new() };
+    store_pictures(store, pictures)
+}
+
+/// The pictures of an OfficeArt picture store (`OfficeArtBStoreContainer`'s contents), in the
+/// order shapes number them; a picture not held in its entry is read from `pictures` (a
+/// presentation's Pictures stream). `None` for one that can't be shown.
+pub(crate) fn store_pictures(store: &[u8], pictures: &[u8]) -> Vec<Option<Picture>> {
     let mut out = Vec::new();
     let mut total = 0usize;
     for r in records(store).take(10_000) {

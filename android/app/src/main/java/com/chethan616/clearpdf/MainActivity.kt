@@ -92,7 +92,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             ClearApp(
                 vm,
-                onBrowse = { launchSafely { pickPdf.launch(DocumentTypes.OPENABLE) } },
+                onBrowse = { launchSafely { pickPdf.launch(DocumentTypes.PICKABLE) } },
                 onPickSignatureImage = { launchSafely { pickSignature.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
             )
         }
@@ -115,7 +115,7 @@ class MainActivity : ComponentActivity() {
                         FilePickKind.Combine -> pickMany.launch(arrayOf("application/pdf", "image/*", "text/plain") + OFFICE_TYPES)
                         FilePickKind.Create -> pickMany.launch(arrayOf("image/*", "text/plain", "application/pdf") + OFFICE_TYPES)
                         FilePickKind.Insert -> pickOne.launch(arrayOf(DocumentTypes.PDF))
-                        FilePickKind.Open -> pickOne.launch(DocumentTypes.OPENABLE)
+                        FilePickKind.Open -> pickOne.launch(DocumentTypes.PICKABLE)
                         // .p12 / .pfx: providers type them as PKCS #12, or not at all
                         FilePickKind.DigitalId -> pickOne.launch(arrayOf("application/x-pkcs12", "application/pkcs12", "application/octet-stream"))
                     }
