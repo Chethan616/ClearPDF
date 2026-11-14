@@ -38,10 +38,8 @@ Read, sign and edit PDFs, open and edit Word, Excel and PowerPoint files, and ke
 
 <h3>Watch the trailer</h3>
 
-<video src="https://github.com/Chethan616/Artefact/raw/main/docs/media/artefact-trailer-16x9.mp4" poster="docs/media/artefact-trailer-poster.jpg" controls muted playsinline width="100%"></video>
-
 <p>
-  <a href="docs/media/artefact-trailer-16x9.mp4"><img src="docs/media/artefact-trailer-poster.jpg" alt="Artefact trailer: tap to play" width="100%"></a>
+  <a href="docs/media/artefact-trailer-16x9.mp4"><img src="docs/media/artefact-trailer-preview.gif" alt="Artefact trailer preview: tap to watch the full trailer with sound" width="100%"></a>
   <br>
   <sub><a href="docs/media/artefact-trailer-16x9.mp4">Trailer, 16:9 (4K 60 fps)</a> · <a href="docs/media/artefact-trailer-9x16.mp4">Vertical cut, 9:16</a></sub>
 </p>
