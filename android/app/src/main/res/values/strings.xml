@@ -1613,6 +1613,6 @@
     <string name="kind_short_slides">Slides</string>
     <string name="kind_short_sheets">Sheets</string>
     <string name="kind_short_text">Text</string>
-    <string name="kind_short_images">Pictures</string>
+    <string name="kind_short_images">Photos</string>
     <string name="kind_short_maps">Maps</string>
 </resources>
