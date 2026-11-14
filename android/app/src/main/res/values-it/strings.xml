@@ -1577,6 +1577,6 @@
     <string name="kind_short_slides">Slide</string>
     <string name="kind_short_sheets">Fogli</string>
     <string name="kind_short_text">Testo</string>
-    <string name="kind_short_images">Immagini</string>
+    <string name="kind_short_images">Foto</string>
     <string name="kind_short_maps">Mappe</string>
 </resources>

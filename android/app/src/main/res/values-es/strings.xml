@@ -1595,6 +1595,6 @@
     <string name="kind_short_slides">Diapos</string>
     <string name="kind_short_sheets">Hojas</string>
     <string name="kind_short_text">Texto</string>
-    <string name="kind_short_images">Imágenes</string>
+    <string name="kind_short_images">Fotos</string>
     <string name="kind_short_maps">Mapas</string>
 </resources>
