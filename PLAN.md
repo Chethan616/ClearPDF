@@ -92,7 +92,9 @@ bot-avatars) for empty, waiting and error states only.
 - [ ] (2026-11-14, `fast` 3.0.0-beta.10 on the OnePlus: welcome, desk, + fan, Files, Tools, viewer and the Fill & Sign bar all drew and animated correctly; Crystal style, Jelly mic and the long-press sheet not yet looked at) Device check of the four 2026-11-06 passes on the `fast` build (pass 4: Crystal + / welcome page 2 / Jelly mic / long-press sheet) (no phone was attached): welcome swipe
       smoothness, + fan with a busy desk, menu/dialog/sheet/toast springs, recorder pill expand/shrink
       bounce (tune `GlassMotion.shape` stiffness if still too quick/slow), GlassChip rows, dark theme.
-- [ ] Files / Tools / Settings polish against the mocks; Collection deck (mock 2) for Pdf & notes.
+- [x] Files / Tools / Settings checked against the mocks on the phone (2026-11-14): same glass, type and
+      colour as the mocks, nothing to change.
+- [ ] Collection deck (mock 2) for Pdf & notes.
 - [x] Signature validation badges drawn by the viewer (Acrobat-style tick), never in the file.
 - [x] Translations: ar, de, es, fr, it, pt-BR complete + **pt** and **ru**.
 - [x] Folder restructure, README/NOTICE/ATTRIBUTION/fastlane to Artefact (9 store languages).
@@ -129,20 +131,20 @@ all three → editing, one format at a time, each built and run on the phone bef
       - Android: pickers, folder lists, intent filters (share + Quick Preview) take .docx/.doc/.odt/.rtf;
         the viewer hides the PDF tools for Word (bar = Read Aloud; More sheet without Edit/Print/
         comments/signatures/PDF tools); names keep their Word extension.
-      - Installed on the phone (fast build, 2026-11-06); [ ] seen there: open the sample .docx from
-        Files, Recent and Quick Preview (the owner was using the phone).
+      - Installed on the phone (fast build, 2026-11-06); [x] seen there 2026-11-14 (a real .docx
+        opens and renders on 3.0.0-beta.10; [ ] Recent and Quick Preview not looked at).
 - [x] **PowerPoint viewing** (deckcraft `159ed07`), built and host-tested (2026-11-07): `slides.rs`
       opens .pptx with `deckcraft-pptx` and draws slides with `deckcraft-render` (no deckcraft engine,
       so no video codecs or krilla); slides are pages (`DocumentKind.Slides`), with text layer and links;
       `deckcraft-fonts` vendored with the Android font folders. App: pptx types in pickers, folder
-      lists and filters; same reading-only viewer as Word. [ ] seen on the phone; [x] present mode
+      lists and filters; same reading-only viewer as Word. [x] seen on the phone 2026-11-14 (a 9-slide .pptx renders in the bundled stand-in fonts); [x] present mode
       (full-screen slides, tap/swipe to advance; transitions from `deckcraft-render::render_transition`).
       Password-protected decks are refused with a message (deckcraft can't decrypt). `.ppt` (97-2003)
-      opens through Artefact's own reader (`engine/mobile/src/ppt.rs`): slides' text only, [ ] pictures.
+      opens through Artefact's own reader (`engine/mobile/src/ppt.rs`): slides' text only, [ ] pictures not checked on a real .ppt.
 - [x] **Excel viewing** (gridcraft `6a8eb4f`, 2026-11-07, built and host-tested): `sheets.rs` opens
       .xlsx/.xlsb/.ods/.csv (recalculated on open) and serves tabs, axes, cell windows with looks,
       merges, find; `ui/sheets/SheetViewer.kt` draws the grid on a canvas (pan, pinch zoom, heading
-      strips, frozen panes, cells in 50×20 blocks) under glass. [ ] seen on the phone; [x] search UI
+      strips, frozen panes, cells in 50×20 blocks) under glass. [x] seen on the phone 2026-11-14 (an .xlsx and a Cyrillic .xls: merges, fills, borders, bars); [x] search UI
       (bridge `sheet_find` is there); [ ] charts (gridcraft-chart) and pictures on sheets.
 - [x] **Pictures in notes** (lightcraft `8a0b91a`, 2026-11-07, built and host-tested): `photo.rs`
       (`PhotoEditor`: decode, develop with LightCraft's `DevelopSettings` JSON, export JPEG; codecs,
@@ -154,7 +156,10 @@ all three → editing, one format at a time, each built and run on the phone bef
       pdf (gridcraft's `file.exportPdf`, every sheet), xlsx, csv. Office bars: Word = Read aloud ·
       Export PDF · Save as · Print; slides add **Present** (full screen, swipe/tap, bars hidden);
       sheets: **search** (glass field, hits ringed, ↑↓). No PDF More tools for office documents.
-      [ ] check gridcraft's PDF with non-Latin text.
+      [x] checked gridcraft's PDF with non-Latin text 2026-11-14: **fails**. A Cyrillic .xls exports with
+      the text missing (digits and Latin show). gridcraft's `pdf` crate uses the 14 standard fonts and,
+      for anything WinAnsi lacks, a non-embedded Adobe CID font, which the viewer cannot draw. Needs
+      embedded fonts in the export (a patch to the vendored crate); not done.
 - [x] **Editing, first pass** (2026-11-07, built, host-tested, not yet seen on the phone):
       Word: Edit → tap places the caret, the keyboard types, glass dock (undo, redo, bold, italic,
       underline, bullets, numbering, align, heading, body); saved in its own format. Sheets: tap a
