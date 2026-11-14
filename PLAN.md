@@ -89,11 +89,11 @@ bot-avatars) for empty, waiting and error states only.
 
 - [ ] Viewer: check every tool sheet against the new sheet parts (VoiceSheet, NoteSheet, ReadAloud,
       DigitalSign, FillSign still use their own layouts inside `PdfSheet`); CommentList, Pages screens.
-- [ ] Device check of the four 2026-11-06 passes on the `fast` build (pass 4: Crystal + / welcome page 2 / Jelly mic / long-press sheet) (no phone was attached): welcome swipe
+- [ ] (2026-11-14, `fast` 3.0.0-beta.10 on the OnePlus: welcome, desk, + fan, Files, Tools, viewer and the Fill & Sign bar all drew and animated correctly; Crystal style, Jelly mic and the long-press sheet not yet looked at) Device check of the four 2026-11-06 passes on the `fast` build (pass 4: Crystal + / welcome page 2 / Jelly mic / long-press sheet) (no phone was attached): welcome swipe
       smoothness, + fan with a busy desk, menu/dialog/sheet/toast springs, recorder pill expand/shrink
       bounce (tune `GlassMotion.shape` stiffness if still too quick/slow), GlassChip rows, dark theme.
 - [ ] Files / Tools / Settings polish against the mocks; Collection deck (mock 2) for Pdf & notes.
-- [ ] Signature validation badges drawn by the viewer (Acrobat-style tick), never in the file.
+- [x] Signature validation badges drawn by the viewer (Acrobat-style tick), never in the file.
 - [x] Translations: ar, de, es, fr, it, pt-BR complete + **pt** and **ru**.
 - [x] Folder restructure, README/NOTICE/ATTRIBUTION/fastlane to Artefact (9 store languages).
 - [ ] Release build, `master` branch on GitHub, "Building the version 2" issue + discussion.
