@@ -82,6 +82,9 @@ bot-avatars) for empty, waiting and error states only.
 - [x] Bounce pass (2026-11-06): the + fan and sheets rise on a fixed-time bounce tween (`GlassMotion.bounce`)
       instead of springs, so the glass goes quiet on a known frame; "Your Artefacts" in a clean bold grotesque.
 
+- [x] 3.0.0-beta.10 (2026-11-14): first beta and first non-pre-release "Latest" on GitHub, with the
+      16:9 trailer attached; releases are betas (`-beta.N`) from here on.
+
 ## Next (UI first)
 
 - [ ] Viewer: check every tool sheet against the new sheet parts (VoiceSheet, NoteSheet, ReadAloud,

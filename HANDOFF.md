@@ -4,7 +4,7 @@ Read this first after a `/clear`. The roadmap is `PLAN.md`.
 
 ## Where things are
 
-- Repo: `D:\clearPDF_V2`, branch `clearpdf-v2`; remote `upstream` = artcraft-android/pdfcraft-android.
+- Repo: `D:\clearPDF_V2`, branch `codex/release-artefact-alpha1` (releases are cut from `main`); remote `upstream` = artcraft-android/pdfcraft-android.
 - Android project: `android/`; Rust workspace: `engine/` (bridge crate `engine/mobile`, package
   `artefact-mobile`, library `libartefact.so`; engine crates keep their `pdfcraft-*` package names).
 - Build (phone is arm64): `cd android; ./gradlew installDebug -Partefact.abis=arm64-v8a`
@@ -116,6 +116,9 @@ The parts a later session needs to know:
   network permission and must not gain one); Bold/Italic on the selected words only (`text_edit`
   `ranges`, UTF-8 byte offsets); photo Crop (LightCraft's `crop.geometry`, which needs `rect` and
   `angle`); voice notes leave as m4a (`notes/AudioExport.kt`).
+- **3.0.0-beta.10 (2026-11-14)**: first beta, the first release published as the stable "Latest" (not a
+  pre-release), with the 16:9 trailer attached. Versions stay `-beta.N` from here (`artefact.version`,
+  `artefact.versionCode` 3000010; beta numbers start at 10 so codes rise past alpha.9’s 3000009).
 - **Releases** build five APKs (`-arm64-v8a`, `-armeabi-v7a`, `-x86`, `-x86_64`, `-universal`); `x86`
   is new (`i686-linux-android`, version-code suffix 4). `ci.yml` builds pull requests.
 

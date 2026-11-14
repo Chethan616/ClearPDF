@@ -92,7 +92,7 @@ These are checked by CI or by review, and a pull request that breaks one is not 
 - Versions live in `android/gradle.properties` (`artefact.version`, `artefact.versionCode`). The
   version code of an APK is the base times ten plus an ABI digit (armeabi-v7a 1, arm64-v8a 2,
   x86_64 3, x86 4, universal 0).
-- A release is a tag `vX.Y.Z[-alpha.N]`; the release workflow builds and signs one APK per ABI.
+- A release is a tag `vX.Y.Z[-beta.N]` (from 3.0.0-beta.10 on, releases are betas; the alphas ended at 3.0.0-alpha.9, and beta numbers start at 10 so version codes keep rising); the release workflow builds and signs one APK per ABI.
   Each needs a changelog in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`
   (500 characters at most).
 - F-Droid builds the same tag and checks its APKs are identical to ours (reproducible builds), so

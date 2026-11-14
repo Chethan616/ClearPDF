@@ -2,8 +2,8 @@
 # (one per ABI: arm64-v8a, armeabi-v7a, x86, x86_64, and a universal one holding all four) signed
 # with the release key and makes them a draft GitHub release named after the tag, with an empty
 # "What's Changed" section. GitHub adds the source archives and each file's SHA-256. Fill that in on
-# GitHub and publish the draft: it becomes the latest release (betas too: while the app is in beta,
-# every release is one).
+# GitHub and publish the draft as a normal (not pre-release) release: it becomes the latest release
+# (the app is in beta, so every release is a -beta.N).
 #
 # A manual run (Actions › Release › Run workflow) is a dry run: it builds the APKs at the version in
 # gradle.properties and keeps them as the run's artifact, and releases nothing.

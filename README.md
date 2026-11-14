@@ -31,6 +31,7 @@ Read, sign and edit PDFs, open and edit Word, Excel and PowerPoint files, and ke
   <a href="https://github.com/Chethan616/ClearPDF/releases/latest"><img src="https://img.shields.io/github/v/release/Chethan616/ClearPDF?style=flat-square&color=0A84FF&label=latest%20release" alt="Latest release"></a>
   <a href="https://github.com/Chethan616/ClearPDF/releases"><img src="https://img.shields.io/github/downloads/Chethan616/ClearPDF/total?style=flat-square&color=BF5AF2&label=installs" alt="Total installs from GitHub releases"></a>
   <a href="LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-30D158?style=flat-square" alt="MIT or Apache-2.0 license"></a>
+  <img src="https://img.shields.io/badge/status-beta-FF9F0A?style=flat-square" alt="Beta">
   <img src="https://img.shields.io/badge/Android-10%2B-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android 10 or newer">
   <img src="https://img.shields.io/badge/engine-Rust-DEA584?style=flat-square&logo=rust&logoColor=white" alt="Rust engine">
   <a href="https://github.com/Chethan616/ClearPDF/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/Chethan616/ClearPDF/release.yml?branch=artefact&style=flat-square&label=build" alt="Build status"></a>
