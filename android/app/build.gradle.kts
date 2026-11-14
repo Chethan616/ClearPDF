@@ -19,7 +19,7 @@ val minApi = 29
 // workflow builds a release. The version code follows from it (0.0.1-beta → 101, 0.0.1-beta.2 →
 // 102, 0.0.1 → 199, 0.1.0-beta → 10001), so a pre-release comes before its release and every
 // release before the next version's pre-releases; times ten plus the ABI of a one-ABI build
-// (armeabi-v7a 1, arm64-v8a 2, x86_64 3; 0 for several), so each APK of a release has its own code
+// (armeabi-v7a 1, arm64-v8a 2, x86_64 3, x86 4; 0 for several, the universal APK), so each APK of a release has its own code
 // (F-Droid needs that). ClearPDF 2.x shipped codes up to 95, so 3.x codes always sort above them.
 val appVersion: String = providers.gradleProperty("artefact.version").get()
 val appVersionCode: Int = run {
@@ -41,6 +41,7 @@ val appVersionCode: Int = run {
         "armeabi-v7a" -> 1
         "arm64-v8a" -> 2
         "x86_64" -> 3
+        "x86" -> 4
         else -> 0
     }
     base * 10 + abi
@@ -246,7 +247,7 @@ android {
     defaultConfig {
         applicationId = "com.chethan616.clearpdf"
         minSdk = minApi
-        targetSdk = 36
+        targetSdk = 37
         versionCode = appVersionCode
         versionName = appVersion
         ndk { abiFilters.addAll(rustAbis) }

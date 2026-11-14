@@ -205,6 +205,9 @@ fun PdfSheet(
     val visible = LocalSheetVisible.current ?: own
     GlassOverlay(animatesOut = true) {
         val c = clear
+        // Viewer sheets are glass over the actual document. Keep their wash neutral, so a PDF or
+        // image supplies the reflected colour instead of the dark theme's old indigo frost.
+        val sheetWash = background?.copy(alpha = 0.9f) ?: if (c.dark) Color(0xFF0D0D10).copy(alpha = 0.64f) else Color.White.copy(alpha = 0.76f)
         val presence = com.chethan616.clearpdf.ui.glass.LocalOverlayPresence.current
         val leaving = presence?.leaving == true
         // shown on its own (not through a SheetHost), it slides away once whoever showed it is gone
@@ -247,7 +250,7 @@ fun PdfSheet(
                             .onSizeChanged { height = it.height }
                             .pointerInput(Unit) { detectTapGestures() },
                         shape = RoundedRectangle(34.dp),
-                        wash = background?.copy(alpha = 0.9f) ?: c.frost,
+                        wash = sheetWash,
                         blur = 18.dp,
                     ) {
                         val haptics = com.chethan616.clearpdf.ui.glass.LocalHaptics.current
@@ -342,6 +345,7 @@ fun SheetRow(
     checked: Boolean = false,
     enabled: Boolean = true,
     tint: Color? = null,
+    trailingInteractive: Boolean = false,
     trailing: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val c = clear
@@ -353,23 +357,31 @@ fun SheetRow(
         else -> Candy.Sky
     }
     Row(
-        modifier.fillMaxWidth().heightIn(min = 50.dp).pressable(onClick, enabled = enabled, pressedScale = 0.985f).padding(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
+        modifier.fillMaxWidth().heightIn(min = 50.dp)
+            .then(if (trailingInteractive) Modifier else Modifier.pressable(onClick, enabled = enabled, pressedScale = 0.985f))
+            .padding(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icon != null) {
-            Box(
-                Modifier.size(30.dp).clip(RoundedRectangle(9.dp))
-                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(accent.copy(alpha = 0.86f), accent)))
-                    .graphicsLayer { alpha = if (enabled) 1f else 0.4f },
-                contentAlignment = Alignment.Center,
-            ) { Icon(icon, null, tint = Color.White, modifier = Modifier.size(17.dp)) }
-            Spacer(Modifier.width(14.dp))
-        }
         val ink = if (danger) Candy.Tomato else c.ink
-        Text(
-            label, style = ClearType.Body.copy(fontSize = 16.sp), color = if (enabled) ink else ink.copy(alpha = 0.38f),
-            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(vertical = 7.dp),
-        )
+        Row(
+            Modifier.weight(1f).fillMaxWidth()
+                .then(if (trailingInteractive) Modifier.pressable(onClick, enabled = enabled, pressedScale = 0.985f) else Modifier),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (icon != null) {
+                Box(
+                    Modifier.size(30.dp).clip(RoundedRectangle(9.dp))
+                        .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(accent.copy(alpha = 0.86f), accent)))
+                        .graphicsLayer { alpha = if (enabled) 1f else 0.4f },
+                    contentAlignment = Alignment.Center,
+                ) { Icon(icon, null, tint = Color.White, modifier = Modifier.size(17.dp)) }
+                Spacer(Modifier.width(14.dp))
+            }
+            Text(
+                label, style = ClearType.Body.copy(fontSize = 16.sp), color = if (enabled) ink else ink.copy(alpha = 0.38f),
+                maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(vertical = 7.dp),
+            )
+        }
         if (trailing != null) trailing()
         if (checked) Icon(LucideIcons.Check, null, tint = Candy.Sky, modifier = Modifier.size(21.dp))
         if (chevron) Icon(LucideIcons.ChevronRight, null, tint = c.inkFaint, modifier = Modifier.size(19.dp))

@@ -34,6 +34,18 @@ data class GlassStyle(
         val Default = GlassStyle()
         /** Heavier frost and wash: text stays legible over busy pages. */
         val Frosted = GlassStyle(blur = 2.4f, tint = 1.8f, refractionAmount = 0.7f, saturation = 1.3f)
+        /**
+         * A menu's own frost, independent of the user's glass preset (a Lite or Crystal menu would not
+         * read). Lighter than it was (blur ×3 hid everything behind): what is under the menu now shows
+         * through as soft shapes, as a sheet of frosted glass lets it.
+         */
+        val MenuFrost = GlassStyle(blur = 1.5f, refractionHeight = 0f, refractionAmount = 0f, tint = 1f, saturation = 1.2f, brightness = 0.08f)
+
+        /**
+         * The same in the dark theme: what is behind is dimmed a little, so white ink still reads when
+         * a dark menu opens over a white page.
+         */
+        val MenuFrostDark = MenuFrost.copy(brightness = -0.3f)
         /** Clear, strongly bent glass with a prismatic rim. */
         val Crystal = GlassStyle(blur = 0.3f, refractionHeight = 1.5f, refractionAmount = 1.6f, depthEffect = true, chromaticAberration = true, tint = 0.6f, saturation = 1.7f)
         /** No blur or lens at all, for slower phones. */
@@ -97,6 +109,18 @@ object GlassSettings {
     var style: GlassStyle by mutableStateOf(GlassStyle.Default)
     var haptics: Boolean by mutableStateOf(true)
 
+    /**
+     * Adaptive luminance (Settings ▸ Liquid glass): menus, popovers and toasts read how light what is
+     * behind them is, and turn light with dark ink or dark with white ink to suit (see [GlassLuminance]).
+     */
+    var adaptive: Boolean by mutableStateOf(false)
+        private set
+
+    fun updateAdaptive(context: Context, on: Boolean) {
+        adaptive = on
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("adaptive", on).apply()
+    }
+
     fun load(context: Context) {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val d = GlassStyle.Default
@@ -112,6 +136,7 @@ object GlassSettings {
             highlight = p.getFloat("highlight", d.highlight),
         )
         haptics = p.getBoolean("haptics", true)
+        adaptive = p.getBoolean("adaptive", false)
         wallpaper = runCatching { Wallpaper.valueOf(p.getString("wallpaper", null) ?: "Aurora") }.getOrDefault(Wallpaper.Aurora)
         if (wallpaper == Wallpaper.Custom) loadCustom(context)
         if (wallpaper == Wallpaper.Custom && customWallpaper == null) wallpaper = Wallpaper.Aurora

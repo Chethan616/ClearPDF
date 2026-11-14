@@ -168,6 +168,20 @@
     <string name="home_about_compress">Make a PDF smaller</string>
     <string name="home_about_export">Save a PDF as a document, spreadsheet, slides or images</string>
     <string name="home_about_protect">Protect a PDF with a password</string>
+    <string name="tool_encryption">Encryption</string>
+    <string name="home_about_encryption">Set a PDF\'s password, or remove it for good</string>
+    <string name="tools_set_password_body">Save a copy that asks for a password before it opens</string>
+    <string name="msg_no_password_yet">This PDF has no password</string>
+    <string name="tool_edit_photo">Edit photo</string>
+    <string name="home_about_edit_photo">Crop, straighten and adjust a picture</string>
+    <string name="photo_texture">Soften / Texture</string>
+    <string name="tool_text_to_pdf">Text to PDF</string>
+    <string name="home_about_text_to_pdf">Type or paste text and save it as a PDF</string>
+    <string name="tool_pdf_to_text">PDF to text</string>
+    <string name="home_about_pdf_to_text">Save the text of a PDF as a plain text file</string>
+    <string name="home_about_find_fields">Turn the blanks of a drawn form into fields to fill</string>
+    <string name="home_about_unlock">Save a copy of a protected PDF that opens without its password</string>
+    <string name="msg_no_password">This PDF has no password to remove</string>
 
     <!-- Search tab -->
     <string name="home_search_your_files">Search your files</string>
@@ -226,6 +240,9 @@
     <!-- Tool screens: Set password -->
     <string name="tools_about_passwords">About passwords</string>
     <string name="tools_protect_intro">A protected copy of this file is saved.</string>
+    <string name="tools_unlock_title">This PDF is password-protected</string>
+    <string name="tools_unlock_body">Save a copy that opens without its password, for good. Its restrictions on printing, copying and editing are lifted too.</string>
+    <string name="tools_unlock_action">Remove password</string>
     <!-- The * marks a field that must be filled in -->
     <string name="tools_new_password">New password *</string>
     <!-- The * marks a field that must be filled in -->
@@ -247,6 +264,8 @@
     <string name="tools_format_rtf">Rich Text Format (rtf)</string>
     <string name="tools_format_excel">Excel (xlsx)</string>
     <string name="tools_format_powerpoint">PowerPoint (pptx)</string>
+    <string name="tools_format_text">Plain text (txt)</string>
+    <string name="msg_no_text_to_export">This PDF has no text to export. Recognize its text first.</string>
     <string name="tools_format_jpeg">JPEG (jpeg)</string>
     <string name="tools_format_png">PNG (png)</string>
 
@@ -255,6 +274,10 @@
     <string name="tools_browse_files">Browse files</string>
     <string name="tools_or_make_new">Or make a new one</string>
     <string name="tools_scan_document">Scan a document</string>
+    <string name="tools_create_from_text">Type or paste text</string>
+    <string name="tools_create_action">Create PDF</string>
+    <string name="tools_text_name">Name (optional)</string>
+    <string name="tools_text_hint">Write or paste the text here</string>
 
     <!-- Tool screens: Combine files -->
     <!-- Title once two or more files are chosen -->
@@ -420,6 +443,9 @@
     <string name="viewer_search_count">%1$d of %2$d</string>
     <string name="viewer_read_from_here">Read from here</string>
     <string name="viewer_copy_text">Copy text</string>
+    <string name="viewer_translate">Translate</string>
+    <string name="sheet_open_link">Open link</string>
+    <string name="msg_link_not_followed">This link goes to a file Artefact can\'t open from here</string>
     <!-- Translator note: accessibility labels of the two handles at the ends of selected text. -->
     <string name="viewer_selection_start">Selection start</string>
     <string name="viewer_selection_end">Selection end</string>
@@ -436,13 +462,25 @@
 
     <!-- Read Aloud: the player -->
     <string name="read_aloud_no_voice">Read aloud needs a text-to-speech voice on this phone.</string>
-    <string name="read_aloud_open_player">Open the player</string>
-    <string name="read_aloud_close_player">Close the player</string>
     <string name="read_aloud_read_again">Read again</string>
     <string name="read_aloud_back_15">Back 15 seconds</string>
     <string name="read_aloud_forward_15">Forward 15 seconds</string>
+    <string name="read_aloud_stop_reading">Stop reading</string>
+    <string name="read_aloud_system_default">System default (%1$s)</string>
+    <string name="read_aloud_language_selected">Selected</string>
+    <string name="read_aloud_languages_loading">Loading available languages…</string>
+    <string name="settings_read_aloud_language">Read aloud language</string>
+    <string name="settings_read_aloud_language_body">Choose the language used when reading documents aloud.</string>
+    <string name="settings_language">App language</string>
+    <string name="settings_language_body">Choose the language used throughout Artefact.</string>
+    <string name="settings_language_system">System default (%1$s)</string>
+    <string name="settings_open_in_night_mode">Always open PDFs and documents in night mode</string>
+    <string name="settings_open_in_night_mode_body">Open each PDF and document with night mode enabled.</string>
+    <string name="viewer_night_mode_on">Night mode on</string>
+    <string name="viewer_night_mode_off">Night mode off</string>
     <!-- Translator note: opens the choice of the language the voice reads in. -->
-    <string name="read_aloud_voice">Voice</string>
+    <string name="read_aloud_speed">Playback speed</string>
+    <string name="sheet_not_found">Not found</string>
     <string name="read_aloud_choose_language">Choose language</string>
     <string name="read_aloud_voice_settings">Voice settings</string>
 
@@ -637,6 +675,7 @@
     <!-- Viewer sheets: View settings -->
     <string name="sheet_continuous">Continuous</string>
     <string name="sheet_single_page">Single page</string>
+    <string name="sheet_two_pages">Two pages</string>
     <string name="sheet_reading_mode">Reading Mode</string>
     <string name="sheet_night_mode">Night Mode</string>
 
@@ -752,6 +791,14 @@
     <string name="toolbar_label_crop">Crop</string>
     <!-- Note: the Recognize text tool's short name on the toolbar -->
     <string name="toolbar_label_recognize">Recognize</string>
+    <string name="toolbar_label_find_fields">Find fields</string>
+    <string name="tool_find_fields">Find form fields</string>
+    <string name="msg_busy_finding_fields">Looking for places to fill in…</string>
+    <string name="msg_no_fields_found">No places to fill in were found on this document</string>
+    <plurals name="msg_fields_found">
+        <item quantity="one">%1$d field found. Tap it to fill it in.</item>
+        <item quantity="other">%1$d fields found. Tap one to fill it in.</item>
+    </plurals>
     <!-- Note: the tool that types text onto the page, as named on the toolbar -->
     <string name="toolbar_label_add_text">Add text</string>
     <!-- Note: the same tool's name in More tools, and its one sub-tool (text typed onto the page) -->
@@ -1009,17 +1056,38 @@
     <string name="files_kind_slides">Presentations</string>
     <string name="files_kind_sheets">Spreadsheets</string>
     <string name="files_kind_text">Text files</string>
+    <string name="files_kind_images">Pictures</string>
     <string name="photo_exposure">Exposure</string>
     <string name="photo_contrast">Contrast</string>
     <string name="photo_highlights">Highlights</string>
     <string name="photo_shadows">Shadows</string>
     <string name="photo_vibrance">Vibrance</string>
     <string name="photo_saturation">Saturation</string>
+    <string name="photo_straighten">Straighten</string>
+    <string name="photo_crop">Crop</string>
+    <string name="photo_whites">Whites</string>
+    <string name="photo_blacks">Blacks</string>
+    <string name="photo_clarity">Clarity</string>
+    <string name="photo_sharpen">Sharpen</string>
+    <string name="photo_vignette">Vignette</string>
     <string name="photo_rotate">Rotate</string>
     <string name="photo_edit">Edit picture</string>
     <string name="msg_ppt_text_only">This PowerPoint 97–2003 file shows its slides\' text. Saved as .pptx, it opens with its pictures and layout.</string>
     <string name="photo_original">Original</string>
     <string name="photo_reset">Reset</string>
+    <string name="photo_adjust">Adjust</string>
+    <string name="photo_blur">Blur</string>
+    <string name="photo_text">Text</string>
+    <string name="photo_pixelate">Pixelate</string>
+    <string name="photo_erase">Erase</string>
+    <string name="photo_brush">Brush</string>
+    <string name="photo_add_text">Add text</string>
+    <string name="photo_text_hint">Type here</string>
+    <string name="photo_text_help">Tap the picture to write on it. Drag words to move them, pinch to size and turn them.</string>
+    <string name="photo_free">Free</string>
+    <string name="photo_shape_original">Original</string>
+    <string name="photo_mirror">Mirror</string>
+    <string name="photo_font_sample">Aa</string>
     <string name="photo_not_saved">The picture couldn\'t be saved.</string>
     <!-- Draw tool: lines drawn are turned into neat shapes. -->
     <string name="msg_snap_to_shape_on">Snap to shape on</string>
@@ -1126,6 +1194,8 @@
     <string name="msg_compress_no_gain">This file is already as small as it can be.</string>
     <string name="msg_busy_combining">Combining…</string>
     <string name="msg_busy_setting_password">Setting password…</string>
+    <string name="msg_busy_removing_password">Removing password…</string>
+    <string name="msg_unlock_failed">This file\'s protection can\'t be removed</string>
     <string name="msg_crop_all">Every page is cropped.</string>
     <string name="msg_crop_page">The page is cropped.</string>
     <!-- %1$s is a file format, for example DOCX. -->
@@ -1262,6 +1332,8 @@
     <string name="gm_highlight">Rim light</string>
     <string name="gm_depth">Depth</string>
     <string name="gm_chromatic">Prism edge</string>
+    <string name="gm_adaptive">Adaptive luminance</string>
+    <string name="gm_adaptive_body">Glass turns light or dark to suit what is behind it. The presets above rest while it is on</string>
     <string name="gm_spring">Glass spring</string>
     <string name="gm_spring_body">How glass swells, springs past and settles. Tap the graph to pause it.</string>
     <string name="gm_spring_stats">Damping %1$s · stiffness %2$s · settles in %3$s s</string>
@@ -1356,6 +1428,31 @@
     <string name="create_photo_note">Photo note</string>
     <string name="create_voice">Record a voice note</string>
     <string name="voice_saved">Voice note saved</string>
+    <string name="voice_import">Import audio</string>
+    <string name="mindmap_title">Mind map</string>
+    <string name="mindmap_empty">Write the note as an outline: one idea a line, indented under the idea it belongs to. It is drawn here as a map.</string>
+    <string name="mindmap_save_image">Save as image</string>
+    <string name="mindmap_save_pdf">Save as PDF</string>
+    <string name="mindmap_save_opml">Export as OPML</string>
+    <string name="mindmap_root_hint">Central idea</string>
+    <string name="mindmap_node_hint">New idea</string>
+    <string name="mindmap_child">Child</string>
+    <string name="mindmap_sibling">Sibling</string>
+    <string name="mindmap_edit">Edit</string>
+    <string name="mindmap_colour">Colour</string>
+    <string name="mindmap_branch_colour">Branch colour</string>
+    <string name="mindmap_fold">Fold</string>
+    <string name="mindmap_unfold">Unfold</string>
+    <string name="mindmap_add_idea">Add idea</string>
+    <string name="mindmap_fit">Fit to screen</string>
+    <string name="mindmap_one_side">Branches to the right</string>
+    <string name="mindmap_both_sides">Branches on both sides</string>
+    <string name="mindmap_make">Make it a mind map</string>
+    <string name="mindmap_hint">Tap an idea to pick it, tap it again to type. Drag it to move it, or drop it on another idea.</string>
+    <string name="create_mindmap">Mind map</string>
+    <string name="voice_imported">Audio added to your desk</string>
+    <string name="voice_export">Save to Downloads</string>
+    <string name="voice_export_name">Voice note</string>
     <string name="voice_too_short">Too short to keep. Hold on a little longer.</string>
 
     <!-- Notes -->
@@ -1386,10 +1483,10 @@
     <string name="notes_remove_picture">Remove picture</string>
 
     <!-- What a fresh desk starts with -->
-    <string name="seed_list_title">Shopping List</string>
-    <string name="seed_list_1">Vegetables</string>
-    <string name="seed_list_2">Fruits</string>
-    <string name="seed_list_3">Grocery</string>
+    <string name="seed_list_title">Onboarding</string>
+    <string name="seed_list_1">Choose a theme</string>
+    <string name="seed_list_2">Customize your toolbar</string>
+    <string name="seed_list_3">Try Quick Look</string>
     <string name="seed_note_title">Thought of the day</string>
     <string name="seed_note_body">Every day is a fresh start. Embrace it with **hope and courage**, and let each moment inspire you to grow and shine **brighter** than before.</string>
 
@@ -1425,6 +1522,8 @@
     <string name="preview_expand">Open in Artefact</string>
     <string name="preview_open_in_app">Open in Artefact</string>
     <string name="preview_open">Open</string>
+    <string name="preview_edit">Edit</string>
+    <string name="preview_edit_picture">Edit the picture</string>
     <string name="preview_save_downloads">Save to Downloads</string>
     <string name="preview_saved_downloads">Saved to Downloads</string>
     <string name="preview_locked_body">This PDF is locked. Type its password to look inside.</string>
@@ -1501,4 +1600,19 @@
         <item>You can\'t control every wave, but you can **choose how you meet it**. A steady breath is **contagious**.</item>
         <item>A sentence, a sketch, a tidy shelf. **Creating** reminds you that you can **change the world around you**, even a little.</item>
     </string-array>
+    <string name="files_kind_mindmaps">Mind maps</string>
+    <string name="msg_not_opml">This file isn\'t a mind map outline (OPML).</string>
+    <plurals name="preview_ideas">
+        <item quantity="one">%d idea</item>
+        <item quantity="other">%d ideas</item>
+    </plurals>
+    <string name="sheet_stats">Sum %1$s · Average %2$s · Count %3$d</string>
+    <string name="sheet_stats_count">Count %1$d</string>
+    <string name="kind_short_pdf">PDFs</string>
+    <string name="kind_short_word">Docs</string>
+    <string name="kind_short_slides">Slides</string>
+    <string name="kind_short_sheets">Sheets</string>
+    <string name="kind_short_text">Text</string>
+    <string name="kind_short_images">Photos</string>
+    <string name="kind_short_maps">Maps</string>
 </resources>

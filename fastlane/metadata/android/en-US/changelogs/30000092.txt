@@ -1,0 +1,9 @@
+More tools, fewer taps
+* Encryption: set a PDF password or remove it for good
+* Create PDF from typed or pasted text; PDF to text
+* Two pages side by side; a new page bar in single page mode
+* Notes as mind maps, saved as image or PDF
+* Fill & Sign finds the fields of forms that have none
+* Translate selected text; bold or italic only the selected words
+* Photo editor: crop and more tools; voice notes export as m4a
+* Links work in spreadsheets and between slides

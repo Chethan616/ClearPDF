@@ -4,6 +4,11 @@ import android.content.Context
 import android.content.Intent
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -11,10 +16,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,8 +37,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -39,6 +49,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,16 +57,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -63,9 +80,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import com.chethan616.clearpdf.R
 import com.chethan616.clearpdf.core.ReadingBlock
 import com.chethan616.clearpdf.core.TextRange
@@ -76,12 +92,33 @@ import com.chethan616.clearpdf.ui.LucideIcons
 import com.chethan616.clearpdf.ui.OpenDocument
 import com.chethan616.clearpdf.ui.PdfSheet
 import com.chethan616.clearpdf.ui.pdfColors
+import com.chethan616.clearpdf.ui.glass.GlassCard
+import com.chethan616.clearpdf.ui.glass.GlassCircle
+import com.chethan616.clearpdf.ui.glass.GlassIcon
+import com.chethan616.clearpdf.ui.glass.GlassMenu
+import com.chethan616.clearpdf.ui.glass.GlassMenuItem
+import com.chethan616.clearpdf.ui.glass.GlassOverlay
+import com.chethan616.clearpdf.ui.glass.GlassMotion
+import com.chethan616.clearpdf.ui.glass.GlassPill
+import com.chethan616.clearpdf.ui.glass.GlassStyle
+import com.chethan616.clearpdf.ui.glass.InkOnLight
+import com.chethan616.clearpdf.ui.glass.LocalGlassInk
+import com.chethan616.clearpdf.ui.glass.LocalGlassOverlayHost
+import com.chethan616.clearpdf.ui.glass.LocalScreenInk
+import com.chethan616.clearpdf.ui.glass.RoundedRectangle
+import com.chethan616.clearpdf.ui.theme.ClearType
+import com.chethan616.clearpdf.ui.theme.Candy
+import com.chethan616.clearpdf.ui.glass.glassBar
+import com.chethan616.clearpdf.ui.glass.glass
+import com.chethan616.clearpdf.ui.glass.rememberGlassInk
+import com.chethan616.clearpdf.ui.theme.clear
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /**
  * Read Aloud: the document read out by the phone's own text-to-speech voice, paragraph by
@@ -140,9 +177,9 @@ class ReadAloud(
 
     private val prefsCtx = context.applicationContext
     private var blocks: List<ReadingBlock> = emptyList()
-    private var index = 0
+    private var index by mutableIntStateOf(0)
     /** Where in the current paragraph the voice is (characters), and where its utterance began. */
-    private var offset = 0
+    private var offset by mutableIntStateOf(0)
     private var base = 0
     private var ready = false
 
@@ -443,215 +480,114 @@ fun DrawScope.drawReadAloud(doc: OpenDocument, r: ReadAloud) {
 }
 
 /**
- * The Read Aloud player, as the reference lays it out: a thin progress track along its top, then
- * the round button that opens the full player, back 15 seconds, play or pause, forward 15
- * seconds, and the speed.
+ * The read-aloud player, docked over the page: the app's glass bar (as the viewer's toolbar), the
+ * voice's sign in the accent beside the document's name and where it has got to, the speed, the
+ * live wave of progress, and the transport (back 15, play or pause, forward 15, stop).
  */
 @Composable
-fun BoxScope.ReadAloudBar(vm: com.chethan616.clearpdf.ui.AppViewModel, doc: OpenDocument, r: ReadAloud) {
-    val c = pdfColors
+fun BoxScope.ReadAloudBar(doc: OpenDocument, r: ReadAloud) {
     var speeds by remember { mutableStateOf(false) }
-    var expanded by remember { mutableStateOf(false) }
-    val openPlayer = stringResource(R.string.read_aloud_open_player)
-    Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(c.surface)) {
-        ProgressTrack(r.progress, Modifier.fillMaxWidth().height(6.dp))
-        Box(Modifier.fillMaxWidth().height(0.5.dp).background(c.divider))
-        Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp).height(56.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                Modifier.size(40.dp).clip(CircleShape).background(c.pageCard).clickable(role = Role.Button) { expanded = true }
-                    .semantics { contentDescription = openPlayer },
-                contentAlignment = Alignment.Center,
-            ) { Icon(LucideIcons.ChevronUp, null, tint = c.label, modifier = Modifier.size(24.dp)) }
-            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-                SkipButton(back = true, size = 43.dp) { r.skip(false) }
-                PlayerButton(if (r.playing) LucideIcons.Pause else LucideIcons.Play, stringResource(if (r.playing) R.string.common_pause else if (r.finished) R.string.read_aloud_read_again else R.string.common_play), 43.dp) {
-                    if (r.playing) r.pause() else r.play()
+    var speedAnchor by remember { mutableStateOf(Rect.Zero) }
+    val ink = rememberGlassInk(InkOnLight)
+    Box(
+        Modifier.align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .then(ink.modifier)
+            .glassBar(RoundedRectangle(30.dp))
+            .padding(start = 14.dp, end = 12.dp, top = 12.dp, bottom = 10.dp),
+    ) {
+        CompositionLocalProvider(LocalGlassInk provides ink.color) {
+            Column(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(36.dp).clip(CircleShape).background(Candy.Sky), contentAlignment = Alignment.Center) {
+                        Icon(LucideIcons.AudioLines, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(doc.title, style = ClearType.BodyStrong, color = LocalGlassInk.current, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            stringResource(R.string.common_tool_read_aloud) + "  ·  " + stringResource(R.string.viewer_page_of, r.page + 1, doc.info.pages.size),
+                            style = ClearType.Caption, color = LocalGlassInk.current.copy(alpha = 0.62f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        GlassPill(
+                            onClick = { speeds = true },
+                            modifier = Modifier.onGloballyPositioned { speedAnchor = it.boundsInWindow() },
+                            height = 36.dp,
+                            horizontalPadding = 12.dp,
+                            label = stringResource(R.string.read_aloud_speed),
+                        ) {
+                            Text(speedLabel(r.speed), style = ClearType.Label.copy(fontWeight = FontWeight.SemiBold), color = LocalGlassInk.current)
+                        }
+                        if (speeds) SpeedMenu(speedAnchor, r) { speeds = false }
+                    }
                 }
-                SkipButton(back = false, size = 43.dp) { r.skip(true) }
+                Spacer(Modifier.height(10.dp))
+                WavyProgressTrack(r.progress, Modifier.fillMaxWidth().padding(horizontal = 4.dp).height(9.dp))
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally)) {
+                    SkipButton(back = true, size = 46.dp) { r.skip(false) }
+                    GlassCircle(
+                        onClick = { if (r.playing) r.pause() else r.play() },
+                        size = 56.dp,
+                        tint = Candy.Sky,
+                        label = stringResource(if (r.playing) R.string.common_pause else if (r.finished) R.string.read_aloud_read_again else R.string.common_play),
+                    ) { GlassIcon(if (r.playing) LucideIcons.Pause else LucideIcons.Play, null, Modifier.size(25.dp), tint = Color.White) }
+                    SkipButton(back = false, size = 46.dp) { r.skip(true) }
+                }
+                r.problem?.let { Text(it, style = ClearType.Caption, color = Candy.Tomato, modifier = Modifier.padding(top = 6.dp)) }
             }
-            Box {
-                Text(speedLabel(r.speed), color = c.label, fontSize = 15.sp, modifier = Modifier.clickable(role = Role.Button) { speeds = true }.padding(vertical = 10.dp, horizontal = 2.dp))
-                if (speeds) SpeedPicker(r) { speeds = false }
+            // stop sits in the corner, away from play
+            GlassCircle(onClick = r::stop, size = 34.dp, label = stringResource(R.string.read_aloud_stop_reading), modifier = Modifier.align(Alignment.BottomEnd)) {
+                GlassIcon(LucideIcons.Square, null, Modifier.size(13.dp))
             }
         }
-        if (r.problem != null) Text(r.problem.orEmpty(), color = c.textSecondary, fontSize = 13.sp, modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp))
-        Box(Modifier.fillMaxWidth().windowInsetsBottomHeight(androidx.compose.foundation.layout.WindowInsets.navigationBars).background(c.navBand))
     }
-    if (expanded) ReadAloudFull(vm, doc, r) { expanded = false }
 }
 
-/** The progress track: the part read in the accent blue, the rest grey, rounded ends. */
+/** Material 3 Expressive's animated wave, tinted to the player rather than the app theme. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ProgressTrack(progress: Float, modifier: Modifier) {
-    val c = pdfColors
-    val rest = if (c.dark) Color(0xFF6A6A6A) else Color(0xFFB1B1B1)
-    Canvas(modifier) {
-        val r = CornerRadius(size.height / 2f)
-        drawRoundRect(rest, cornerRadius = r)
-        drawRoundRect(c.toolAccent, size = Size(size.width * progress.coerceIn(0f, 1f), size.height), cornerRadius = r)
-    }
+private fun WavyProgressTrack(progress: Float, modifier: Modifier, accent: Color = Candy.Sky) {
+    val animatedProgress by animateFloatAsState(progress.coerceIn(0f, 1f), animationSpec = tween(360), label = "readAloudProgress")
+    LinearWavyProgressIndicator(
+        progress = { animatedProgress },
+        modifier = modifier,
+        color = accent,
+        trackColor = LocalGlassInk.current.copy(alpha = 0.18f),
+    )
 }
 
 @Composable
 private fun PlayerButton(icon: ImageVector, description: String, size: androidx.compose.ui.unit.Dp, iconSize: androidx.compose.ui.unit.Dp = 24.dp, onClick: () -> Unit) {
-    Box(
-        Modifier.size(size).clip(CircleShape).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description },
-        contentAlignment = Alignment.Center,
-    ) { Icon(icon, null, tint = pdfColors.label, modifier = Modifier.size(iconSize)) }
+    GlassCircle(onClick = onClick, size = size, label = description) { GlassIcon(icon, null, Modifier.size(iconSize)) }
 }
 
 /** Back or forward 15 seconds: a turning arrow with "15" in it. */
 @Composable
-private fun SkipButton(back: Boolean, size: androidx.compose.ui.unit.Dp, iconSize: androidx.compose.ui.unit.Dp = 26.dp, onClick: () -> Unit) {
-    val c = pdfColors
+private fun SkipButton(
+    back: Boolean,
+    size: androidx.compose.ui.unit.Dp,
+    iconSize: androidx.compose.ui.unit.Dp = 26.dp,
+    ink: Color = Color.Unspecified,
+    surface: Color = Color.Unspecified,
+    onClick: () -> Unit,
+) {
     val label = stringResource(if (back) R.string.read_aloud_back_15 else R.string.read_aloud_forward_15)
-    Box(
-        Modifier.size(size).clip(CircleShape).clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = label },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(if (back) LucideIcons.RotateCcw else LucideIcons.RotateCw, null, tint = c.label, modifier = Modifier.size(iconSize))
-        Text("15", color = c.label, fontSize = (iconSize.value * 0.3f).sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.offset(y = 0.5.dp))
+    GlassCircle(onClick = onClick, size = size, ink = ink, surface = surface, label = label) {
+        Icon(if (back) LucideIcons.RotateCcw else LucideIcons.RotateCw, null, tint = LocalGlassInk.current, modifier = Modifier.size(iconSize))
+        Text("15", color = LocalGlassInk.current, fontSize = (iconSize.value * 0.3f).sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.offset(y = 0.5.dp))
     }
 }
 
-/** The speeds, in a card at the lower right: tap one to use it. */
+/** Playback speeds use the shared anchored menu, not another theme-bound pop-up card. */
 @Composable
-private fun SpeedPicker(r: ReadAloud, onDismiss: () -> Unit) {
-    val c = pdfColors
-    Popup(alignment = Alignment.BottomEnd, offset = androidx.compose.ui.unit.IntOffset(0, 0), onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
-        Box(Modifier.fillMaxSize().background(c.scrim).pointerInput(Unit) { detectTapGestures { onDismiss() } }) {
-            Column(
-                Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 24.dp, bottom = 76.dp).width(200.dp)
-                    .shadow(2.dp, RoundedCornerShape(8.dp)).background(c.surface, RoundedCornerShape(8.dp)).padding(vertical = 12.dp),
-            ) {
-                for (s in ReadAloud.SPEEDS) {
-                    Row(
-                        Modifier.fillMaxWidth().clickable { r.setRate(s); onDismiss() }.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(speedLabel(s), color = c.label, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                        if (s == r.speed) Icon(LucideIcons.Check, null, tint = c.toolAccent, modifier = Modifier.size(20.dp))
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * The full player: the page being read on a card, the document's name, the progress with the time
- * gone and left, large back, play and forward buttons, then Voice (the phone's text-to-speech
- * settings) and the speed.
- */
-@Composable
-private fun ReadAloudFull(vm: com.chethan616.clearpdf.ui.AppViewModel, doc: OpenDocument, r: ReadAloud, onClose: () -> Unit) {
-    val c = pdfColors
-    val context = LocalContext.current
-    var thumb by remember(r.page) { mutableStateOf<ImageBitmap?>(null) }
-    var speeds by remember { mutableStateOf(false) }
-    var voices by remember { mutableStateOf(false) }
-    val closePlayer = stringResource(R.string.read_aloud_close_player)
-    LaunchedEffect(r.page) {
-        val eng = vm.engine ?: return@LaunchedEffect
-        val size = doc.info.pages.getOrNull(r.page) ?: return@LaunchedEffect
-        val scale = 480f / maxOf(size.width, size.height).coerceAtLeast(1f)
-        thumb = runCatching { withContext(eng.thumbnails) { eng.session.renderPage(doc.id, r.page.toUInt(), scale, null).toBitmap().asImageBitmap() } }.getOrNull()
-    }
-    // the language sheet sits over the player, not in its column (which the player fills)
-    Box(Modifier.fillMaxSize()) {
-    PdfSheet(onDismiss = onClose, maxHeightFraction = 1f, fill = true) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.fillMaxWidth()) {
-                Box(
-                    Modifier.size(40.dp).clip(CircleShape).background(c.pageCard).clickable(role = Role.Button, onClick = onClose)
-                        .semantics { contentDescription = closePlayer },
-                    contentAlignment = Alignment.Center,
-                ) { Icon(LucideIcons.ChevronDown, null, tint = c.label, modifier = Modifier.size(22.dp)) }
-            }
-            Spacer(Modifier.weight(1f))
-            Box(Modifier.heightIn(max = 240.dp).widthIn(max = 240.dp).shadow(4.dp, RoundedCornerShape(8.dp)).background(Color.White, RoundedCornerShape(8.dp)).clip(RoundedCornerShape(8.dp))) {
-                thumb?.let { Image(it, null, contentScale = ContentScale.Fit, modifier = Modifier.heightIn(max = 240.dp)) }
-            }
-            Spacer(Modifier.height(24.dp))
-            Text(doc.title, color = c.label, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(24.dp))
-            ProgressTrack(r.progress, Modifier.fillMaxWidth().height(6.dp))
-            Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                val gone = (r.estimatedTotalMs * r.progress).toLong()
-                Text(readClock(gone), color = c.textSecondary, fontSize = 11.sp, modifier = Modifier.weight(1f))
-                Text("-" + readClock(r.estimatedTotalMs - gone), color = c.textSecondary, fontSize = 11.sp)
-            }
-            Spacer(Modifier.height(16.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                SkipButton(back = true, size = 58.dp, iconSize = 32.dp) { r.skip(false) }
-                Box(Modifier.size(80.dp).clip(CircleShape).background(c.divider), contentAlignment = Alignment.Center) {
-                    PlayerButton(if (r.playing) LucideIcons.Pause else LucideIcons.Play, stringResource(if (r.playing) R.string.common_pause else R.string.common_play), 80.dp, iconSize = 40.dp) {
-                        if (r.playing) r.pause() else r.play()
-                    }
-                }
-                SkipButton(back = false, size = 58.dp, iconSize = 32.dp) { r.skip(true) }
-            }
-            Spacer(Modifier.weight(1f))
-            Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
-                Column(
-                    Modifier.clickable { voices = true }.padding(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Icon(LucideIcons.AudioLines, null, tint = c.icon, modifier = Modifier.size(24.dp))
-                    Text(stringResource(R.string.read_aloud_voice), color = c.textSecondary, fontSize = 13.sp)
-                }
-                Box {
-                    Text(speedLabel(r.speed), color = c.textSecondary, fontSize = 16.sp, modifier = Modifier.clickable { speeds = true }.padding(8.dp))
-                    if (speeds) SpeedPicker(r) { speeds = false }
-                }
-            }
-        }
-    }
-    if (voices) LanguageSheet(r, onVoiceSettings = {
-        voices = false
-        runCatching { context.startActivity(Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-    }) { voices = false }
-    }
-}
-
-/** Choose the language to read in: the ones the phone's voice has, then its voice settings. */
-@Composable
-private fun LanguageSheet(r: ReadAloud, onVoiceSettings: () -> Unit, onDismiss: () -> Unit) {
-    val c = pdfColors
-    val langs = remember { r.languages() }
-    // opened at the language in use (a couple of rows above it showing)
-    val current = remember(langs, r.language) { languageIndex(langs, r.language) }
-    val list = androidx.compose.foundation.lazy.rememberLazyListState(initialFirstVisibleItemIndex = (current - 2).coerceAtLeast(0))
-    com.chethan616.clearpdf.ui.PdfSheet(onDismiss = onDismiss, dim = true) {
-        com.chethan616.clearpdf.ui.SheetTitle(stringResource(R.string.read_aloud_choose_language))
-        androidx.compose.foundation.lazy.LazyColumn(Modifier.heightIn(max = 420.dp), state = list) {
-            items(langs.size) { i ->
-                val l = langs[i]
-                com.chethan616.clearpdf.ui.SheetRow(null, l.getDisplayName(Locale.getDefault()), { r.chooseLanguage(l); onDismiss() }, checked = i == current)
-            }
-        }
-        com.chethan616.clearpdf.ui.SheetRow(LucideIcons.Settings, stringResource(R.string.read_aloud_voice_settings), onVoiceSettings)
-        Spacer(Modifier.height(8.dp))
-    }
-}
-
-/**
- * Where [current] is in [langs]: the same language and country, else the same language. Voices
- * often list their languages by three-letter codes ("eng", "USA"), so both are compared that way.
- * -1 when it isn't there.
- */
-internal fun languageIndex(langs: List<Locale>, current: Locale): Int {
-    fun Locale.lang() = runCatching { isO3Language }.getOrDefault(language).lowercase(Locale.ROOT)
-    fun Locale.place() = runCatching { isO3Country }.getOrDefault(country).uppercase(Locale.ROOT)
-    val exact = langs.indexOfFirst { it.lang() == current.lang() && it.place() == current.place() }
-    return if (exact >= 0) exact else langs.indexOfFirst { it.lang() == current.lang() }
-}
-
-private fun readClock(ms: Long): String {
-    val s = (ms / 1000).coerceAtLeast(0)
-    return if (s >= 3600) "%d:%02d:%02d".format(Locale.US, s / 3600, s / 60 % 60, s % 60) else "%d:%02d".format(Locale.US, s / 60, s % 60)
+private fun SpeedMenu(anchor: Rect, r: ReadAloud, onDismiss: () -> Unit) {
+    GlassMenu(anchor, onDismiss, ReadAloud.SPEEDS.map { speed ->
+        GlassMenuItem(speedLabel(speed), if (speed == r.speed) LucideIcons.Check else null) { r.setRate(speed) }
+    })
 }

@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.ui.graphics.asImageBitmap
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -97,6 +98,30 @@ class QuickPreviewActivity : ComponentActivity() {
         load(null)
     }
 
+    /** The picture at [u] (copied in as documents are), decoded no larger than the card needs and turned as shot. */
+    private fun picture(u: Uri, name: String): PreviewState.Picture {
+        val f = copy ?: files.workingCopy(u).also { copy = it }
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeFile(f.absolutePath, bounds)
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= 2048) sample *= 2
+        var bmp = android.graphics.BitmapFactory.decodeFile(f.absolutePath, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample })
+            ?: error(getString(R.string.common_file_unreadable))
+        val exif = androidx.exifinterface.media.ExifInterface(f.absolutePath)
+        val turn = when (exif.getAttributeInt(androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION, 1)) {
+            6 -> 90f
+            3 -> 180f
+            8 -> 270f
+            else -> 0f
+        }
+        if (turn != 0f) bmp = android.graphics.Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, android.graphics.Matrix().apply { postRotate(turn) }, true)
+        val sideways = turn == 90f || turn == 270f
+        return PreviewState.Picture(
+            bmp.asImageBitmap(), name, files.size(u) ?: f.length(),
+            if (sideways) bounds.outHeight else bounds.outWidth, if (sideways) bounds.outWidth else bounds.outHeight,
+        )
+    }
+
     /** The document's address from a View or a Send intent. */
     private fun sourceOf(i: Intent?): Uri? = when (i?.action) {
         Intent.ACTION_VIEW -> i.data
@@ -113,6 +138,24 @@ class QuickPreviewActivity : ComponentActivity() {
         val u = uri ?: return
         lifecycleScope.launch {
             state = if (password == null) PreviewState.Loading else state
+            // a picture is shown as it is (no engine needed); Edit opens it in the photo editor
+            val pictureName = withContext(Dispatchers.IO) { runCatching { files.displayNameRaw(u) }.getOrNull() }
+            // a mind map (OPML) is drawn as a map
+            if (pictureName != null && (com.chethan616.clearpdf.engine.DocumentTypes.isMindMapName(pictureName) || mime in com.chethan616.clearpdf.engine.DocumentTypes.MIND_MAPS)) {
+                state = runCatching {
+                    withContext(Dispatchers.IO) {
+                        val f = copy ?: files.workingCopy(u).also { copy = it }
+                        require(f.length() < 8L shl 20)
+                        val doc = com.chethan616.clearpdf.ui.notes.mindFromOpml(f.readText()) ?: error(getString(R.string.msg_not_opml))
+                        PreviewState.Map(doc, pictureName, files.size(u) ?: f.length())
+                    }
+                }.getOrElse { PreviewState.Failed(getString(R.string.msg_not_opml)) }
+                return@launch
+            }
+            if (pictureName != null && (com.chethan616.clearpdf.engine.DocumentTypes.isImageName(pictureName) || mime in com.chethan616.clearpdf.engine.DocumentTypes.IMAGES)) {
+                state = runCatching { withContext(Dispatchers.IO) { picture(u, pictureName) } }.getOrElse { PreviewState.Failed(it.userMessage) }
+                return@launch
+            }
             val eng = app.engine.await().getOrNull() ?: run {
                 state = PreviewState.Failed(getString(R.string.msg_engine_not_started))
                 return@launch
@@ -238,6 +281,12 @@ internal sealed interface PreviewState {
     class Password(val wrong: Boolean) : PreviewState
 
     class Failed(val message: String) : PreviewState
+
+    /** A mind map (.opml): drawn as a map. */
+    class Map(val doc: com.chethan616.clearpdf.ui.notes.MindDoc, val name: String, val size: Long) : PreviewState
+
+    /** A picture (.jpg, .png): shown as it is, with its size in pixels. */
+    class Picture(val image: androidx.compose.ui.graphics.ImageBitmap, val name: String, val size: Long, val width: Int, val height: Int) : PreviewState
 
     class Ready(val info: DocumentInfo, val images: PageImages, val view: ViewerState, val name: String, val size: Long, val engine: Engine) : PreviewState {
         suspend fun close(eng: Engine) {

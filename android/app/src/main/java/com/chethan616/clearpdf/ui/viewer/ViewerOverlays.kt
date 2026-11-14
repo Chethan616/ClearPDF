@@ -1,11 +1,14 @@
 package com.chethan616.clearpdf.ui.viewer
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -65,6 +68,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chethan616.clearpdf.ui.glass.pressable
+import com.chethan616.clearpdf.ui.glass.glass
+import com.chethan616.clearpdf.ui.glass.glassBar
+import androidx.compose.foundation.layout.fillMaxHeight
 import com.kyant.backdrop.floatingLayer
 import com.chethan616.clearpdf.ui.theme.clear
 import com.chethan616.clearpdf.R
@@ -111,8 +117,11 @@ fun BoxScope.Scrubber(doc: OpenDocument, visible: Boolean, top: Dp, bottom: Dp, 
                     .offset { IntOffset(0, y.roundToInt()) }
                     .height(32.dp)
                     .widthIn(min = if (label.length >= 3) 52.dp else 40.dp)
-                    .shadow(2.dp, RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
-                    .background(c.surface, RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
+                    .glass(
+                        shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp),
+                        wash = if (c.dark) Color(0xFF0D0D10).copy(alpha = 0.64f) else Color.White.copy(alpha = 0.76f),
+                        blur = 2.dp,
+                    )
                     .pointerInput(doc) {
                         detectTapGestures(onTap = { onTap() })
                     }
@@ -212,7 +221,7 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
     val appear = remember { androidx.compose.animation.core.Animatable(0f) }
     LaunchedEffect(Unit) { appear.animateTo(1f, com.chethan616.clearpdf.ui.glass.GlassMotion.unfold()) }
     val opensDown = y > top.y
-    com.chethan616.clearpdf.ui.glass.GlassCard(
+    com.chethan616.clearpdf.ui.glass.MenuCard(
         Modifier
             .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
             .onSizeChanged { menuSize = it }
@@ -224,9 +233,6 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
                 transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, if (opensDown) 0f else 1f)
                 alpha = (p * 1.6f).coerceIn(0f, 1f)
             },
-        shape = com.chethan616.clearpdf.ui.glass.RoundedRectangle(24.dp),
-        wash = clear.frost,
-        blur = 16.dp,
     ) {
         Spacer(Modifier.height(6.dp))
         // a Word document or presentation opens for reading: no markup, no Edit text
@@ -237,13 +243,14 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
             MenuIcon(LucideIcons.Strikethrough, stringResource(R.string.viewer_strikethrough), allowed) { markup(TextMarkup.Strikethrough) }
         }
         // an inset divider, then the rows
-        if (!doc.isOffice) Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(clear.ink.copy(alpha = 0.12f)))
+        if (!doc.isOffice) Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(menuInk().copy(alpha = 0.12f)))
         if (!doc.isOffice) Spacer(Modifier.height(4.dp))
         if (!doc.isOffice && (doc.writable || doc.source == null)) MenuRow(LucideIcons.FilePenLine, stringResource(R.string.viewer_edit_text)) {
             doc.selection.clear()
             vm.enterTool(doc, ViewerTool.Edit)
         }
         if (doc.info.allowsCopying) MenuRow(LucideIcons.Copy, stringResource(R.string.viewer_copy_text)) { vm.copySelection(doc) }
+        if (doc.info.allowsCopying) MenuRow(LucideIcons.Languages, stringResource(R.string.viewer_translate)) { vm.translateSelection(doc) }
         // while reading aloud, the reading moves to the selection (the reference's "from here")
         MenuRow(LucideIcons.Volume2, stringResource(if (vm.readAloud != null) R.string.viewer_read_from_here else R.string.common_tool_read_aloud)) {
             vm.startReadAloud(doc, fromSelection = true)
@@ -253,9 +260,14 @@ fun BoxScope.SelectionMenu(vm: AppViewModel, doc: OpenDocument, sel: Selection) 
     }
 }
 
+/** The ink of the menu being composed: the glass's own when it adapts, else the theme's. */
+@Composable
+internal fun menuInk(): androidx.compose.ui.graphics.Color =
+    com.chethan616.clearpdf.ui.glass.LocalMenuInk.current.let { if (it == androidx.compose.ui.graphics.Color.Unspecified) clear.ink else it }
+
 @Composable
 internal fun MenuIcon(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
-    val ink = clear.ink
+    val ink = menuInk()
     Box(
         Modifier.size(48.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick).semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
@@ -266,11 +278,11 @@ internal fun MenuIcon(icon: ImageVector, label: String, enabled: Boolean, onClic
 
 @Composable
 internal fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit) {
-    val c = clear
+    val ink = menuInk()
     // as the desk menu's rows: the label, its glyph at the end
     Row(Modifier.fillMaxWidth().pressable(onClick).padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = c.ink, style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, modifier = Modifier.weight(1f))
-        Icon(icon, null, tint = c.inkSoft, modifier = Modifier.size(19.dp))
+        Text(label, color = ink, style = com.chethan616.clearpdf.ui.theme.ClearType.BodyStrong, modifier = Modifier.weight(1f))
+        Icon(icon, null, tint = ink.copy(alpha = 0.65f), modifier = Modifier.size(19.dp))
     }
 }
 
@@ -308,7 +320,11 @@ private fun InlineNoteBar(hint: String, onDismiss: () -> Unit, onPost: (String) 
         Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { onDismiss() } })
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth().imePadding()
-                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)).background(c.surface),
+                .glass(
+                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                    wash = if (c.dark) Color(0xFF0D0D10).copy(alpha = 0.64f) else Color.White.copy(alpha = 0.76f),
+                    blur = 18.dp,
+                ),
         ) {
             BasicTextField(
                 value = text, onValueChange = { text = it }, maxLines = 3,
@@ -442,46 +458,82 @@ fun BoxScope.SelectionHandles(doc: OpenDocument, sel: Selection) {
     }
 }
 
-/** Single page mode's scrubber: a pill with the page number along the bottom; drag to go through the pages. */
+/**
+ * Single page mode's scrubber: a liquid glass pill with the page number, riding a hairline along the
+ * bottom. Drag it through the pages (a light tick at each), tap it for Go to page. On every drag the
+ * pill starts from where it is now: it used to start from where it was when it was first drawn, so
+ * each drag jumped back to page 1.
+ */
 @Composable
 fun BoxScope.HorizontalScrubber(doc: OpenDocument, visible: Boolean, bottom: Dp, onDrag: () -> Unit, onTap: () -> Unit) {
     val c = pdfColors
     val v = doc.viewer
     val density = LocalDensity.current
+    val feel = com.chethan616.clearpdf.ui.glass.rememberFeel()
     var dragging by remember { mutableStateOf(false) }
     var dragX by remember { mutableFloatStateOf(0f) }
-    AnimatedVisibility(visible || dragging, modifier = Modifier.align(Alignment.BottomCenter), enter = fadeIn(tween(150)), exit = fadeOut(tween(300))) {
-        BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = bottom + 12.dp).height(32.dp)) {
+    // the pill swells a little under the finger, as the glass buttons do
+    val lift by androidx.compose.animation.core.animateFloatAsState(
+        if (dragging) 1.12f else 1f, com.chethan616.clearpdf.ui.glass.GlassMotion.pop(), label = "scrubLift",
+    )
+    AnimatedVisibility(
+        visible || dragging, modifier = Modifier.align(Alignment.BottomCenter),
+        enter = fadeIn(com.chethan616.clearpdf.ui.glass.Fluid.quick()), exit = fadeOut(com.chethan616.clearpdf.ui.glass.Fluid.fade()),
+    ) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = bottom + 12.dp).height(36.dp)) {
             val track = with(density) { maxWidth.toPx() }
-            val pillW = with(density) { 48.dp.toPx() }
+            val pillW = with(density) { 52.dp.toPx() }
             val n = (doc.pageCount - 1).coerceAtLeast(1)
             val x = if (dragging) dragX else v.currentPage.toFloat() / n * (track - pillW)
+            // read on every drag, not kept from the first composition
+            val now by androidx.compose.runtime.rememberUpdatedState(x)
+            val span by androidx.compose.runtime.rememberUpdatedState((track - pillW).coerceAtLeast(1f))
             val pageOf = stringResource(R.string.viewer_page_of, v.currentPage + 1, doc.pageCount)
-            Box(Modifier.align(Alignment.CenterStart).fillMaxWidth().height(2.dp).background(c.divider))
+            val ink = com.chethan616.clearpdf.ui.glass.rememberGlassInk(c.text)
+            Box(
+                Modifier.align(Alignment.CenterStart).fillMaxWidth().height(2.dp)
+                    .clip(com.chethan616.clearpdf.ui.glass.ChromeCapsule).background(ink.color.copy(alpha = 0.22f)),
+            )
             Box(
                 Modifier
+                    .align(Alignment.CenterStart)
                     .offset { IntOffset(x.roundToInt(), 0) }
-                    .size(48.dp, 30.dp)
-                    .shadow(2.dp, RoundedCornerShape(15.dp))
-                    .background(c.surface, RoundedCornerShape(15.dp))
+                    .graphicsLayer {
+                        scaleX = lift
+                        scaleY = lift
+                    }
+                    .size(52.dp, 32.dp)
+                    .then(ink.modifier)
+                    .glassBar(com.chethan616.clearpdf.ui.glass.ChromeCapsule)
                     .pointerInput(doc) { detectTapGestures(onTap = { onTap() }) }
                     .pointerInput(doc) {
                         detectDragGestures(
-                            onDragStart = { dragging = true; dragX = x },
+                            onDragStart = {
+                                dragX = now
+                                dragging = true
+                                feel(com.chethan616.clearpdf.ui.glass.Feel.Press)
+                            },
                             onDragEnd = { dragging = false },
                             onDragCancel = { dragging = false },
                         ) { change, d ->
                             change.consume()
-                            dragX = (dragX + d.x).coerceIn(0f, track - pillW)
-                            val page = (dragX / (track - pillW).coerceAtLeast(1f) * n).roundToInt()
-                            if (page != v.currentPage) v.goToPage(page)
+                            dragX = (dragX + d.x).coerceIn(0f, span)
+                            val page = (dragX / span * (doc.pageCount - 1).coerceAtLeast(1)).roundToInt()
+                            if (page != v.currentPage) {
+                                v.goToPage(page)
+                                feel(com.chethan616.clearpdf.ui.glass.Feel.Tick)
+                            }
                             onDrag()
                         }
                     }
                     .semantics { contentDescription = pageOf },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("${v.currentPage + 1}", color = c.text, fontSize = 15.sp)
+                Text(
+                    "${v.currentPage + 1}",
+                    style = com.chethan616.clearpdf.ui.theme.ClearType.Label.copy(fontWeight = FontWeight.SemiBold),
+                    color = ink.color,
+                )
             }
         }
     }

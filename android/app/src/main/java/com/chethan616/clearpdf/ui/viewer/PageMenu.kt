@@ -74,7 +74,7 @@ fun PageMenuView(vm: AppViewModel, menu: PageMenu) {
         val appear = remember { androidx.compose.animation.core.Animatable(0f) }
         LaunchedEffect(Unit) { appear.animateTo(1f, com.chethan616.clearpdf.ui.glass.GlassMotion.unfold()) }
         val opensDown = y > menu.screen.y
-        com.chethan616.clearpdf.ui.glass.GlassCard(
+        com.chethan616.clearpdf.ui.glass.MenuCard(
             Modifier
                 .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
                 .onSizeChanged { size = it }
@@ -87,9 +87,6 @@ fun PageMenuView(vm: AppViewModel, menu: PageMenu) {
                     alpha = (p * 1.6f).coerceIn(0f, 1f)
                 }
                 .pointerInput(Unit) { detectTapGestures { } },
-            shape = com.chethan616.clearpdf.ui.glass.RoundedRectangle(24.dp),
-            wash = com.chethan616.clearpdf.ui.theme.clear.frost,
-            blur = 16.dp,
         ) {
             Spacer(Modifier.height(6.dp))
             if (doc.isOffice) {
@@ -104,7 +101,7 @@ fun PageMenuView(vm: AppViewModel, menu: PageMenu) {
                     MenuIcon(LucideIcons.Type, stringResource(R.string.page_menu_add_text), annotate) { close(); vm.textPrompt = TextPrompt(doc, menu.at) }
                     if (fill) MenuIcon(LucideIcons.Signature, stringResource(R.string.common_sign), true) { close(); vm.enterTool(doc, ViewerTool.FillSign) }
                 }
-                Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(com.chethan616.clearpdf.ui.theme.clear.ink.copy(alpha = 0.12f)))
+                Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(1.dp).background(menuInk().copy(alpha = 0.12f)))
                 Spacer(Modifier.height(4.dp))
                 if (!menu.pageHasText) MenuRow(LucideIcons.ScanText, stringResource(R.string.common_tool_recognize_text)) { close(); vm.recognizeText(doc) }
                 MenuRow(LucideIcons.Crop, stringResource(R.string.common_tool_crop)) { close(); vm.openCrop(doc) }

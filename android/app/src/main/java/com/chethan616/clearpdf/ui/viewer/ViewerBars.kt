@@ -71,14 +71,17 @@ import com.chethan616.clearpdf.ui.glass.GlassMenu
 import com.chethan616.clearpdf.ui.glass.GlassMenuItem
 import com.chethan616.clearpdf.ui.glass.GlassMotion
 import com.chethan616.clearpdf.ui.glass.GlassPill
+import com.chethan616.clearpdf.ui.glass.LocalGlassInk
 import com.chethan616.clearpdf.ui.glass.glass
 import com.chethan616.clearpdf.ui.glass.glassBar
 import com.chethan616.clearpdf.ui.glass.pressable
+import com.chethan616.clearpdf.ui.glass.rememberGlassInk
 import com.chethan616.clearpdf.ui.iconAccent
 import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
 import com.chethan616.clearpdf.ui.glass.Capsule
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import com.kyant.backdrop.floatingLayer
 
@@ -113,14 +116,14 @@ fun ViewerTopBar(
     onBack: () -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
-    onTitle: () -> Unit,
+    onTitle: (Rect) -> Unit,
     onSearch: (() -> Unit)?,
     onShare: () -> Unit,
-    onMore: () -> Unit,
+    onMore: (Rect) -> Unit,
+    contentAlpha: Float = 1f,
     undoLabel: String? = null,
     redoLabel: String? = null,
 ) {
-    val c = clear
     Row(
         Modifier.fillMaxWidth().height(TopBarHeight).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -131,34 +134,52 @@ fun ViewerTopBar(
         } else {
             com.chethan616.clearpdf.ui.glass.GlassBackButton(onBack)
         }
-        GlassPill(onClick = onTitle, modifier = Modifier.weight(1f), height = 48.dp, horizontalPadding = 16.dp) {
+        var titleAnchor by remember { mutableStateOf(Rect.Zero) }
+        GlassPill(
+            onClick = { if (contentAlpha > 0.5f) onTitle(titleAnchor) },
+            modifier = Modifier.weight(1f).onGloballyPositioned { titleAnchor = it.boundsInWindow() }
+                .graphicsLayer { alpha = contentAlpha.coerceIn(0f, 1f) },
+            height = 48.dp,
+            horizontalPadding = 16.dp,
+        ) {
+            val ink = LocalGlassInk.current
             if (toolTitle != null) Box(Modifier.size(9.dp).clip(CircleShape).background(Candy.Sky))
             Column(Modifier.weight(1f)) {
-                Text(toolTitle ?: title, style = ClearType.Title.copy(fontSize = 15.5.sp, lineHeight = 19.sp), color = com.chethan616.clearpdf.ui.glass.LocalGlassInk.current, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (subtitle != null && toolTitle == null) Text(subtitle, style = ClearType.Caption, color = com.chethan616.clearpdf.ui.glass.LocalGlassInk.current.copy(alpha = 0.62f), maxLines = 1)
+                Text(toolTitle ?: title, style = ClearType.Title.copy(fontSize = 15.5.sp, lineHeight = 19.sp), color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (subtitle != null && toolTitle == null) Text(subtitle, style = ClearType.Caption, color = ink.copy(alpha = 0.72f), maxLines = 1)
             }
             if (onSearch != null && !toolActive) {
-                BarGlyphButton(onSearch, stringResource(R.string.viewer_find_in_document), size = 36.dp) {
-                    Icon(LucideIcons.Search, null, tint = com.chethan616.clearpdf.ui.glass.LocalGlassInk.current, modifier = Modifier.size(19.dp))
+                BarGlyphButton(onSearch, stringResource(R.string.viewer_find_in_document), size = 36.dp, enabled = contentAlpha > 0.5f) {
+                    Icon(LucideIcons.Search, null, tint = ink, modifier = Modifier.size(19.dp))
                 }
             }
         }
         if (toolActive) {
             if (canUndo || canRedo) {
-                BarGroup {
-                    BarGlyphButton({ if (canUndo) onUndo() }, stringResource(R.string.common_undo), enabled = canUndo) {
-                        Icon(LucideIcons.Undo2, null, tint = if (canUndo) com.chethan616.clearpdf.ui.glass.LocalGlassInk.current else com.chethan616.clearpdf.ui.glass.LocalGlassInk.current.copy(alpha = 0.38f), modifier = Modifier.size(20.dp))
-                    }
-                    BarGlyphButton({ if (canRedo) onRedo() }, stringResource(R.string.common_redo), enabled = canRedo) {
-                        Icon(LucideIcons.Redo2, null, tint = if (canRedo) com.chethan616.clearpdf.ui.glass.LocalGlassInk.current else com.chethan616.clearpdf.ui.glass.LocalGlassInk.current.copy(alpha = 0.38f), modifier = Modifier.size(20.dp))
-                    }
+                if (canUndo) GlassCircle(onClick = onUndo, label = stringResource(R.string.common_undo)) {
+                    GlassIcon(LucideIcons.Undo2, null, Modifier.size(20.dp))
+                }
+                if (canRedo) GlassCircle(onClick = onRedo, label = stringResource(R.string.common_redo)) {
+                    GlassIcon(LucideIcons.Redo2, null, Modifier.size(20.dp))
                 }
             }
         } else {
-            BarGroup {
-                if (canUndo) UndoMenuButton(canUndo, canRedo, onUndo, onRedo, undoLabel, redoLabel)
-                BarGlyphButton(onShare, stringResource(R.string.common_share)) { Icon(LucideIcons.Share2, null, tint = com.chethan616.clearpdf.ui.glass.LocalGlassInk.current, modifier = Modifier.size(19.dp)) }
-                BarGlyphButton(onMore, stringResource(R.string.common_more_options)) { Icon(LucideIcons.Ellipsis, null, tint = com.chethan616.clearpdf.ui.glass.LocalGlassInk.current, modifier = Modifier.size(21.dp)) }
+            if (canUndo) UndoMenuButton(
+                canUndo, canRedo, onUndo, onRedo, undoLabel, redoLabel,
+                modifier = Modifier.graphicsLayer { alpha = contentAlpha.coerceIn(0f, 1f) },
+                enabled = contentAlpha > 0.5f,
+            )
+            GlassCircle(onClick = { if (contentAlpha > 0.5f) onShare() }, modifier = Modifier.graphicsLayer { alpha = contentAlpha.coerceIn(0f, 1f) }, label = stringResource(R.string.common_share)) {
+                GlassIcon(LucideIcons.Share2, null, Modifier.size(19.dp))
+            }
+            var moreAnchor by remember { mutableStateOf(Rect.Zero) }
+            GlassCircle(
+                onClick = { if (contentAlpha > 0.5f) onMore(moreAnchor) },
+                label = stringResource(R.string.common_more_options),
+                modifier = Modifier.onGloballyPositioned { moreAnchor = it.boundsInWindow() }
+                    .graphicsLayer { alpha = contentAlpha.coerceIn(0f, 1f) },
+            ) {
+                GlassIcon(LucideIcons.Ellipsis, null, Modifier.size(21.dp))
             }
         }
     }
@@ -193,27 +214,26 @@ fun GlassBars(visible: Boolean, fromTop: Boolean, content: @Composable () -> Uni
     ) { content() }
 }
 
-/** Bar buttons grouped on one glass capsule, as iOS groups them. */
+/** Undo: a standalone viewer glass button, matching Back and More tools. */
 @Composable
-private fun BarGroup(content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit) {
-    val probe = com.chethan616.clearpdf.ui.glass.rememberGlassInk(clear.ink)
-    Row(
-        Modifier.then(probe.modifier).height(48.dp).glassBar().padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) { CompositionLocalProvider(com.chethan616.clearpdf.ui.glass.LocalGlassInk provides probe.color) { content() } }
-}
-
-/** Undo in a bar group: a tap opens a menu naming what Undo and Redo would do. */
-@Composable
-fun UndoMenuButton(canUndo: Boolean, canRedo: Boolean, onUndo: () -> Unit, onRedo: () -> Unit, undoLabel: String? = null, redoLabel: String? = null) {
+fun UndoMenuButton(
+    canUndo: Boolean,
+    canRedo: Boolean,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
+    undoLabel: String? = null,
+    redoLabel: String? = null,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
     var open by remember { mutableStateOf(false) }
     var anchor by remember { mutableStateOf(Rect.Zero) }
-    BarGlyphButton(
-        { if (canUndo || canRedo) open = true },
-        stringResource(R.string.viewer_undo_or_redo),
-        modifier = Modifier.onGloballyPositioned { anchor = it.boundsInWindow() },
-    ) { Icon(LucideIcons.Undo2, null, tint = com.chethan616.clearpdf.ui.glass.LocalGlassInk.current, modifier = Modifier.size(20.dp)) }
-    if (open) {
+    GlassCircle(
+        onClick = { if (enabled && (canUndo || canRedo)) open = true },
+        modifier = modifier.onGloballyPositioned { anchor = it.boundsInWindow() },
+        label = stringResource(R.string.viewer_undo_or_redo),
+    ) { GlassIcon(LucideIcons.Undo2, null, Modifier.size(20.dp)) }
+    if (open && enabled) {
         val items = buildList {
             if (canUndo) add(GlassMenuItem(undoLabel?.let { stringResource(R.string.viewer_undo_named, it) } ?: stringResource(R.string.common_undo), LucideIcons.Undo2, onClick = onUndo))
             if (canRedo) add(GlassMenuItem(redoLabel?.let { stringResource(R.string.viewer_redo_named, it) } ?: stringResource(R.string.common_redo), LucideIcons.Redo2, onClick = onRedo))
@@ -223,7 +243,7 @@ fun UndoMenuButton(canUndo: Boolean, canRedo: Boolean, onUndo: () -> Unit, onRed
 }
 
 /**
- * Find, floating where the top row was: a round close button, then a glass capsule holding the
+ * Find, floating where the top row was: the persistent viewer back button, then a glass capsule holding the
  * field, the "3 of 12" count (Extra Features), clear, Previous and Next.
  */
 @Composable
@@ -234,73 +254,80 @@ fun SearchBar(
     canStep: Boolean,
     onSubmit: () -> Unit,
     onClear: () -> Unit,
-    onClose: () -> Unit,
     onPrev: () -> Unit,
     onNext: () -> Unit,
     count: String? = null,
 ) {
-    val c = clear
+    val ink = rememberGlassInk(clear.ink)
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val findLabel = stringResource(R.string.viewer_find_in_document)
-    LaunchedEffect(Unit) { focus.requestFocus() }
-    // the field is the title pill stretched over Share and More (their group and its gap, 96 dp), on
-    // the glass spring (Settings ▸ Motion); its words come in once it has room and leave first
+    LaunchedEffect(Unit) {
+        // Let the pill morph first; opening the IME immediately resizes the whole document viewport.
+        delay(180)
+        focus.requestFocus()
+    }
+    // the field is the title pill stretched over Share and More (their two glass circles and gap), on
+    // a damped glass spring; its words come in once it has room and leave first
     Row(
         Modifier.fillMaxWidth().height(TopBarHeight).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Box(Modifier.graphicsLayer { alpha = progress().coerceIn(0f, 1f) }) {
-            com.chethan616.clearpdf.ui.glass.GlassBackButton(onClose, label = stringResource(R.string.viewer_collapse), immediate = true)
-        }
+        // The viewer's Back button remains in the same position for the whole morph. Keeping just
+        // one glass control here avoids two overlapping lenses making the glyph flicker.
+        Spacer(Modifier.size(40.dp))
         Row(
             Modifier.weight(1f).height(48.dp)
                 .layout { m, cs ->
                     val full = cs.maxWidth
-                    val start = (full - 96.dp.roundToPx()).coerceAtLeast(full / 2)
-                    val w = (start + (full - start) * progress()).toInt().coerceIn(1, full + 24.dp.roundToPx())
-                    val p = m.measure(cs.copy(minWidth = w, maxWidth = w))
-                    layout(full, p.height) { p.place(0, 0) }
+                    val start = (full - 88.dp.roundToPx()).coerceAtLeast(full / 2)
+                    val p = progress().coerceIn(0f, 1f)
+                    val w = (start + (full - start) * p).toInt().coerceIn(1, full)
+                    val placeable = m.measure(cs.copy(minWidth = w, maxWidth = w))
+                    layout(full, placeable.height) { placeable.place(0, 0) }
                 }
+                .then(ink.modifier)
                 .glassBar().padding(start = 16.dp, end = 4.dp)
-                .graphicsLayer { alpha = ((progress() - 0.35f) / 0.45f).coerceIn(0f, 1f) },
+                .graphicsLayer { alpha = ((progress().coerceIn(0f, 1f) - 0.35f) / 0.45f).coerceIn(0f, 1f) },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(LucideIcons.Search, null, tint = c.inkSoft, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(10.dp))
-            BasicTextField(
-                value = query,
-                onValueChange = onQuery,
-                singleLine = true,
-                textStyle = ClearType.Body.copy(color = c.ink),
-                cursorBrush = SolidColor(Candy.Tomato),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = {
-                    keyboard?.hide()
-                    onSubmit()
-                }),
-                modifier = Modifier.weight(1f).focusRequester(focus).semantics { contentDescription = findLabel },
-                decorationBox = { inner ->
-                    Box(contentAlignment = Alignment.CenterStart) {
-                        if (query.isEmpty()) Text(findLabel, style = ClearType.Body, color = c.inkFaint, maxLines = 1)
-                        inner()
-                    }
-                },
-            )
-            if (count != null) Text(count, style = ClearType.Label, color = c.inkSoft, maxLines = 1, modifier = Modifier.padding(horizontal = 4.dp))
-            if (query.isNotEmpty()) StepButton(LucideIcons.X, stringResource(R.string.common_clear), true, onClear)
-            StepButton(LucideIcons.ChevronUp, stringResource(R.string.viewer_find_previous), canStep, onPrev)
-            StepButton(LucideIcons.ChevronDown, stringResource(R.string.viewer_find_next), canStep, onNext)
+            CompositionLocalProvider(LocalGlassInk provides ink.color) {
+                Icon(LucideIcons.Search, null, tint = ink.color.copy(alpha = 0.70f), modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp))
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQuery,
+                    singleLine = true,
+                    textStyle = ClearType.Body.copy(color = ink.color),
+                    cursorBrush = SolidColor(Candy.Tomato),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = {
+                        keyboard?.hide()
+                        onSubmit()
+                    }),
+                    modifier = Modifier.weight(1f).focusRequester(focus).semantics { contentDescription = findLabel },
+                    decorationBox = { inner ->
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            if (query.isEmpty()) Text(findLabel, style = ClearType.Body, color = ink.color.copy(alpha = 0.48f), maxLines = 1)
+                            inner()
+                        }
+                    },
+                )
+                if (count != null) Text(count, style = ClearType.Label, color = ink.color.copy(alpha = 0.68f), maxLines = 1, modifier = Modifier.padding(horizontal = 4.dp))
+                if (query.isNotEmpty()) StepButton(LucideIcons.X, stringResource(R.string.common_clear), true, onClear)
+                StepButton(LucideIcons.ChevronUp, stringResource(R.string.viewer_find_previous), canStep, onPrev)
+                StepButton(LucideIcons.ChevronDown, stringResource(R.string.viewer_find_next), canStep, onNext)
+            }
         }
     }
 }
 
 @Composable
 private fun StepButton(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
-    val c = clear
     Box(Modifier.size(38.dp).pressable(onClick, enabled = enabled).semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
-        Icon(icon, null, tint = if (enabled) c.ink else c.inkFaint, modifier = Modifier.size(19.dp))
+        val ink = LocalGlassInk.current.takeIf { it != Color.Unspecified } ?: clear.ink
+        Icon(icon, null, tint = ink.copy(alpha = if (enabled) 0.82f else 0.30f), modifier = Modifier.size(19.dp))
     }
 }
 
@@ -312,47 +339,87 @@ private fun dockSlots(widthDp: Int): Int = when {
 }
 
 /**
- * The floating dock: the tools the reader keeps there, each glyph in its own candy, on a glass
- * capsule, and More tools as a grape bubble beside it.
+ * The floating dock, in the manner of the tools' own bars (Edit, Comment, Fill & Sign): the tools
+ * the reader keeps there as glyphs on one glass capsule, the one just tapped on a blue disc for a
+ * moment, and More tools as a blue glass circle beside it (where those bars keep Done). One capsule
+ * is one piece of glass to draw, where a row of glass circles was one each.
  */
 @Composable
 fun QuickToolbar(
     tools: List<QuickTool>,
     onTool: (QuickTool) -> Unit,
-    onMoreTools: (() -> Unit)?,
-    moreToolsOpen: Boolean,
+    moreTools: List<QuickTool> = emptyList(),
+    onCustomize: ((Rect) -> Unit)? = null,
 ) {
     val slots = dockSlots(LocalConfiguration.current.screenWidthDp)
     val shown = tools.take(slots)
-    val turn by androidx.compose.animation.core.animateFloatAsState(if (moreToolsOpen) 45f else 0f, com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "more")
+    // The four-dot control is an anchored action menu, not another bottom sheet.  Keep the
+    // clipped-off toolbar actions in the same menu so every action remains reachable on phones.
+    val overflow = remember(tools, moreTools, slots) { (tools.drop(slots) + moreTools).distinct() }
+    var menuAt by remember { mutableStateOf<Rect?>(null) }
+    var moreRect by remember { mutableStateOf(Rect.Zero) }
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (menuAt != null) 45f else 0f, GlassMotion.morph(), label = "more")
+    // the tool just tapped, lit for a moment
+    var lit by remember { mutableStateOf<QuickTool?>(null) }
+    LaunchedEffect(lit) {
+        if (lit != null) {
+            kotlinx.coroutines.delay(420)
+            lit = null
+        }
+    }
     Row(
         Modifier.fillMaxWidth().height(BottomBarHeight).padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // iOS 26's toolbar: one glass capsule of plain glyphs in the glass's ink (no rainbow, no captions:
-        // each glyph names itself to TalkBack), More tools in a glass bubble of its own beside it
-        val probe = com.chethan616.clearpdf.ui.glass.rememberGlassInk(clear.ink)
-        Row(Modifier.weight(1f).then(probe.modifier).fillMaxHeight().glassBar().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            CompositionLocalProvider(com.chethan616.clearpdf.ui.glass.LocalGlassInk provides probe.color) {
-                for (t in shown) DockItem(t.icon, stringResource(t.label)) { onTool(t) }
+        val ink = rememberGlassInk(clear.ink)
+        Row(
+            Modifier.weight(1f).fillMaxHeight().then(ink.modifier).glassBar().padding(horizontal = 6.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CompositionLocalProvider(LocalGlassInk provides ink.color) {
+                for (t in shown) DockItem(t.icon, stringResource(t.label), lit == t) {
+                    lit = t
+                    onTool(t)
+                }
             }
         }
-        // office documents have their own tools on the bar and no PDF More tools
-        if (onMoreTools != null) GlassCircle(onClick = onMoreTools, size = 60.dp, label = stringResource(R.string.common_tool_more_tools)) {
-            GlassIcon(LucideIcons.LayoutGrid, null, Modifier.size(23.dp).androidxRotate(turn))
+        // Office documents have their own concise toolbar. PDFs use the menu for the remaining
+        // tools rather than opening the old grid sheet.
+        if (overflow.isNotEmpty() || onCustomize != null) GlassCircle(
+            onClick = { menuAt = moreRect },
+            size = 48.dp,
+            tint = Candy.Sky,
+            label = stringResource(R.string.common_tool_more_tools),
+            modifier = Modifier.onGloballyPositioned { moreRect = it.boundsInWindow() },
+        ) {
+            GlassIcon(LucideIcons.LayoutGrid, null, Modifier.size(22.dp).androidxRotate(turn))
         }
+    }
+    menuAt?.let { anchor ->
+        GlassMenu(anchor, { menuAt = null }, buildList {
+            overflow.forEach { tool -> add(GlassMenuItem(stringResource(tool.title), tool.icon) { onTool(tool) }) }
+            if (onCustomize != null) add(GlassMenuItem(stringResource(R.string.toolbar_customize), LucideIcons.SlidersHorizontal) { onCustomize(anchor) })
+        })
     }
 }
 
 private fun Modifier.androidxRotate(degrees: Float) = this.graphicsLayer { rotationZ = degrees }
 
+/** A tool of the dock: its glyph in the bar's ink; [lit], white on a blue disc. */
 @Composable
-private fun androidx.compose.foundation.layout.RowScope.DockItem(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun DockItem(icon: ImageVector, label: String, lit: Boolean, onClick: () -> Unit) {
+    val disc by animateColorAsState(if (lit) Candy.Sky else Color.Transparent, GlassMotion.settle(), label = "dock")
+    val ink = com.chethan616.clearpdf.ui.glass.LocalGlassInk.current.takeIf { it != Color.Unspecified } ?: clear.ink
+    val glyph by animateColorAsState(if (lit) Color.White else ink, GlassMotion.settle(), label = "dockInk")
     Box(
-        Modifier.weight(1f).fillMaxHeight().pressable(onClick, pressedScale = 0.86f).semantics { contentDescription = label },
+        Modifier.width(54.dp).fillMaxHeight().pressable(onClick, pressedScale = 0.86f).semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
-    ) { GlassIcon(icon, null, Modifier.size(24.dp)) }
+    ) {
+        Box(Modifier.size(42.dp).clip(CircleShape).background(disc))
+        Icon(icon, null, tint = glyph, modifier = Modifier.size(23.dp))
+    }
 }
 
 /** No line along bars any more: glass floats. Kept so the tools' own bars can call it. */
@@ -366,12 +433,12 @@ fun Modifier.barTopLine(): Modifier = this
 fun SubToolbar(content: @Composable () -> Unit) {
     val scroll = rememberScrollState()
     BoxWithConstraints(Modifier.fillMaxWidth().height(BottomBarHeight).padding(horizontal = 12.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
-        val probe = com.chethan616.clearpdf.ui.glass.rememberGlassInk(clear.ink)
+        val ink = rememberGlassInk(clear.ink)
         Row(
-            Modifier.widthIn(max = maxWidth).then(probe.modifier).fillMaxHeight().glassBar().horizontalScroll(scroll).padding(horizontal = 8.dp),
+            Modifier.widthIn(max = maxWidth).fillMaxHeight().then(ink.modifier).glassBar().horizontalScroll(scroll).padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-        ) { CompositionLocalProvider(LocalSubToolbarScroll provides scroll, com.chethan616.clearpdf.ui.glass.LocalGlassInk provides probe.color) { content() } }
+        ) { CompositionLocalProvider(LocalSubToolbarScroll provides scroll, LocalGlassInk provides ink.color) { content() } }
     }
 }
 

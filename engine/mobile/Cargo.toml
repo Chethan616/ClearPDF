@@ -27,11 +27,15 @@ deckcraft-model = { workspace = true }
 deckcraft-pptx = { workspace = true }
 deckcraft-render = { workspace = true }
 deckcraft-pdf = { workspace = true }
+# the faces Artefact bundles, given to the slides' font database (src/slides.rs)
+deckcraft-fonts = { workspace = true }
+wordcraft-fonts = { workspace = true }
 # PowerPoint 97-2003 (src/ppt.rs): the compound file holding its record stream (already in the tree)
 cfb = "0.15"
 # Excel workbooks (src/sheets.rs): GridCraft's engine
 gridcraft-engine = { workspace = true }
 gridcraft-xlsx = { workspace = true }
+gridcraft-chart = { workspace = true }
 # Pictures (src/photo.rs): LightCraft's decoding, develop settings and pipeline
 lightcraft-codecs = { workspace = true }
 lightcraft-develop = { workspace = true }
@@ -47,3 +51,9 @@ uniffi = { version = "=0.32.2", default-features = false }
 # the engine's log in logcat (pure Rust; links the system's liblog)
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = { version = "0.15", default-features = false }
+
+[dev-dependencies]
+# its test helper that password-protects a package (the encrypted presentation test)
+gridcraft-xlsx = { workspace = true, features = ["test-support"] }
+# writes the pictures of the photo tests
+png = "0.18"

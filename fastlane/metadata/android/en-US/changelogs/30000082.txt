@@ -1,0 +1,10 @@
+More tools, fewer taps
+* Two pages side by side (View settings)
+* A note's outline as a mind map, saved as image or PDF
+* Find form fields on forms that have none
+* Translate selected text with your translator app
+* Bold or italic for only the selected words of a PDF
+* Photo editor: crop to a shape
+* Voice notes export as m4a
+* Menus grow from their button; Adaptive luminance
+* Better spreadsheets, PowerPoint fonts, old .ppt files

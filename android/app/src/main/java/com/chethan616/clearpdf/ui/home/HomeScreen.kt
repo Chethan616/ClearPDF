@@ -114,10 +114,6 @@ sealed interface DeskItem {
         override val key get() = "p-" + note.id
     }
 
-    data object Thought : DeskItem {
-        override val key get() = "thought"
-    }
-
     data object Files : DeskItem {
         override val key get() = "files"
     }
@@ -135,22 +131,18 @@ sealed interface DeskItem {
     }
 }
 
-/**
- * The desk's cards for [filter]: notes newest first, with the collections set in among them, and
- * [day]'s "Thought of the day" second (its note, once written on, is that card, not a second one).
- */
-fun deskItems(filter: DeskFilter, notes: List<Note>, recents: List<FileRow>, day: Long): List<DeskItem> {
-    val sorted = notes.filter { it.thought != day }.sortedWith(compareByDescending<Note> { it.pinned }.thenByDescending { it.updated })
+/** The desk's cards for [filter]: notes newest first, with the collections set in among them. */
+fun deskItems(filter: DeskFilter, notes: List<Note>, recents: List<FileRow>): List<DeskItem> {
+    val sorted = notes.sortedWith(compareByDescending<Note> { it.pinned }.thenByDescending { it.updated })
     return when (filter) {
         DeskFilter.All -> {
             val out = sorted.map<Note, DeskItem> { DeskItem.Of(it) }.toMutableList()
             if (recents.isNotEmpty()) out.add(minOf(1, out.size), DeskItem.Recent(recents))
             out.add(minOf(3, out.size), DeskItem.Files)
             out.add(minOf(6, out.size), DeskItem.Pdfs(recents.size))
-            out.add(minOf(1, out.size), DeskItem.Thought)
             out
         }
-        DeskFilter.Notes -> sorted.filter { it.kind == NoteKind.Text }.map<Note, DeskItem> { DeskItem.Of(it) }.toMutableList().apply { add(minOf(1, size), DeskItem.Thought) }
+        DeskFilter.Notes -> sorted.filter { it.kind == NoteKind.Text || it.kind == NoteKind.Map }.map { DeskItem.Of(it) }
         DeskFilter.Todo -> sorted.filter { it.kind == NoteKind.List }.map { DeskItem.Of(it) }
         DeskFilter.Audio -> sorted.filter { it.kind == NoteKind.Voice }.map { DeskItem.Of(it) }
         DeskFilter.Images -> sorted.filter { it.images.isNotEmpty() }.map { DeskItem.Picture(it) }
@@ -176,9 +168,10 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
     var playing by remember { mutableStateOf<String?>(null) }
     DisposableEffect(Unit) { onDispose { player.release() } }
     var actionsFor by remember { mutableStateOf<Note?>(null) }
+    var actionsAnchor by remember { mutableStateOf(Rect.Zero) }
     val notes = vm.notes.all
     val recents = vm.recentRows()
-    val fresh = remember(filter, notes, vm.recentList) { deskItems(filter, notes, recents, com.chethan616.clearpdf.notes.today()) }
+    val fresh = remember(filter, notes, vm.recentList) { deskItems(filter, notes, recents) }
     // Opening a document moves it to the front of Recent while the page is still rising out of its
     // card; re-sorting the cards then (their tones and tilts follow their places) flashed them behind
     // it. They hold their order while a document moves over the desk and take the new one once it
@@ -227,7 +220,7 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
                 FilterChips(filter) { filter = it }
             }
             itemsIndexed(items, key = { _, it -> it.key }) { i, item ->
-                val m = Modifier.fillMaxWidth().riseIn(i, active = intro)
+                val m = Modifier.fillMaxWidth().riseIn(i, active = intro).onGloballyPositioned { actionsAnchor = it.boundsInWindow() }
                 when (item) {
                     is DeskItem.Of -> when (item.note.kind) {
                         NoteKind.List -> ListCard(item.note, { vm.openNote = item.note.id }, { actionsFor = item.note }, { vm.notes.toggle(item.note.id, it.id) }, m)
@@ -238,6 +231,7 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
                             { play(item.note) }, { actionsFor = item.note }, m,
                         )
                         NoteKind.Text -> NoteCard(item.note, { vm.openNote = item.note.id }, { actionsFor = item.note }, m)
+                        NoteKind.Map -> MapCard(item.note, { vm.openNote = item.note.id }, { actionsFor = item.note }, m)
                     }
                     is DeskItem.Picture -> {
                         val n = item.note
@@ -251,7 +245,6 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
                             },
                         ) { NoteImage(n.images.first(), Modifier.matchParentSize(), maxPx = 900) }
                     }
-                    DeskItem.Thought -> ThoughtCard({ vm.openThought() }, m)
                     DeskItem.Files -> CollectionCard(stringResource(R.string.desk_word_files), clear.tone(Tone.Butter), { vm.filesShowLocal = true; vm.homeTab = HomeTab.Files }, m)
                     is DeskItem.Pdfs -> CollectionCard(stringResource(R.string.desk_word_pdf), clear.tone(Tone.Orchid), { vm.homeTab = HomeTab.Files }, m, height = 136.dp)
                     is DeskItem.Recent -> RecentCard(vm, item.rows, { vm.homeTab = HomeTab.Files }, m)
@@ -267,7 +260,7 @@ fun HomeScreen(vm: AppViewModel, desk: DeskState) {
         }
     }
 
-    actionsFor?.let { n -> NoteActions(vm, n, onRename = { desk.naming = n.id }) { actionsFor = null } }
+    actionsFor?.let { n -> NoteActions(vm, n, actionsAnchor, onRename = { desk.naming = n.id }) { actionsFor = null } }
     desk.naming?.let { id -> vm.notes.get(id)?.let { n -> NameSheet(vm, n) { desk.naming = null } } }
 }
 
@@ -294,6 +287,7 @@ private fun DeskHeader(vm: AppViewModel) {
         GlassMenu(anchor, { menu = false }, listOf(
             GlassMenuItem(stringResource(R.string.home_tab_files), LucideIcons.FolderOpen) { vm.homeTab = HomeTab.Files },
             GlassMenuItem(stringResource(R.string.home_tab_tools), LucideIcons.LayoutGrid) { vm.homeTab = HomeTab.Tools },
+            GlassMenuItem(stringResource(R.string.voice_import), LucideIcons.Mic) { vm.pickAudio() },
             GlassMenuItem(stringResource(R.string.home_settings), LucideIcons.Settings) { vm.settingsOpen = true },
         ))
     }
@@ -337,7 +331,7 @@ private fun DeskTitle(filter: DeskFilter) {
                 (slideInVertically(com.chethan616.clearpdf.ui.glass.Fluid.push()) { it / 3 } + fadeIn(com.chethan616.clearpdf.ui.glass.Fluid.quick())) togetherWith
                     (slideOutVertically(com.chethan616.clearpdf.ui.glass.Fluid.quick()) { -it / 4 } + fadeOut(com.chethan616.clearpdf.ui.glass.Fluid.fade()))
             },
-            label = "desk title",
+            label = "deskTitle",
             modifier = Modifier.fillMaxWidth().height(height),
         ) { f ->
             BasicText(
@@ -443,18 +437,23 @@ private fun DeskEmpty(vm: AppViewModel, filter: DeskFilter, desk: DeskState) {
 
 /** A long press on a note: name it (a voice memo), pin it, open it, or delete it. */
 @Composable
-private fun NoteActions(vm: AppViewModel, n: Note, onRename: () -> Unit, onDismiss: () -> Unit) {
+private fun NoteActions(vm: AppViewModel, n: Note, anchor: Rect, onRename: () -> Unit, onDismiss: () -> Unit) {
     val voice = n.kind == NoteKind.Voice
-    val title = n.title.ifBlank { stringResource(if (voice) R.string.voice_note else R.string.notes_untitled_note) }
-    val subtitle = if (voice && n.durationMs > 0) shortDate(n.updated) + "  ·  " + com.chethan616.clearpdf.ui.viewer.clock(n.durationMs) else shortDate(n.updated)
-    GlassSheet(onDismiss, title, subtitle) {
-        if (voice) GlassRow(stringResource(R.string.notes_rename), { onDismiss(); onRename() }, icon = LucideIcons.PenLine, accent = Candy.Grape)
-        GlassRow(stringResource(if (n.pinned) R.string.notes_unpin else R.string.notes_pin), { vm.notes.put(n.copy(pinned = !n.pinned)); onDismiss() }, icon = LucideIcons.Pin, accent = Candy.Tangerine)
-        if (!voice) GlassRow(stringResource(R.string.notes_open), { vm.openNote = n.id; onDismiss() }, icon = LucideIcons.SquarePen, accent = Candy.Sky)
-        n.images.firstOrNull()?.let { pic -> GlassRow(stringResource(R.string.photo_edit), { onDismiss(); vm.editingPhoto = n.id to pic }, icon = LucideIcons.SlidersHorizontal, accent = Candy.Bubblegum) }
-        val feel = com.chethan616.clearpdf.ui.glass.rememberFeel()
-        GlassRow(stringResource(R.string.common_delete), { feel(com.chethan616.clearpdf.ui.glass.Feel.Reject); vm.notes.delete(n.id); onDismiss() }, icon = LucideIcons.Trash2, destructive = true)
-    }
+    val feel = com.chethan616.clearpdf.ui.glass.rememberFeel()
+    val renameLabel = stringResource(R.string.notes_rename)
+    val pinLabel = stringResource(if (n.pinned) R.string.notes_unpin else R.string.notes_pin)
+    val openLabel = stringResource(R.string.notes_open)
+    val photoLabel = stringResource(R.string.photo_edit)
+    val deleteLabel = stringResource(R.string.common_delete)
+    val exportLabel = stringResource(R.string.voice_export)
+    GlassMenu(anchor, onDismiss, buildList {
+        if (voice) add(GlassMenuItem(renameLabel, LucideIcons.PenLine) { onDismiss(); onRename() })
+        if (voice && n.audio != null) add(GlassMenuItem(exportLabel, LucideIcons.SaveAs) { vm.exportVoice(n); onDismiss() })
+        add(GlassMenuItem(pinLabel, LucideIcons.Pin) { vm.notes.put(n.copy(pinned = !n.pinned)); onDismiss() })
+        if (!voice) add(GlassMenuItem(openLabel, LucideIcons.SquarePen) { vm.openNote = n.id; onDismiss() })
+        n.images.firstOrNull()?.let { pic -> add(GlassMenuItem(photoLabel, LucideIcons.SlidersHorizontal) { onDismiss(); vm.editingPhoto = n.id to pic }) }
+        add(GlassMenuItem(deleteLabel, LucideIcons.Trash2, destructive = true) { feel(com.chethan616.clearpdf.ui.glass.Feel.Reject); vm.notes.delete(n.id); onDismiss() })
+    })
 }
 
 /**

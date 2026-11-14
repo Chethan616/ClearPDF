@@ -86,6 +86,39 @@ tf`; an encrypted
 - Build note: the first release build of wordcraft is long (~20 min on this PC); `assembleFast`
   compiles the Rust release profile (thin LTO, one codegen unit).
 
+## Glass and office changes (2026-11-11)
+
+The parts a later session needs to know:
+
+- **Adaptive luminance** (Settings ▸ Liquid glass & motion, off by default; `GlassSettings.adaptive`).
+  Menus and toasts read their own backdrop (`GlassLuminance` in `ui/glass/AdaptiveGlass.kt`: a small
+  second record of the backdrop, read back a few times a second). Every other glass control reads
+  the luminance around itself from the window's one `ScreenInkSampler` (`rememberSurroundLuminance`
+  in `AdaptiveInk.kt`); `ClearApp` runs that sampler app-wide while the setting is on. In this mode
+  the glass presets' frost, colour, brightness and tint are not applied (`GlassStyle.adaptiveBase`).
+  Only controls whose ink follows (`GlassCircle`, `GlassPill`, `glassBar`) take the milk/smoke wash;
+  chips, panels, sheets and dialogs keep their wash because their text is in the theme's ink.
+- **Menus** are all one `MenuCard` (`Overlays.kt`); rows take their ink from `LocalGlassInk` /
+  `LocalMenuInk` (`menuInk()` in the viewer). A menu whose anchor is at most 72 dp grows out of that
+  button and lies over it (`GlassMotion.grow`); a larger anchor unfolds beside it.
+- **Glass springs** take a 0.0005 rest threshold (`GlassMotion`): Compose's default 0.01 cut a menu's
+  last swing short. Menus close on `GlassMotion.fold`, not on the screens' curve.
+- **Sheets grid** (`ui/sheets/SheetViewer.kt`): cells are made ready once per block (`DrawCell`, with
+  its merge and which borders show), text is laid out once at zoom 1 and drawn scaled
+  (`SheetTextCache`). Gestures read `top` through `rememberUpdatedState`: the bars over the grid
+  change height, and a stale value put taps on the wrong cell.
+- **.ppt** (`engine/mobile/src/ppt.rs`) reads each slide's drawing (text boxes, pictures) through the
+  persist directory, and falls back to the outline. Only tested on a synthetic file.
+- **alpha.8 additions**: Two pages (`DocLayout.columns`, `ViewerState.showColumns`, View settings);
+  a note as a mind map (`ui/notes/MindMap.kt`: `parseOutline` reads headings, bullets and indentation;
+  one android `Canvas` drawing serves the screen, the PNG and the PDF); Find form fields (the
+  engine's `form_detect_fields`); Translate (a chooser of text-processing apps; the app itself has no
+  network permission and must not gain one); Bold/Italic on the selected words only (`text_edit`
+  `ranges`, UTF-8 byte offsets); photo Crop (LightCraft's `crop.geometry`, which needs `rect` and
+  `angle`); voice notes leave as m4a (`notes/AudioExport.kt`).
+- **Releases** build five APKs (`-arm64-v8a`, `-armeabi-v7a`, `-x86`, `-x86_64`, `-universal`); `x86`
+  is new (`i686-linux-android`, version-code suffix 4). `ci.yml` builds pull requests.
+
 ## Motion rules (2026-11-06)
 
 - **Glass things spring, screens glide** (sheets on their own fixed spring, see Gotchas). Glass controls AND glass popovers (menus, dialogs, toasts, hint toasts, the recorder pill) use

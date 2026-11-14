@@ -1,5 +1,6 @@
 package com.chethan616.clearpdf.ui
 
+import com.chethan616.clearpdf.ui.glass.pressable
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -57,6 +58,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import com.chethan616.clearpdf.ui.home.chipRowFade
@@ -285,54 +287,123 @@ fun CompressScreen(vm: AppViewModel, doc: OpenDocument) {
     }
 }
 
-/** A password field of Set password: its label above an outlined box, with the eye to show it. */
+/**
+ * A password field of Encryption: a frosted panel like the file card above it, a lock, the field
+ * (its name waiting inside it until something is typed), and the eye to show or hide what is typed.
+ * A blue ring while it is typed in; a red one when what it holds can't be used.
+ */
 @Composable
 private fun PasswordField(label: String, value: String, onValue: (String) -> Unit, visible: Boolean, onToggle: (() -> Unit)?, error: Boolean, focus: androidx.compose.ui.focus.FocusRequester? = null) {
-    val c = pdfColors
+    val c = com.chethan616.clearpdf.ui.theme.clear
     var focused by remember { mutableStateOf(false) }
-    Text(label, color = c.label, fontSize = 16.sp, modifier = Modifier.padding(start = 24.dp, top = 20.dp, bottom = 8.dp))
+    val ring by androidx.compose.animation.animateColorAsState(
+        when {
+            error -> com.chethan616.clearpdf.ui.theme.Candy.Tomato
+            focused -> com.chethan616.clearpdf.ui.theme.Candy.Sky
+            else -> Color.Transparent
+        },
+        com.chethan616.clearpdf.ui.glass.Fluid.quick(), label = "passwordRing",
+    )
+    val shape = com.chethan616.clearpdf.ui.glass.RoundedRectangle(20.dp)
+    val name = label.trimEnd('*', ' ')
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(44.dp).clip(RoundedCornerShape(4.dp)).background(c.menu)
-            .border(if (focused) 2.dp else 1.dp, if (error) c.red else if (focused) c.toolAccent else c.divider, RoundedCornerShape(4.dp)).padding(start = 12.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp).height(58.dp)
+            .then(com.chethan616.clearpdf.ui.glass.washPanel())
+            .border(2.dp, ring, shape)
+            .padding(start = 16.dp, end = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        androidx.compose.foundation.text.BasicTextField(
-            value = value, onValueChange = onValue, singleLine = true,
-            textStyle = androidx.compose.ui.text.TextStyle(color = c.text, fontSize = 17.sp),
-            cursorBrush = androidx.compose.ui.graphics.SolidColor(c.toolAccent),
-            visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.weight(1f).then(if (focus != null) Modifier.focusRequester(focus) else Modifier)
-                .onFocusChanged { focused = it.isFocused }.semantics { contentDescription = label },
-        )
-        BarIcon(if (visible) LucideIcons.Eye else LucideIcons.EyeOff, stringResource(if (visible) R.string.ui_hide_password else R.string.ui_show_password), { onToggle?.invoke() }, size = 44.dp)
+        Icon(LucideIcons.Lock, null, tint = if (error) com.chethan616.clearpdf.ui.theme.Candy.Tomato else c.inkSoft, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(12.dp))
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (value.isEmpty()) Text(name, style = com.chethan616.clearpdf.ui.theme.ClearType.Body, color = c.inkSoft.copy(alpha = 0.8f), maxLines = 1)
+            androidx.compose.foundation.text.BasicTextField(
+                value = value, onValueChange = onValue, singleLine = true,
+                textStyle = com.chethan616.clearpdf.ui.theme.ClearType.Body.copy(color = c.ink, fontSize = 17.sp, letterSpacing = if (visible) 0.sp else 2.sp),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(com.chethan616.clearpdf.ui.theme.Candy.Sky),
+                visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                modifier = Modifier.fillMaxWidth().then(if (focus != null) Modifier.focusRequester(focus) else Modifier)
+                    .onFocusChanged { focused = it.isFocused }.semantics { contentDescription = name },
+            )
+        }
+        Box(
+            Modifier.size(44.dp).clip(androidx.compose.foundation.shape.CircleShape).pressable({ onToggle?.invoke() }, pressedScale = 0.88f),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                if (visible) LucideIcons.Eye else LucideIcons.EyeOff,
+                stringResource(if (visible) R.string.ui_hide_password else R.string.ui_show_password),
+                tint = if (visible) com.chethan616.clearpdf.ui.theme.Candy.Sky else c.inkSoft, modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 
-/** Set password: a password twice (6 to 128 printable characters), then a protected copy in Downloads. */
+/**
+ * Encryption, laid out as the other tool pages are (Compress, Export): the title, the file, two
+ * tabs for its two jobs, and the blue pill. Set password asks for it twice (6 to 128 printable
+ * characters) and saves a protected copy; Remove password saves an open copy of a protected PDF.
+ * The tab that fits the file opens first: Remove for a protected one, Set for the rest.
+ */
 @Composable
 fun ProtectScreen(vm: AppViewModel, doc: OpenDocument) {
     val c = pdfColors
+    val locked = doc.info.encrypted
+    var tab by remember { mutableStateOf(if (locked) 1 else 0) }
     var pw by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(false) }
     var info by remember { mutableStateOf(false) }
-    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val bad = pw.isNotEmpty() && (pw.length !in 6..128 || pw.any { it < '!' || it > '~' })
     val mismatch = confirm.isNotEmpty() && confirm != pw
-    ToolPage(stringResource(R.string.common_tool_set_password), { vm.toolScreen = null }, stringResource(R.string.common_tool_set_password), pw.isNotEmpty() && confirm.isNotEmpty() && !bad && !mismatch, { vm.protect(doc, pw) },
+    val canSet = pw.isNotEmpty() && confirm.isNotEmpty() && !bad && !mismatch
+    ToolPage(
+        stringResource(R.string.tool_encryption), { vm.toolScreen = null },
+        action = stringResource(if (tab == 1) R.string.tools_unlock_action else R.string.common_tool_set_password),
+        actionEnabled = if (tab == 1) locked else canSet,
+        onAction = { if (tab == 1) vm.removePassword(doc) else vm.protect(doc, pw) },
         trailing = {
             com.chethan616.clearpdf.ui.glass.GlassCircle({ info = true }, label = stringResource(R.string.tools_about_passwords)) {
                 com.chethan616.clearpdf.ui.glass.GlassIcon(LucideIcons.Info, null, Modifier.size(20.dp))
             }
-        }) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
-            Text(stringResource(R.string.tools_protect_intro), color = c.label, fontSize = 16.sp, modifier = Modifier.padding(horizontal = 24.dp))
-            PasswordField(stringResource(R.string.tools_new_password), pw, { pw = it }, visible, { visible = !visible }, bad, focus)
-            if (bad) Text(stringResource(R.string.tools_password_rule), color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
-            PasswordField(stringResource(R.string.tools_repeat_password), confirm, { confirm = it }, visible, { visible = !visible }, mismatch)
-            if (mismatch) Text(stringResource(R.string.tools_password_mismatch), color = c.red, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+        },
+    ) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            OutlinedFileCard(vm, doc)
+            // how the file stands now
+            Row(Modifier.padding(start = 26.dp, end = 24.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(if (locked) LucideIcons.Lock else LucideIcons.LockOpen, null, tint = if (locked) com.chethan616.clearpdf.ui.theme.Candy.Grape else c.text, modifier = Modifier.size(15.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(if (locked) R.string.tools_unlock_title else R.string.msg_no_password_yet), color = c.text, fontSize = 13.sp)
+            }
+            Spacer(Modifier.height(16.dp))
+            // the tabs sit at the left, each underlined across its own label (as Export's)
+            Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(1.dp).background(c.divider))
+                Row {
+                    listOf(R.string.common_tool_set_password, R.string.tools_unlock_action).forEachIndexed { i, label ->
+                        Column(Modifier.clickable { tab = i }.padding(horizontal = 8.dp).width(androidx.compose.foundation.layout.IntrinsicSize.Max)) {
+                            Text(stringResource(label), color = if (tab == i) c.label else c.text, fontSize = 16.sp, modifier = Modifier.padding(vertical = 12.dp))
+                            Box(Modifier.fillMaxWidth().height(2.dp).background(if (tab == i) c.label else Color.Transparent))
+                        }
+                        if (i == 0) Spacer(Modifier.width(14.dp))
+                    }
+                }
+            }
+            if (tab == 0) {
+                Text(stringResource(R.string.tools_set_password_body), color = c.text, fontSize = 14.sp, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 10.dp))
+                PasswordField(stringResource(R.string.tools_new_password), pw, { pw = it }, visible, { visible = !visible }, bad)
+                if (bad) Text(stringResource(R.string.tools_password_rule), style = com.chethan616.clearpdf.ui.theme.ClearType.Caption, color = com.chethan616.clearpdf.ui.theme.Candy.Tomato, modifier = Modifier.padding(horizontal = 30.dp, vertical = 2.dp))
+                PasswordField(stringResource(R.string.tools_repeat_password), confirm, { confirm = it }, visible, { visible = !visible }, mismatch)
+                if (mismatch) Text(stringResource(R.string.tools_password_mismatch), style = com.chethan616.clearpdf.ui.theme.ClearType.Caption, color = com.chethan616.clearpdf.ui.theme.Candy.Tomato, modifier = Modifier.padding(horizontal = 30.dp, vertical = 2.dp))
+            } else {
+                Text(
+                    stringResource(if (locked) R.string.tools_unlock_body else R.string.msg_no_password),
+                    color = c.text, fontSize = 14.sp, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp),
+                )
+            }
+            Spacer(Modifier.height(16.dp))
         }
     }
     if (info) {
@@ -353,6 +424,7 @@ fun ExportScreen(vm: AppViewModel, doc: OpenDocument) {
         listOf(
             stringResource(R.string.tools_format_word) to "docx", stringResource(R.string.tools_format_rtf) to "rtf",
             stringResource(R.string.tools_format_excel) to "xlsx", stringResource(R.string.tools_format_powerpoint) to "pptx",
+            stringResource(R.string.tools_format_text) to "txt",
         )
     } else {
         listOf(stringResource(R.string.tools_format_jpeg) to "jpg", stringResource(R.string.tools_format_png) to "png")
@@ -389,6 +461,7 @@ fun ExportScreen(vm: AppViewModel, doc: OpenDocument) {
 @Composable
 fun CreateSourcesScreen(vm: AppViewModel) {
     val back = { vm.toolScreen = null }
+    var typing by remember { mutableStateOf(vm.createTyping.also { vm.createTyping = false }) }
     ToolScaffold(stringResource(R.string.tools_create_title), back, action = null, actionEnabled = false, onAction = {}) {
         Spacer(Modifier.height(8.dp))
         com.chethan616.clearpdf.ui.glass.WashPanel(Modifier.padding(horizontal = 16.dp).fillMaxWidth()) {
@@ -400,7 +473,32 @@ fun CreateSourcesScreen(vm: AppViewModel) {
             color = com.chethan616.clearpdf.ui.theme.clear.inkSoft, modifier = Modifier.padding(start = 26.dp, top = 24.dp, bottom = 8.dp),
         )
         com.chethan616.clearpdf.ui.glass.WashPanel(Modifier.padding(horizontal = 16.dp).fillMaxWidth()) {
+            SourceRow(LucideIcons.Type, stringResource(R.string.tools_create_from_text), com.chethan616.clearpdf.ui.theme.Candy.Sky) { typing = true }
             SourceRow(LucideIcons.Camera, stringResource(R.string.tools_scan_document), com.chethan616.clearpdf.ui.theme.Candy.Tomato) { vm.toolScreen = null; vm.startScan() }
+        }
+    }
+    // Text to PDF: a name and the words, typed or pasted, set out as pages by the Word engine
+    if (typing) {
+        var name by remember { mutableStateOf("") }
+        var words by remember { mutableStateOf("") }
+        com.chethan616.clearpdf.ui.glass.GlassDialog(
+            onDismiss = { typing = false },
+            title = stringResource(R.string.tools_create_from_text),
+            confirm = stringResource(R.string.tools_create_action),
+            confirmEnabled = words.isNotBlank(),
+            onConfirm = {
+                typing = false
+                vm.toolScreen = null
+                vm.createFromText(name, words)
+            },
+            dismiss = stringResource(R.string.common_cancel),
+        ) {
+            com.chethan616.clearpdf.ui.glass.GlassTextField(name, { name = it }, stringResource(R.string.tools_text_name))
+            Spacer(Modifier.height(10.dp))
+            com.chethan616.clearpdf.ui.glass.GlassTextField(
+                words, { words = it }, stringResource(R.string.tools_text_hint),
+                modifier = Modifier.heightIn(min = 160.dp), singleLine = false,
+            )
         }
     }
 }

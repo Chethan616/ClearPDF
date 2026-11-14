@@ -17,16 +17,49 @@ pub(crate) struct SlideDeck {
     name: String,
     path: String,
     file_size: u64,
+    /// Opened with a password.
+    encrypted: bool,
     texts: Mutex<Vec<Option<Arc<PageText>>>>,
 }
 
 /// Worker threads a slide renders on (effects that blur need some).
 const THREADS: u16 = 2;
 
+/// Gives the slides' font database the faces Artefact bundles (the Word engine's: Source Sans 3,
+/// Source Serif 4, Inter, JetBrains Mono), once. A phone has no Calibri, Arial or Times New Roman,
+/// nor the desktop stand-ins DeckCraft looks for, so without these every run of text fell through
+/// to its last-resort face and a deck's fonts all looked replaced; with them each family gets a
+/// stand-in of its own kind (see `substitutes` in vendor/deckcraft-fonts).
+pub(crate) fn ensure_fonts() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let db = deckcraft_fonts::FontDb::global();
+        for bytes in wordcraft_fonts::bundled() {
+            db.add_font(bytes.to_vec());
+        }
+    });
+}
+
 impl SlideDeck {
-    pub(crate) fn open(path: &str, bytes: &[u8]) -> Result<SlideDeck, MobileError> {
+    /// A password-protected presentation is an ordinary package inside an encrypted compound file
+    /// ([MS-OFFCRYPTO], the same wrapping Word and Excel use): it is decrypted with `password`
+    /// (Agile and Standard encryption), then read like any other.
+    pub(crate) fn open(path: &str, bytes: &[u8], password: Option<&str>) -> Result<SlideDeck, MobileError> {
         if deckcraft_pptx::is_encrypted(bytes) {
-            return Err(MobileError::Open("password-protected presentations can't be opened yet".into()));
+            use gridcraft_xlsx::DecryptError;
+            // a scheme no password opens (RC4, rights management) is said at once, before asking
+            if let Err(e @ DecryptError::Unsupported(_)) = gridcraft_xlsx::check_encryption(bytes) {
+                return Err(MobileError::Open(format!("this presentation can't be opened: {e}")));
+            }
+            let Some(password) = password else { return Err(MobileError::NeedsPassword) };
+            let package = gridcraft_xlsx::decrypt(bytes, password).map_err(|e| match e {
+                DecryptError::WrongPassword => MobileError::WrongPassword,
+                other => MobileError::Open(format!("this presentation can't be opened: {other}")),
+            })?;
+            let pres = deckcraft_pptx::import(&package).map_err(|e| MobileError::Open(e.to_string()))?;
+            let mut deck = Self::of(path, pres, bytes.len());
+            deck.encrypted = true;
+            return Ok(deck);
         }
         let pres = deckcraft_pptx::import(bytes).map_err(|e| MobileError::Open(e.to_string()))?;
         Ok(Self::of(path, pres, bytes.len()))
@@ -39,12 +72,14 @@ impl SlideDeck {
     }
 
     fn of(path: &str, pres: Presentation, size: usize) -> SlideDeck {
+        ensure_fonts();
         let n = pres.slides.len();
         SlideDeck {
             pres: Arc::new(pres),
             name: crate::office::file_name(path),
             path: path.to_string(),
             file_size: size as u64,
+            encrypted: false,
             texts: Mutex::new(vec![None; n]),
         }
     }
@@ -79,7 +114,7 @@ impl OfficeDoc for SlideDeck {
             producer: None,
             pdf_version: String::new(),
             file_size: self.file_size,
-            encrypted: false,
+            encrypted: self.encrypted,
             tagged: false,
             read_only_reason: Some("Presentations open for viewing in this version".into()),
             allows_printing: true,
@@ -144,17 +179,27 @@ impl OfficeDoc for SlideDeck {
         Ok(text)
     }
 
+    /// The web and mail links of slide `page`, and its links to other slides (a slide of the deck,
+    /// the next, the previous, the first or the last), which the viewer follows as page jumps.
     fn links(&self, page: u32) -> Result<Vec<LinkInfo>, MobileError> {
         let i = self.slide(page)?;
+        let last = self.pres.slides.len().saturating_sub(1);
         Ok(deckcraft_render::place_slide(&self.pres, i)
             .links
             .into_iter()
-            .filter_map(|l| match &l.link.action {
-                Action::Url { url } if is_web_link(url) => {
-                    let r = l.rect;
-                    Some(LinkInfo { rect: vec![r.x0 as f32, r.y0 as f32, r.x1 as f32, r.y1 as f32], uri: Some(url.clone()), page: None, top: None })
+            .filter_map(|l| {
+                let r = l.rect;
+                let rect = vec![r.x0 as f32, r.y0 as f32, r.x1 as f32, r.y1 as f32];
+                let jump = |to: usize| Some(LinkInfo { rect: rect.clone(), uri: None, page: Some(to as u32), top: None });
+                match &l.link.action {
+                    Action::Url { url } if is_web_link(url) => Some(LinkInfo { rect, uri: Some(url.clone()), page: None, top: None }),
+                    Action::Slide { slide } => self.pres.slide_index(*slide).and_then(jump),
+                    Action::NextSlide if i < last => jump(i + 1),
+                    Action::PreviousSlide if i > 0 => jump(i - 1),
+                    Action::FirstSlide => jump(0),
+                    Action::LastSlide => jump(last),
+                    _ => None,
                 }
-                _ => None,
             })
             .collect())
     }

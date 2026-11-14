@@ -113,7 +113,11 @@ fun GlassMotionPage(onBack: () -> Unit) {
 
         item(key = "glass") { Section(stringResource(R.string.gm_glass_look), custom = g !in GlassStyle.Presets) }
         item(key = "glasstabs") {
-            PresetTiles(glassPresetNames(), GlassStyle.Presets.indexOf(g), { glass(GlassStyle.Presets[it]) }) { i -> drawGlassSwatch(i) }
+            // with Adaptive luminance on, frost, colour, brightness and tint are the glass's own to
+            // set: the presets are shown at rest
+            Box(Modifier.graphicsLayer { alpha = if (GlassSettings.adaptive) 0.4f else 1f }) {
+                PresetTiles(glassPresetNames(), GlassStyle.Presets.indexOf(g), { if (!GlassSettings.adaptive) glass(GlassStyle.Presets[it]) }) { i -> drawGlassSwatch(i) }
+            }
         }
         item(key = "glassvalues") {
             FineTune {
@@ -126,6 +130,17 @@ fun GlassMotionPage(onBack: () -> Unit) {
                 SliderRow(stringResource(R.string.gm_highlight), g.highlight, 0f..2f, Candy.Tangerine) { glass(g.copy(highlight = it)) }
                 ToggleRow(LucideIcons.Layers, Candy.Sky, stringResource(R.string.gm_depth), null, g.depthEffect) { glass(g.copy(depthEffect = it)) }
                 ToggleRow(LucideIcons.Sparkles, Candy.Grape, stringResource(R.string.gm_chromatic), null, g.chromaticAberration) { glass(g.copy(chromaticAberration = it)) }
+            }
+        }
+
+        // above the presets it rests (they are dimmed while it is on)
+        item(key = "adaptive") {
+            Spacer(Modifier.height(8.dp))
+            Panel {
+                ToggleRow(
+                    LucideIcons.Sparkles, Candy.Lemon, stringResource(R.string.gm_adaptive), stringResource(R.string.gm_adaptive_body),
+                    GlassSettings.adaptive, first = true,
+                ) { GlassSettings.updateAdaptive(context, it) }
             }
         }
 
@@ -175,6 +190,7 @@ fun GlassMotionPage(onBack: () -> Unit) {
             Panel {
                 SettingRow(LucideIcons.RotateCcw, Candy.Tomato, stringResource(R.string.gm_reset), {
                     glass(GlassStyle.Default)
+                    GlassSettings.updateAdaptive(context, false)
                     motion(MotionStyle.Default)
                     MotionSettings.updateCurve(context, EaseCurve.Drawer)
                     MotionSettings.updateDuration(context, 1f)
@@ -403,7 +419,8 @@ private fun SpringGraph() {
     val k = MotionSettings.stiffness(420f)
     val w0 = sqrt(k)
     val wd = w0 * sqrt(1f - zeta * zeta)
-    val settle = (ln(100f) / (zeta * w0)).coerceIn(0.3f, 3f)
+    // to where the spring is let go (0.05 % from rest, GlassMotion's threshold), as menus now run it
+    val settle = (ln(2000f) / (zeta * w0)).coerceIn(0.3f, 4f)
     fun x(t: Float): Float = 1f - exp(-zeta * w0 * t) * (cos(wd * t) + zeta * w0 / wd * sin(wd * t))
     val hi = remember(zeta, w0) { (0..160).maxOf { x(settle * it / 160f) }.coerceAtLeast(1f) + 0.08f }
     val lo = -0.08f

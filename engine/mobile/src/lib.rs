@@ -30,9 +30,10 @@ mod photo;
 mod ppt;
 mod sheets;
 mod slides;
+mod xls_art;
 
 pub use photo::PhotoEditor;
-pub use sheets::{CellEdge, CellSpan, CellView, SheetAxes, SheetInfo};
+pub use sheets::{CellEdge, CellSpan, CellView, SheetAxes, SheetChart, SheetInfo, SheetPicture, SheetStats};
 pub use word::{WordCaret, WordParagraph};
 #[cfg(test)]
 mod tests;
@@ -961,6 +962,21 @@ impl MobileSession {
     /// The cells of a window of sheet `sheet` that show something, with their looks.
     pub fn sheet_cells(&self, doc: u64, sheet: u32, row0: u32, rows: u32, col0: u32, cols: u32) -> Result<Vec<CellView>, MobileError> {
         self.with_sheets(doc, |b| b.cells(sheet, row0, rows, col0, cols))
+    }
+
+    /// The pictures floating over sheet `sheet` of workbook `doc`.
+    pub fn sheet_pictures(&self, doc: u64, sheet: u32) -> Result<Vec<SheetPicture>, MobileError> {
+        self.with_sheets(doc, |b| b.pictures(sheet))
+    }
+
+    /// What the cells of `area` on sheet `sheet` hold: counts, and the sum, smallest and largest of its numbers.
+    pub fn sheet_stats(&self, doc: u64, sheet: u32, area: CellSpan) -> Result<SheetStats, MobileError> {
+        self.with_sheets(doc, |b| b.stats(sheet, area))
+    }
+
+    /// The charts over sheet `sheet` of workbook `doc`, laid out by GridCraft as drawing steps.
+    pub fn sheet_charts(&self, doc: u64, sheet: u32) -> Result<Vec<SheetChart>, MobileError> {
+        self.with_sheets(doc, |b| b.charts(sheet))
     }
 
     /// The merged areas of sheet `sheet`.

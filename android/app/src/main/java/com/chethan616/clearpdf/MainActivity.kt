@@ -36,6 +36,10 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(com.chethan616.clearpdf.ui.utils.AppLocale.wrap(newBase))
+    }
+
     // where the last touch went down: a document opened by it zooms out of that spot
     override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
         if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
@@ -69,6 +73,7 @@ class MainActivity : ComponentActivity() {
     private val pickFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let(vm::addLocalFolder) }
     private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> vm.onMicPermission(granted) }
     private val pickNotePhoto = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> vm.onNotePhoto(uri) }
+    private val pickAudio = registerForActivityResult(ActivityResultContracts.GetContent()) { uri -> vm.onAudioPicked(uri) }
     private val takeNotePhoto = registerForActivityResult(ActivityResultContracts.TakePicture()) { ok -> vm.onNoteCamera(ok) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,13 +85,14 @@ class MainActivity : ComponentActivity() {
         )
         window.isNavigationBarContrastEnforced = false
         super.onCreate(savedInstanceState)
+        com.chethan616.clearpdf.ui.utils.AppLocale.migrateLegacyLocale(this)
         if (savedInstanceState == null) openFromIntent(intent)
         collectRequests()
         GlassSettings.load(this)
         setContent {
             ClearApp(
                 vm,
-                onBrowse = { launchSafely { pickPdf.launch(DocumentTypes.OPENABLE) } },
+                onBrowse = { launchSafely { pickPdf.launch(DocumentTypes.PICKABLE) } },
                 onPickSignatureImage = { launchSafely { pickSignature.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
             )
         }
@@ -109,7 +115,7 @@ class MainActivity : ComponentActivity() {
                         FilePickKind.Combine -> pickMany.launch(arrayOf("application/pdf", "image/*", "text/plain") + OFFICE_TYPES)
                         FilePickKind.Create -> pickMany.launch(arrayOf("image/*", "text/plain", "application/pdf") + OFFICE_TYPES)
                         FilePickKind.Insert -> pickOne.launch(arrayOf(DocumentTypes.PDF))
-                        FilePickKind.Open -> pickOne.launch(DocumentTypes.OPENABLE)
+                        FilePickKind.Open -> pickOne.launch(DocumentTypes.PICKABLE)
                         // .p12 / .pfx: providers type them as PKCS #12, or not at all
                         FilePickKind.DigitalId -> pickOne.launch(arrayOf("application/x-pkcs12", "application/pkcs12", "application/octet-stream"))
                     }
@@ -125,6 +131,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { for (d in vm.imagePicks) launchSafely { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } }
         lifecycleScope.launch { for (u in vm.photoPicks) launchSafely { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } }
         lifecycleScope.launch { for (u in vm.notePhotoPicks) launchSafely { pickNotePhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } }
+        lifecycleScope.launch { for (u in vm.audioPicks) launchSafely { pickAudio.launch("audio/*") } }
         lifecycleScope.launch {
             for (f in vm.noteCameraShots) {
                 val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.files", f)

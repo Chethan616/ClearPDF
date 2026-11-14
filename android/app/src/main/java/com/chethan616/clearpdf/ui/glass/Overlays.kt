@@ -41,6 +41,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -68,6 +70,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import com.chethan616.clearpdf.ui.theme.Candy
@@ -319,8 +322,82 @@ data class GlassMenuItem(val label: String, val icon: ImageVector? = null, val d
 /** How long a chosen menu item waits for the menu to fold away (its dismiss tween, about 260 ms). */
 private const val MenuGoneMillis = 220L
 
+// Menus are their own glass material.  A neutral wash lets a PDF, picture, or wallpaper supply the
+// reflected colour instead of imposing the app theme's blue frost over every context.
+// Lighter than before (0.72 / 0.58 over a ×3 blur read as a painted card): the menu is glass again,
+// what is behind it showing through as soft colour, in both themes.
+private val MenuLightWash = Color.White.copy(alpha = 0.50f)
+private val MenuDarkWash = Color(0xFF101014).copy(alpha = 0.54f)
+
+/**
+ * The card every menu and popover is made of (the desk's menus, the viewer's selection and page
+ * menus, More tools): one frosted glass, whatever the user's glass preset, so no menu comes out
+ * clear, prismatic or painted where the others are frosted. With Settings ▸ Liquid glass ▸ Adaptive
+ * luminance it reads what is behind it and takes light glass and dark ink, or dark glass and white
+ * ink, to suit; its rows take their ink from [LocalGlassInk] / [LocalMenuInk].
+ */
+@Composable
+fun MenuCard(modifier: Modifier = Modifier, shape: androidx.compose.ui.graphics.Shape = RoundedRectangle(24.dp), content: @Composable ColumnScope.() -> Unit) {
+    val c = clear
+    val luminance = rememberGlassLuminance()
+    GlassCard(
+        // unseen for the frame or two it takes to read what is behind it (see [GlassLuminance])
+        modifier.graphicsLayer { alpha = if (luminance == null || luminance.measured) 1f else 0f },
+        shape = shape,
+        wash = if (c.dark) MenuDarkWash else MenuLightWash,
+        blur = 16.dp,
+        styleOverride = if (c.dark) GlassStyle.MenuFrostDark else GlassStyle.MenuFrost,
+        luminance = luminance,
+    ) {
+        val ink = adaptiveInk(luminance, c.ink)
+        CompositionLocalProvider(LocalGlassInk provides ink, LocalMenuInk provides ink) { content() }
+    }
+}
+
 @Composable
 fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
+    var closing by remember { mutableStateOf(false) }
+    GlassMenuLayout(anchor, onDismiss) {
+        Spacer(Modifier.height(6.dp))
+        items.forEach { item ->
+            Row(
+                Modifier.fillMaxWidth().pressable({
+                    if (!closing) {
+                        closing = true
+                        onDismiss()
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ item.onClick() }, MenuGoneMillis)
+                    }
+                }).padding(horizontal = 16.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(item.label, style = ClearType.BodyStrong, color = if (item.destructive) Candy.Tomato else LocalGlassInk.current, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (item.icon != null) Icon(item.icon, null, tint = if (item.destructive) Candy.Tomato else LocalGlassInk.current.copy(alpha = 0.65f), modifier = Modifier.size(19.dp))
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+    }
+}
+
+/** Same anchored frost and rounded shape as [GlassMenu], with room for a preserved custom layout. */
+@Composable
+fun GlassMenuLayout(
+    anchor: Rect,
+    onDismiss: () -> Unit,
+    width: Dp = 236.dp,
+    maxHeight: Dp = 480.dp,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    GlassMenuLayoutContent(anchor, onDismiss, width, maxHeight) { content() }
+}
+
+@Composable
+private fun GlassMenuLayoutContent(
+    anchor: Rect,
+    onDismiss: () -> Unit,
+    width: Dp,
+    maxHeight: Dp,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     val c = clear
     GlassOverlay(animatesOut = true) {
         val leaving = LocalOverlayPresence.current?.leaving == true
@@ -331,10 +408,12 @@ fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
         // unfolds out of its button like a drop of gel: width first, the height a beat behind, each on
         // a glass spring (Settings ▸ Motion) that swells a little past rest and settles;
         // folding back into the button is quick and never bounces
-        val appear = rememberOverlayAppear(enter = GlassMotion.unfold(), exit = Fluid.dismiss())
+        // (a spring both ways: closed mid-swing it carries its speed on instead of starting a new
+        // curve from a standstill, and the screens' curve from Settings no longer reaches the glass)
+        val appear = rememberOverlayAppear(enter = GlassMotion.unfold(), exit = GlassMotion.fold())
         val lag = remember { Animatable(0f) }
         LaunchedEffect(leaving) {
-            if (!leaving) lag.animateTo(1f, GlassMotion.unfoldLag()) else lag.animateTo(0f, Fluid.dismiss())
+            if (!leaving) lag.animateTo(1f, GlassMotion.unfoldLag()) else lag.animateTo(0f, GlassMotion.fold())
         }
         Box(Modifier.fillMaxSize().clickable(remember { MutableInteractionSource() }, null, onClick = onDismiss))
         val local = Rect(host.windowToLocal(anchor.topLeft), host.windowToLocal(anchor.bottomRight))
@@ -343,9 +422,9 @@ fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
         var fromBelow by remember { mutableStateOf(true) }
         Layout(
             content = {
-                GlassCard(
+                MenuCard(
                     Modifier
-                        .width(236.dp)
+                        .width(width)
                         .floatingLayer {
                             val p = appear.value
                             scaleX = lerp(0.5f, 1f, p).coerceAtLeast(0.2f)
@@ -353,27 +432,8 @@ fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
                             transformOrigin = TransformOrigin(if (fromRight) 1f else 0f, if (fromBelow) 0f else 1f)
                             alpha = (p * 1.6f).coerceIn(0f, 1f)
                         },
-                    shape = RoundedRectangle(24.dp),
-                    wash = c.frost,
-                    blur = 16.dp,
                 ) {
-                    Spacer(Modifier.height(6.dp))
-                    items.forEach { item ->
-                        Row(
-                            // the menu folds away first; what was chosen happens once it has gone
-                            Modifier.fillMaxWidth().pressable({
-                                if (!leaving) {
-                                    onDismiss()
-                                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ item.onClick() }, MenuGoneMillis)
-                                }
-                            }).padding(horizontal = 16.dp, vertical = 11.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(item.label, style = ClearType.BodyStrong, color = if (item.destructive) Candy.Tomato else c.ink, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            if (item.icon != null) Icon(item.icon, null, tint = if (item.destructive) Candy.Tomato else c.inkSoft, modifier = Modifier.size(19.dp))
-                        }
-                    }
-                    Spacer(Modifier.height(6.dp))
+                    Column(Modifier.heightIn(max = maxHeight).verticalScroll(rememberScrollState()), content = content)
                 }
             },
             modifier = Modifier.fillMaxSize(),
@@ -396,7 +456,9 @@ fun GlassMenu(anchor: Rect, onDismiss: () -> Unit, items: List<GlassMenuItem>) {
                 val y = if (below) local.bottom + 6f else local.top - 6f - p.height
                 val minX = barLeft + margin
                 val maxX = (constraints.maxWidth - barRight - p.width - margin).coerceAtLeast(minX)
-                p.place(IntOffset(x.coerceIn(minX, maxX).roundToInt(), y.coerceAtLeast(barTop + margin).roundToInt()))
+                val minY = barTop + margin
+                val maxY = (constraints.maxHeight - barBottom - p.height - margin).coerceAtLeast(minY)
+                p.place(IntOffset(x.coerceIn(minX, maxX).roundToInt(), y.coerceIn(minY, maxY).roundToInt()))
             }
         }
     }
@@ -441,12 +503,21 @@ fun GlassTextField(
     )
 }
 
-/** A toast: a glass capsule that rises in above the dock, with an optional candy action. */
+/**
+ * A toast: a glass capsule that rises in above the dock, with an optional candy action.
+ *
+ * A toast lands on anything (the wallpaper, a white page, a black slide), so it always reads what is
+ * behind it and takes light glass with dark ink or dark glass with white ink, whatever the theme and
+ * the Adaptive luminance setting: the theme's frost over a black page came out a grey slab. Its lens
+ * is the buttons' own (Back, More), so it bends its edges as they do.
+ */
 @Composable
 fun GlassToast(text: String, action: String?, onAction: () -> Unit, modifier: Modifier = Modifier) {
     val c = clear
     val appear = remember { Animatable(0f) }
     LaunchedEffect(Unit) { appear.animateTo(1f, GlassMotion.morph()) }
+    val luminance = rememberGlassLuminance(enabled = true)
+    val ink = adaptiveInk(luminance, c.ink)
     Row(
         modifier
             .floatingLayer {
@@ -455,11 +526,11 @@ fun GlassToast(text: String, action: String?, onAction: () -> Unit, modifier: Mo
                 alpha = p.coerceIn(0f, 1f)
             }
             .widthIn(max = 520.dp)
-            .glass(Capsule, c.frost, blur = 12.dp)
+            .glass(Capsule, c.frost, blur = 12.dp, lensHeight = 12.dp, lensAmount = 24.dp, luminance = luminance)
             .padding(start = 20.dp, end = if (action != null) 6.dp else 20.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text, style = ClearType.Label, color = c.ink, modifier = Modifier.weight(1f, fill = false).padding(vertical = 8.dp), maxLines = 3)
+        Text(text, style = ClearType.Label, color = ink, modifier = Modifier.weight(1f, fill = false).padding(vertical = 8.dp), maxLines = 3)
         if (action != null) {
             Spacer(Modifier.width(10.dp))
             GlassPill(onClick = onAction, tint = Candy.Sky, height = 38.dp, horizontalPadding = 14.dp) {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -272,12 +273,16 @@ fun PageCanvas(
                 }
             },
     ) {
-        Canvas(Modifier.fillMaxSize()) {
-            // read the image version so arrivals redraw
-            images.version
-            drawRect(look.background)
-            drawPages(state, images, generation, look, maxScale * 4f)
-            overlay()
+        // A colour filter change must replace the canvas draw block as well as recompose the host.
+        // Otherwise a visible View settings switch can leave the already-recorded page unfiltered.
+        key(look) {
+            Canvas(Modifier.fillMaxSize()) {
+                // read the image version so arrivals redraw
+                images.version
+                drawRect(look.background)
+                drawPages(state, images, generation, look, maxScale * 4f)
+                overlay()
+            }
         }
     }
 }
@@ -287,7 +292,11 @@ private suspend fun settle(state: ViewerState, velocity: Offset, density: Float,
     if (state.mode == PageMode.SinglePage && state.zoom <= 1.01f) {
         val target = state.snapTarget(velocity.x)
         val anim = Animatable(state.scrollX)
-        anim.animateTo(target, spring(stiffness = 600f), initialVelocity = -velocity.x) { state.setScroll(value, 0f) }
+        // where the reader is down the page is kept while it settles; a new page starts from its top
+        val page = state.currentPage
+        val y = state.scrollY
+        anim.animateTo(target, spring(stiffness = 600f), initialVelocity = -velocity.x) { state.setScroll(value, y) }
+        if (state.currentPage != page) state.setScroll(state.scrollX, 0f)
         return
     }
     if (velocity.getDistance() < 50f) return

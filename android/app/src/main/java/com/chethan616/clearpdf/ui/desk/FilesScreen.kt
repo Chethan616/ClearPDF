@@ -67,6 +67,8 @@ import com.chethan616.clearpdf.ui.theme.Candy
 import com.chethan616.clearpdf.ui.theme.ClearType
 import com.chethan616.clearpdf.ui.theme.clear
 import com.chethan616.clearpdf.ui.glass.Capsule
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import kotlinx.coroutines.delay
 
 /** At most this many rows share one panel, so a long folder isn't one giant item. */
@@ -203,7 +205,7 @@ fun FilesScreen(vm: AppViewModel, onBrowse: () -> Unit) {
                 for ((tree, name) in vm.localFolders()) add(GlassMenuItem(stringResource(R.string.home_stop_listing, name), LucideIcons.FolderOpen) { vm.removeLocalFolder(tree) })
             }
         }
-        GlassMenu(anchor, { menuOpen = false }, items)
+        GlassMenu(anchor = anchor, onDismiss = { menuOpen = false }, items = items)
     }
     if (confirmClear) {
         GlassDialog(

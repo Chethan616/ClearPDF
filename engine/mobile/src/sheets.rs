@@ -6,7 +6,7 @@
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use gridcraft_engine::core::CellRef;
-use gridcraft_engine::model::{BorderLine, BorderStyle, Color, HAlign, PatternType, Sheet, VAlign, Visibility, Workbook};
+use gridcraft_engine::model::{BorderLine, BorderStyle, Color, HAlign, PatternType, Sheet, Style, Underline, VAlign, Visibility, Workbook};
 use pdfcraft_render::PageText;
 
 use crate::office::OfficeDoc;
@@ -41,11 +41,67 @@ pub struct SheetAxes {
     pub row_heights: Vec<f32>,
 }
 
-/// A border of a cell: its weight (1 thin, 2 medium, 3 thick; 0 none) and colour.
+/// A border of a cell: its weight (1 thin, 2 medium, 3 thick; 0 none), colour, and how the line
+/// is drawn (0 solid, 1 dashed, 2 dotted, 3 double, 4 hair).
 #[derive(Debug, Clone, Copy, uniffi::Record)]
 pub struct CellEdge {
     pub weight: u8,
     pub color: u32,
+    pub line: u8,
+}
+
+/// A picture floating over a sheet: where it sits (points from A1) and its encoded bytes (PNG/JPEG).
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct SheetPicture {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub data: Vec<u8>,
+}
+
+/// A chart floating over a sheet: where it sits (as a picture is), its own size in points, and
+/// GridCraft's layout of it as drawing steps (`gridcraft_chart::Prim`, JSON) in those points.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct SheetChart {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub chart_width: f32,
+    pub chart_height: f32,
+    pub prims: String,
+}
+
+/// Text widths for chart layout: a sans-serif's average advance, close to the phone's own.
+struct PhoneMeasure;
+
+impl gridcraft_chart::Measure for PhoneMeasure {
+    fn text_width(&self, text: &str, size: f32, bold: bool) -> f32 {
+        text.chars()
+            .map(|c| {
+                if c.is_ascii_uppercase() || c.is_ascii_digit() {
+                    0.6
+                } else if c.is_ascii() {
+                    0.5
+                } else {
+                    0.9
+                }
+            })
+            .sum::<f32>()
+            * size
+            * if bold { 1.06 } else { 1.0 }
+    }
+}
+
+/// What a selection of cells holds (see `SheetBook::stats`).
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct SheetStats {
+    pub filled: u32,
+    pub numbers: u32,
+    pub sum: f64,
+    pub min: f64,
+    pub max: f64,
 }
 
 /// A cell as the grid draws it: the text it shows, in its looks. Colours are `0xRRGGBB`.
@@ -67,6 +123,17 @@ pub struct CellView {
     /// `t`, `c` or `b`.
     pub valign: String,
     pub wrap: bool,
+    /// The face's kind: 0 sans-serif, 1 serif, 2 monospace.
+    pub face: u8,
+    /// Indent steps from the aligned edge (Excel's "increase indent").
+    pub indent: u8,
+    /// Text turned by this many degrees (-90..=90; 255: stacked top to bottom).
+    pub rotation: i16,
+    /// A conditional format's data bar: the part of the cell's width it fills (0: none) and its colour.
+    pub bar: f32,
+    pub bar_color: u32,
+    /// The cell's hyperlink: a web or mail address, or a place in the workbook (`Sheet2!A1`).
+    pub link: Option<String>,
     pub left: CellEdge,
     pub top: CellEdge,
     pub right: CellEdge,
@@ -110,8 +177,12 @@ impl SheetBook {
         let name = crate::office::file_name(path);
         let stem = std::path::Path::new(&name).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         let encrypted = gridcraft_xlsx::sniff(bytes) == gridcraft_xlsx::Format::Encrypted;
-        let (wb, _warnings) =
+        let (mut wb, _warnings) =
             gridcraft_engine::io::open_bytes_with_password(&format!("{stem}.{ext}"), bytes, password).map_err(|e| open_error(e.to_string()))?;
+        // GridCraft's .xls reader leaves pictures and charts out: they are read here
+        if matches!(ext, "xls" | "xlt") && !encrypted {
+            crate::xls_art::import(bytes, &mut wb);
+        }
         // the desktop app's document: computed on open (values the file left stale are brought up to
         // date), with its selection and undo history
         let mut session = gridcraft_engine::Session::new();
@@ -141,6 +212,44 @@ impl SheetBook {
         s.execute("sheet.activate", serde_json::json!({ "sheet": name })).map_err(err)?;
         s.execute("selection.set", serde_json::json!({ "range": range.a1(), "active": range.start.a1() })).map_err(err)?;
         s.execute(command, params).map_err(err)
+    }
+
+    /// What a selection holds, for the line under the formula bar: how many cells have something
+    /// in them, how many of those are numbers, and the numbers' sum, smallest and largest. Only the
+    /// part of `area` the sheet uses is read (a whole column is its used rows), two million cells at most.
+    pub(crate) fn stats(&self, sheet: u32, area: CellSpan) -> Result<SheetStats, MobileError> {
+        let wb = self.wb();
+        let s = self.sheet_in(&wb, sheet)?;
+        let mut out = SheetStats { filled: 0, numbers: 0, sum: 0.0, min: 0.0, max: 0.0 };
+        let Some(used) = s.used_range() else { return Ok(out) };
+        let (r0, r1) = (area.row0.max(used.start.row), area.row1.min(used.end.row));
+        let (c0, c1) = (area.col0.max(used.start.col), area.col1.min(used.end.col));
+        let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
+        let mut budget = 2_000_000u32;
+        'rows: for r in r0..=r1 {
+            for c in c0..=c1 {
+                budget = budget.saturating_sub(1);
+                if budget == 0 {
+                    break 'rows;
+                }
+                match s.value_ref(CellRef::new(r, c)) {
+                    None | Some(gridcraft_engine::core::Value::Empty) => {}
+                    Some(gridcraft_engine::core::Value::Number(n)) if n.is_finite() => {
+                        out.filled += 1;
+                        out.numbers += 1;
+                        out.sum += n;
+                        lo = lo.min(*n);
+                        hi = hi.max(*n);
+                    }
+                    Some(_) => out.filled += 1,
+                }
+            }
+        }
+        if out.numbers > 0 {
+            out.min = lo;
+            out.max = hi;
+        }
+        Ok(out)
     }
 
     /// What the formula bar shows for a cell: its formula (`=SUM(A1:A3)`), else its value as typed.
@@ -211,7 +320,9 @@ impl SheetBook {
         })
     }
 
-    /// The cells of the window that show something (text, a fill or a border).
+    /// The cells of the window that show something (text, a fill, a border or a data bar), each in
+    /// the look it really has: its own style, then its table's style, then what its conditional
+    /// formats add (as GridCraft's own grid and print resolve it).
     pub(crate) fn cells(&self, sheet: u32, row0: u32, rows: u32, col0: u32, cols: u32) -> Result<Vec<CellView>, MobileError> {
         let book = self.wb();
         let s = self.sheet_in(&book, sheet)?;
@@ -220,6 +331,7 @@ impl SheetBook {
         }
         let wb = &*book;
         let theme = &wb.theme;
+        let si = sheet as usize;
         let edge = |b: &BorderLine| CellEdge {
             weight: match b.style {
                 BorderStyle::None => 0,
@@ -227,40 +339,141 @@ impl SheetBook {
                 | BorderStyle::MediumDashed
                 | BorderStyle::MediumDashDot
                 | BorderStyle::MediumDashDotDot
-                | BorderStyle::Double => 2,
+                | BorderStyle::SlantDashDot => 2,
                 BorderStyle::Thick => 3,
                 _ => 1,
             },
             color: rgb(b.color.resolve(theme)).unwrap_or(0),
+            line: match b.style {
+                BorderStyle::Dashed
+                | BorderStyle::MediumDashed
+                | BorderStyle::DashDot
+                | BorderStyle::MediumDashDot
+                | BorderStyle::DashDotDot
+                | BorderStyle::MediumDashDotDot
+                | BorderStyle::SlantDashDot => 1,
+                BorderStyle::Dotted => 2,
+                BorderStyle::Double => 3,
+                BorderStyle::Hair => 4,
+                _ => 0,
+            },
         };
+        let mut cf = (!s.cond_formats.is_empty()).then(gridcraft_engine::cf::CfCache::new);
+        let plain = s.tables.is_empty() && cf.is_none();
         let mut out = Vec::new();
         for row in row0..row0.saturating_add(rows) {
+            if s.is_row_hidden(row) {
+                continue;
+            }
             for col in col0..col0.saturating_add(cols) {
                 let c = CellRef::new(row, col);
-                let style = wb.styles.get(s.style_id(c));
-                let text = gridcraft_engine::display::cell_text(wb, s, c);
-                let fill = match style.fill.pattern {
+                // the common case borrows the interned style; tables and rules build one
+                let owned: Option<(Style, Option<gridcraft_engine::cf::CfLook>)> = if plain {
+                    None
+                } else {
+                    let mut style = match s.table_at(c) {
+                        Some(t) => gridcraft_engine::tables::table_cell_style(wb, si, t, c),
+                        None => wb.styles.get(s.style_id(c)).clone(),
+                    };
+                    let look = cf.as_mut().and_then(|cache| cache.look(wb, si, c));
+                    if let Some(st) = look.as_ref().and_then(|l| l.style.as_ref()) {
+                        if st.fill.pattern != PatternType::None {
+                            style.fill = st.fill;
+                        }
+                        if st.font.color != Color::Auto {
+                            style.font.color = st.font.color;
+                        }
+                        style.font.bold |= st.font.bold;
+                        style.font.italic |= st.font.italic;
+                        style.font.strike |= st.font.strike;
+                        if st.font.underline != Underline::None {
+                            style.font.underline = st.font.underline;
+                        }
+                        // in a differential style General means "not set"
+                        if st.num_fmt.as_str() != "General" {
+                            style.num_fmt = st.num_fmt.clone();
+                        }
+                        for (dst, src) in [
+                            (&mut style.borders.left, st.borders.left),
+                            (&mut style.borders.right, st.borders.right),
+                            (&mut style.borders.top, st.borders.top),
+                            (&mut style.borders.bottom, st.borders.bottom),
+                        ] {
+                            if !src.is_none() {
+                                *dst = src;
+                            }
+                        }
+                    }
+                    Some((style, look))
+                };
+                let (style, look): (&Style, Option<&gridcraft_engine::cf::CfLook>) = match &owned {
+                    Some((st, l)) => (st, l.as_ref()),
+                    None => (wb.styles.get(s.style_id(c)), None),
+                };
+                let own_format = wb.styles.get(s.style_id(c)).num_fmt.as_str() == style.num_fmt.as_str();
+                let mut text = if look.is_some_and(|l| l.hide_value) {
+                    String::new()
+                } else if own_format {
+                    gridcraft_engine::display::cell_text(wb, s, c)
+                } else {
+                    // a conditional format gave the number another format
+                    gridcraft_engine::display::value_text_as(wb, &s.value(c), style.num_fmt.as_str())
+                };
+                if !s.show_zeros && text == "0" {
+                    text.clear();
+                }
+                let mut fill = match style.fill.pattern {
                     PatternType::None => None,
                     PatternType::Solid => rgb(style.fill.fg.resolve(theme)),
-                    _ => rgb(style.fill.fg.resolve(theme)).or_else(|| rgb(style.fill.bg.resolve(theme))),
+                    // a pattern is shown as its two colours mixed, a quarter ink on the ground
+                    _ => {
+                        let fg = style.fill.fg.resolve(theme).unwrap_or([0, 0, 0]);
+                        let bg = style.fill.bg.resolve(theme).unwrap_or([255, 255, 255]);
+                        rgb(Some([0, 1, 2].map(|i| ((u16::from(fg[i]) + u16::from(bg[i]) * 3) / 4) as u8)))
+                    }
                 };
+                if let Some(scale) = look.and_then(|l| l.scale_fill) {
+                    fill = rgb(Some(scale));
+                }
+                let (bar, bar_color) = look.and_then(|l| l.bar).map_or((0.0, 0), |(f, c, _)| (f.clamp(0.0, 1.0), rgb(Some(c)).unwrap_or(0)));
+                let link = s.hyperlinks.get(&c).map(|h| h.target.trim().to_string()).filter(|t| !t.is_empty());
                 let b = &style.borders;
-                if text.is_empty() && fill.is_none() && [&b.left, &b.top, &b.right, &b.bottom].iter().all(|l| l.is_none()) {
+                if text.is_empty()
+                    && fill.is_none()
+                    && bar <= 0.0
+                    && link.is_none()
+                    && [&b.left, &b.top, &b.right, &b.bottom].iter().all(|l| l.is_none())
+                {
                     continue;
                 }
-                let number = matches!(s.value(c), gridcraft_engine::core::Value::Number(_));
+                let value = s.value(c);
+                let number = matches!(value, gridcraft_engine::core::Value::Number(_));
+                let centred = matches!(value, gridcraft_engine::core::Value::Bool(_) | gridcraft_engine::core::Value::Error(_));
                 let align = match style.align.h {
-                    HAlign::Center | HAlign::CenterAcross => "c",
+                    HAlign::Center | HAlign::CenterAcross | HAlign::Distributed => "c",
                     HAlign::Right => "r",
                     HAlign::General if number => "r",
+                    HAlign::General if centred => "c",
                     _ => "l",
                 };
                 let valign = match style.align.v {
                     VAlign::Top => "t",
-                    VAlign::Center => "c",
-                    _ => "b",
+                    VAlign::Center | VAlign::Justify | VAlign::Distributed => "c",
+                    VAlign::Bottom => "b",
                 };
                 let f = &style.font;
+                let name = f.name.to_lowercase();
+                let face = if f.family == Some(3) || ["courier", "consolas", "mono", "menlo", "lucida console"].iter().any(|m| name.contains(m)) {
+                    2
+                } else if f.family == Some(1)
+                    || ["times", "georgia", "cambria", "garamond", "serif", "palatino", "book antiqua", "century", "constantia", "baskerville"]
+                        .iter()
+                        .any(|m| name.contains(m) && !name.contains("sans"))
+                {
+                    1
+                } else {
+                    0
+                };
                 out.push(CellView {
                     row,
                     col,
@@ -269,12 +482,18 @@ impl SheetBook {
                     ink: if matches!(f.color, Color::Auto) { 0 } else { rgb(f.color.resolve(theme)).unwrap_or(0) },
                     bold: f.bold,
                     italic: f.italic,
-                    underline: f.underline != Default::default(),
+                    underline: f.underline != Underline::None,
                     strike: f.strike,
                     size: if f.size > 0.0 { f.size } else { 11.0 },
                     align: align.into(),
                     valign: valign.into(),
-                    wrap: style.align.wrap,
+                    wrap: style.align.wrap || matches!(style.align.h, HAlign::Justify | HAlign::Distributed),
+                    face,
+                    indent: style.align.indent,
+                    rotation: style.align.rotation,
+                    bar,
+                    bar_color,
+                    link,
                     left: edge(&b.left),
                     top: edge(&b.top),
                     right: edge(&b.right),
@@ -283,6 +502,49 @@ impl SheetBook {
             }
         }
         Ok(out)
+    }
+
+    /// The pictures floating over sheet `sheet`, placed in points from A1.
+    pub(crate) fn pictures(&self, sheet: u32) -> Result<Vec<SheetPicture>, MobileError> {
+        let wb = self.wb();
+        let s = self.sheet_in(&wb, sheet)?;
+        Ok(s.images
+            .iter()
+            .filter(|i| i.anchor.width > 0.0 && i.anchor.height > 0.0 && !i.data.is_empty())
+            .take(64)
+            .map(|i| SheetPicture {
+                x: (s.col_left(i.anchor.cell.col) as f32 + i.anchor.dx) * PT,
+                y: (s.row_top(i.anchor.cell.row) as f32 + i.anchor.dy) * PT,
+                width: i.anchor.width * PT,
+                height: i.anchor.height * PT,
+                data: (*i.data).clone(),
+            })
+            .collect())
+    }
+
+    /// The charts over sheet `sheet`: each laid out by GridCraft (from the workbook's values) at its
+    /// anchor's size, placed in points from A1 as the pictures are.
+    pub(crate) fn charts(&self, sheet: u32) -> Result<Vec<SheetChart>, MobileError> {
+        let wb = self.wb();
+        let s = self.sheet_in(&wb, sheet)?;
+        Ok(s.charts
+            .iter()
+            .filter(|c| c.anchor.width >= 8.0 && c.anchor.height >= 8.0)
+            .take(32)
+            .filter_map(|c| {
+                let data = gridcraft_chart::resolve(&wb, sheet as usize, c);
+                let prims = gridcraft_chart::render(c, &data, c.anchor.width, c.anchor.height, &PhoneMeasure);
+                Some(SheetChart {
+                    x: (s.col_left(c.anchor.cell.col) as f32 + c.anchor.dx) * PT,
+                    y: (s.row_top(c.anchor.cell.row) as f32 + c.anchor.dy) * PT,
+                    width: c.anchor.width * PT,
+                    height: c.anchor.height * PT,
+                    chart_width: c.anchor.width,
+                    chart_height: c.anchor.height,
+                    prims: serde_json::to_string(&prims).ok()?,
+                })
+            })
+            .collect())
     }
 
     /// The merged areas of sheet `sheet`.

@@ -1,6 +1,7 @@
 # Release pipeline: pushing a version tag (v0.0.1-beta, v0.2.0, v1.0.0-rc.1, …) builds the APKs
-# (one for 64-bit ARM phones, one for 32-bit ARM ones) signed with the release key and makes them a
-# draft GitHub release named after the tag, with an empty "What's Changed" section. Fill that in on
+# (one per ABI: arm64-v8a, armeabi-v7a, x86, x86_64, and a universal one holding all four) signed
+# with the release key and makes them a draft GitHub release named after the tag, with an empty
+# "What's Changed" section. GitHub adds the source archives and each file's SHA-256. Fill that in on
 # GitHub and publish the draft: it becomes the latest release (betas too: while the app is in beta,
 # every release is one).
 #
@@ -28,7 +29,7 @@ env:
 jobs:
   apk:
     name: APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -53,6 +54,25 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+
+      # The Gradle the project pins (gradle-wrapper.properties: version and checksum), fetched and
+      # checked here. The runner's own Gradle moves on without notice (9.8.2, then 9.9.1), and the
+      # release must be built with the same Gradle as F-Droid's, which reads the wrapper.
+      - name: Install Gradle
+        run: |
+          props=android/gradle/wrapper/gradle-wrapper.properties
+          version="$(sed -n 's/^distributionUrl=.*gradle-\([0-9.]*\)-bin\.zip$/\1/p' "$props")"
+          sum="$(sed -n 's/^distributionSha256Sum=//p' "$props")"
+          if [ -z "$version" ] || [ -z "$sum" ]; then
+            echo "::error::gradle-wrapper.properties names no Gradle version and checksum"
+            exit 1
+          fi
+          zip="$RUNNER_TEMP/gradle-$version-bin.zip"
+          curl -fsSL --retry 4 -o "$zip" "https://github.com/gradle/gradle-distributions/releases/download/v$version/gradle-$version-bin.zip"             || curl -fsSL --retry 4 -o "$zip" "https://services.gradle.org/distributions/gradle-$version-bin.zip"
+          echo "$sum  $zip" | sha256sum -c -
+          unzip -q "$zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-$version/bin" >>"$GITHUB_PATH"
+          "$RUNNER_TEMP/gradle-$version/bin/gradle" --version | sed -n 's/^Gradle //p'
 
       # the Rust release and targets rust-toolchain.toml names
       - name: Install Rust
@@ -83,9 +103,10 @@ jobs:
             echo "::warning::No release key: this dry run is signed with the debug key"
           fi
 
-      # one APK per ABI (each about half the size of one holding both): 64-bit ARM for most
-      # phones (Artefact-v<version>.apk), 32-bit ARM for older and low-end ones
-      # (Artefact-v<version>-armeabi-v7a.apk)
+      # one APK per ABI, Artefact-v<version>-<abi>.apk (arm64-v8a for most phones, armeabi-v7a for
+      # older and low-end ones, x86 and x86_64 for emulators and Chromebooks), then
+      # Artefact-v<version>-universal.apk holding all four. Cargo keeps each ABI's library, so the
+      # universal build compiles nothing again.
       - name: Build
         working-directory: android
         env:
@@ -95,11 +116,12 @@ jobs:
           CLEARPDF_UPLOAD_KEY_PASSWORD: ${{ secrets.CLEARPDF_UPLOAD_KEY_PASSWORD }}
         run: |
           mkdir -p "$GITHUB_WORKSPACE/dist"
-          for abi in arm64-v8a armeabi-v7a; do
-            ./gradlew assembleRelease "-Partefact.abis=$abi" "-Partefact.version=$VERSION" --no-daemon
-            suffix=""; [ "$abi" = arm64-v8a ] || suffix="-$abi"
-            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/dist/Artefact-v$VERSION$suffix.apk"
+          for abi in arm64-v8a armeabi-v7a x86 x86_64 universal; do
+            abis="$abi"; [ "$abi" = universal ] && abis="arm64-v8a,armeabi-v7a,x86,x86_64"
+            gradle assembleRelease "-Partefact.abis=$abis" "-Partefact.version=$VERSION" --no-daemon --no-configuration-cache
+            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/dist/Artefact-v$VERSION-$abi.apk"
           done
+          (cd "$GITHUB_WORKSPACE/dist" && sha256sum ./*.apk)
 
       - name: APK
         run: |

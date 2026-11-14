@@ -99,6 +99,8 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
     val density = LocalDensity.current
     val view = LocalView.current
     val context = LocalContext.current
+    var moreMenuAnchor by remember { mutableStateOf(Rect.Zero) }
+    var moreToolsMenuAnchor by remember { mutableStateOf(Rect.Zero) }
 
     // The system bars go with the viewer's bars.
     val statusBar = vm.statusBarInDocuments
@@ -138,8 +140,10 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
     var quickExtraPx by remember { mutableIntStateOf(0) }
     val bottomPx = with(density) { if (ctl.tool == ViewerTool.None) QuickBarHeight.toPx() + quickExtraPx else BottomBarHeight.toPx() }
     // keyed on the document too: one opened over another (Create, Combine) has a fresh page view
-    LaunchedEffect(doc, statusPx, navPx, ctl.searching, ctl.tool, vm.readingMode, bottomPx) {
-        val bottomShown = !ctl.searching && !vm.readingMode
+    LaunchedEffect(doc, statusPx, navPx, ctl.tool, vm.readingMode, bottomPx) {
+        // Keep the page viewport fixed while Find replaces the top bar. Releasing the bottom-bar
+        // space here shifts every page at the same time as the search pill animates.
+        val bottomShown = !vm.readingMode
         // the first page starts at the top of the screen, under the camera; the glass row floats over
         // it as over the rest (no empty band above it)
         doc.viewer.setPadding(
@@ -186,6 +190,20 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
 
     val search = doc.search
     val selection = doc.selection
+    // Selecting text is felt, as the system's own selection is: a firm rise when a long press takes
+    // a word (or the selection first appears), then a light tick each time a dragged handle takes in
+    // or lets go of a character. The haptics drop ticks closer than 35 ms, so a fast drag purrs
+    // rather than buzzes. Clearing the selection is silent.
+    val feel = com.chethan616.clearpdf.ui.glass.rememberFeel()
+    LaunchedEffect(selection) {
+        var last: com.chethan616.clearpdf.core.TextRange? = null
+        snapshotFlow { selection.selection?.range }.collect { range ->
+            if (range != null && range != last) {
+                feel(if (last == null) com.chethan616.clearpdf.ui.glass.Feel.Bloom else com.chethan616.clearpdf.ui.glass.Feel.Tick)
+            }
+            last = range
+        }
+    }
     // on a desktop, zoom buttons at the bottom right: with the bars, or for a moment when the mouse
     // comes near the corner or the wheel zooms, as the reference has them
     val config = androidx.compose.ui.platform.LocalConfiguration.current
@@ -363,18 +381,14 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                 LaunchedEffect(ctl.searching) {
                     sp.animateTo(
                         if (ctl.searching) 1f else 0f,
-                        if (ctl.searching) com.chethan616.clearpdf.ui.glass.GlassMotion.morph() else com.chethan616.clearpdf.ui.glass.GlassMotion.settle(),
+                        // Avoid the low-damped overshoot used by menus. Thresholds and widths below
+                        // stay monotonic, so neither bar flashes back into view mid-transition.
+                        com.chethan616.clearpdf.ui.glass.GlassMotion.settle(),
                     )
                 }
                 val searchShown by remember { androidx.compose.runtime.derivedStateOf { ctl.searching || sp.value > 0.002f } }
-                val barShown by remember { androidx.compose.runtime.derivedStateOf { !ctl.searching || sp.value < 0.998f } }
                 Box(barSides) {
-                    if (barShown) Box(
-                        Modifier.graphicsLayer { alpha = (1f - sp.value * 1.8f).coerceIn(0f, 1f) }
-                            .then(if (ctl.searching) Modifier.pointerInput(Unit) {
-                                awaitPointerEventScope { while (true) awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial).changes.forEach { it.consume() } }
-                            } else Modifier),
-                    ) {
+                    Box {
                         val fa = vm.fieldActions
                         if (fa != null) FieldTopBar(fa) else ViewerTopBar(
                             title = doc.title,
@@ -384,17 +398,28 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                             doneIsCheck = ctl.tool != ViewerTool.Comment,
                             canUndo = doc.localUndo?.canUndo?.invoke() ?: (doc.info.undo != null),
                             canRedo = doc.localUndo?.canRedo?.invoke() ?: (doc.info.redo != null),
-                            onBack = { if (ctl.tool != ViewerTool.None) vm.leaveTool(doc) else vm.closeDocument() },
+                            onBack = {
+                                if (searchShown) closeSearch(doc)
+                                else if (ctl.tool != ViewerTool.None) vm.leaveTool(doc)
+                                else vm.closeDocument()
+                            },
                             onUndo = { vm.undo(doc) },
                             onRedo = { vm.redo(doc) },
-                            onTitle = { ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More },
+                            onTitle = { anchor ->
+                                moreMenuAnchor = anchor
+                                ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More
+                            },
                             onSearch = if (vm.readingMode) null else ({
                                 selection.clear()
                                 ctl.searching = true
                                 ctl.sheet = ViewerSheet.None
                             }),
                             onShare = { vm.share(doc) },
-                            onMore = { ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More },
+                            onMore = { anchor ->
+                                moreMenuAnchor = anchor
+                                ctl.sheet = if (ctl.sheet == ViewerSheet.More) ViewerSheet.None else ViewerSheet.More
+                            },
+                            contentAlpha = 1f - sp.value,
                             undoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.undo,
                             redoLabel = if (doc.localUndo != null) stringResource(R.string.viewer_undo_drawing) else doc.info.redo,
                         )
@@ -414,7 +439,6 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                                 query = ""
                                 search.clear()
                             },
-                            onClose = { closeSearch(doc) },
                             onPrev = { search.step(false)?.let { showHit(doc, it) } },
                             onNext = { search.step(true)?.let { showHit(doc, it) } },
                             // Extra Features: which result is on screen, of how many (still growing while
@@ -439,8 +463,13 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
                         QuickToolbar(
                             tools = QuickTool.barFor(doc, vm.quickToolbar.bar),
                             onTool = { vm.runQuickTool(doc, it) },
-                            onMoreTools = if (doc.isOffice) null else ({ ctl.sheet = if (ctl.sheet == ViewerSheet.MoreTools) ViewerSheet.None else ViewerSheet.MoreTools }),
-                            moreToolsOpen = ctl.sheet == ViewerSheet.MoreTools,
+                            moreTools = if (doc.isOffice) emptyList() else vm.quickToolbar.grid,
+                            // Rearranging is deliberately kept as its dedicated editor; every
+                            // normal command now comes straight from the anchored GlassMenu.
+                            onCustomize = if (doc.isOffice) null else ({ anchor ->
+                                moreToolsMenuAnchor = anchor
+                                ctl.sheet = ViewerSheet.MoreTools
+                            }),
                         )
                     } else {
                         ToolSubToolbar(vm, doc)
@@ -468,12 +497,12 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
         // Sheets and dialogs.
         SheetHost(ctl.sheet.takeIf { it != ViewerSheet.None }) { sheet ->
             when (sheet) {
-                ViewerSheet.More -> MoreSheet(vm, doc)
+                ViewerSheet.More -> MoreSheet(vm, doc, moreMenuAnchor)
                 ViewerSheet.ViewSettings -> ViewSettingsSheet(vm, doc)
                 ViewerSheet.Bookmarks -> BookmarksSheet(vm, doc)
                 ViewerSheet.Attachments -> AttachmentsSheet(vm, doc)
                 ViewerSheet.Comments -> Unit
-                ViewerSheet.MoreTools -> MoreToolsSheet(vm, doc)
+                ViewerSheet.MoreTools -> MoreToolsSheet(vm, doc, moreToolsMenuAnchor)
                 ViewerSheet.SaveAs -> SaveAsSheet(vm, doc)
                 ViewerSheet.Signatures -> SignaturesSheet(vm, doc)
                 ViewerSheet.None -> Unit
@@ -500,7 +529,7 @@ fun ViewerScreen(vm: AppViewModel, doc: OpenDocument) {
             }
         }
         vm.replyPrompt?.takeIf { it.doc === doc }?.let { ReplySheet(vm, it) }
-        vm.readAloud?.let { ReadAloudBar(vm, doc, it) }
+        vm.readAloud?.let { ReadAloudBar(doc, it) }
         if (ctl.goToPage) GoToPageDialog(doc, onDismiss = { ctl.goToPage = false })
         if (ctl.pagesOpen) PagesScreen(vm, doc, onClose = { ctl.pagesOpen = false })
         }

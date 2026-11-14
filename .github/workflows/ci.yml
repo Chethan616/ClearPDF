@@ -1,0 +1,120 @@
+# Checks for every pull request and every push to main: the engine's bridge is linted and tested,
+# and the app is built (a debug APK, kept as the run's artifact) and its unit tests run. A pull
+# request from a fork runs with no secrets: nothing here needs any.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # a newer push to the same pull request replaces the run in progress
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  engine:
+    name: Engine (Rust)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # the Rust release rust-toolchain.toml names
+      - name: Install Rust
+        working-directory: engine
+        run: rustup toolchain install && rustup component add rustfmt clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ci-engine
+          workspaces: engine -> target
+
+      - name: Format
+        working-directory: engine
+        run: cargo fmt -p artefact-mobile -- --check
+
+      - name: Lint
+        working-directory: engine
+        run: cargo clippy -p artefact-mobile --all-targets --locked -- -D warnings
+
+      - name: Test
+        working-directory: engine
+        run: cargo test -p artefact-mobile --locked
+
+  app:
+    name: App (Android)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The Gradle the project pins (gradle-wrapper.properties: version and checksum), fetched and
+      # checked here. The runner's own Gradle moves on without notice (9.8.2, then 9.9.1), and the
+      # release must be built with the same Gradle as F-Droid's, which reads the wrapper.
+      - name: Install Gradle
+        run: |
+          props=android/gradle/wrapper/gradle-wrapper.properties
+          version="$(sed -n 's/^distributionUrl=.*gradle-\([0-9.]*\)-bin\.zip$/\1/p' "$props")"
+          sum="$(sed -n 's/^distributionSha256Sum=//p' "$props")"
+          if [ -z "$version" ] || [ -z "$sum" ]; then
+            echo "::error::gradle-wrapper.properties names no Gradle version and checksum"
+            exit 1
+          fi
+          zip="$RUNNER_TEMP/gradle-$version-bin.zip"
+          curl -fsSL --retry 4 -o "$zip" "https://github.com/gradle/gradle-distributions/releases/download/v$version/gradle-$version-bin.zip"             || curl -fsSL --retry 4 -o "$zip" "https://services.gradle.org/distributions/gradle-$version-bin.zip"
+          echo "$sum  $zip" | sha256sum -c -
+          unzip -q "$zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-$version/bin" >>"$GITHUB_PATH"
+          "$RUNNER_TEMP/gradle-$version/bin/gradle" --version | sed -n 's/^Gradle //p'
+
+      - name: Install Rust
+        working-directory: engine
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ci-android
+          workspaces: engine -> target
+
+      - name: Install cargo-ndk and the Android NDK
+        run: |
+          cargo install cargo-ndk --version 4.1.2 --locked
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;29.0.14206865" >/dev/null
+
+      # one ABI is enough to prove the app builds: arm64-v8a, so the APK kept below installs on a
+      # phone (an x86_64 one only runs on an emulator)
+      - name: Build and unit-test
+        working-directory: android
+        run: gradle assembleDebug testDebugUnitTest -Partefact.abis=arm64-v8a --no-daemon --no-configuration-cache
+
+      # Artefact is offline: the built app must ask for no network access, nor for the storage and
+      # phone-state permissions a library's manifest can drag in unasked
+      - name: The app stays offline
+        run: |
+          aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)aapt2"
+          perms="$("$aapt2" dump permissions android/app/build/outputs/apk/debug/*.apk)"
+          echo "$perms"
+          if grep -E "INTERNET|NETWORK_STATE|WIFI_STATE|READ_PHONE_STATE|EXTERNAL_STORAGE" <<<"$perms"; then
+            echo "::error::The app asks for a permission it must not have (see above)"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7

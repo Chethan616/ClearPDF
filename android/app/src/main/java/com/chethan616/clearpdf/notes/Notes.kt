@@ -17,8 +17,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** What a note is: words, a checklist, or a voice memo. */
-enum class NoteKind { Text, List, Voice }
+/** What a note is: words, a checklist, a voice memo, or a mind map. */
+enum class NoteKind { Text, List, Voice, Map }
 
 @Immutable
 data class CheckItem(val id: String, val text: String, val done: Boolean)
@@ -44,6 +44,8 @@ data class Note(
     val pinned: Boolean = false,
     /** The epoch day this is the "Thought of the day" for, or 0 for an ordinary note. */
     val thought: Long = 0,
+    /** A mind map's ideas (JSON, see ui/notes/MindMap.kt); its [title] is the centre, its [body] the outline. */
+    val map: String = "",
 ) {
     val isEmpty: Boolean get() = title.isBlank() && body.isBlank() && items.none { it.text.isNotBlank() } && images.isEmpty() && audio == null
 }
@@ -169,6 +171,7 @@ private fun Note.toJson() = JSONObject().apply {
     put("updated", updated)
     put("pinned", pinned)
     if (thought != 0L) put("thought", thought)
+    if (map.isNotEmpty()) put("map", map)
 }
 
 private fun JSONObject.toNote(): Note {
@@ -191,6 +194,7 @@ private fun JSONObject.toNote(): Note {
         updated = optLong("updated", System.currentTimeMillis()),
         pinned = optBoolean("pinned"),
         thought = optLong("thought"),
+        map = optString("map"),
     )
 }
 

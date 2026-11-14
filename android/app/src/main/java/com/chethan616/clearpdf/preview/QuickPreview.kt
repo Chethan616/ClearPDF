@@ -1,5 +1,10 @@
 package com.chethan616.clearpdf.preview
 
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
@@ -229,6 +234,8 @@ private fun Preview(
                     ) { s ->
                         when (s) {
                             is PreviewState.Ready -> Pages(s, paper)
+                            is PreviewState.Picture -> PictureView(s)
+                            is PreviewState.Map -> MapView(s)
                             is PreviewState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { GlassLoader(size = 72.dp) }
                             is PreviewState.Password -> PasswordCard(s, onPassword)
                             is PreviewState.Failed -> FailedCard(s.message) { close() }
@@ -256,13 +263,18 @@ private fun Preview(
                     onClose = ::close, onShare = onShare, onOpenWith = onOpenWith,
                     onSaveCopy = { onSaveCopy { toast = it } },
                 )
-                if (state is PreviewState.Ready) {
+                if (state is PreviewState.Ready || state is PreviewState.Picture || state is PreviewState.Map) {
+                    val picture = state is PreviewState.Picture
                     GlassPill(
                         onClick = ::open, tint = Candy.Sky, height = 50.dp, horizontalPadding = 30.dp,
-                        label = stringResource(R.string.preview_expand),
+                        label = stringResource(if (picture) R.string.preview_edit_picture else R.string.preview_expand),
                         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp),
                     ) {
-                        Text(stringResource(R.string.preview_open), style = ClearType.BodyStrong, color = Color.White)
+                        if (picture) {
+                            Icon(LucideIcons.SlidersHorizontal, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
+                        }
+                        Text(stringResource(if (picture) R.string.preview_edit else R.string.preview_open), style = ClearType.BodyStrong, color = Color.White)
                     }
                 }
                 toast?.let { t -> GlassToast(t, null, {}, Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = 84.dp)) }
@@ -270,6 +282,89 @@ private fun Preview(
                 overlays?.let { GlassOverlayLayer(it) }
             }
         }
+    }
+}
+
+/** A mind map, drawn fitted under the header on its dotted paper. Pinch to look closer; double tap to fit again. */
+@Composable
+private fun MapView(s: PreviewState.Map) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val density = LocalDensity.current.density
+    val dark = clear.dark
+    val rootHint = stringResource(R.string.mindmap_root_hint)
+    val hint = stringResource(R.string.mindmap_node_hint)
+    remember(context) { com.chethan616.clearpdf.ui.notes.MapType.load(context) }
+    val layout = remember(s, density) { com.chethan616.clearpdf.ui.notes.layoutMind(s.doc, density, rootHint, hint) }
+    var zoom by remember(s) { mutableStateOf(1f) }
+    var pan by remember(s) { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    androidx.compose.foundation.Canvas(
+        Modifier.fillMaxSize().padding(top = HeaderHeight, bottom = 84.dp)
+            .pointerInput(s) {
+                detectTapGestures(onDoubleTap = {
+                    zoom = 1f
+                    pan = androidx.compose.ui.geometry.Offset.Zero
+                })
+            }
+            .pointerInput(s) {
+                detectTransformGestures { _, move, z, _ ->
+                    zoom = (zoom * z).coerceIn(0.5f, 5f)
+                    pan += move
+                }
+            },
+    ) {
+        val b = layout.bounds
+        val fit = minOf(size.width * 0.92f / b.width().coerceAtLeast(1f), size.height * 0.92f / b.height().coerceAtLeast(1f), 1.2f)
+        val k = fit * zoom
+        drawIntoCanvas { cv ->
+            val nc = cv.nativeCanvas
+            nc.save()
+            nc.translate(size.width / 2f - b.centerX() * k + pan.x, size.height / 2f - b.centerY() * k + pan.y)
+            nc.scale(k, k)
+            com.chethan616.clearpdf.ui.notes.drawMind(nc, layout, dark)
+            nc.restore()
+        }
+    }
+}
+
+/**
+ * A picture, fitted under the header with room for Edit below it, its corners rounded. Pinch to
+ * look closer (and drag about), double tap to zoom in or back out.
+ */
+@Composable
+private fun PictureView(s: PreviewState.Picture) {
+    var zoom by remember(s) { mutableStateOf(1f) }
+    var pan by remember(s) { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    val haptics = com.chethan616.clearpdf.ui.glass.LocalHaptics.current
+    Box(
+        Modifier.fillMaxSize().padding(top = HeaderHeight, bottom = 84.dp, start = 14.dp, end = 14.dp)
+            .pointerInput(s) {
+                detectTapGestures(onDoubleTap = {
+                    haptics?.play(com.chethan616.clearpdf.ui.glass.Feel.Tap)
+                    zoom = if (zoom > 1.05f) 1f else 2.5f
+                    pan = androidx.compose.ui.geometry.Offset.Zero
+                })
+            }
+            .pointerInput(s) {
+                detectTransformGestures { _, move, z, _ ->
+                    zoom = (zoom * z).coerceIn(1f, 6f)
+                    pan = if (zoom <= 1.01f) androidx.compose.ui.geometry.Offset.Zero else pan + move
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.foundation.Image(
+            s.image, null,
+            // the picture's own shape, so its corners are the ones rounded
+            modifier = Modifier.aspectRatio(s.width.toFloat() / s.height.coerceAtLeast(1))
+                .graphicsLayer {
+                    scaleX = zoom
+                    scaleY = zoom
+                    translationX = pan.x
+                    translationY = pan.y
+                }
+                .clip(com.chethan616.clearpdf.ui.glass.RoundedRectangle(22.dp)),
+            contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+        )
     }
 }
 
@@ -283,7 +378,7 @@ private fun Pages(s: PreviewState.Ready, paper: Color) {
     // a workbook shows as its grid, read-only, under the header (its cells readable at their size)
     if (s.info.kind == com.chethan616.clearpdf.core.DocumentKind.SHEETS) {
         val grid = com.chethan616.clearpdf.ui.sheets.rememberSheetGrid(s.engine, s.info.id)
-        com.chethan616.clearpdf.ui.sheets.SheetGrid(grid, top = with(density) { HeaderHeight.toPx() }, onCell = { grid.selected = it })
+        com.chethan616.clearpdf.ui.sheets.SheetGrid(grid, top = with(density) { HeaderHeight.toPx() }, onCell = { grid.choose(it) })
         return
     }
     LaunchedEffect(s) {
@@ -319,6 +414,8 @@ private fun Header(
     var menu by remember { mutableStateOf(false) }
     var anchor by remember { mutableStateOf(Rect.Zero) }
     val ready = state as? PreviewState.Ready
+    val picture = state as? PreviewState.Picture
+    val map = state as? PreviewState.Map
     Column(
         modifier.fillMaxWidth()
             .background(Brush.verticalGradient(0f to paper, 0.74f to paper, 1f to paper.copy(alpha = 0f)))
@@ -339,7 +436,7 @@ private fun Header(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    ready?.name?.let(com.chethan616.clearpdf.engine.DocumentTypes::title) ?: stringResource(R.string.preview_title),
+                    (ready?.name ?: picture?.name ?: map?.name)?.let(com.chethan616.clearpdf.engine.DocumentTypes::title) ?: stringResource(R.string.preview_title),
                     style = ClearType.BodyStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
                 if (ready != null) {
@@ -348,8 +445,21 @@ private fun Header(
                         style = ClearType.Caption, color = c.inkSoft, maxLines = 1,
                     )
                 }
+                if (map != null) {
+                    val ideas = remember(map) { map.doc.root.count() }
+                    Text(
+                        listOf(stringResource(R.string.mindmap_title), androidx.compose.ui.res.pluralStringResource(R.plurals.preview_ideas, ideas, ideas), formatSize(map.size)).joinToString("  ·  "),
+                        style = ClearType.Caption, color = c.inkSoft, maxLines = 1,
+                    )
+                }
+                if (picture != null) {
+                    Text(
+                        listOf(picture.name.substringAfterLast('.').uppercase(), "${picture.width} × ${picture.height}", formatSize(picture.size)).joinToString("  ·  "),
+                        style = ClearType.Caption, color = c.inkSoft, maxLines = 1,
+                    )
+                }
             }
-            if (ready != null) {
+            if (ready != null || picture != null || map != null) {
                 QuietButton(
                     { menu = true }, stringResource(R.string.common_more_options),
                     Modifier.onGloballyPositioned { anchor = it.boundsInWindow() },
